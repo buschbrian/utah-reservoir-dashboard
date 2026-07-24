@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Utah Reservoir Drought Dashboard</title>
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <!--
+    ArcGIS Maps SDK for JavaScript — Phase 4 of the learning track.
+    This is the "quick prototype" pattern: plain <script>/<link> tags
+    pointing at Esri's CDN, no npm/webpack/build step at all. That's
+    deliberate — the whole point of this phase is a static web app with
+    zero Node/build tooling dependency, matching the "no Pro/Windows
+    dependency" goal from the project plan. Version 4.34 confirmed live
+    on the CDN before using it (4.35 404s as of this build — versions
+    aren't guaranteed to exist just because they're numerically next).
+  -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.34/"></script>
+
+  <style>
+    html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
+    #titleDiv {
+      position: absolute; top: 10px; left: 60px; z-index: 10;
+      background: white; padding: 8px 14px; border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-family: sans-serif;
+    }
+    #titleDiv h1 { font-size: 16px; margin: 0; }
+    #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
+  </style>
+</head>
+<body>
+  <div id="titleDiv">
+    <h1>Utah Reservoir Drought Dashboard</h1>
+    <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+  </div>
+  <div id="viewDiv"></div>
+
+  <script>
+    // require() is the AMD module loader the ArcGIS JS SDK still uses for
+    // this CDN-script pattern (the SDK also ships ES modules for bundlers,
+    // but require() needs no build step at all, which is the point here).
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/GraphicsLayer",
+      "esri/Graphic"
+    ], function (Map, MapView, GraphicsLayer, Graphic) {
+
+      // --- Base map + view ---
+      //
+      // "topo-vector" gives real terrain shading, useful context for
+      // reservoirs (you can actually see the mountains/canyons they sit
+      // in) — the JS SDK equivalent of picking a tile basemap in Phase 1's
+      // folium map (there it was CartoDB positron, a plain light basemap;
+      // here we get vector terrain for free from Esri's basemap styles).
+      const map = new Map({ basemap: "topo-vector" });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-111.6, 39.8], // roughly centered on Utah
+        zoom: 7
+      });
+
+      const reservoirLayer = new GraphicsLayer({ title: "Reservoirs" });
+      map.add(reservoirLayer);
+
+      // --- Color/size logic ---
+      //
+      // Same three-tier scheme as the Phase 1 folium map (red < 50%,
+      // orange 50-75%, green > 75%), so the two dashboards are directly
+      // comparable side by side.
+      function statusColor(pct) {
+        if (pct < 50) return [215, 48, 39];   // red
+        if (pct < 75) return [252, 141, 89];  // orange
+        return [26, 152, 80];                 // green
+      }
+
+      // fetch() + JSON, not the arcgis Python package or a hosted feature
+      // service — this dashboard reads the same static JSON file Phase 1's
+      // pandas pipeline already produced (reservoirs.json), which keeps
+      // this phase's data prep entirely reusable from earlier work instead
+      // of re-deriving the metrics in JavaScript.
+      fetch("reservoirs.json")
+        .then((resp) => resp.json())
+        .then((reservoirs) => {
+          const maxStorage = Math.max(...reservoirs.map((r) => r.current_storage_af));
+
+          reservoirs.forEach((r) => {
+            // Marker radius scales with current storage, same visual
+            // language as the Phase 1 folium map (bigger circle = more
+            // water actually in the reservoir right now).
+            const radius = 6 + 18 * Math.sqrt(r.current_storage_af / maxStorage);
+
+            const graphic = new Graphic({
+              geometry: { type: "point", longitude: r.lon, latitude: r.lat },
+              attributes: r,
+              symbol: {
+                type: "simple-marker",
+                color: statusColor(r.pct_of_record_max),
+                size: radius,
+                outline: { color: [0, 0, 0, 0.4], width: 0.75 }
+              },
+              // PopupTemplate is the JS SDK's declarative popup config —
+              // {fieldName} placeholders get substituted from `attributes`
+              // automatically, no manual HTML string-building needed (the
+              // folium equivalent required building an f-string of HTML by
+              // hand for each popup).
+              popupTemplate: {
+                title: "{name}",
+                content:
+                  "Storage: {current_storage_af} acre-feet<br>" +
+                  "% of record max: {pct_of_record_max}%<br>" +
+                  "Seasonal percentile: {seasonal_percentile}<br>" +
+                  "As of: {as_of}"
+              }
+            });
+
+            reservoirLayer.add(graphic);
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to load reservoirs.json:", err);
+        });
+
+      // --- Legend ---
+      //
+      // Esri's Legend widget reads symbology off the layer automatically
+      // for most renderer types, but since we're building graphics one at
+      // a time with manually-assigned colors (not a data-driven Renderer
+      // object), there's nothing for it to introspect.
+      //
+      // First attempt here used the Expand widget to make this collapsible
+      // — it *looked* fine (console had zero errors, the toggle button
+      // rendered and responded to clicks, and `getBoundingClientRect()`
+      // even reported the panel sitting in-viewport with nonzero size) but
+      // the panel never actually became visible on screen. That's a good
+      // reminder that "no errors + plausible-looking DOM state" isn't the
+      // same as "actually renders correctly" — the screenshot is what
+      // caught it, not the console. Given this is a small, single-purpose
+      // legend, the simpler fix is to skip Expand's modal-sheet mechanism
+      // entirely and add a plain, always-visible panel straight to the
+      // view's UI — the JS SDK equivalent of folium's approach in Phase 1
+      // (a raw HTML div positioned over the map, no widget wrapper at all).
+      const legendDiv = document.createElement("div");
+      legendDiv.style.cssText =
+        "background:white;padding:10px 14px;font-family:sans-serif;" +
+        "font-size:13px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3);";
+      legendDiv.innerHTML =
+        "<b>% of period-of-record max</b><br>" +
+        '<span style="color:#d73027;">&#9679;</span> Under 50%<br>' +
+        '<span style="color:#fc8d59;">&#9679;</span> 50&ndash;75%<br>' +
+        '<span style="color:#1a9850;">&#9679;</span> Over 75%<br>' +
+        '<span style="font-size:11px;">Marker size ~ current storage (af)</span>';
+
+      view.ui.add(legendDiv, "bottom-left");
+    });
+  </script>
+</body>
+</html>
