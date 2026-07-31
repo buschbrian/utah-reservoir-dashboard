@@ -149,6 +149,17 @@
           // valueExpression used in the ArcGIS version.
           const maxRecordMax = Math.max(...reservoirs.map((r) => r.record_max_af));
           const sqrtDomainMax = Math.sqrt(maxRecordMax);
+          const ringMinSize = 4;
+          const ringMaxSize = 23;
+
+          // Reused by both layers -- the ring's own radius expression, so
+          // the fill layer below can scale itself relative to it.
+          const ringRadiusExpr = [
+            "interpolate", ["linear"],
+            ["sqrt", ["get", "record_max_af"]],
+            0, ringMinSize,
+            sqrtDomainMax, ringMaxSize
+          ];
 
           // --- Outline layer: period-of-record max, drawn first (bottom) ---
           map.addLayer({
@@ -156,12 +167,7 @@
             type: "circle",
             source: "reservoirs",
             paint: {
-              "circle-radius": [
-                "interpolate", ["linear"],
-                ["sqrt", ["get", "record_max_af"]],
-                0, 4,
-                sqrtDomainMax, 23
-              ],
+              "circle-radius": ringRadiusExpr,
               "circle-color": "rgba(0,0,0,0)",
               "circle-stroke-color": "rgba(90,90,90,0.85)",
               "circle-stroke-width": 1.25
@@ -169,16 +175,26 @@
           });
 
           // --- Filled layer: current storage, drawn second (on top) ---
+          //
+          // Radius is NOT sized independently off current_storage_af on
+          // the shared absolute domain -- that clamps small reservoirs'
+          // fill toward the same minimum size as their ring regardless of
+          // how depleted they actually are, so the visual gap stops
+          // meaning anything except for the handful of largest reservoirs.
+          // Instead: this reservoir's own ring radius (ringRadiusExpr,
+          // same formula as above), scaled down by
+          // sqrt(pct_of_record_max/100) -- sqrt of the fraction, not the
+          // fraction itself, since circle *area* needs to scale with the
+          // percentage for the fill to look proportionally right.
           map.addLayer({
             id: "current-circle",
             type: "circle",
             source: "reservoirs",
             paint: {
               "circle-radius": [
-                "interpolate", ["linear"],
-                ["sqrt", ["get", "current_storage_af"]],
-                0, 3,
-                sqrtDomainMax, 23
+                "*",
+                ringRadiusExpr,
+                ["sqrt", ["/", ["get", "pct_of_record_max"], 100]]
               ],
               "circle-color": [
                 "step", ["get", "pct_of_record_max"],

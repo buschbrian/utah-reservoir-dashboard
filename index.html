@@ -136,16 +136,32 @@
             attributes: Object.assign({ ObjectID: i }, r)
           }));
 
-          // Same size domain for both layers -- since record_max_af is
-          // always >= current_storage_af for a given reservoir, sharing
-          // one sqrt-scaled domain guarantees the outline circle is never
-          // smaller than its own filled circle, so the visible "gap"
-          // between the two always reads as real depletion, not a scaling
-          // artifact. sqrt scaling (via Arcade, not precomputed in JS)
-          // compresses the range between Lake Powell (~5-6M af) and the
-          // smallest reservoirs (~1,000 af) into a legible spread of
-          // marker sizes, same reasoning as the original linear-JS version.
+          // The outline ring's radius is sized by absolute record_max_af
+          // (sqrt-scaled, via Arcade, to compress the range between Lake
+          // Powell at ~5-6M af and the smallest reservoirs at ~1,000 af
+          // into a legible spread) -- this communicates each reservoir's
+          // real physical scale, same reasoning as the original linear-JS
+          // version.
+          //
+          // The filled circle's radius is NOT independently sized off its
+          // own absolute current_storage_af on that same domain -- that
+          // was the original approach, and it broke down for small
+          // reservoirs: a reservoir at 15% of a small record max and one
+          // at 15% of a huge record max both clamp toward the domain's
+          // minimum size, so the ring and fill end up nearly the same
+          // (tiny) size regardless of how depleted either one actually is
+          // -- the visual "gap" stops meaning anything for anything
+          // smaller than the handful of largest reservoirs. Instead, the
+          // fill radius is computed as a fraction of *that reservoir's own
+          // ring radius*, via Sqrt(pct_of_record_max / 100) -- so the
+          // fill-to-ring ratio always reads as true percent depletion,
+          // independent of the reservoir's absolute size. (Sqrt of the
+          // fraction, not the fraction itself, because circle *area*
+          // needs to scale with the percentage for the fill to look
+          // proportionally right, not just its radius.)
           const maxSqrtDomain = Math.sqrt(Math.max(...reservoirs.map((r) => r.record_max_af)));
+          const ringMinSize = 8;
+          const ringMaxSize = 46;
 
           // --- Outline layer: period-of-record max, drawn first (bottom) ---
           //
@@ -176,8 +192,8 @@
                 valueExpressionTitle: "Period-of-record max storage (sqrt-scaled)",
                 minDataValue: 0,
                 maxDataValue: maxSqrtDomain,
-                minSize: 8,
-                maxSize: 46
+                minSize: ringMinSize,
+                maxSize: ringMaxSize
               }]
             }
           });
@@ -201,12 +217,25 @@
               visualVariables: [
                 {
                   type: "size",
-                  valueExpression: "Sqrt($feature.current_storage_af)",
-                  valueExpressionTitle: "Current storage (sqrt-scaled)",
+                  // Computes the reservoir's own ring radius (identical
+                  // formula to the outline layer's visualVariable above,
+                  // with the same constants) and scales it down by
+                  // Sqrt(pct/100) -- see the comment above ringMinSize for
+                  // why this replaces independently sizing the fill off
+                  // its own absolute current_storage_af. minDataValue/
+                  // maxDataValue/minSize/maxSize below form an identity
+                  // mapping (0->0, ringMaxSize->ringMaxSize) so this
+                  // expression's output passes through unchanged -- all
+                  // the real scaling happens inside the expression itself.
+                  valueExpression:
+                    "var ringRadius = " + ringMinSize + " + (Sqrt($feature.record_max_af) / " +
+                    maxSqrtDomain + ") * (" + ringMaxSize + " - " + ringMinSize + ");\n" +
+                    "return ringRadius * Sqrt($feature.pct_of_record_max / 100);",
+                  valueExpressionTitle: "Current storage, as a share of this reservoir's own ring",
                   minDataValue: 0,
-                  maxDataValue: maxSqrtDomain,
-                  minSize: 6,
-                  maxSize: 46
+                  maxDataValue: ringMaxSize,
+                  minSize: 0,
+                  maxSize: ringMaxSize
                 },
                 {
                   type: "color",
