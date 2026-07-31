@@ -58,7 +58,7 @@
       Data is provisional and subject to revision (Reclamation's own
       disclaimer for RISE data); treat the last few days of any series as
       preliminary.
-      <a href="https://data.usbr.gov/rise" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
+      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
       <br>
       <a href="../">Compare with the ArcGIS Maps SDK for JS version &rarr;</a>
     </p>
@@ -119,7 +119,7 @@
         "</table>" +
         "<p class='popup-note'>Seasonal percentile: where today's storage ranks " +
         "against every other year's value within a 7-day window of today's date. " +
-        "Data: <a href='https://data.usbr.gov/rise' target='_blank' rel='noreferrer'>Bureau of Reclamation RISE</a>.</p>"
+        "Data: <a href='https://data.usbr.gov/rise-api' target='_blank' rel='noreferrer'>Bureau of Reclamation RISE</a>.</p>"
       );
     }
 
@@ -138,15 +138,16 @@
 
           map.addSource("reservoirs", { type: "geojson", data: geojson });
 
-          // Same size domain for both layers -- record_max_af is always
-          // >= current_storage_af for a given reservoir, so sharing one
-          // sqrt-scaled interpolation guarantees the outline circle is
-          // never smaller than its own filled circle. MapLibre's
-          // expression language doesn't have Arcade's `Sqrt()` as a
-          // top-level statement outside expressions, but the ["sqrt", ...]
-          // operator does the same transform directly inside the paint
-          // property -- the MapLibre-native equivalent of the Arcade
-          // valueExpression used in the ArcGIS version.
+          // The ring is sized by absolute record_max_af, sqrt-scaled to
+          // compress Lake Powell down to the smallest reservoirs into a
+          // legible spread. MapLibre's expression language doesn't have
+          // Arcade's `Sqrt()` as a top-level statement outside
+          // expressions, but the ["sqrt", ...] operator does the same
+          // transform directly inside the paint property -- the
+          // MapLibre-native equivalent of the Arcade valueExpression used
+          // in the ArcGIS version. The fill layer below does NOT share
+          // this same absolute domain for its own size (see the comment
+          // there for why).
           const maxRecordMax = Math.max(...reservoirs.map((r) => r.record_max_af));
           const sqrtDomainMax = Math.sqrt(maxRecordMax);
           const ringMinSize = 4;
