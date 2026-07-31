@@ -1,0 +1,66 @@
+# Utah Reservoir Drought Dashboard — MapLibre GL JS + CARTO
+
+Same dashboard as [`../index.html`](../index.html), rebuilt with
+[MapLibre GL JS](https://maplibre.org/) and [CARTO's](https://carto.com/basemaps)
+free, no-signup "Positron" vector style, instead of the ArcGIS Maps SDK for
+JavaScript.
+
+This replaces an earlier Leaflet + OpenTopoMap comparison. Leaflet renders
+tiles as raster images in the DOM; the ArcGIS Maps SDK for JS renders vector
+data on WebGL. Comparing the two wasn't really testing the same class of
+technology. MapLibre GL JS — the open-source continuation of Mapbox GL JS —
+is also a WebGL vector renderer, so it's the fairer baseline for this
+comparison.
+
+Identical data (`reservoirs.json`, fetched from the parent folder, not
+copied), identical color/size logic, identical popup content and wording.
+Loaded straight from unpkg's CDN, no npm/build step, same "zero tooling"
+constraint as every other phase.
+
+## The dual-circle symbology
+
+Both versions render two circles per reservoir: a gray outline ring sized by
+the reservoir's period-of-record max storage, and a colored filled circle on
+top sized by current storage — the gap between the two is a visual read of
+how depleted a reservoir is, not just its color.
+
+- **ArcGIS Maps SDK for JS:** two `FeatureLayer`s, each with a `SimpleRenderer`
+  and `visualVariables` driven by Arcade `valueExpression`s (`Sqrt($feature.record_max_af)`,
+  `Sqrt($feature.current_storage_af)`), sharing one size domain so the rings
+  never render smaller than their own fill.
+- **MapLibre GL JS:** one GeoJSON source, two `circle` layers, each with a
+  `circle-radius` paint property using an `interpolate` + `["sqrt", ["get", ...]]`
+  expression — MapLibre's own expression language standing in for Arcade,
+  same sqrt-scaling logic, same shared domain.
+
+Both engines hit the identical "clicking either layer at the same point
+produces a duplicate popup" trap, since the fill circle always sits inside
+the outline circle. Fixed identically in both: only the front-most
+(current-storage) layer/renderer gets an active popup.
+
+## Findings vs. the ArcGIS Maps SDK for JS version
+
+| | ArcGIS Maps SDK for JS | MapLibre GL JS |
+|---|---|---|
+| Rendering | WebGL vector | WebGL vector |
+| Basemap | Esri "topo-vector" (bundled) | CARTO Positron (free vector style, external fetch) |
+| Data-driven styling | Arcade `valueExpression`s inside `visualVariables` | Native expressions (`interpolate`, `step`, `sqrt`) inside paint properties |
+| Popups | Declarative `PopupTemplate` + `expressionInfos`, `{field}`/`{expression/name}` substitution | Manual HTML string built in JS, `Popup().setHTML()` |
+| Multi-layer setup | Two separate `FeatureLayer`s, each rebuilding the same `Graphic` array from JSON | One shared GeoJSON source, two `circle` layers reading from it |
+| Bundle | Full SDK incl. 3D/scene/widget framework | MapLibre GL JS core only, no plugins |
+
+Bottom line: with both engines actually rendering vector data on WebGL, the
+proportional dual-circle symbology and Arcade-equivalent expressions came out
+functionally identical — same math, same visual result, verified pixel-for-
+pixel against the same `reservoirs.json` (Flaming Gorge: 2,669,060 af current,
+3,557,090 af record max, both dashboards agree exactly). The real difference
+is tooling depth, same conclusion as the Leaflet pass it replaces: Esri's
+`PopupTemplate` is declarative and free once you know Arcade; MapLibre's
+popups are plain HTML you build yourself. MapLibre's single-source/multi-layer
+model is arguably simpler to reason about than Esri's two-full-FeatureLayer
+approach for this specific use case, since both layers already share one
+authoritative feature set.
+
+Verified via local server + Playwright: zero console errors, dual circles
+render correctly across all 28 reservoirs, popup content confirmed identical
+to the ArcGIS version by clicking the same reservoir (Flaming Gorge) in both.

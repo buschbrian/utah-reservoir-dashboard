@@ -20,8 +20,26 @@ the original notebook:
   year's value within a 7-day day-of-year window.
 
 RISE data is provisional per Reclamation's own disclaimer; treat the last
-few days of any series as subject to revision.
+few days of any series as subject to revision -- the app itself surfaces
+this disclaimer and links back to RISE, both in the title panel and in
+every popup.
 
-Next steps: clean up the popups and include the matplotlib charts, explain
-the dataset and period-of-record max in the UI itself, and start building
-out more advanced symbology.
+Each reservoir renders as two circles: a gray outline ring sized by that
+reservoir's period-of-record max storage, and a colored filled circle on
+top sized by current storage. Both sizes come from Arcade `valueExpression`s
+on the same sqrt-scaled domain, so the visible gap between ring and fill is
+always a real read of depletion, not a scaling artifact.
+
+## Open-source parity comparison
+
+[`maplibre/`](maplibre/) rebuilds this exact dashboard with
+[MapLibre GL JS](https://maplibre.org/) and CARTO's free vector basemap
+instead of the ArcGIS Maps SDK for JS — both WebGL vector renderers, so it's
+a true baseline comparison (replacing an earlier Leaflet pass, which wasn't:
+Leaflet is a raster/DOM renderer, not a fair comparison to Esri's WebGL SDK).
+Same data, same dual-circle symbology, same popup content. See
+[`maplibre/README.md`](maplibre/README.md) for the findings.
+
+Next steps: include the matplotlib charts from the original notebook in the
+UI, and keep pushing the symbology further (e.g. a small inline sparkline
+per reservoir).

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Utah Reservoir Drought Dashboard — MapLibre GL JS</title>
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <!--
+    Open-source WebGL parity pass for ../index.html (ArcGIS Maps SDK for
+    JS), replacing the earlier Leaflet comparison. Leaflet is a raster/DOM
+    renderer -- comparing it to Esri's WebGL-based vector SDK wasn't a true
+    apples-to-apples engine comparison. MapLibre GL JS (the open-source
+    fork of Mapbox GL JS after its license change) plus CARTO's free,
+    no-signup vector basemap style is: both this and the Esri version are
+    WebGL vector renderers, so this is the fair baseline. Same "zero
+    build step" constraint as every other phase -- CDN <script>/<link>
+    tags only.
+  -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+
+  <style>
+    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
+    #titleDiv {
+      position: absolute; top: 10px; left: 10px; z-index: 10;
+      background: white; padding: 10px 14px; border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-family: sans-serif;
+      max-width: 340px;
+    }
+    #titleDiv h1 { font-size: 16px; margin: 0; }
+    #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
+    #titleDiv .disclaimer {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
+      font-size: 10.5px; color: #777; line-height: 1.4;
+    }
+    #titleDiv .disclaimer a { color: #0079c1; }
+    #legendDiv {
+      position: absolute; bottom: 24px; left: 10px; z-index: 10;
+      background: white; padding: 10px 14px; border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-family: sans-serif;
+      font-size: 13px; max-width: 230px;
+    }
+    .popup-status { font-weight: 600; font-size: 13px; margin: 0 0 6px; }
+    .popup-table { border-collapse: collapse; font-size: 12.5px; }
+    .popup-table td { padding: 2px 8px 2px 0; }
+    .popup-table td.label { color: #666; }
+    .popup-table td.value { font-weight: 600; text-align: right; }
+    .popup-note { font-size: 11px; color: #888; margin-top: 8px; max-width: 260px; }
+    .popup-note a { color: #0079c1; }
+    .maplibregl-popup-content { padding: 12px 14px; }
+  </style>
+</head>
+<body>
+  <div id="titleDiv">
+    <h1>Utah Reservoir Drought Dashboard</h1>
+    <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+    <p class="disclaimer">
+      Data is provisional and subject to revision (Reclamation's own
+      disclaimer for RISE data); treat the last few days of any series as
+      preliminary.
+      <a href="https://data.usbr.gov/rise" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
+      <br>
+      <a href="../">Compare with the ArcGIS Maps SDK for JS version &rarr;</a>
+    </p>
+  </div>
+  <div id="legendDiv">
+    <b>% of period-of-record max</b><br>
+    <span style="color:#d73027;">&#9679;</span> Under 50%<br>
+    <span style="color:#fc8d59;">&#9679;</span> 50&ndash;75%<br>
+    <span style="color:#1a9850;">&#9679;</span> Over 75%<br>
+    <span style="font-size:11px;">Filled circle = current storage. Gray outline
+    ring = that reservoir's own period-of-record max &mdash; the bigger the gap
+    between ring and fill, the more depleted it is.</span>
+  </div>
+  <div id="map"></div>
+
+  <script>
+    // CARTO's free "Positron" vector style -- no API key, no signup,
+    // same "zero tooling / zero account" constraint the rest of this
+    // project holds to. This is the genuine WebGL-vector counterpart to
+    // Esri's "topo-vector" basemap in the ArcGIS version.
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      center: [-111.6, 39.8],
+      zoom: 6.3
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    // Status line + acre-foot gap, computed the same way as the Arcade
+    // expression in the ArcGIS version, so the two dashboards give
+    // identical popup wording -- the comparison should be about the
+    // rendering engines, not accidentally different copy.
+    function statusLine(props) {
+      const pct = props.pct_of_record_max;
+      const gap = Math.round(props.record_max_af - props.current_storage_af);
+      let status;
+      if (pct < 50) status = "Critically low";
+      else if (pct < 75) status = "Below normal";
+      else status = "Near or above normal";
+      return (
+        status + " — " + Math.round(pct) + "% of its period-of-record max, " +
+        gap.toLocaleString("en-US") + " af below that historical peak."
+      );
+    }
+
+    function popupHTML(props) {
+      return (
+        "<p class='popup-status'>" + statusLine(props) + "</p>" +
+        "<table class='popup-table'>" +
+        "<tr><td class='label'>Current storage (af)</td><td class='value'>" +
+          Math.round(props.current_storage_af).toLocaleString("en-US") + "</td></tr>" +
+        "<tr><td class='label'>Record max storage (af)</td><td class='value'>" +
+          Math.round(props.record_max_af).toLocaleString("en-US") + "</td></tr>" +
+        "<tr><td class='label'>Seasonal percentile</td><td class='value'>" +
+          Math.round(props.seasonal_percentile) + "</td></tr>" +
+        "<tr><td class='label'>As of</td><td class='value'>" + props.as_of + "</td></tr>" +
+        "</table>" +
+        "<p class='popup-note'>Seasonal percentile: where today's storage ranks " +
+        "against every other year's value within a 7-day window of today's date. " +
+        "Data: <a href='https://data.usbr.gov/rise' target='_blank' rel='noreferrer'>Bureau of Reclamation RISE</a>.</p>"
+      );
+    }
+
+    map.on("load", () => {
+      fetch("../reservoirs.json")
+        .then((resp) => resp.json())
+        .then((reservoirs) => {
+          const geojson = {
+            type: "FeatureCollection",
+            features: reservoirs.map((r) => ({
+              type: "Feature",
+              geometry: { type: "Point", coordinates: [r.lon, r.lat] },
+              properties: r
+            }))
+          };
+
+          map.addSource("reservoirs", { type: "geojson", data: geojson });
+
+          // Same size domain for both layers -- record_max_af is always
+          // >= current_storage_af for a given reservoir, so sharing one
+          // sqrt-scaled interpolation guarantees the outline circle is
+          // never smaller than its own filled circle. MapLibre's
+          // expression language doesn't have Arcade's `Sqrt()` as a
+          // top-level statement outside expressions, but the ["sqrt", ...]
+          // operator does the same transform directly inside the paint
+          // property -- the MapLibre-native equivalent of the Arcade
+          // valueExpression used in the ArcGIS version.
+          const maxRecordMax = Math.max(...reservoirs.map((r) => r.record_max_af));
+          const sqrtDomainMax = Math.sqrt(maxRecordMax);
+
+          // --- Outline layer: period-of-record max, drawn first (bottom) ---
+          map.addLayer({
+            id: "max-circle",
+            type: "circle",
+            source: "reservoirs",
+            paint: {
+              "circle-radius": [
+                "interpolate", ["linear"],
+                ["sqrt", ["get", "record_max_af"]],
+                0, 4,
+                sqrtDomainMax, 23
+              ],
+              "circle-color": "rgba(0,0,0,0)",
+              "circle-stroke-color": "rgba(90,90,90,0.85)",
+              "circle-stroke-width": 1.25
+            }
+          });
+
+          // --- Filled layer: current storage, drawn second (on top) ---
+          map.addLayer({
+            id: "current-circle",
+            type: "circle",
+            source: "reservoirs",
+            paint: {
+              "circle-radius": [
+                "interpolate", ["linear"],
+                ["sqrt", ["get", "current_storage_af"]],
+                0, 3,
+                sqrtDomainMax, 23
+              ],
+              "circle-color": [
+                "step", ["get", "pct_of_record_max"],
+                "#d73027",
+                50, "#fc8d59",
+                75, "#1a9850"
+              ],
+              "circle-stroke-color": "rgba(0,0,0,0.4)",
+              "circle-stroke-width": 0.75
+            }
+          });
+
+          // Popup only on the front-most (current-storage) layer -- the
+          // same lesson as the ArcGIS version: binding it to both layers
+          // produces a confusing double-popup for the same click, since
+          // this layer's circle always sits inside the outline layer's
+          // circle at the same point.
+          map.on("click", "current-circle", (e) => {
+            const props = e.features[0].properties;
+            new maplibregl.Popup({ maxWidth: "300px" })
+              .setLngLat(e.features[0].geometry.coordinates)
+              .setHTML(popupHTML(props))
+              .addTo(map);
+          });
+          map.on("mouseenter", "current-circle", () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseleave", "current-circle", () => {
+            map.getCanvas().style.cursor = "";
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to load reservoirs.json:", err);
+        });
+    });
+  </script>
+</body>
+</html>
