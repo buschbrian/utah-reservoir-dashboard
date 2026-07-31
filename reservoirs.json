@@ -1,254 +1,254 @@
 [
   {
-    "name": "Causey",
-    "current_storage_af": 4930.54,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 67.5,
-    "seasonal_percentile": 11.0,
-    "lat": 41.29828,
-    "lon": -111.58591
+    "name": "Meeks Cabin",
+    "current_storage_af": 4555.18,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 14.7,
+    "seasonal_percentile": 1.2,
+    "lat": 41.01664,
+    "lon": -110.58344
   },
   {
-    "name": "Currant Creek",
-    "current_storage_af": 15107.9,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 97.7,
-    "seasonal_percentile": 85.0,
-    "lat": 40.33841,
-    "lon": -111.05821
+    "name": "Newton",
+    "current_storage_af": 1070.29,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 20.2,
+    "seasonal_percentile": 30.1,
+    "lat": 41.8998,
+    "lon": -111.97562
   },
   {
-    "name": "Deer Creek",
-    "current_storage_af": 99794.2,
-    "as_of": "2026-07-19",
-    "pct_of_record_max": 66.0,
-    "seasonal_percentile": 9.2,
-    "lat": 40.43511,
-    "lon": -111.50035
+    "name": "Steinaker",
+    "current_storage_af": 8042.13,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 22.2,
+    "seasonal_percentile": 27.2,
+    "lat": 40.51456,
+    "lon": -109.53275
   },
   {
-    "name": "East Canyon",
-    "current_storage_af": 31467.9,
-    "as_of": "2026-07-17",
-    "pct_of_record_max": 62.7,
-    "seasonal_percentile": 17.9,
-    "lat": 40.91017,
-    "lon": -111.59293
-  },
-  {
-    "name": "Echo",
-    "current_storage_af": 32205.5,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 43.1,
-    "seasonal_percentile": 9.2,
-    "lat": 40.9574,
-    "lon": -111.4179
-  },
-  {
-    "name": "Flaming Gorge",
-    "current_storage_af": 2691220.0,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 75.7,
-    "seasonal_percentile": 0.6,
-    "lat": 40.97789,
-    "lon": -109.57304
+    "name": "Moon Lake",
+    "current_storage_af": 9772.69,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 25.2,
+    "seasonal_percentile": 23.7,
+    "lat": 40.57445,
+    "lon": -110.50665
   },
   {
     "name": "Huntington North",
-    "current_storage_af": 1401.96,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 32.9,
+    "current_storage_af": 1251.85,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 29.4,
     "seasonal_percentile": 0.6,
     "lat": 39.38458,
     "lon": -111.09082
   },
   {
-    "name": "Hyrum",
-    "current_storage_af": 7597.17,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 50.9,
-    "seasonal_percentile": 16.8,
-    "lat": 41.62117,
-    "lon": -111.86099
+    "name": "Stateline",
+    "current_storage_af": 4675.46,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 32.7,
+    "seasonal_percentile": 11.6,
+    "lat": 40.98291,
+    "lon": -110.39038
   },
   {
-    "name": "Joes Valley",
-    "current_storage_af": 29295.6,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 46.1,
-    "seasonal_percentile": 4.6,
-    "lat": 39.2901,
-    "lon": -111.27888
-  },
-  {
-    "name": "Jordanelle",
-    "current_storage_af": 220097.0,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 69.8,
-    "seasonal_percentile": 9.2,
-    "lat": 40.60689,
-    "lon": -111.41655
+    "name": "Red Fleet",
+    "current_storage_af": 8613.09,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 33.2,
+    "seasonal_percentile": 1.2,
+    "lat": 40.57832,
+    "lon": -109.42853
   },
   {
     "name": "Lake Powell",
-    "current_storage_af": 5444740.0,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 35.1,
+    "current_storage_af": 5397040.0,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 34.8,
     "seasonal_percentile": 0.6,
     "lat": 37.05778,
     "lon": -111.30332
   },
   {
-    "name": "Lost Creek",
-    "current_storage_af": 9436.66,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 40.7,
-    "seasonal_percentile": 0.6,
-    "lat": 41.18887,
-    "lon": -111.39628
-  },
-  {
-    "name": "Lost Lake",
-    "current_storage_af": 1078.08,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 90.6,
-    "seasonal_percentile": 46.8,
-    "lat": 40.6741,
-    "lon": -110.9413
-  },
-  {
-    "name": "Meeks Cabin",
-    "current_storage_af": 5358.94,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 17.3,
-    "seasonal_percentile": 6.9,
-    "lat": 41.01664,
-    "lon": -110.58344
-  },
-  {
-    "name": "Moon Lake",
-    "current_storage_af": 9057.02,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 23.4,
-    "seasonal_percentile": 15.6,
-    "lat": 40.57445,
-    "lon": -110.50665
-  },
-  {
-    "name": "Newton",
-    "current_storage_af": 1070.29,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 20.2,
-    "seasonal_percentile": 13.9,
-    "lat": 41.8998,
-    "lon": -111.97562
-  },
-  {
     "name": "Pineview",
-    "current_storage_af": 47966.9,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 42.7,
+    "current_storage_af": 41384.7,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 36.8,
     "seasonal_percentile": 9.2,
     "lat": 41.26543,
     "lon": -111.80998
   },
   {
-    "name": "Red Fleet",
-    "current_storage_af": 8834.43,
-    "as_of": "2026-07-20",
-    "pct_of_record_max": 34.1,
+    "name": "Lost Creek",
+    "current_storage_af": 8911.57,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 38.5,
     "seasonal_percentile": 0.6,
-    "lat": 40.57832,
-    "lon": -109.42853
+    "lat": 41.18887,
+    "lon": -111.39628
   },
   {
-    "name": "Rockport",
-    "current_storage_af": 37101.6,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 59.5,
-    "seasonal_percentile": 9.2,
-    "lat": 40.77498,
-    "lon": -111.39859
+    "name": "Echo",
+    "current_storage_af": 30772.0,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 41.1,
+    "seasonal_percentile": 11.6,
+    "lat": 40.9574,
+    "lon": -111.4179
+  },
+  {
+    "name": "Hyrum",
+    "current_storage_af": 6608.91,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 44.2,
+    "seasonal_percentile": 17.9,
+    "lat": 41.62117,
+    "lon": -111.86099
+  },
+  {
+    "name": "Joes Valley",
+    "current_storage_af": 28310.5,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 44.6,
+    "seasonal_percentile": 6.4,
+    "lat": 39.2901,
+    "lon": -111.27888
   },
   {
     "name": "Scofield",
-    "current_storage_af": 33698.6,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 48.5,
+    "current_storage_af": 32278.0,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 46.5,
     "seasonal_percentile": 35.3,
     "lat": 39.77656,
     "lon": -111.05074
   },
   {
+    "name": "Willard Bay",
+    "current_storage_af": 107858.0,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 48.6,
+    "seasonal_percentile": 35.8,
+    "lat": 41.37738,
+    "lon": -112.08339
+  },
+  {
+    "name": "Rockport",
+    "current_storage_af": 33440.4,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 53.6,
+    "seasonal_percentile": 9.2,
+    "lat": 40.77498,
+    "lon": -111.39859
+  },
+  {
+    "name": "East Canyon",
+    "current_storage_af": 29876.3,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 59.5,
+    "seasonal_percentile": 22.0,
+    "lat": 40.91017,
+    "lon": -111.59293
+  },
+  {
+    "name": "Causey",
+    "current_storage_af": 4484.83,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 61.4,
+    "seasonal_percentile": 12.7,
+    "lat": 41.29828,
+    "lon": -111.58591
+  },
+  {
+    "name": "Deer Creek",
+    "current_storage_af": 93661.8,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 61.9,
+    "seasonal_percentile": 9.2,
+    "lat": 40.43511,
+    "lon": -111.50035
+  },
+  {
     "name": "Starvation",
-    "current_storage_af": 111228.0,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 67.8,
+    "current_storage_af": 106635.0,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 65.0,
     "seasonal_percentile": 0.6,
     "lat": 40.19324,
     "lon": -110.44722
   },
   {
-    "name": "Stateline",
-    "current_storage_af": 4758.19,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 33.3,
-    "seasonal_percentile": 7.5,
-    "lat": 40.98291,
-    "lon": -110.39038
-  },
-  {
-    "name": "Steinaker",
-    "current_storage_af": 8832.38,
-    "as_of": "2026-07-20",
-    "pct_of_record_max": 24.4,
-    "seasonal_percentile": 26.6,
-    "lat": 40.51456,
-    "lon": -109.53275
-  },
-  {
-    "name": "Strawberry",
-    "current_storage_af": 889939.0,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 80.4,
-    "seasonal_percentile": 37.0,
-    "lat": 40.16882,
-    "lon": -111.1311
-  },
-  {
-    "name": "Trial Lake",
-    "current_storage_af": 1452.3,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 86.5,
-    "seasonal_percentile": 34.1,
-    "lat": 40.6799,
-    "lon": -110.956839
+    "name": "Jordanelle",
+    "current_storage_af": 215561.0,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 68.4,
+    "seasonal_percentile": 9.2,
+    "lat": 40.60689,
+    "lon": -111.41655
   },
   {
     "name": "Upper Stillwater",
-    "current_storage_af": 23853.8,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 75.3,
-    "seasonal_percentile": 5.2,
+    "current_storage_af": 23220.2,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 73.3,
+    "seasonal_percentile": 12.7,
     "lat": 40.56565,
     "lon": -110.70044
   },
   {
+    "name": "Flaming Gorge",
+    "current_storage_af": 2669060.0,
+    "as_of": "2026-07-30",
+    "pct_of_record_max": 75.0,
+    "seasonal_percentile": 0.6,
+    "lat": 40.97789,
+    "lon": -109.57304
+  },
+  {
+    "name": "Trial Lake",
+    "current_storage_af": 1273.4,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 75.9,
+    "seasonal_percentile": 37.6,
+    "lat": 40.6799,
+    "lon": -110.956839
+  },
+  {
+    "name": "Strawberry",
+    "current_storage_af": 883262.0,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 79.8,
+    "seasonal_percentile": 38.2,
+    "lat": 40.16882,
+    "lon": -111.1311
+  },
+  {
+    "name": "Lost Lake",
+    "current_storage_af": 1012.26,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 85.1,
+    "seasonal_percentile": 48.6,
+    "lat": 40.6741,
+    "lon": -110.9413
+  },
+  {
     "name": "Washington Lake",
-    "current_storage_af": 2138.7,
-    "as_of": "2026-07-21",
-    "pct_of_record_max": 87.4,
-    "seasonal_percentile": 52.0,
+    "current_storage_af": 2104.6,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 86.0,
+    "seasonal_percentile": 64.2,
     "lat": 40.6765,
     "lon": -110.964
   },
   {
-    "name": "Willard Bay",
-    "current_storage_af": 108843.0,
-    "as_of": "2026-07-22",
-    "pct_of_record_max": 49.0,
-    "seasonal_percentile": 28.9,
-    "lat": 41.37738,
-    "lon": -112.08339
+    "name": "Currant Creek",
+    "current_storage_af": 14914.1,
+    "as_of": "2026-07-29",
+    "pct_of_record_max": 96.5,
+    "seasonal_percentile": 60.7,
+    "lat": 40.33841,
+    "lon": -111.05821
   }
 ]

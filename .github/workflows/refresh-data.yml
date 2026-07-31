@@ -1,0 +1,40 @@
+name: Refresh reservoir data
+
+on:
+  schedule:
+    # 12:00 UTC = 6am Mountain Time (MDT, UTC-6). Drifts to 5am during
+    # standard time (MST, UTC-7) since GitHub Actions cron doesn't adjust
+    # for DST -- acceptable for a daily, non-time-critical data refresh.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Pull fresh RISE data
+        run: python refresh_reservoirs.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reservoirs.json
+          if git diff --cached --quiet; then
+            echo "No data changes today."
+            exit 0
+          fi
+          git commit -m "Daily reservoir data refresh"
+          git push
