@@ -137,6 +137,7 @@ def main() -> None:
     summary = pd.DataFrame({
         "current_storage_af": latest["storage_af"],
         "as_of": latest["date"].dt.date.astype(str),
+        "record_max_af": record_max,
         "pct_of_record_max": (latest["storage_af"] / record_max * 100).round(1),
         "seasonal_percentile": seasonal_pctl.round(1),
         "lat": coords["lat"],
@@ -148,6 +149,7 @@ def main() -> None:
         records.append({
             "name": name,
             "current_storage_af": round(float(row["current_storage_af"]), 2),
+            "record_max_af": round(float(row["record_max_af"]), 2),
             "as_of": row["as_of"],
             "pct_of_record_max": float(row["pct_of_record_max"]),
             "seasonal_percentile": float(row["seasonal_percentile"]),
