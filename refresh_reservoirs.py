@@ -68,6 +68,27 @@ RESERVOIRS = {
 }
 
 
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s
+
+
+def _get_json(params: dict) -> dict:
+    """GET a page from RISE, retrying on transient failures.
+
+    RISE occasionally returns a non-JSON (often empty) body on an
+    otherwise-2xx response, which crashed the whole run on 2026-08-03.
+    """
+    for attempt in range(RETRY_ATTEMPTS):
+        resp = requests.get(RISE_RESULT_URL, params=params, timeout=60)
+        try:
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+
+
 def fetch_rise_series(item_id: int, start: str, end: str) -> pd.DataFrame:
     """Pull one RISE catalog item's daily results, paginating as needed."""
     rows = []
@@ -81,9 +102,7 @@ def fetch_rise_series(item_id: int, start: str, end: str) -> pd.DataFrame:
             "dateTime[strictly_before]": end,
             "page": page,
         }
-        resp = requests.get(RISE_RESULT_URL, params=params, timeout=60)
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = _get_json(params)
         rows.extend(payload["data"])
         if page * payload["meta"]["itemsPerPage"] >= payload["meta"]["totalItems"]:
             break
