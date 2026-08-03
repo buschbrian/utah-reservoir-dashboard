@@ -3,7 +3,7 @@
 Pulls current-through-yesterday daily storage (af) for all 28 Bureau of
 Reclamation-monitored Utah reservoirs from the RISE API, then reproduces the
 same two drought metrics computed in the original reservoir_levels.ipynb
-notebook (Phase 1 of the Esri SDK Cross-Platform Learning Track):
+notebook.
 
 - pct_of_record_max: current storage vs. the highest storage seen in the
   pulled date range (proxy for % of physical capacity, not the real thing).
