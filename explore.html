@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Utah Reservoirs — Statewide Overview</title>
+  <title>Utah Reservoirs — Utah Overview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Statewide storage, rankings and 12-month trends for 53 Utah reservoirs." />
+  <meta name="description" content="Current storage and 12-month history for 53 reservoirs in Utah." />
 
   <!--
     The third page, and the first one that isn't a map.
@@ -228,6 +228,11 @@
       background: #fff7ed; border: 1px solid #fcd9a8; color: #7c2d12;
       border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px;
     }
+    .terms { margin: 0 0 24px; }
+    .terms summary { color: var(--accent); cursor: pointer; font-weight: 600; }
+    .terms dl { display: grid; grid-template-columns: max-content 1fr; gap: 7px 12px; margin: 12px 0 0; }
+    .terms dt { font-weight: 650; }
+    .terms dd { margin: 0; color: var(--ink-2); }
 
     /* One breakpoint, not five: below this the ranking labels stack over
        their bars and the two-column split becomes one column. */
@@ -236,6 +241,8 @@
       .rank-row { grid-template-columns: 1fr 52px; row-gap: 2px; }
       .rank-name { grid-column: 1 / -1; }
       .kpi .k-value { font-size: 23px; }
+      .terms dl { grid-template-columns: 1fr; gap: 3px; }
+      .terms dd { margin-bottom: 8px; }
     }
     @media (prefers-reduced-motion: no-preference) {
       .mini, .rank-row { transition: background-color .12s ease, box-shadow .12s ease, border-color .12s ease; }
@@ -246,7 +253,7 @@
   <header class="topbar">
     <div class="wrap">
       <h1 class="brand">Utah Reservoirs
-        <small>Statewide storage &middot; Reclamation RISE + NRCS AWDB</small>
+        <small>Water storage across Utah</small>
       </h1>
       <nav class="views" aria-label="Views">
         <a href="explore.html" aria-current="page">Overview</a>
@@ -260,9 +267,27 @@
     <p id="freshness" class="count" style="margin:0 0 18px">Loading data&hellip;</p>
     <div id="staleBanner" hidden class="banner"></div>
 
+    <details class="card terms" id="terms">
+      <summary>Meaning of terms</summary>
+      <dl>
+        <dt>Capacity</dt>
+        <dd>The amount of water that a reservoir is designed to hold.</dd>
+        <dt>Acre-foot</dt>
+        <dd>A unit of water volume. One acre-foot covers one acre with water that is one foot deep.</dd>
+        <dt>Normal</dt>
+        <dd>The middle value for the same time in earlier years. To get this value, put the earlier values in order and select the value in the center.</dd>
+        <dt>History rank</dt>
+        <dd>A comparison with values near the same date in earlier years. A rank of 90% means that the value is higher than 90% of those earlier values.</dd>
+        <dt>Update schedule</dt>
+        <dd>How often a source supplies new data.</dd>
+        <dt>CSV file</dt>
+        <dd>A plain-text file that stores table data.</dd>
+      </dl>
+    </details>
+
     <section aria-labelledby="h-state">
       <div class="sec-head">
-        <h2 id="h-state">Statewide right now</h2>
+        <h2 id="h-state">Current storage across Utah</h2>
         <p id="stateAsOf"></p>
       </div>
       <div class="kpis" id="kpis"></div>
@@ -270,19 +295,19 @@
 
     <section aria-labelledby="h-trend">
       <div class="sec-head">
-        <h2 id="h-trend">Twelve months of statewide storage</h2>
-        <p>Monthly mean across all reservoirs, against the same months in prior years.</p>
+        <h2 id="h-trend">Storage during the last 12 months</h2>
+        <p>The chart shows the average for each month. It also shows the normal value for that month.</p>
       </div>
       <div class="split">
         <div class="card">
-          <div class="chart-toolbar" aria-label="Statewide chart controls">
-            <label>Scope
+          <div class="chart-toolbar" aria-label="Chart controls">
+            <label>Reservoir group
               <select id="trendScope">
-                <option value="utah">Utah, excluding Lake Powell</option>
-                <option value="all">All monitored, including Lake Powell</option>
+                <option value="utah">Utah without Lake Powell</option>
+                <option value="all">All reservoirs, including Lake Powell</option>
               </select>
             </label>
-            <label>Measure
+            <label>Show
               <select id="trendMetric">
                 <option value="storage">Storage, acre-feet</option>
                 <option value="percent">Percent of capacity</option>
@@ -292,40 +317,40 @@
           </div>
           <div id="stateChart" class="state-plot" aria-live="polite"></div>
           <p class="chart-key count">
-            <span><i></i> Monthly mean storage</span>
-            <span><i class="normal"></i> Normal for that month</span>
+            <span><i></i> Average storage for each month</span>
+            <span><i class="normal"></i> Normal value for that month</span>
           </p>
           <p class="count" id="stateChartNote" style="margin:8px 0 0"></p>
         </div>
         <div class="card">
           <h3 style="font-size:13px;margin:0 0 10px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em">
-            Reservoirs by class</h3>
+            Number of reservoirs in each range</h3>
           <div class="class-rows" id="classRows"></div>
           <p class="count" style="margin:12px 0 0;line-height:1.5">
-            Counted per reservoir, not weighted by volume. Compare this distribution with
-            both volume-weighted statewide percentages above; the no-Powell total is the
-            better read on Utah's other monitored storage.</p>
+            Each reservoir has the same weight in this count. The storage totals above give
+            more weight to large reservoirs. Use the total without Lake Powell to see the
+            other reservoirs in Utah.</p>
         </div>
       </div>
     </section>
 
     <section aria-labelledby="h-rank">
       <div class="sec-head">
-        <h2 id="h-rank">Largest reservoirs first</h2>
-        <p>Ranked by capacity; each bar still shows percent full. The dark tick is normal for this week.</p>
+        <h2 id="h-rank">Reservoirs from largest to smallest</h2>
+        <p>The bar shows percent full. The dark line shows the normal value for this week.</p>
       </div>
       <div class="card"><div class="rank" id="rank"></div></div>
     </section>
 
     <section aria-labelledby="h-table">
       <div class="sec-head">
-        <h2 id="h-table">Every reservoir, every metric</h2>
-        <p>Click any row for its full 12-month record.</p>
+        <h2 id="h-table">Data for each reservoir</h2>
+        <p>Select a row to see the values for the last 12 months.</p>
       </div>
       <div class="toolbar">
-        <input type="search" id="q" placeholder="Filter reservoirs…" aria-label="Filter reservoirs by name" />
-        <button class="btn" id="staleOnly" aria-pressed="false">Stale feeds only</button>
-        <button class="btn" id="csv">Download CSV</button>
+        <input type="search" id="q" placeholder="Find a reservoir…" aria-label="Find a reservoir by name" />
+        <button class="btn" id="staleOnly" aria-pressed="false">Show only late data</button>
+        <button class="btn" id="csv">Download table (CSV file)</button>
         <span class="count" id="rowCount"></span>
       </div>
       <div class="card" style="padding:6px 8px">
@@ -340,21 +365,23 @@
 
     <section aria-labelledby="h-grid">
       <div class="sec-head">
-        <h2 id="h-grid">Twelve-month shape, side by side</h2>
-        <p>Same order as the table above. Bars are monthly mean storage, colored on the map's ramp.</p>
+        <h2 id="h-grid">Compare 12 months for each reservoir</h2>
+        <p>The order is the same as the table. Each bar shows the average storage for one month. The color has the same meaning as the map color.</p>
       </div>
       <div class="grid" id="grid"></div>
     </section>
 
     <footer class="page">
-      <p>Storage: <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of
-        Reclamation RISE</a> and <a href="https://wcc.sc.egov.usda.gov/awdbWebService/"
-        target="_blank" rel="noreferrer">USDA NRCS AWDB</a> — provisional and subject to revision.
-        AWDB-only stations use monthly data unless a current daily series is available; each detail
-        panel shows its cadence. Capacity comes from either <a href="https://nid.sec.usace.army.mil/"
-        target="_blank" rel="noreferrer">USACE NID</a> or AWDB reservoir metadata.</p>
-      <p>The 53-reservoir set combines the RISE inventory with the additional reservoirs in Utah's
-        statewide monitoring experience.</p>
+      <p>Storage data comes from the <a href="https://data.usbr.gov/rise-api" target="_blank"
+        rel="noreferrer">U.S. Bureau of Reclamation</a> and the <a
+        href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank"
+        rel="noreferrer">USDA Natural Resources Conservation Service</a>. The source can change
+        these values later. Some reservoirs use monthly data. Other reservoirs use daily data.
+        Each details panel shows the update schedule.</p>
+      <p>Capacity data comes from the <a href="https://nid.sec.usace.army.mil/" target="_blank"
+        rel="noreferrer">U.S. Army Corps of Engineers National Inventory of Dams</a> or the USDA
+        Natural Resources Conservation Service.</p>
+      <p>This dashboard contains 53 reservoirs. The two storage sources provide the data for this list.</p>
     </footer>
   </main>
 
@@ -392,21 +419,21 @@
       { key: "name", label: "Reservoir", num: false,
         get: (r) => r.name, cell: (r) =>
           "<span class='dot' style='background:" + RV.colorFor(r.fill_pct) + "'></span>" +
-          RV.esc(r.name) + (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") },
+          RV.esc(r.name) + (r.is_stale ? "<span class='rank-stale' title='Data is late'>&#9888;</span>" : "") },
       { key: "source_key", label: "Source", num: false,
         get: (r) => (r.source_key || "rise") + " " + (r.data_frequency || "daily"),
-        cell: (r) => RV.esc((r.source_key === "awdb" ? "AWDB" : "RISE") +
-          " · " + (r.data_frequency || "daily")) },
+        cell: (r) => RV.esc((r.source_key === "awdb" ? "Conservation Service" : "Reclamation") +
+          " · " + (r.data_frequency === "monthly" ? "Monthly" : "Daily")) },
       { key: "fill_pct", label: "% full", num: true,
         get: (r) => r.fill_pct, cell: (r) => RV.fmtPct(r.fill_pct) },
-      { key: "current_storage_af", label: "Storage af", num: true,
+      { key: "current_storage_af", label: "Storage (acre-feet)", num: true,
         get: (r) => r.current_storage_af, cell: (r) => RV.fmtAf(r.current_storage_af) },
-      { key: "size_basis_af", label: "Capacity af", num: true,
+      { key: "size_basis_af", label: "Full level (acre-feet)", num: true,
         get: (r) => r.size_basis_af, cell: (r) => RV.fmtAf(r.size_basis_af) },
       { key: "pct_of_seasonal_normal", label: "% of normal", num: true,
         get: (r) => r.pct_of_seasonal_normal, cell: (r) => RV.fmtPct(r.pct_of_seasonal_normal),
         sign: (r) => r.pct_of_seasonal_normal === null ? 0 : r.pct_of_seasonal_normal - 100 },
-      { key: "seasonal_percentile", label: "Percentile", num: true,
+      { key: "seasonal_percentile", label: "History rank", num: true,
         get: (r) => r.seasonal_percentile, cell: (r) => RV.fmtPct(r.seasonal_percentile) },
       { key: "change_30d_pct", label: "30-day", num: true,
         get: (r) => r.change_30d_pct, cell: (r) => signedPct(r.change_30d_pct),
@@ -414,13 +441,19 @@
       { key: "change_365d_pct", label: "1-year", num: true,
         get: (r) => r.change_365d_pct, cell: (r) => signedPct(r.change_365d_pct),
         sign: (r) => r.change_365d_pct },
-      { key: "as_of", label: "As of", num: false,
+      { key: "as_of", label: "Data date", num: false,
         get: (r) => r.as_of || "", cell: (r) => RV.esc(r.as_of || "—") }
     ];
 
     function signedPct(v) {
       if (v === null || v === undefined || isNaN(v)) return "—";
       return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+    }
+
+    function fullLevelSource(r) {
+      return r.capacity_basis === "awdb_reservoir_metadata"
+        ? "USDA Natural Resources Conservation Service"
+        : "U.S. Army Corps of Engineers National Inventory of Dams";
     }
 
     // --- Sparkline -----------------------------------------------------
@@ -458,45 +491,47 @@
     // --- Sections ------------------------------------------------------
 
     function renderKpis(summary, allSummary, data) {
-      const dir = summary.change_365d_af < 0 ? "down" : "up";
+      const dir = summary.change_365d_af < 0 ? "lower" : "higher";
       const tiles = [
         {
-          label: "Utah statewide (no Powell)",
+          label: "Utah without Lake Powell",
           value: RV.fmtPct(summary.pct_full) + " full",
-          sub: RV.fmtAf(summary.storage_af) + " af of " + RV.fmtAf(summary.capacity_af) + " af",
+          sub: RV.fmtAf(summary.storage_af) + " acre-feet of " + RV.fmtAf(summary.capacity_af) + " acre-feet",
           meter: summary.pct_full
         },
         {
-          label: "All monitored (incl. Powell)",
+          label: "All reservoirs, including Lake Powell",
           value: RV.fmtPct(allSummary.pct_full) + " full",
-          sub: RV.fmtAf(allSummary.storage_af) + " af of " +
-            RV.fmtAf(allSummary.capacity_af) + " af across " +
+          sub: RV.fmtAf(allSummary.storage_af) + " acre-feet of " +
+            RV.fmtAf(allSummary.capacity_af) + " acre-feet for " +
             allSummary.count + " reservoirs",
           meter: allSummary.pct_full
         },
         {
-          label: "Against normal",
+          label: "Compared with normal",
           value: RV.fmtPct(summary.pct_of_normal),
-          sub: "of the median for this week in prior years",
+          sub: "of the middle value for this week in earlier years",
           cls: summary.pct_of_normal !== null && summary.pct_of_normal < 100 ? "neg" : ""
         },
         {
           label: "Change, 1 year",
-          value: (summary.change_365d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_365d_af)) + " af",
-          sub: "statewide, " + dir + " from a year ago",
+          value: (summary.change_365d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_365d_af)) + " acre-feet",
+          sub: "Across Utah. The value is " + dir + " than it was one year ago.",
           cls: summary.change_365d_af < 0 ? "neg" : ""
         },
         {
           label: "Change, 30 days",
-          value: (summary.change_30d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_30d_af)) + " af",
-          sub: "summer drawdown is normal; the size is not",
+          value: (summary.change_30d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_30d_af)) + " acre-feet",
+          sub: summary.change_30d_af < 0
+            ? "Water storage decreased during this period."
+            : "Water storage increased during this period.",
           cls: summary.change_30d_af < 0 ? "neg" : ""
         },
         {
           label: "Below half full",
           value: summary.below_half + " of " + summary.count,
-          sub: summary.stale ? summary.stale + " reservoir" + (summary.stale === 1 ? "" : "s") +
-               " not reporting" : "every feed is current",
+          sub: summary.stale ? summary.stale + " reservoir" + (summary.stale === 1 ? " has" : "s have") +
+               " late data" : "All data is current",
           // The warning belongs to the stale count, not to the headline
           // number -- coloring "16 of 28" amber would say the count itself
           // is suspect.
@@ -514,7 +549,7 @@
 
       const dates = data.reservoirs.map((r) => r.as_of).filter(Boolean).sort();
       el("stateAsOf").textContent = dates.length
-        ? "Readings from " + (dates[0] === dates[dates.length - 1]
+        ? "Data dates: " + (dates[0] === dates[dates.length - 1]
             ? dates[0] : dates[0] + " to " + dates[dates.length - 1])
         : "";
     }
@@ -548,10 +583,10 @@
       const compact = width < 480;
       const formatValue = (value) => metric === "percent"
         ? RV.fmtPct(value, 1)
-        : RV.fmtCompact(value) + " af";
+        : RV.fmtCompact(value) + " acre-feet";
       const scopeLabel = scope === "all"
-        ? "All monitored reservoirs"
-        : "Utah reservoirs excluding Lake Powell";
+        ? "All reservoirs, including Lake Powell"
+        : "Utah reservoirs without Lake Powell";
 
       const chart = Plot.plot({
         width,
@@ -608,16 +643,16 @@
           }))
         ]
       });
-      chart.setAttribute("aria-label", scopeLabel + ", twelve months of storage and prior-years normal");
+      chart.setAttribute("aria-label", scopeLabel + ". Storage during the last 12 months and the normal value for each month.");
       target.replaceChildren(chart);
       target.dataset.scope = scope;
       target.dataset.metric = metric;
       el("trendSummary").textContent = summary.count + " reservoirs · " +
         RV.fmtPct(summary.pct_full) + " full now";
       el("stateChartNote").textContent = monthly.length < 12
-        ? "Showing " + monthly.length + " months: a month is included only when every " +
-          "reservoir in this scope reported it; stale history ends where the feed did."
-        : "All twelve months have complete coverage for this scope.";
+        ? "The chart shows " + monthly.length + " months. It includes a month only when all " +
+          "reservoirs in this group have data for that month. Late data ends on its last data date."
+        : "All reservoirs in this group have data for all 12 months.";
 
       el("classRows").innerHTML = summary.classes.map((c) =>
         "<div class='class-row'>" +
@@ -640,14 +675,14 @@
           ? Math.max(0, Math.min(100, (r.seasonal_normal_af / r.size_basis_af) * 100)) : null;
         return "<button class='rank-row' data-name='" + RV.esc(r.name) + "'>" +
           "<span class='rank-name'>" + RV.esc(r.name) +
-            (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") +
-            "<small>" + RV.fmtAf(r.size_basis_af) + " af capacity</small>" +
+            (r.is_stale ? "<span class='rank-stale' title='Data is late'>&#9888;</span>" : "") +
+            "<small>" + RV.fmtAf(r.size_basis_af) + " acre-feet at full level</small>" +
           "</span>" +
           "<span class='rank-track'><span style='width:" + pct.toFixed(1) + "%;background:" +
             RV.colorFor(r.fill_pct) + "'></span>" +
             (normalPct === null ? "" :
               "<span class='rank-normal' style='left:" + normalPct.toFixed(1) +
-              "%' title='Normal for this week: " + RV.fmtAf(r.seasonal_normal_af) + " af'></span>") +
+              "%' title='Normal for this week: " + RV.fmtAf(r.seasonal_normal_af) + " acre-feet'></span>") +
           "</span>" +
           "<span class='rank-pct'>" + RV.fmtPct(r.fill_pct) + "</span></button>";
       }).join("");
@@ -700,12 +735,12 @@
         "<div class='mini-head'><h3>" + RV.esc(r.name) + "</h3>" +
         "<span class='mini-pct' style='color:" + RV.colorFor(r.fill_pct) + "'>" +
           RV.fmtPct(r.fill_pct) + "</span></div>" +
-        "<p class='mini-sub'>" + RV.fmtAf(r.current_storage_af) + " af of " +
+        "<p class='mini-sub'>" + RV.fmtAf(r.current_storage_af) + " acre-feet of " +
           RV.fmtAf(r.size_basis_af) + "</p>" +
         sparklineSVG(r) +
         "<div class='mini-foot'><span>" + (r.is_stale
           ? "<span class='rank-stale'>&#9888;</span> " + RV.esc(RV.daysAgoPhrase(r.days_stale))
-          : "30d " + signedPct(r.change_30d_pct)) +
+          : "30 days: " + signedPct(r.change_30d_pct)) +
         "</span><span>" + (r.pct_of_seasonal_normal === null || r.pct_of_seasonal_normal === undefined
           ? "" : RV.fmtPct(r.pct_of_seasonal_normal) + " of normal") + "</span></div>" +
         "</button>").join("");
@@ -773,11 +808,11 @@
     // the table so the export is recognizably the thing you were looking at.
     el("csv").addEventListener("click", () => {
       const rows = visibleRows();
-      const head = COLUMNS.map((c) => c.label).concat(["is_stale", "capacity_basis"]);
+      const head = COLUMNS.map((c) => c.label).concat(["Data is late", "Full-level source"]);
       const body = rows.map((r) => COLUMNS.map((c) => {
         const v = c.get(r);
         return v === null || v === undefined ? "" : v;
-      }).concat([r.is_stale ? "true" : "false", r.capacity_basis || ""]));
+      }).concat([r.is_stale ? "Yes" : "No", fullLevelSource(r)]));
       const csv = [head].concat(body).map((line) => line.map((v) => {
         const s = String(v);
         return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -807,11 +842,10 @@
         const stale = state.rows.filter((r) => r.is_stale);
         if (stale.length) {
           el("staleBanner").hidden = false;
-          el("staleBanner").innerHTML = "&#9888; " + stale.length + " reservoir" +
-            (stale.length === 1 ? " is" : "s are") +
-            " later than its source cadence — " + stale.map((r) =>
+          el("staleBanner").innerHTML = "&#9888; Data is late for " + stale.length + " reservoir" +
+            (stale.length === 1 ? ": " : "s: ") + stale.map((r) =>
               RV.esc(r.name) + " (" + RV.esc(RV.daysAgoPhrase(r.days_stale)) + ")").join(", ") +
-            ". Their numbers below describe that date, not today.";
+            ". These values are for the stated dates. They are not values for today.";
         }
 
         const statewideRows = state.rows.filter((r) =>
@@ -842,7 +876,7 @@
       })
       .catch((err) => {
         console.error("Reservoir overview failed:", err);
-        el("freshness").innerHTML = "<span class='rv-fresh-warn'>Overview failed to render: " +
+        el("freshness").innerHTML = "<span class='rv-fresh-warn'>The overview cannot show the data: " +
           RV.esc(err && err.message ? err.message : err) + "</span>";
       });
 

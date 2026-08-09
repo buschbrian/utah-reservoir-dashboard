@@ -65,7 +65,7 @@
 
   function headlineBasis(r) {
     return (r.pct_of_capacity === null || r.pct_of_capacity === undefined)
-      ? "period-of-record max" : "capacity";
+      ? "highest recorded storage" : "capacity";
   }
 
   function colorFor(pct) {
@@ -431,12 +431,14 @@
     var status;
     if (pct === null || pct === undefined) status = "No current reading";
     else if (pct < 25) status = "Extremely low";
-    else if (pct < 50) status = "Critically low";
-    else if (pct < 75) status = "Below normal";
-    else if (pct < 90) status = "Near normal";
-    else status = "Near or above normal";
-    return status + " — " + fmtPct(pct) + " of its " + headlineBasis(r) + ", " +
-      fmtAf(gap) + " af below full.";
+    else if (pct < 50) status = "Very low";
+    else if (pct < 75) status = "Lower than normal";
+    else if (pct < 90) status = "Close to normal";
+    else status = "Close to or above normal";
+    var gapText = gap >= 0
+      ? "It needs " + fmtAf(gap) + " acre-feet to be full."
+      : "It is " + fmtAf(Math.abs(gap)) + " acre-feet above the full level.";
+    return status + ". It is " + fmtPct(pct) + " of its " + headlineBasis(r) + ". " + gapText;
   }
 
   // --- 12-month trend chart -----------------------------------------
@@ -462,8 +464,7 @@
     opts = opts || {};
     var months = r.monthly || [];
     if (!months.length) {
-      return "<p class='rv-empty'>Twelve-month history appears after the next " +
-        "data refresh (this file predates the trend fields).</p>";
+      return "<p class='rv-empty'>The 12-month history will appear after the next data update.</p>";
     }
 
     var W = opts.width || 316, H = opts.height || 132;
@@ -509,8 +510,8 @@
       parts.push("<rect x='" + (x(i) - barW / 2).toFixed(1) + "' y='" + top.toFixed(1) +
         "' width='" + barW.toFixed(1) + "' height='" + Math.max(0, padT + plotH - top).toFixed(1) +
         "' fill='" + colorFor(pct) + "' rx='1'>" +
-        "<title>" + esc(fmtMonth(m.month) + ": " + fmtAf(m.mean_af) + " af" +
-          (pct === null ? "" : " (" + fmtPct(pct) + " of record max)")) + "</title></rect>");
+        "<title>" + esc(fmtMonth(m.month) + ": " + fmtAf(m.mean_af) + " acre-feet" +
+          (pct === null ? "" : " (" + fmtPct(pct) + " of the highest recorded storage)")) + "</title></rect>");
     });
 
     // "normal" line (median of prior years for the same calendar month)
@@ -532,13 +533,13 @@
         esc(fmtMonth(m.month).replace(" 20", " '")) + "</text>");
     });
 
-    var label = "Twelve-month storage history for " + r.name +
-      ", monthly mean acre-feet, with the prior-years median for each month.";
+    var label = "Storage history for " + r.name + " during the last 12 months. " +
+      "The bars show the average storage for each month. The line shows the normal value.";
 
     return "<svg class='rv-chart' viewBox='0 0 " + W + " " + H + "' width='100%' " +
       "role='img' aria-label='" + esc(label) + "'>" + parts.join("") + "</svg>" +
-      "<p class='rv-chart-key'><span class='rv-swatch-bar'></span> monthly mean storage " +
-      "<span class='rv-swatch-line'></span> normal for that month (prior years)</p>";
+      "<p class='rv-chart-key'><span class='rv-swatch-bar'></span> average storage for each month " +
+      "<span class='rv-swatch-line'></span> normal value for that month</p>";
   }
 
   // --- 12-month table ------------------------------------------------
@@ -564,14 +565,13 @@
         "</td></tr>";
     }).join("");
 
-    return "<details class='rv-details'><summary>Last 12 months, by the numbers</summary>" +
+    return "<details class='rv-details'><summary>Values for the last 12 months</summary>" +
       "<table class='rv-table'><thead><tr>" +
-      "<th>Month</th><th class='rv-num'>Mean af</th>" +
-      "<th class='rv-num'>% max</th><th class='rv-num'>vs. normal</th>" +
+      "<th>Month</th><th class='rv-num'>Average acre-feet</th>" +
+      "<th class='rv-num'>% of highest</th><th class='rv-num'>Change from normal</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>" +
-      "<p class='rv-note'>“Normal” is the median of that same calendar " +
-      "month in earlier years of the record, so the earliest years have nothing " +
-      "to compare against.</p></details>";
+      "<p class='rv-note'>Normal is the middle value for the same month in earlier years. " +
+      "The first years do not have earlier values for this comparison.</p></details>";
   }
 
   // --- Popup ---------------------------------------------------------
@@ -585,7 +585,9 @@
   function popupHTML(r, opts) {
     opts = opts || {};
     var html = "";
-    var sourceLabel = r.source_label || "Bureau of Reclamation RISE";
+    var sourceLabel = r.source_key === "awdb"
+      ? "USDA Natural Resources Conservation Service"
+      : "U.S. Bureau of Reclamation";
     var sourceUrl = r.source_url || "https://data.usbr.gov/rise-api";
     var cadence = r.data_frequency || "daily";
 
@@ -599,48 +601,46 @@
     if (r.is_stale) {
       html += "<p class='rv-stale'>⚠ Last reading is from " + esc(r.as_of) +
         " (" + esc(daysAgoPhrase(r.days_stale)) + ")" +
-        (r.fetch_ok === false ? " — the refresh could not reach " + esc(sourceLabel) + "."
-                              : " — " + esc(sourceLabel) + " has not published newer data.") +
-        " Everything below describes that date, not today.</p>";
+        (r.fetch_ok === false ? ". The data update could not reach " + esc(sourceLabel) + "."
+                              : ". " + esc(sourceLabel) + " has not published newer data.") +
+        " The values below are for that date. They are not values for today.</p>";
     }
 
     html += "<p class='rv-status'>" + esc(statusLine(r)) + "</p>";
 
     html += "<div class='rv-stats'>" +
-      statRow("Current storage", fmtAf(r.current_storage_af) + " af") +
-      statRow("Capacity", r.capacity_af ? fmtAf(r.capacity_af) + " af" +
+      statRow("Current storage", fmtAf(r.current_storage_af) + " acre-feet") +
+      statRow("Capacity", r.capacity_af ? fmtAf(r.capacity_af) + " acre-feet" +
         (r.pct_of_capacity ? " <em>(" + fmtPct(r.pct_of_capacity) + " full)</em>" : "")
         : "—") +
-      statRow("Period-of-record max", fmtAf(r.record_max_af) + " af" +
+      statRow("Highest recorded storage", fmtAf(r.record_max_af) + " acre-feet" +
         (r.pct_of_record_max ? " <em>(" + fmtPct(r.pct_of_record_max) + " of it)</em>" : "")) +
       statRow("Normal for this week", r.seasonal_normal_af === undefined ? "—" :
-        fmtAf(r.seasonal_normal_af) + " af" +
+        fmtAf(r.seasonal_normal_af) + " acre-feet" +
         (r.pct_of_seasonal_normal ? " <em>(" + fmtPct(r.pct_of_seasonal_normal) + " of it)</em>" : "")) +
-      statRow("Seasonal percentile", fmtPct(r.seasonal_percentile)) +
-      statRow("Change, 30 days", fmtSigned(r.change_30d_af) + " af" +
+      statRow("History rank", fmtPct(r.seasonal_percentile)) +
+      statRow("Change in 30 days", fmtSigned(r.change_30d_af) + " acre-feet" +
         (r.change_30d_pct === null || r.change_30d_pct === undefined ? "" :
           " <em>(" + (r.change_30d_pct > 0 ? "+" : "") + fmtPct(r.change_30d_pct) + ")</em>"),
         r.change_30d_af < 0 ? "rv-neg" : "") +
-      statRow("Change, 1 year", fmtSigned(r.change_365d_af) + " af",
+      statRow("Change in 1 year", fmtSigned(r.change_365d_af) + " acre-feet",
         r.change_365d_af < 0 ? "rv-neg" : "") +
-      statRow("Peak this year", fmtAf(r.peak_this_year_af) + " af" +
+      statRow("Highest value this year", fmtAf(r.peak_this_year_af) + " acre-feet" +
         (r.peak_this_year_date ? " <em>(" + esc(r.peak_this_year_date) + ")</em>" : "")) +
-      statRow("As of", esc(r.as_of || "—")) +
-      statRow("Source cadence", esc(cadence.charAt(0).toUpperCase() + cadence.slice(1))) +
+      statRow("Data date", esc(r.as_of || "—")) +
+      statRow("Update schedule", esc(cadence.charAt(0).toUpperCase() + cadence.slice(1))) +
       "</div>";
 
     html += "<h3 class='rv-subhead'>Last 12 months</h3>";
     html += trendChartSVG(r, opts);
     html += monthlyTableHTML(r);
 
-    html += "<p class='rv-note'>Seasonal percentile: where this reading ranks " +
-      "against every other year's value within a 7-day window of the same date. " +
+    html += "<p class='rv-note'>History rank compares this value with values near the same date in earlier years. " +
+      "For example, 90% means that this value is higher than 90% of those earlier values. " +
       "Storage data: <a href='" + esc(sourceUrl) + "' target='_blank' " +
-      "rel='noreferrer'>" + esc(sourceLabel) + "</a> — provisional and " +
-      "subject to revision. Capacity: " +
+      "rel='noreferrer'>" + esc(sourceLabel) + "</a>. The source can change these values later. Capacity data: " +
       (r.capacity_basis === "awdb_reservoir_metadata"
-        ? "NRCS AWDB reservoir metadata" : "USACE National Inventory of Dams") +
-      (r.capacity_basis ? " (" + esc(r.capacity_basis.replace(/_/g, " ")) + ")" : "") +
+        ? "USDA Natural Resources Conservation Service" : "U.S. Army Corps of Engineers National Inventory of Dams") +
       ".</p>";
 
     return html;
@@ -653,47 +653,44 @@
       return "<span class='rv-legend-row'><span class='rv-dot' style='background:" +
         c.color + "'></span>" + esc(c.label) + "</span>";
     }).join("");
-    return "<b>% of capacity</b>" +
+    return "<b>Percent of full level</b>" +
       "<div class='rv-legend-scale'>" + swatches + "</div>" +
       "<span class='rv-legend-row'><span class='rv-dot rv-dot-stale'></span>" +
-      "Dashed ring: source is late for its cadence</span>" +
-      "<p class='rv-legend-note'>Filled circle = current storage. Gray outline ring = " +
-      "that reservoir's full capacity &mdash; the bigger the gap between ring and " +
-      "fill, the more depleted it is. Capacity from the National Inventory of Dams; " +
-      "where it is missing, the period-of-record max stands in. Click any reservoir " +
-      "for its 12-month trend.</p>" +
-      "<p class='rv-legend-note'>Shaded outlines are HUC6 basins from the USGS " +
-      "Watershed Boundary Dataset.</p>";
+      "Dashed circle: data is late</span>" +
+      "<p class='rv-legend-note'>The filled circle shows current storage. The gray circle shows " +
+      "the full level. A large gap means that more water is missing. Where capacity data is not " +
+      "available, the gray circle shows the highest recorded storage. Select a reservoir to see " +
+      "its storage during the last 12 months.</p>" +
+      "<p class='rv-legend-note'>The shaded lines show large drainage areas from the U.S. Geological Survey.</p>";
   }
 
   /* One line under the title telling the reader how old the whole file is,
    * and how many reservoirs inside it are individually stale. */
   function freshnessHTML(data) {
     if (data.legacy) {
-      return "<span class='rv-fresh-warn'>Serving an older reservoirs.json " +
-        "(no refresh timestamp) — trend charts will be empty until the next " +
-        "data refresh runs.</span>";
+      return "<span class='rv-fresh-warn'>This data file has no update date. " +
+        "The charts will be empty until the next data update.</span>";
     }
     var stale = data.reservoirs.filter(function (r) { return r.is_stale; });
     var when = data.generatedAt ? new Date(data.generatedAt) : null;
     var age = when ? Math.round((Date.now() - when.getTime()) / 86400000) : null;
-    var out = "Data refreshed " + (when ? when.toLocaleDateString("en-US",
+    var out = "Data update: " + (when ? when.toLocaleDateString("en-US",
       { year: "numeric", month: "short", day: "numeric" }) : "unknown");
     if (data.sourceCounts) {
-      out += " &middot; " + (data.sourceCounts.rise || 0) + " RISE + " +
-        (data.sourceCounts.awdb || 0) + " AWDB";
+      out += ". Bureau of Reclamation: " + (data.sourceCounts.rise || 0) +
+        ". Natural Resources Conservation Service: " + (data.sourceCounts.awdb || 0) + ".";
       var monthly = data.reservoirs.filter(function (r) {
         return r.data_frequency === "monthly";
       }).length;
-      if (monthly) out += " (" + monthly + " monthly)";
+      if (monthly) out += " Monthly data: " + monthly + ".";
     }
     if (age !== null && age > 2) {
-      out = "<span class='rv-fresh-warn'>" + out + " — " + age +
-        " days ago; the refresh job may be failing.</span>";
+      out = "<span class='rv-fresh-warn'>" + out + ". The data is " + age +
+        " days old. The automatic update possibly failed.</span>";
     }
     if (stale.length) {
       out += " &middot; <span class='rv-fresh-warn'>" + stale.length +
-        " reservoir" + (stale.length === 1 ? "" : "s") + " not updating: " +
+        " reservoir" + (stale.length === 1 ? " has" : "s have") + " late data: " +
         esc(stale.map(function (r) { return r.name; }).join(", ")) + "</span>";
     }
     return out;

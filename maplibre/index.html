@@ -77,11 +77,11 @@
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
-    <p>Percent full &mdash; Reclamation RISE + NRCS AWDB storage</p>
+    <p>Current storage as a percent of the full level</p>
     <p id="freshness">Loading data&hellip;</p>
-    <p id="statewideTotal">Calculating statewide total without Lake Powell&hellip;</p>
+    <p id="statewideTotal">Calculating the total without Lake Powell&hellip;</p>
     <div class="map-actions">
-      <label for="basemapSelect">Basemap
+      <label for="basemapSelect">Map background
         <select id="basemapSelect">
           <option value="voyager">CARTO Voyager</option>
           <option value="positron">CARTO Positron</option>
@@ -90,14 +90,14 @@
       </label>
     </div>
     <nav class="map-links" aria-label="Other dashboard views">
-      <a href="../explore.html"><b>Statewide overview</b></a>
+      <a href="../explore.html"><b>Utah overview</b></a>
+      <a href="../explore.html#terms">Meaning of terms</a>
       <a href="../">ArcGIS comparison</a>
     </nav>
     <p class="disclaimer">
-      Storage data is provisional and subject to revision; cadence is shown
-      for every reservoir.
-      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">RISE</a>
-      &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">NRCS AWDB</a>
+      The data source can change these values later. Each reservoir shows its update schedule.
+      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of Reclamation</a>
+      &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">Natural Resources Conservation Service</a>
     </p>
   </div>
   <div id="legendDiv"></div>
@@ -233,7 +233,7 @@
               String(r.name || "").trim().toLowerCase() !== "lake powell"));
           document.getElementById("statewideTotal").textContent =
             "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
-            " full across " + statewide.count + " monitored reservoirs";
+            " full for " + statewide.count + " reservoirs in this dashboard";
 
           const geojson = {
             type: "FeatureCollection",
@@ -394,7 +394,7 @@
           // rather than blaming the data file for anything that throws.
           console.error("Reservoir dashboard failed:", err);
           document.getElementById("freshness").innerHTML =
-            "<span class='rv-fresh-warn'>Dashboard failed to render: " +
+            "<span class='rv-fresh-warn'>The dashboard cannot show the data: " +
             String(err && err.message ? err.message : err)
               .replace(/&/g, "&amp;").replace(/</g, "&lt;") +
             "</span>";

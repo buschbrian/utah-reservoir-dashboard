@@ -73,11 +73,11 @@
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
-    <p>Percent full &mdash; Reclamation RISE + NRCS AWDB storage</p>
+    <p>Current storage as a percent of the full level</p>
     <p id="freshness">Loading data&hellip;</p>
-    <p id="statewideTotal">Calculating statewide total without Lake Powell&hellip;</p>
+    <p id="statewideTotal">Calculating the total without Lake Powell&hellip;</p>
     <div class="map-actions">
-      <label for="basemapSelect">Basemap
+      <label for="basemapSelect">Map background
         <select id="basemapSelect">
           <option value="topo-vector">Topographic</option>
           <option value="gray-vector">Light gray canvas</option>
@@ -87,14 +87,14 @@
       </label>
     </div>
     <nav class="map-links" aria-label="Other dashboard views">
-      <a href="explore.html"><b>Statewide overview</b></a>
+      <a href="explore.html"><b>Utah overview</b></a>
+      <a href="explore.html#terms">Meaning of terms</a>
       <a href="maplibre/">MapLibre comparison</a>
     </nav>
     <p class="disclaimer">
-      Storage data is provisional and subject to revision; cadence is shown
-      for every reservoir.
-      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">RISE</a>
-      &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">NRCS AWDB</a>
+      The data source can change these values later. Each reservoir shows its update schedule.
+      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of Reclamation</a>
+      &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">Natural Resources Conservation Service</a>
     </p>
   </div>
   <div id="viewDiv"></div>
@@ -198,16 +198,16 @@
       const fields = [
         { name: "ObjectID", alias: "ObjectID", type: "oid" },
         { name: "name", alias: "Name", type: "string" },
-        { name: "current_storage_af", alias: "Current Storage (af)", type: "double" },
-        { name: "record_max_af", alias: "Record Max Storage (af)", type: "double" },
-        { name: "pct_of_record_max", alias: "% of Record Max", type: "double" },
+        { name: "current_storage_af", alias: "Current storage (acre-feet)", type: "double" },
+        { name: "record_max_af", alias: "Highest recorded storage (acre-feet)", type: "double" },
+        { name: "pct_of_record_max", alias: "% of highest recorded storage", type: "double" },
         // Derived when the graphics are built, so the renderers below can be
         // simple: capacity where the National Inventory of Dams has it, and
         // the observed record max standing in where it doesn't. Without
         // these, every expression would need the same null-check inline.
-        { name: "size_basis_af", alias: "Full Capacity (af)", type: "double" },
+        { name: "size_basis_af", alias: "Full level (acre-feet)", type: "double" },
         { name: "fill_pct", alias: "% Full", type: "double" },
-        { name: "seasonal_percentile", alias: "Seasonal Percentile", type: "double" },
+        { name: "seasonal_percentile", alias: "History rank", type: "double" },
         { name: "days_stale", alias: "Days Since Last Reading", type: "double" },
         { name: "as_of", alias: "As Of", type: "string" }
       ];
@@ -254,7 +254,7 @@
               String(r.name || "").trim().toLowerCase() !== "lake powell"));
           document.getElementById("statewideTotal").textContent =
             "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
-            " full across " + statewide.count + " monitored reservoirs";
+            " full for " + statewide.count + " reservoirs in this dashboard";
 
           // Each layer gets its OWN Graphic instances. A Graphic carries a
           // single `layer` reference, so handing the same instances to more
@@ -329,7 +329,7 @@
           // 2" popup carousel showing the same content twice. The
           // current-storage layer on top carries the one active popup.
           const maxLayer = new FeatureLayer({
-            title: "Period-of-record max",
+            title: "Highest recorded storage",
             source: makeGraphics(reservoirs),
             fields: fields,
             objectIdField: "ObjectID",
@@ -347,7 +347,7 @@
               visualVariables: [{
                 type: "size",
                 valueExpression: "Sqrt($feature.size_basis_af)",
-                valueExpressionTitle: "Full capacity (sqrt-scaled)",
+                valueExpressionTitle: "Full level",
                 minDataValue: 0,
                 maxDataValue: maxSqrtDomain,
                 minSize: ringMinSize,
@@ -366,7 +366,7 @@
           // it keeps its color class and gets a marker that says "this
           // number is old" rather than being hidden or grayed out.
           const staleLayer = new FeatureLayer({
-            title: "Stale data",
+            title: "Late data",
             source: makeGraphics(staleRecords),
             fields: fields,
             objectIdField: "ObjectID",
@@ -481,7 +481,7 @@
           // data problem.
           console.error("Reservoir dashboard failed:", err);
           document.getElementById("freshness").innerHTML =
-            "<span class='rv-fresh-warn'>Dashboard failed to render: " +
+            "<span class='rv-fresh-warn'>The dashboard cannot show the data: " +
             String(err && err.message ? err.message : err)
               .replace(/&/g, "&amp;").replace(/</g, "&lt;") +
             "</span>";

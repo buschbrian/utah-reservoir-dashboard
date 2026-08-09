@@ -117,9 +117,13 @@ for (const page of PAGES) {
 
     const freshness = (await tab.locator("#freshness").innerText()).trim();
     console.log("  freshness:", freshness);
-    check(/Data refreshed/.test(freshness),
+    check(/Data update:/.test(freshness),
       `${label}: freshness line does not report data ("${freshness}")`);
     check(!/failed/i.test(freshness), `${label}: freshness line reports a failure`);
+
+    const pageText = await tab.locator("body").innerText();
+    const oldTerms = /\bcadence\b|stale feed|period-of-record|seasonal percentile|\baf\b|provisional and subject to revision|\bRISE\b|\bAWDB\b/i;
+    check(!oldTerms.test(pageText), `${label}: old or unexplained term remains in visible text`);
 
     const layout = await tab.evaluate(() => {
       const box = document.querySelector("#titleDiv")?.getBoundingClientRect();
@@ -172,8 +176,12 @@ for (const page of PAGES) {
         `${label}: ranking has ${rankRows} rows, expected ${expectedReservoirs}`);
       check((await tab.locator(".rank-row").first().innerText()).includes(largestReservoir),
         `${label}: ranking is not largest-first`);
-      check((await tab.locator("#kpis").innerText()).includes("NO POWELL"),
+      check((await tab.locator("#kpis").innerText()).includes("WITHOUT LAKE POWELL"),
         `${label}: no statewide KPI excluding Lake Powell`);
+      const termText = await tab.locator("#terms").textContent();
+      for (const term of ["Capacity", "Acre-foot", "Normal", "History rank", "Update schedule", "CSV file"]) {
+        check(termText.includes(term), `${label}: the terms section does not define ${term}`);
+      }
       const cards = await tab.locator(".mini").count();
       check(cards === expectedReservoirs,
         `${label}: ${cards} sparkline cards, expected ${expectedReservoirs}`);

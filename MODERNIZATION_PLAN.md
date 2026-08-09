@@ -15,6 +15,7 @@ contract that feeds it.
 | Build step | **Yes.** Vite + npm + TypeScript. The zero-build constraint is retired. |
 | Visual scope | Polished 2D + micro-interactions, plus a real charting upgrade. 3D scenes and deck.gl are **out of scope** for this pass (parked in [Deferred](#deferred)). |
 | First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. The three existing pages stay as-is until it lands. |
+| User text | **Use ASD-STE100 Simplified Technical English.** Use short sentences. Use one term for one item. Replace specialist terms when possible. Define each required water or file term. |
 
 ### Implementation review — 2026-08-09
 
@@ -50,6 +51,12 @@ validator, class-break and statewide-rollup modules, cadence-aware staleness,
 unit parity tests against the real 53-reservoir payload, a Vite production
 build, and a small modernization workbench. The Python refresh pipeline is not
 part of this modernization track.
+
+The current pages also have a user-text baseline for the new shell. Map controls,
+chart labels, popups, legends, status messages, errors, and download headings now
+use Simplified Technical English. The overview defines capacity, acre-foot,
+normal, history rank, update schedule, and CSV file. Browser tests reject the old
+unexplained terms if they return to visible text.
 
 ### Follow-up review — 2026-08-09 (second pass)
 
