@@ -1,0 +1,32 @@
+name: Probe RISE catalog
+
+# Manual-only diagnostic. Prints what RISE publishes about a reservoir
+# beyond its storage timeseries, so catalog work can be written against the
+# real payload rather than a guess about the API's shape.
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Reservoir name (must match a key in RESERVOIRS)"
+        required: false
+        default: "Lake Powell"
+      dump:
+        description: "Also print full payloads"
+        type: boolean
+        default: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install "requests==2.*" "pandas==3.0.*" "numpy==2.*"
+      - name: Probe
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python tools/probe_rise.py --name "${{ inputs.name }}" \
+            ${{ inputs.dump && '--dump' || '' }}
