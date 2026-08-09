@@ -56,7 +56,7 @@
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
-    <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+    <p>Percent full &mdash; Reclamation RISE storage against National Inventory of Dams capacity</p>
     <p id="freshness">Loading data&hellip;</p>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
@@ -145,8 +145,11 @@
               // no benefit, since the popup reads from byName instead.
               properties: {
                 name: r.name,
-                record_max_af: r.record_max_af,
-                pct_of_record_max: r.pct_of_record_max,
+                // Same two derived fields as the ArcGIS version: capacity
+                // where NID has it, observed record max where it doesn't,
+                // resolved once here so the paint expressions stay simple.
+                size_basis_af: r.capacity_af || r.record_max_af,
+                fill_pct: ReservoirViz.headlinePct(r),
                 is_stale: !!r.is_stale
               }
             }))
@@ -154,7 +157,7 @@
 
           map.addSource("reservoirs", { type: "geojson", data: geojson });
 
-          // The ring is sized by absolute record_max_af, sqrt-scaled to
+          // The ring is sized by absolute capacity, sqrt-scaled to
           // compress Lake Powell down to the smallest reservoirs into a
           // legible spread. MapLibre's expression language doesn't have
           // Arcade's `Sqrt()` as a top-level statement outside
@@ -164,8 +167,9 @@
           // in the ArcGIS version. The fill layer below does NOT share
           // this same absolute domain for its own size (see the comment
           // there for why).
-          const maxRecordMax = Math.max(...reservoirs.map((r) => r.record_max_af));
-          const sqrtDomainMax = Math.sqrt(maxRecordMax);
+          const maxBasis = Math.max(
+            ...reservoirs.map((r) => r.capacity_af || r.record_max_af));
+          const sqrtDomainMax = Math.sqrt(maxBasis);
           const ringMinSize = 4;
           const ringMaxSize = 23;
 
@@ -174,7 +178,7 @@
           // to it.
           const ringRadiusExpr = [
             "interpolate", ["linear"],
-            ["sqrt", ["get", "record_max_af"]],
+            ["sqrt", ["get", "size_basis_af"]],
             0, ringMinSize,
             sqrtDomainMax, ringMaxSize
           ];
@@ -237,7 +241,7 @@
               "circle-radius": [
                 "*",
                 ringRadiusExpr,
-                ["sqrt", ["/", ["get", "pct_of_record_max"], 100]]
+                ["sqrt", ["/", ["get", "fill_pct"], 100]]
               ],
               // Built from the shared class table rather than hand-written
               // step stops, so this can't drift from the ArcGIS renderer,
@@ -245,7 +249,7 @@
               // copies of the thresholds did.
               "circle-color": ReservoirViz.CLASSES.reduce(
                 (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, cls.color]),
-                ["step", ["get", "pct_of_record_max"], ReservoirViz.CLASSES[0].color]
+                ["step", ["get", "fill_pct"], ReservoirViz.CLASSES[0].color]
               ),
               "circle-stroke-color": "rgba(0,0,0,0.4)",
               "circle-stroke-width": 0.75
@@ -271,12 +275,26 @@
           map.on("mouseleave", "current-circle", () => {
             map.getCanvas().style.cursor = "";
           });
+
+          // Readiness signal for the CI browser smoke test (tests/smoke.mjs),
+          // matching the ArcGIS version's so one test can check both engines.
+          window.__dashboardReady = {
+            engine: "maplibre",
+            reservoirs: reservoirs.length,
+            stale: reservoirs.filter((r) => r.is_stale).length,
+            layers: ["max-circle", "stale-ring", "current-circle"]
+              .filter((id) => map.getLayer(id)).length
+          };
         })
         .catch((err) => {
-          console.error("Failed to load reservoirs.json:", err);
+          // Same reasoning as the ArcGIS version: name the real failure
+          // rather than blaming the data file for anything that throws.
+          console.error("Reservoir dashboard failed:", err);
           document.getElementById("freshness").innerHTML =
-            "<span class='rv-fresh-warn'>Could not load reservoirs.json — " +
-            "the map will be empty.</span>";
+            "<span class='rv-fresh-warn'>Dashboard failed to render: " +
+            String(err && err.message ? err.message : err)
+              .replace(/&/g, "&amp;").replace(/</g, "&lt;") +
+            "</span>";
         });
     });
   </script>

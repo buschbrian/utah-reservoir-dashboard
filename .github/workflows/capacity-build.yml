@@ -1,0 +1,40 @@
+name: Build capacity table
+
+# Manual only. capacities.json is committed and changes on the order of
+# never, so this exists to re-derive it when the inventory is updated or the
+# choice of denominator changes -- not on every push. It commits the result
+# because the environment this was authored in cannot reach the inventory.
+#
+# Note: workflow_dispatch can only target a workflow that already exists on
+# the default branch. Until this lands on main, add a temporary `push:`
+# trigger on your branch to run it.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install "requests==2.*" "pandas==3.0.*" "numpy==2.*"
+      - name: Build capacities.json from NID
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python tools/build_capacity_table.py
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add capacities.json
+          if git diff --cached --quiet; then
+            echo "No capacity changes."
+            exit 0
+          fi
+          git commit -m "Build capacity table from the National Inventory of Dams"
+          git push

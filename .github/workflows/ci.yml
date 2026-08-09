@@ -1,0 +1,55 @@
+name: CI
+
+# Runs on every push and PR. Neither of these jobs existed before, which is
+# why a page that rendered zero reservoirs could ship green: nothing checked
+# the data script's behavior, and nothing ever loaded the dashboards.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Data script tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*" pytest
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  browser-smoke:
+    name: Dashboard smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Load both dashboards in a real browser
+        run: |
+          mkdir -p screenshots
+          node tests/smoke.mjs
+      # Uploaded on failure *and* success: when a map breaks, the picture is
+      # usually the fastest explanation, and when it doesn't, it is the only
+      # visual record that the symbology still looks right.
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-screenshots
+          path: screenshots/
+          if-no-files-found: warn

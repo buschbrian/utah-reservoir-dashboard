@@ -1,8 +1,8 @@
 # Utah Reservoir Drought Dashboard
 
 A static web map of current storage levels across 28 Bureau of
-Reclamation-monitored reservoirs in Utah, colored by percent of
-period-of-record maximum storage and sized by current storage volume.
+Reclamation-monitored reservoirs in Utah, colored by how full each one is
+and sized by its capacity.
 
 Built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
 (loaded directly from Esri's CDN — no build step, no framework). Data comes
@@ -15,12 +15,21 @@ storage series from RISE and recomputes every metric from scratch.
 
 ## Metrics
 
+- **% of capacity** — the headline number, and what the map colors and
+  sizes by: current storage against the reservoir's real capacity from the
+  USACE [National Inventory of Dams](https://nid.sec.usace.army.mil/),
+  stored in [`capacities.json`](capacities.json). RISE publishes no
+  capacity at all, so this comes from a second source.
 - **% of period-of-record max** — current storage vs. the highest storage
-  seen in that range. A proxy for physical capacity, not the real thing.
-- **Seasonal percentile** — where today's storage ranks against every other
-  year's value within a 7-day day-of-year window.
+  seen since 2015. Kept alongside, because it is what the dashboard used to
+  show and it drifts as the record grows: a reservoir that sets a new high
+  retroactively shrinks every earlier percentage.
+- **Seasonal percentile** — where today's storage ranks against *prior
+  years'* values within a 7-day day-of-year window. Prior years only, so a
+  reservoir at its lowest level ever for this week reads as 0 rather than
+  being partly ranked against itself.
 - **Normal for this week** — the median storage for this same day-of-year
-  window across the record, and today's storage as a percentage of it. This
+  window across prior years, and today's storage as a percentage of it. This
   is the "is this normal for August?" read, which % of record max can't
   give you: a reservoir at 60% of its all-time high in late summer might be
   perfectly ordinary or historically bad, and only this number says which.
@@ -28,7 +37,12 @@ storage series from RISE and recomputes every metric from scratch.
 - **12 months of monthly history** — mean/min/max/end storage per month,
   plus a *normal* for each calendar month (the median of that month in
   earlier years). This drives the trend chart and table in every popup.
+- **Sample depth** — `seasonal_sample_years`, how many prior years the
+  percentile and the normal are drawn from. A percentile from three years is
+  not the same claim as one from eleven.
 - **Freshness** — `as_of`, `days_stale`, `is_stale`, `fetch_ok`. See below.
+  Dates are compared in Mountain Time, so an evening run and a morning run
+  agree about how stale a reservoir is.
 
 RISE data is provisional per Reclamation's own disclaimer; treat the last
 few days of any series as subject to revision -- the app itself surfaces
@@ -61,16 +75,78 @@ The script refuses to overwrite `reservoirs.json` if fewer than half the
 reservoirs refreshed successfully, so a bad RISE day can't quietly replace
 good data with a stub.
 
+## What the pipeline fixes by itself
+
+The original failure wasn't that something broke — it was that nothing
+noticed. Three additions close that loop without a human in it:
+
+- **Transient failures retry.** The data pull runs up to three times with
+  1/3/9-minute backoff, on top of the per-request retries inside the script.
+  A RISE hiccup costs minutes, not a day of data. The push rebases and
+  retries too, rather than throwing away a good pull because another commit
+  landed first.
+- **The staleness alert manages its own issue.** When any feed goes quiet,
+  the run opens (or updates) an issue labeled `stale-feed` listing which
+  reservoirs and for how long. When they all report again, the run closes
+  it. An open issue means the state is true right now; nobody has to
+  remember to file or tidy it.
+- **The dashboards are checked in a real browser on every push.**
+  [`ci.yml`](.github/workflows/ci.yml) runs the data-script tests and a
+  Playwright smoke test that loads both maps, asserts all 28 reservoirs
+  actually rendered, fails on any console error, and uploads screenshots.
+
+That last one exists because of a specific bug. `esri/Map` was bound as
+`Map` in the ArcGIS page's `require` callback, shadowing the global `Map`
+constructor, so a later `new Map(...)` built an ArcGIS map instead of a
+lookup table. The page threw, caught its own error, and displayed a line of
+small print blaming `reservoirs.json` — while MapLibre, with nothing
+shadowing `Map`, rendered the same file perfectly. Syntax checks and unit
+tests cannot see a map that loads and draws nothing. A browser can.
+
+## Capacity
+
+RISE publishes storage but no capacity — proven by walking the catalog for
+Lake Powell (item 509 → record 2362 → location 393) with
+[`tools/probe_rise.py`](tools/probe_rise.py): the location has no capacity
+attribute, none of the 17 catalog items on the record is a capacity,
+`hasProfile` is false so there is no elevation–area–capacity table, and the
+free-text fields are empty.
+
+So capacity comes from the USACE National Inventory of Dams, built into
+[`capacities.json`](capacities.json) by
+[`tools/build_capacity_table.py`](tools/build_capacity_table.py) and
+committed rather than fetched at refresh time: it changes on the order of
+never, and a denominator that shifts silently underneath you is worse than
+a stale one. Each entry records the NID id and dam name, so any figure can
+be traced back.
+
+`normal_storage` — the conservation pool — is the denominator where NID has
+it (25 of 28 reservoirs). It is strikingly close to what we have actually
+observed: Strawberry 1,105,910 af against 1,106,560 af seen since 2015,
+Rockport 62,120 against 62,372. The other three fall back to `max_storage`.
+`nid_storage` is deliberately last: it is the maximum pool *including flood
+surcharge*, and taking it for Lake Powell gave 29,875,000 af against a real
+full pool nearer 25,000,000, quietly understating how empty it is.
+
+Matching reservoirs to dams is where this could go silently wrong, so every
+row is checked against the storage observed since 2015 and rejected if the
+capacity comes in below it — a capacity smaller than what we have already
+watched sit in the reservoir means the wrong dam got attached. Four
+reservoirs needed help: Strawberry and Rockport are impounded by Soldier
+Creek and Wanship dams, and Glen Canyon (Lake Powell) and Meeks Cabin are
+in Arizona and Wyoming, so a `state='UT'` filter dropped them.
+
 ## Symbology
 
 Each reservoir renders as two circles: a gray outline ring sized by that
-reservoir's period-of-record max storage, and a colored filled circle on
-top sized by current storage. Both sizes come from Arcade `valueExpression`s
+reservoir's full capacity, and a colored filled circle on top sized by
+current storage. Both sizes come from Arcade `valueExpression`s
 on the same sqrt-scaled domain, so the visible gap between ring and fill is
 always a real read of depletion, not a scaling artifact.
 
-The color ramp has five classes (under 25 / 25–50 / 50–75 / 75–90 / over
-90%) rather than the original three. In a drought year most of the state
+The ramp colors by percent full (percent of period-of-record max for any
+reservoir without a capacity). It has five classes (under 25 / 25–50 /
+50–75 / 75–90 / over 90%) rather than the original three. In a drought year most of the state
 falls under 50%, and the old ramp painted Lake Powell at 34% and Meeks
 Cabin at 13% the identical red — flattening the map exactly where the story
 is. Class breaks live in one table in
@@ -106,6 +182,25 @@ pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
 python refresh_reservoirs.py                      # full refresh, writes reservoirs.json
 python refresh_reservoirs.py --dry-run            # compute + print the freshness report only
 python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, never writes
+
+python tools/build_capacity_table.py --dry-run   # re-derive capacities from NID
+python tools/probe_rise.py --name "Lake Powell"  # dump RISE's catalog for a reservoir
+```
+
+Tests (no network — RISE is slow, rate-limited and occasionally wrong, and
+none of that should decide whether CI is green):
+
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
+
+The browser smoke test needs network access, since both pages load their
+SDK from a CDN:
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+mkdir -p screenshots && node tests/smoke.mjs
 ```
 
 ## Future improvements
@@ -115,23 +210,12 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### Correctness of the metrics
 
-- **Use real capacity instead of record max.** Every headline number is
-  currently a share of the highest storage seen since 2015, which is a
-  proxy and drifts as the record grows — a reservoir that sets a new high
-  makes every earlier percentage retroactively smaller. RISE publishes
-  active/total capacity per reservoir; pulling it would turn
-  `pct_of_record_max` into a real "percent full" and let the two be shown
-  side by side.
-- **Exclude the current year from `seasonal_percentile`.** *(flagged in
-  code)* The comparison population includes today's own value, so the
-  metric can never return a true 0 and skews toward the present in a short
-  record. Worth fixing before this number is ever presented as official.
-- **Leap-year-correct the day-of-year window.** *(flagged in code)* The
-  wrap-around is hardcoded to 365, so the ±7-day window is off by a day
-  near the New Year in leap years.
-- **Normalize freshness to Mountain Time.** *(flagged in code)* The
-  pipeline computes `days_stale` in UTC, so an evening run reports every
-  reservoir a day staler than a morning run does.
+- **Revisit the capacity denominator.** Capacity now comes from NID (see
+  below), using `normal_storage` where it exists and `max_storage` for the
+  three reservoirs that lack it. Utah DWR's own published capacities would
+  be the more local authority if a machine-readable version turns up —
+  [`tools/find_utah_capacities.py`](tools/find_utah_capacities.py) records
+  where I looked and what each candidate field actually contained.
 - **Flag implausible readings.** A gage that reports a 40% overnight jump
   is far more likely broken than real, and nothing currently distinguishes
   the two. A per-reservoir plausibility check would catch a different
@@ -139,25 +223,19 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### Making failures impossible to sit on
 
-- **Alert, don't just annotate.** A stale reservoir now produces a warning
-  on the run page — which still requires someone to look at the run page.
-  Opening (and auto-closing) a GitHub issue when a reservoir passes some
-  threshold would push the signal instead of waiting for a pull.
 - **Verify the catalog IDs.** *(flagged in code)* The `RESERVOIRS` table is
   hand-maintained with no verification. A weekly job that re-walks RISE's
   location → catalogRecord → catalogItem chain for `stateId=UT` and diffs
   the result against the table would catch a retired item ID — one of the
   two candidate explanations for the 2026-07-29 freeze, ruled out this time
   only by reading row counts by hand.
-- **Commit the test suite and run it in CI.** The refresh script's cleaning,
-  metrics, carry-forward, degenerate-series and pagination behavior were
-  all exercised against synthetic fixtures during this change, but that
-  harness lives outside the repo, so none of it protects the next edit.
-- **Smoke-test the maps in CI.** Both dashboards are verified by eye and by
-  syntax check, never automatically. A Playwright job that loads each page,
-  asserts 28 rendered circles and zero console errors, and uploads a
-  screenshot would catch a broken renderer before it ships — and would have
-  caught the earlier legend that silently never painted.
+- **Notify a human, not just a page.** The stale-feed issue opens itself,
+  but nobody is subscribed to it by default. Watching the repo or wiring a
+  notification would close the last gap between "the system knows" and
+  "someone knows".
+- **Self-heal a dead catalog ID.** The catalog check above can only report a
+  changed ID. Having it rewrite the `RESERVOIRS` table and open a PR would
+  make the most likely permanent failure fix itself.
 
 ### Data breadth
 
