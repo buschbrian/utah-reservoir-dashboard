@@ -108,8 +108,95 @@ python refresh_reservoirs.py --dry-run            # compute + print the freshnes
 python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, never writes
 ```
 
-Next steps: bring over the remaining matplotlib charts from the original
-notebook, and add a weekly job that re-walks RISE's catalog for stateId=UT
-and diffs the discovered item IDs against the hand-maintained `RESERVOIRS`
-table — a retired catalog item is one plausible cause of a reservoir going
-permanently quiet, and nothing currently checks for it.
+## Future improvements
+
+Roughly in order of how much they'd pay back. Items marked *(flagged in
+code)* have a matching `IMPROVEMENT:` comment at the relevant line.
+
+### Correctness of the metrics
+
+- **Use real capacity instead of record max.** Every headline number is
+  currently a share of the highest storage seen since 2015, which is a
+  proxy and drifts as the record grows — a reservoir that sets a new high
+  makes every earlier percentage retroactively smaller. RISE publishes
+  active/total capacity per reservoir; pulling it would turn
+  `pct_of_record_max` into a real "percent full" and let the two be shown
+  side by side.
+- **Exclude the current year from `seasonal_percentile`.** *(flagged in
+  code)* The comparison population includes today's own value, so the
+  metric can never return a true 0 and skews toward the present in a short
+  record. Worth fixing before this number is ever presented as official.
+- **Leap-year-correct the day-of-year window.** *(flagged in code)* The
+  wrap-around is hardcoded to 365, so the ±7-day window is off by a day
+  near the New Year in leap years.
+- **Normalize freshness to Mountain Time.** *(flagged in code)* The
+  pipeline computes `days_stale` in UTC, so an evening run reports every
+  reservoir a day staler than a morning run does.
+- **Flag implausible readings.** A gage that reports a 40% overnight jump
+  is far more likely broken than real, and nothing currently distinguishes
+  the two. A per-reservoir plausibility check would catch a different
+  failure mode than staleness does.
+
+### Making failures impossible to sit on
+
+- **Alert, don't just annotate.** A stale reservoir now produces a warning
+  on the run page — which still requires someone to look at the run page.
+  Opening (and auto-closing) a GitHub issue when a reservoir passes some
+  threshold would push the signal instead of waiting for a pull.
+- **Verify the catalog IDs.** *(flagged in code)* The `RESERVOIRS` table is
+  hand-maintained with no verification. A weekly job that re-walks RISE's
+  location → catalogRecord → catalogItem chain for `stateId=UT` and diffs
+  the result against the table would catch a retired item ID — one of the
+  two candidate explanations for the 2026-07-29 freeze, ruled out this time
+  only by reading row counts by hand.
+- **Commit the test suite and run it in CI.** The refresh script's cleaning,
+  metrics, carry-forward, degenerate-series and pagination behavior were
+  all exercised against synthetic fixtures during this change, but that
+  harness lives outside the repo, so none of it protects the next edit.
+- **Smoke-test the maps in CI.** Both dashboards are verified by eye and by
+  syntax check, never automatically. A Playwright job that loads each page,
+  asserts 28 rendered circles and zero console errors, and uploads a
+  screenshot would catch a broken renderer before it ships — and would have
+  caught the earlier legend that silently never painted.
+
+### Data breadth
+
+- **Cache the daily series.** Every run re-pulls ~4,200 rows × 28
+  reservoirs to recompute values that almost all didn't change. Persisting
+  the series (artifact or committed Parquet) and fetching only the delta
+  would cut the run time, be considerably kinder to RISE, and make a longer
+  history than 2015–present affordable.
+- **More parameters per reservoir.** RISE also carries inflow, outflow and
+  elevation. Storage alone can't distinguish "this reservoir is being drawn
+  down on purpose" from "nothing is coming in."
+- **Snowpack context.** Utah's reservoir year is decided by snowpack, and
+  NRCS SNOTEL basin values would give each reservoir's trend a cause rather
+  than just a shape.
+- **Non-Reclamation reservoirs.** These 28 are the Reclamation-monitored
+  ones; the Utah Division of Water Resources tracks others that a
+  statewide drought map arguably ought to include.
+
+### The dashboards
+
+- **A statewide table view.** Everything beyond the map is currently locked
+  behind clicking one reservoir at a time. A sortable all-28 table —
+  worst-first, sortable by any metric, CSV export — would answer "which
+  reservoirs are in the worst shape" without 28 clicks.
+- **A time slider.** The data now holds 12 months per reservoir but the map
+  only ever draws today. Animating the map through those months would show
+  the drawdown spreading across the state.
+- **Deep links.** `?reservoir=Deer+Creek` opening that popup directly would
+  make a specific reservoir's condition shareable.
+- **Accessibility.** The trend chart is an `aria-label` and a table; it
+  should have focusable bars with per-month tooltips, and the whole page
+  needs a keyboard and contrast pass.
+- **Mobile layout.** The title panel, legend and popup are all sized for a
+  desktop viewport and overlap badly on a phone.
+- **Harden the CDN dependency.** *(flagged in code)* Both pages pin their
+  SDK version in two places with no integrity hash and no fallback, so a
+  version bump means editing both and a CDN outage means a blank page.
+- **Size legend.** The legend explains the color ramp but not the circle
+  sizing, which is doing just as much work.
+
+Also still open from before: bring over the remaining matplotlib charts
+from the original notebook.
