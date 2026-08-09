@@ -5,11 +5,14 @@ on:
     # 12:00 UTC = 6am Mountain Time (MDT, UTC-6). Drifts to 5am during
     # standard time (MST, UTC-7) since GitHub Actions cron doesn't adjust
     # for DST -- acceptable for a daily, non-time-critical data refresh.
+    # (The script itself no longer depends on this: it computes "today" in
+    # Mountain Time regardless of when the run fires.)
     - cron: "0 12 * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  issues: write # so the run can open and close its own staleness issue
 
 # A scheduled run and a manual run overlapping would have both jobs pushing
 # reservoirs.json from the same base commit; the second push then fails on a
@@ -35,10 +38,32 @@ jobs:
       - name: Install dependencies
         run: pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
 
+      # Self-healing attempt #1: a transient RISE outage should cost the run
+      # a few minutes, not a day of data. The script already retries each
+      # HTTP request, but a failure that takes down the whole run (RISE down
+      # for a minute, more than half the reservoirs unreachable) needs a
+      # retry at this level too. Three attempts, backing off 1/3/9 minutes,
+      # all well inside the daily cadence.
       - name: Pull fresh RISE data
-        run: python refresh_reservoirs.py
+        id: refresh
         env:
           PYTHONUNBUFFERED: "1"
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::Refresh attempt $attempt"
+            if python refresh_reservoirs.py; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            if [ "$attempt" -lt 3 ]; then
+              delay=$((60 * 3 ** (attempt - 1)))
+              echo "::warning title=Refresh retry::Attempt $attempt failed; retrying in ${delay}s"
+              sleep "$delay"
+            fi
+          done
+          echo "::error title=Refresh failed::All 3 attempts failed; reservoirs.json left untouched"
+          exit 1
 
       - name: Commit and push if changed
         run: |
@@ -50,4 +75,62 @@ jobs:
             exit 0
           fi
           git commit -m "Daily reservoir data refresh"
-          git push
+          # The push can lose a race with another workflow committing to the
+          # same branch; rebase and retry rather than failing the run and
+          # throwing away a good pull.
+          for attempt in 1 2 3; do
+            if git push; then exit 0; fi
+            echo "Push rejected (attempt $attempt); rebasing onto the remote."
+            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      # Self-healing attempt #2: the staleness alert manages its own issue.
+      # An open issue is the state "some feed is quiet"; the run closes it as
+      # soon as that stops being true, so nobody has to remember to. This is
+      # the part that turns a warning on a page nobody reads into something
+      # that arrives on its own and goes away on its own.
+      - name: Open or update the stale-feed issue
+        if: steps.refresh.outputs.stale_count != '0' && steps.refresh.outputs.stale_count != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STALE_COUNT: ${{ steps.refresh.outputs.stale_count }}
+          STALE_NAMES: ${{ steps.refresh.outputs.stale_names }}
+          STALE_TABLE: ${{ steps.refresh.outputs.stale_table }}
+          STALE_AFTER: "2" # keep in step with STALE_AFTER_DAYS in the script
+        run: |
+          TITLE="Reservoir feeds have gone quiet ($STALE_NAMES)"
+          # Built with printf into a file rather than an inline heredoc: a
+          # heredoc indented to match this YAML block would carry those
+          # spaces into the issue body, and four leading spaces is a Markdown
+          # code block.
+          {
+            printf '%s\n\n' "The daily refresh found **$STALE_COUNT** reservoir(s) with no recent data from RISE."
+            printf '%s\n\n' "$STALE_TABLE"
+            printf '%s\n\n' "A reservoir lands here when its newest reading is more than $STALE_AFTER days old, or when the refresh could not reach RISE for it at all. Its last known value is still published and still drawn on the map, marked stale — it is not presented as current."
+            printf '%s\n\n' "This issue is maintained automatically: it updates on every refresh and closes itself once every feed is reporting again."
+            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+          } > issue-body.md
+          gh label create stale-feed --color b45309 \
+            --description 'A RISE feed stopped reporting' 2>/dev/null || true
+          EXISTING=$(gh issue list --state open --label stale-feed --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file issue-body.md
+            echo "Updated issue #$EXISTING"
+          else
+            gh issue create --title "$TITLE" --body-file issue-body.md --label stale-feed
+          fi
+
+      - name: Close the stale-feed issue once every feed recovers
+        if: steps.refresh.outputs.stale_count == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --state open --label stale-feed --limit 1 --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "All reservoir feeds are reporting again as of $(date -u '+%Y-%m-%d'). Closing automatically."
+            echo "Closed issue #$EXISTING"
+          else
+            echo "All feeds fresh, no open issue."
+          fi

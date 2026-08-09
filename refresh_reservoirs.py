@@ -6,8 +6,9 @@ set of drought metrics per reservoir:
 
 - pct_of_record_max: current storage vs. the highest storage seen in the
   pulled date range (proxy for % of physical capacity, not the real thing).
-- seasonal_percentile: where today's storage ranks against every other
-  year's value within a 7-day day-of-year window.
+- seasonal_percentile: where today's storage ranks against *prior years'*
+  values within a 7-day day-of-year window. Prior years only, so "lowest
+  this week has ever been" can actually read as 0.
 - seasonal_normal_af / pct_of_seasonal_normal: today's storage against the
   median storage for this same week in prior years -- the "is this normal
   for August?" read that pct_of_record_max can't give you.
@@ -101,17 +102,24 @@ RETRY_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s
 MAX_PAGES = 50  # ~100k daily rows; a stop so a bad meta block can't spin forever
 
 
-def utc_today() -> pd.Timestamp:
-    """Today's date in UTC, as a tz-naive midnight timestamp.
+LOCAL_TZ = "America/Denver"  # every reservoir here is on Mountain Time
 
-    IMPROVEMENT: the whole pipeline works in UTC, but the reservoirs and
-    their readers are on Mountain Time. Between 18:00 and 24:00 MT, "today"
-    here is already tomorrow locally, which is why every reservoir's
-    days_stale can read 1 higher in an evening run than a morning one. The
-    6am MT schedule keeps this from mattering in practice; a local-time
-    normalization would make it correct rather than merely convenient.
+
+def local_today() -> pd.Timestamp:
+    """Today's date in Mountain Time, as a tz-naive midnight timestamp.
+
+    This used to be UTC. Between 18:00 and 24:00 MT, UTC is already tomorrow,
+    so an evening run reported every reservoir a day staler than a morning
+    run of the same data -- and a reservoir sitting exactly on the threshold
+    would flip in and out of `is_stale` purely by clock time. The reservoirs,
+    the gages and the readers are all on Mountain Time; the dates RISE
+    publishes are local dates, so comparing them against a local today is the
+    apples-to-apples version.
+
+    Handles DST automatically via the zoneinfo database, so it does not drift
+    the way the workflow's fixed-UTC cron does.
     """
-    return pd.Timestamp.now("UTC").normalize().tz_localize(None)
+    return pd.Timestamp.now(LOCAL_TZ).normalize().tz_localize(None)
 
 
 def _get_json(params: dict) -> dict:
@@ -180,7 +188,7 @@ def fetch_rise_series(item_id: int, start: str, end: str) -> pd.DataFrame:
     df["storage_af"] = pd.to_numeric(df["result"], errors="coerce")
     df = df.dropna(subset=["storage_af"])
 
-    df = df[df["date"] <= utc_today()]
+    df = df[df["date"] <= local_today()]
     df = df.sort_values("date").drop_duplicates(subset="date", keep="last")
     return df[["date", "storage_af"]].reset_index(drop=True)
 
@@ -194,25 +202,38 @@ def seasonal_window(series: pd.Series, ref_date: pd.Timestamp, window_days: int 
     """
     doy = series.index.dayofyear
     ref_doy = ref_date.dayofyear
-    diff = np.minimum(np.abs(doy - ref_doy), 365 - np.abs(doy - ref_doy))
+    # Wrap around the year end using each observation's own year length, not a
+    # flat 365. With the constant, a leap year shifts every day after Feb 29
+    # by one, so a window near the New Year silently picked up the wrong days.
+    year_length = np.where(series.index.is_leap_year, 366, 365)
+    raw = np.abs(doy - ref_doy)
+    diff = np.minimum(raw, year_length - raw)
     return series[diff <= window_days]
+
+
+def prior_years(series: pd.Series, ref_date: pd.Timestamp) -> pd.Series:
+    """Everything from calendar years strictly before ref_date's year."""
+    return series[series.index.year < ref_date.year]
 
 
 def seasonal_percentile(series: pd.Series, ref_date: pd.Timestamp, current: float,
                         window_days: int = 7) -> float:
-    """Where `current` ranks against every year's value in the day-of-year window.
+    """Where `current` ranks against *prior years'* values in the day-of-year window.
 
-    IMPROVEMENT: the window includes the current year's own observations,
-    including `current` itself, so the metric can never return a true 0 and
-    is slightly biased toward the present in short records. Left as-is for
-    continuity with the original notebook's numbers -- but if this is ever
-    published as an official-looking statistic, restrict the comparison
-    population to prior years.
+    The comparison population is prior years only. It used to include the
+    current year's own observations -- including `current` itself -- which
+    made the statistic structurally incapable of returning a true 0 (a
+    reservoir at its worst level ever still scored above zero because it was
+    being compared against itself) and dragged every value toward the middle
+    in a short record. "Lowest this week has ever been" should read as 0.
+
+    Returns NaN when there are no prior years to compare against, which the
+    output layer turns into null rather than a fake number.
     """
-    window = seasonal_window(series, ref_date, window_days)
-    if window.empty:
+    population = seasonal_window(prior_years(series, ref_date), ref_date, window_days)
+    if population.empty:
         return float("nan")
-    return float(np.mean(window.to_numpy() <= current) * 100)
+    return float(np.mean(population.to_numpy() <= current) * 100)
 
 
 def value_asof(series: pd.Series, when: pd.Timestamp, tolerance_days: int = 10) -> float | None:
@@ -283,8 +304,14 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
 
     days_stale = int((today - last_date).days)
 
-    window = seasonal_window(series, last_date)
-    seasonal_normal = float(window.median()) if not window.empty else None
+    # The seasonal normal is a climatology, so it is built from prior years
+    # only -- same correction as seasonal_percentile. Including this year's
+    # own values pulled the "normal" toward whatever is happening right now,
+    # which is precisely backwards in a drought: the worse the year, the
+    # lower the bar it was being measured against.
+    population = seasonal_window(prior_years(series, last_date), last_date)
+    seasonal_normal = float(population.median()) if not population.empty else None
+    seasonal_years = int(population.index.year.nunique()) if not population.empty else 0
 
     this_year = series[series.index.year == last_date.year]
     peak_af = float(this_year.max()) if not this_year.empty else None
@@ -318,6 +345,11 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
         # --- "is this normal for the season?" ---
         "seasonal_normal_af": _round(seasonal_normal),
         "pct_of_seasonal_normal": _pct(current, seasonal_normal),
+        # How many prior years the normal and the percentile are built from.
+        # A percentile drawn from three years means something very different
+        # from one drawn from eleven, and the dashboard should be able to say
+        # so rather than presenting both as equally solid.
+        "seasonal_sample_years": seasonal_years,
 
         # --- trend ---
         **changes,
@@ -361,35 +393,64 @@ def load_previous(path: Path) -> dict[str, dict]:
     return {r["name"]: r for r in records if isinstance(r, dict) and "name" in r}
 
 
-def emit_github_annotations(records: list[dict]) -> None:
-    """Surface stale/failed reservoirs in the Actions log and job summary.
+def _problem_table(problems: list[dict]) -> list[str]:
+    rows = ["| Reservoir | As of | Days stale | Note |", "| --- | --- | ---: | --- |"]
+    for r in problems:
+        note = r.get("fetch_error", "no newer data published by RISE")
+        rows.append(f"| {r['name']} | {r['as_of']} | {r.get('days_stale')} | {note} |")
+    return rows
 
-    Without this the workflow is green and the JSON looks fine while three
-    reservoirs quietly republish week-old numbers -- exactly how the
-    2026-07-29 freeze on Deer Creek / Red Fleet / Steinaker went unnoticed
-    for eleven days.
+
+def _write_output(path: str, key: str, value: str) -> None:
+    """Append a GitHub Actions step output, using heredoc form for multi-line."""
+    with open(path, "a") as fh:
+        if "\n" in value:
+            fh.write(f"{key}<<__RESERVOIR_EOF__\n{value}\n__RESERVOIR_EOF__\n")
+        else:
+            fh.write(f"{key}={value}\n")
+
+
+def emit_ci_signals(records: list[dict]) -> None:
+    """Surface stale/failed reservoirs to the log, the job summary and the workflow.
+
+    Three audiences, three formats:
+      - ``::warning::`` annotations, so the run page shows them inline;
+      - a job-summary table, so the run page shows them without expanding logs;
+      - step outputs, so the workflow can act on them without re-parsing JSON.
+
+    The step outputs are what let the workflow open and close the tracking
+    issue by itself. Without them the pipeline can only *describe* a problem
+    on a page nobody is watching, which is precisely how the 2026-07-29 freeze
+    on Deer Creek / Red Fleet / Steinaker went unnoticed for eleven days --
+    the information was all there, sitting in a green run.
     """
-    problems = [r for r in records if r.get("is_stale") or not r.get("fetch_ok")]
-    for r in sorted(problems, key=lambda r: -(r.get("days_stale") or 0)):
+    problems = sorted(
+        (r for r in records if r.get("is_stale") or not r.get("fetch_ok")),
+        key=lambda r: -(r.get("days_stale") or 0),
+    )
+    for r in problems:
         detail = r.get("fetch_error", "no newer data published by RISE")
         print(f"::warning title=Stale reservoir::{r['name']} last updated "
               f"{r['as_of']} ({r.get('days_stale')} days ago) -- {detail}")
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not summary_path:
-        return
-    lines = [f"### Reservoir refresh: {len(records)} reservoirs\n"]
-    if problems:
-        lines.append(f"**{len(problems)} stale or failed:**\n")
-        lines.append("| Reservoir | As of | Days stale | Note |")
-        lines.append("| --- | --- | ---: | --- |")
-        for r in sorted(problems, key=lambda r: -(r.get("days_stale") or 0)):
-            note = r.get("fetch_error", "no newer data from RISE")
-            lines.append(f"| {r['name']} | {r['as_of']} | {r.get('days_stale')} | {note} |")
-    else:
-        lines.append("All reservoirs fresh. :white_check_mark:")
-    with open(summary_path, "a") as fh:
-        fh.write("\n".join(lines) + "\n")
+    if summary_path:
+        lines = [f"### Reservoir refresh: {len(records)} reservoirs\n"]
+        if problems:
+            lines.append(f"**{len(problems)} stale or failed:**\n")
+            lines.extend(_problem_table(problems))
+        else:
+            lines.append("All reservoirs fresh. :white_check_mark:")
+        with open(summary_path, "a") as fh:
+            fh.write("\n".join(lines) + "\n")
+
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        _write_output(output_path, "stale_count", str(len(problems)))
+        _write_output(output_path, "stale_names",
+                      ", ".join(r["name"] for r in problems))
+        _write_output(output_path, "stale_table",
+                      "\n".join(_problem_table(problems)) if problems else "")
 
 
 def main() -> int:
@@ -402,7 +463,7 @@ def main() -> int:
                         help="compute everything but don't write reservoirs.json")
     args = parser.parse_args()
 
-    today = utc_today()
+    today = local_today()
     end = (today + pd.Timedelta(days=1)).strftime("%Y%m%d")
     previous = load_previous(OUTPUT_PATH)
 
@@ -471,7 +532,7 @@ def main() -> int:
         print(f"  {flag} {r['name']:<18} as_of={r['as_of']} "
               f"({r.get('days_stale')}d) n={r.get('n_obs')}")
 
-    emit_github_annotations(records)
+    emit_ci_signals(records)
 
     if args.dry_run:
         print("\n--dry-run: not writing reservoirs.json")

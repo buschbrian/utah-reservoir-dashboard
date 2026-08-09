@@ -271,12 +271,26 @@
           map.on("mouseleave", "current-circle", () => {
             map.getCanvas().style.cursor = "";
           });
+
+          // Readiness signal for the CI browser smoke test (tests/smoke.mjs),
+          // matching the ArcGIS version's so one test can check both engines.
+          window.__dashboardReady = {
+            engine: "maplibre",
+            reservoirs: reservoirs.length,
+            stale: reservoirs.filter((r) => r.is_stale).length,
+            layers: ["max-circle", "stale-ring", "current-circle"]
+              .filter((id) => map.getLayer(id)).length
+          };
         })
         .catch((err) => {
-          console.error("Failed to load reservoirs.json:", err);
+          // Same reasoning as the ArcGIS version: name the real failure
+          // rather than blaming the data file for anything that throws.
+          console.error("Reservoir dashboard failed:", err);
           document.getElementById("freshness").innerHTML =
-            "<span class='rv-fresh-warn'>Could not load reservoirs.json — " +
-            "the map will be empty.</span>";
+            "<span class='rv-fresh-warn'>Dashboard failed to render: " +
+            String(err && err.message ? err.message : err)
+              .replace(/&/g, "&amp;").replace(/</g, "&lt;") +
+            "</span>";
         });
     });
   </script>
