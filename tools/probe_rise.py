@@ -78,6 +78,46 @@ def show_interesting(payload, label: str):
         print("    (nothing matched)")
 
 
+HOST = "https://data.usbr.gov"
+
+
+def resolve(iri: str) -> str:
+    """RISE uses IRIs like /rise/api/catalog-record/123 as JSON:API ids."""
+    return HOST + iri if iri.startswith("/") else iri
+
+
+def related_iris(payload) -> dict[str, list[str]]:
+    """Pull every relationship target out of a JSON:API document."""
+    out: dict[str, list[str]] = {}
+    data = (payload or {}).get("data")
+    if not isinstance(data, dict):
+        return out
+    for name, rel in (data.get("relationships") or {}).items():
+        target = rel.get("data")
+        if isinstance(target, dict) and isinstance(target.get("id"), str):
+            out[name] = [target["id"]]
+        elif isinstance(target, list):
+            out[name] = [t["id"] for t in target
+                         if isinstance(t, dict) and isinstance(t.get("id"), str)][:20]
+    return out
+
+
+def dump_attributes(payload, label: str):
+    """Every attribute, truncated. Capacity may not be named 'capacity'."""
+    data = (payload or {}).get("data")
+    entries = data if isinstance(data, list) else [data]
+    for i, entry in enumerate(entries[:3]):
+        attrs = (entry or {}).get("attributes")
+        if not isinstance(attrs, dict):
+            continue
+        print(f"  --- {label}[{i}]: all attributes ---")
+        for key, value in attrs.items():
+            printable = str(value)
+            if len(printable) > 100:
+                printable = printable[:100] + "…"
+            print(f"    {key} = {printable}")
+
+
 def summarize_keys(payload, label: str):
     print(f"  --- {label}: structure ---")
     if isinstance(payload, dict):
@@ -120,51 +160,57 @@ def main() -> int:
 
     print(f"=== catalog-item/{item_id}")
     item = get(f"{BASE}/catalog-item/{item_id}")
-    if item:
-        summarize_keys(item, "catalog-item")
-        show_interesting(item, "catalog-item")
-        if args.dump:
-            print(json.dumps(item, indent=2)[:6000])
+    if not item:
+        return 1
+    summarize_keys(item, "catalog-item")
+    dump_attributes(item, "catalog-item")
 
-    # Find the location this item hangs off, then look at the location and
-    # every other catalog item recorded against it -- capacity is far more
-    # likely to be a sibling parameter or a location attribute than to live
-    # on the storage timeseries itself.
-    location_id = None
-    if item:
-        for path, value in walk(item):
-            if "location" in path.lower() and isinstance(value, str) and "/location/" in value:
-                location_id = value.rstrip("/").split("/")[-1]
-                print(f"  -> location link {value} (id {location_id})")
-                break
+    rels = related_iris(item)
+    print(f"  relationships: { {k: v[:3] for k, v in rels.items()} }")
 
-    if location_id:
-        print(f"\n=== location/{location_id}")
-        loc = get(f"{BASE}/location/{location_id}")
+    # Capacity is not on the storage timeseries itself. Walk outward:
+    # catalog-item -> catalogRecord -> location, dumping every attribute at
+    # each hop, then list the location's other catalog items -- a sibling
+    # parameter is the most likely place for a capacity figure to live.
+    record_iri = (rels.get("catalogRecord") or [None])[0]
+    location_iri = None
+    if record_iri:
+        print(f"\n=== catalogRecord {record_iri}")
+        record = get(resolve(record_iri))
+        if record:
+            summarize_keys(record, "catalog-record")
+            dump_attributes(record, "catalog-record")
+            show_interesting(record, "catalog-record")
+            rrels = related_iris(record)
+            print(f"  relationships: { {k: v[:3] for k, v in rrels.items()} }")
+            for key, values in rrels.items():
+                if "location" in key.lower() and values:
+                    location_iri = values[0]
+
+    if location_iri:
+        print(f"\n=== location {location_iri}")
+        loc = get(resolve(location_iri))
         if loc:
             summarize_keys(loc, "location")
+            dump_attributes(loc, "location")
             show_interesting(loc, "location")
-            if args.dump:
-                print(json.dumps(loc, indent=2)[:8000])
+            lrels = related_iris(loc)
+            print(f"  relationships: { {k: v[:5] for k, v in lrels.items()} }")
 
-        print(f"\n=== catalog-record for location {location_id}")
-        rec = get(f"{BASE}/catalog-record", {"locationId": location_id, "itemsPerPage": 100})
-        if rec:
-            summarize_keys(rec, "catalog-record")
-            show_interesting(rec, "catalog-record")
-
-        print(f"\n=== catalog-item list for location {location_id}")
-        items = get(f"{BASE}/catalog-item", {"locationId": location_id, "itemsPerPage": 100})
-        if items:
-            summarize_keys(items, "catalog-item list")
-            data = items.get("data") or []
-            print(f"  --- {len(data)} catalog items at this location ---")
-            for entry in data:
-                attrs = (entry or {}).get("attributes") or {}
-                print(f"    id={attrs.get('_id') or entry.get('id')} "
-                      f"param={attrs.get('parameterName')!r} "
-                      f"unit={attrs.get('parameterUnit')!r} "
-                      f"timestep={attrs.get('parameterTimestep')!r}")
+            # Every catalog item recorded at this location, so we can see
+            # whether a capacity parameter exists as a sibling series.
+            loc_id = location_iri.rstrip("/").split("/")[-1]
+            print(f"\n=== catalog items at location {loc_id}")
+            listing = get(f"{BASE}/catalog-item", {"locationId": loc_id, "itemsPerPage": 200})
+            if listing:
+                entries = listing.get("data") or []
+                print(f"  --- {len(entries)} catalog items ---")
+                for entry in entries:
+                    attrs = (entry or {}).get("attributes") or {}
+                    print(f"    id={attrs.get('_id')} "
+                          f"param={attrs.get('parameterName')!r} "
+                          f"unit={attrs.get('parameterUnit')!r} "
+                          f"step={attrs.get('parameterTimestep')!r}")
 
     print("\n=== done")
     return 0
