@@ -1,6 +1,6 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status:** proposal, not yet started. **Date:** 2026-08-09.
+**Status:** Phase 0–1 groundwork started in parallel; current dashboards remain live. **Date:** 2026-08-09.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
@@ -15,6 +15,40 @@ contract that feeds it.
 | Build step | **Yes.** Vite + npm + TypeScript. The zero-build constraint is retired. |
 | Visual scope | Polished 2D + micro-interactions, plus a real charting upgrade. 3D scenes and deck.gl are **out of scope** for this pass (parked in [Deferred](#deferred)). |
 | First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. The three existing pages stay as-is until it lands. |
+
+### Implementation review — 2026-08-09
+
+The volatile assumptions were checked against primary package and SDK sources
+before installing anything:
+
+- The installed, locked line is ArcGIS packages **5.1.15**, Calcite **5.1.2**,
+  TypeScript **7.0.2**, Vite **8.2.1**, and Vitest **4.1.10**. ArcGIS 5.1's
+  component-first direction and MapLibre 6.1's ESM/WebGL2 requirements are
+  confirmed.
+- Do **not** physically move the current pages during Phase 0. Their URLs are
+  the production contract. The Vite build instead copies them verbatim to
+  `dist/` while `modern.html` is developed alongside them.
+- Runtime data uses `fetch(..., { cache: "no-store" })`. A cache key based on
+  `as_of` is circular because the client only knows `as_of` after fetching the
+  payload. The build copies data to `dist/data/` and never imports it into the
+  application bundle.
+- Local copies of every ArcGIS component asset are optional, not a Phase 0
+  requirement. The npm components can use ArcGIS-hosted assets initially;
+  copying the full asset trees should be an explicit deployment/offline choice
+  because it materially increases output size.
+- The basemap/authentication question remains a Phase 2 spike, but it does not
+  block typed data and build groundwork. Official 5.1 guidance allows public
+  apps to omit authentication for public resources, while specific location
+  services may still require a token.
+- MapLibre 6 now supports nested GeoJSON properties. Phase 6 must re-test the
+  old “nested arrays become strings” workaround rather than porting it as an
+  assumption.
+
+Implemented so far: strict TypeScript data types, a hand-written runtime
+validator, class-break and statewide-rollup modules, cadence-aware staleness,
+unit parity tests against the real 53-reservoir payload, a Vite production
+build, and a small modernization workbench. The Python refresh pipeline is not
+part of this modernization track.
 
 ---
 
