@@ -1,12 +1,15 @@
-name: Build capacity table (temporary)
+name: Build capacity table
 
-# TEMPORARY scaffolding, deleted once capacities.json is in the repo. Runs
-# on push and commits the result, because the environment this was authored
-# in cannot reach the inventory -- the run is the only way to produce the
-# file, and an artifact download would be equally unreachable.
+# Manual only. capacities.json is committed and changes on the order of
+# never, so this exists to re-derive it when the inventory is updated or the
+# choice of denominator changes -- not on every push. It commits the result
+# because the environment this was authored in cannot reach the inventory.
+#
+# Note: workflow_dispatch can only target a workflow that already exists on
+# the default branch. Until this lands on main, add a temporary `push:`
+# trigger on your branch to run it.
 on:
-  push:
-    branches: ["claude/reservoir-updates-trends-xpg4nj"]
+  workflow_dispatch: {}
 
 permissions:
   contents: write

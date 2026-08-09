@@ -40,6 +40,23 @@
   var STALE_COLOR = "#9e9e9e";
   var STALE_ACCENT = "#b45309"; // amber-700, for the "data is old" ring
 
+  /*
+   * The number the map is actually about. Percent of real capacity where we
+   * have it (from the National Inventory of Dams, via capacities.json), and
+   * percent of the highest storage ever observed where we don't. The two are
+   * close for most reservoirs but they are not the same claim, so the popup
+   * always shows which one it used.
+   */
+  function headlinePct(r) {
+    return (r.pct_of_capacity === null || r.pct_of_capacity === undefined)
+      ? r.pct_of_record_max : r.pct_of_capacity;
+  }
+
+  function headlineBasis(r) {
+    return (r.pct_of_capacity === null || r.pct_of_capacity === undefined)
+      ? "period-of-record max" : "capacity";
+  }
+
   function colorFor(pct) {
     if (pct === null || pct === undefined || isNaN(pct)) return STALE_COLOR;
     var chosen = CLASSES[0].color;
@@ -154,8 +171,10 @@
   // --- Status wording ------------------------------------------------
 
   function statusLine(r) {
-    var pct = r.pct_of_record_max;
-    var gap = r.record_max_af - r.current_storage_af;
+    var pct = headlinePct(r);
+    var reference = (r.capacity_af === null || r.capacity_af === undefined)
+      ? r.record_max_af : r.capacity_af;
+    var gap = reference - r.current_storage_af;
     var status;
     if (pct === null || pct === undefined) status = "No current reading";
     else if (pct < 25) status = "Extremely low";
@@ -163,8 +182,8 @@
     else if (pct < 75) status = "Below normal";
     else if (pct < 90) status = "Near normal";
     else status = "Near or above normal";
-    return status + " — " + fmtPct(pct) + " of its period-of-record max, " +
-      fmtAf(gap) + " af below that historical peak.";
+    return status + " — " + fmtPct(pct) + " of its " + headlineBasis(r) + ", " +
+      fmtAf(gap) + " af below full.";
   }
 
   // --- 12-month trend chart -----------------------------------------
@@ -333,7 +352,11 @@
 
     html += "<div class='rv-stats'>" +
       statRow("Current storage", fmtAf(r.current_storage_af) + " af") +
-      statRow("Period-of-record max", fmtAf(r.record_max_af) + " af") +
+      statRow("Capacity", r.capacity_af ? fmtAf(r.capacity_af) + " af" +
+        (r.pct_of_capacity ? " <em>(" + fmtPct(r.pct_of_capacity) + " full)</em>" : "")
+        : "—") +
+      statRow("Period-of-record max", fmtAf(r.record_max_af) + " af" +
+        (r.pct_of_record_max ? " <em>(" + fmtPct(r.pct_of_record_max) + " of it)</em>" : "")) +
       statRow("Normal for this week", r.seasonal_normal_af === undefined ? "—" :
         fmtAf(r.seasonal_normal_af) + " af" +
         (r.pct_of_seasonal_normal ? " <em>(" + fmtPct(r.pct_of_seasonal_normal) + " of it)</em>" : "")) +
@@ -355,9 +378,11 @@
 
     html += "<p class='rv-note'>Seasonal percentile: where this reading ranks " +
       "against every other year's value within a 7-day window of the same date. " +
-      "Data: <a href='https://data.usbr.gov/rise-api' target='_blank' " +
+      "Storage data: <a href='https://data.usbr.gov/rise-api' target='_blank' " +
       "rel='noreferrer'>Bureau of Reclamation RISE</a> — provisional and " +
-      "subject to revision.</p>";
+      "subject to revision. Capacity: USACE National Inventory of Dams" +
+      (r.capacity_basis ? " (" + esc(r.capacity_basis.replace(/_/g, " ")) + ")" : "") +
+      ", which RISE does not publish.</p>";
 
     return html;
   }
@@ -369,14 +394,15 @@
       return "<span class='rv-legend-row'><span class='rv-dot' style='background:" +
         c.color + "'></span>" + esc(c.label) + "</span>";
     }).join("");
-    return "<b>% of period-of-record max</b>" +
+    return "<b>% of capacity</b>" +
       "<div class='rv-legend-scale'>" + swatches + "</div>" +
       "<span class='rv-legend-row'><span class='rv-dot rv-dot-stale'></span>" +
       "Dashed ring: feed has gone quiet</span>" +
       "<p class='rv-legend-note'>Filled circle = current storage. Gray outline ring = " +
-      "that reservoir's own period-of-record max &mdash; the bigger the gap between " +
-      "ring and fill, the more depleted it is. Click any reservoir for its " +
-      "12-month trend.</p>";
+      "that reservoir's full capacity &mdash; the bigger the gap between ring and " +
+      "fill, the more depleted it is. Capacity from the National Inventory of Dams; " +
+      "where it is missing, the period-of-record max stands in. Click any reservoir " +
+      "for its 12-month trend.</p>";
   }
 
   /* One line under the title telling the reader how old the whole file is,
@@ -464,6 +490,8 @@
     STALE_COLOR: STALE_COLOR,
     STALE_ACCENT: STALE_ACCENT,
     colorFor: colorFor,
+    headlinePct: headlinePct,
+    headlineBasis: headlineBasis,
     load: load,
     normalize: normalize,
     statusLine: statusLine,

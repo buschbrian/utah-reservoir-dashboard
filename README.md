@@ -1,8 +1,8 @@
 # Utah Reservoir Drought Dashboard
 
 A static web map of current storage levels across 28 Bureau of
-Reclamation-monitored reservoirs in Utah, colored by percent of
-period-of-record maximum storage and sized by current storage volume.
+Reclamation-monitored reservoirs in Utah, colored by how full each one is
+and sized by its capacity.
 
 Built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
 (loaded directly from Esri's CDN — no build step, no framework). Data comes
@@ -15,8 +15,15 @@ storage series from RISE and recomputes every metric from scratch.
 
 ## Metrics
 
+- **% of capacity** — the headline number, and what the map colors and
+  sizes by: current storage against the reservoir's real capacity from the
+  USACE [National Inventory of Dams](https://nid.sec.usace.army.mil/),
+  stored in [`capacities.json`](capacities.json). RISE publishes no
+  capacity at all, so this comes from a second source.
 - **% of period-of-record max** — current storage vs. the highest storage
-  seen in that range. A proxy for physical capacity, not the real thing.
+  seen since 2015. Kept alongside, because it is what the dashboard used to
+  show and it drifts as the record grows: a reservoir that sets a new high
+  retroactively shrinks every earlier percentage.
 - **Seasonal percentile** — where today's storage ranks against *prior
   years'* values within a 7-day day-of-year window. Prior years only, so a
   reservoir at its lowest level ever for this week reads as 0 rather than
@@ -96,16 +103,50 @@ small print blaming `reservoirs.json` — while MapLibre, with nothing
 shadowing `Map`, rendered the same file perfectly. Syntax checks and unit
 tests cannot see a map that loads and draws nothing. A browser can.
 
+## Capacity
+
+RISE publishes storage but no capacity — proven by walking the catalog for
+Lake Powell (item 509 → record 2362 → location 393) with
+[`tools/probe_rise.py`](tools/probe_rise.py): the location has no capacity
+attribute, none of the 17 catalog items on the record is a capacity,
+`hasProfile` is false so there is no elevation–area–capacity table, and the
+free-text fields are empty.
+
+So capacity comes from the USACE National Inventory of Dams, built into
+[`capacities.json`](capacities.json) by
+[`tools/build_capacity_table.py`](tools/build_capacity_table.py) and
+committed rather than fetched at refresh time: it changes on the order of
+never, and a denominator that shifts silently underneath you is worse than
+a stale one. Each entry records the NID id and dam name, so any figure can
+be traced back.
+
+`normal_storage` — the conservation pool — is the denominator where NID has
+it (25 of 28 reservoirs). It is strikingly close to what we have actually
+observed: Strawberry 1,105,910 af against 1,106,560 af seen since 2015,
+Rockport 62,120 against 62,372. The other three fall back to `max_storage`.
+`nid_storage` is deliberately last: it is the maximum pool *including flood
+surcharge*, and taking it for Lake Powell gave 29,875,000 af against a real
+full pool nearer 25,000,000, quietly understating how empty it is.
+
+Matching reservoirs to dams is where this could go silently wrong, so every
+row is checked against the storage observed since 2015 and rejected if the
+capacity comes in below it — a capacity smaller than what we have already
+watched sit in the reservoir means the wrong dam got attached. Four
+reservoirs needed help: Strawberry and Rockport are impounded by Soldier
+Creek and Wanship dams, and Glen Canyon (Lake Powell) and Meeks Cabin are
+in Arizona and Wyoming, so a `state='UT'` filter dropped them.
+
 ## Symbology
 
 Each reservoir renders as two circles: a gray outline ring sized by that
-reservoir's period-of-record max storage, and a colored filled circle on
-top sized by current storage. Both sizes come from Arcade `valueExpression`s
+reservoir's full capacity, and a colored filled circle on top sized by
+current storage. Both sizes come from Arcade `valueExpression`s
 on the same sqrt-scaled domain, so the visible gap between ring and fill is
 always a real read of depletion, not a scaling artifact.
 
-The color ramp has five classes (under 25 / 25–50 / 50–75 / 75–90 / over
-90%) rather than the original three. In a drought year most of the state
+The ramp colors by percent full (percent of period-of-record max for any
+reservoir without a capacity). It has five classes (under 25 / 25–50 /
+50–75 / 75–90 / over 90%) rather than the original three. In a drought year most of the state
 falls under 50%, and the old ramp painted Lake Powell at 34% and Meeks
 Cabin at 13% the identical red — flattening the map exactly where the story
 is. Class breaks live in one table in
@@ -141,6 +182,9 @@ pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
 python refresh_reservoirs.py                      # full refresh, writes reservoirs.json
 python refresh_reservoirs.py --dry-run            # compute + print the freshness report only
 python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, never writes
+
+python tools/build_capacity_table.py --dry-run   # re-derive capacities from NID
+python tools/probe_rise.py --name "Lake Powell"  # dump RISE's catalog for a reservoir
 ```
 
 Tests (no network — RISE is slow, rate-limited and occasionally wrong, and
@@ -166,29 +210,12 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### Correctness of the metrics
 
-- **Use real capacity instead of record max — needs a second source.**
-  Every headline number is a share of the highest storage seen since 2015,
-  which is a proxy and drifts as the record grows: a reservoir that sets a
-  new high makes every earlier percentage retroactively smaller.
-
-  An earlier version of this list claimed RISE publishes active/total
-  capacity and that pulling it was straightforward. **That was wrong.**
-  Walking the catalog for Lake Powell (item 509 → record 2362 → location
-  393) with [`tools/probe_rise.py`](tools/probe_rise.py) found no capacity
-  anywhere: the location's only volume-adjacent attribute is `elevation`
-  (the dam's, in feet); all 17 catalog items on the record are storage,
-  elevation, inflow, release, evaporation, area, bank storage and change in
-  storage; `hasProfile` is false and every profile endpoint 404s, so there
-  is no elevation–area–capacity table either; and the free-text fields are
-  empty. The findings are written up at the top of the probe so nobody
-  repeats the walk.
-
-  Turning this into a true "percent full" therefore needs a second, cited
-  source — Reclamation's project data sheets or Utah DWR — stored as a
-  reviewed table with provenance per reservoir. That is a real piece of
-  work with a real risk of publishing authoritative-looking numbers nobody
-  checked, which is the opposite of what the rest of this change is for.
-  Until then `pct_of_record_max` stays, named for exactly what it measures.
+- **Revisit the capacity denominator.** Capacity now comes from NID (see
+  below), using `normal_storage` where it exists and `max_storage` for the
+  three reservoirs that lack it. Utah DWR's own published capacities would
+  be the more local authority if a machine-readable version turns up —
+  [`tools/find_utah_capacities.py`](tools/find_utah_capacities.py) records
+  where I looked and what each candidate field actually contained.
 - **Flag implausible readings.** A gage that reports a 40% overnight jump
   is far more likely broken than real, and nothing currently distinguishes
   the two. A per-reservoir plausibility check would catch a different

@@ -43,6 +43,7 @@ import requests
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
 START_DATE = "20150101"
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
+CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 
 # A reservoir whose newest observation is older than this many days is
 # flagged is_stale and called out in the run log and in the dashboards.
@@ -103,6 +104,25 @@ MAX_PAGES = 50  # ~100k daily rows; a stop so a bad meta block can't spin foreve
 
 
 LOCAL_TZ = "America/Denver"  # every reservoir here is on Mountain Time
+
+
+def load_capacities() -> dict[str, dict]:
+    """Reservoir capacities from capacities.json, or {} if it isn't there.
+
+    Built separately by tools/build_capacity_table.py from the National
+    Inventory of Dams, because RISE publishes no capacity at all. Kept as a
+    committed, reviewable file rather than fetched at refresh time: it
+    changes on the order of never, it comes from a different agency, and a
+    denominator that silently changes under you is worse than a stale one.
+    """
+    if not CAPACITY_PATH.exists():
+        return {}
+    try:
+        return json.loads(CAPACITY_PATH.read_text()).get("capacities", {})
+    except (ValueError, AttributeError):
+        print(f"WARNING: {CAPACITY_PATH.name} is unreadable; "
+              "percent-of-capacity will be omitted")
+        return {}
 
 
 def local_today() -> pd.Timestamp:
@@ -294,7 +314,7 @@ def _pct(numerator: float | None, denominator: float | None) -> float | None:
 
 
 def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
-              today: pd.Timestamp) -> dict:
+              today: pd.Timestamp, capacity: dict | None = None) -> dict:
     """Turn one reservoir's daily series into the record the dashboards consume."""
     series = df.set_index("date")["storage_af"].sort_index()
     last_date = series.index[-1]
@@ -323,6 +343,9 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
         changes[f"change_{label}_af"] = _round(None if past is None else current - past)
         changes[f"change_{label}_pct"] = None if not past else _round((current - past) / past * 100, 1)
 
+    capacity = capacity or {}
+    capacity_af = capacity.get("capacity_af")
+
     return {
         "name": name,
         "rise_item_id": item_id,
@@ -340,6 +363,15 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
         "record_max_af": _round(record_max),
         "record_min_af": _round(record_min),
         "pct_of_record_max": _pct(current, record_max),
+
+        # --- percent full, against real capacity rather than a proxy ---
+        # record_max is the highest storage ever *observed*, so it drifts as
+        # the record grows and a new high retroactively shrinks every earlier
+        # percentage. Capacity is a fixed physical property; where we have it,
+        # it is the honest denominator.
+        "capacity_af": capacity_af,
+        "capacity_basis": capacity.get("capacity_basis"),
+        "pct_of_capacity": _pct(current, capacity_af),
         "seasonal_percentile": _round(seasonal_percentile(series, last_date, current), 1),
 
         # --- "is this normal for the season?" ---
@@ -466,6 +498,8 @@ def main() -> int:
     today = local_today()
     end = (today + pd.Timedelta(days=1)).strftime("%Y%m%d")
     previous = load_previous(OUTPUT_PATH)
+    capacities = load_capacities()
+    print(f"Capacities available for {len(capacities)}/{len(RESERVOIRS)} reservoirs")
 
     targets = RESERVOIRS
     if args.only:
@@ -496,7 +530,8 @@ def main() -> int:
                 records.append(carry_forward(previous[name], today, reason))
             continue
 
-        records.append(summarize(name, item_id, lat, lon, df, today))
+        records.append(summarize(name, item_id, lat, lon, df, today,
+                                 capacities.get(name)))
         time.sleep(0.5)  # be polite to RISE's server
 
     if args.only:
@@ -523,6 +558,7 @@ def main() -> int:
         "source": "Bureau of Reclamation RISE API (https://data.usbr.gov/rise-api)",
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
+        "capacity_count": sum(1 for r in records if r.get("capacity_af")),
         "reservoirs": records,
     }
 

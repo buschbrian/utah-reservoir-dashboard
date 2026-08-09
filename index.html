@@ -49,7 +49,7 @@
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
-    <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+    <p>Percent full &mdash; Reclamation RISE storage against National Inventory of Dams capacity</p>
     <p id="freshness">Loading data&hellip;</p>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
@@ -111,6 +111,12 @@
         { name: "current_storage_af", alias: "Current Storage (af)", type: "double" },
         { name: "record_max_af", alias: "Record Max Storage (af)", type: "double" },
         { name: "pct_of_record_max", alias: "% of Record Max", type: "double" },
+        // Derived when the graphics are built, so the renderers below can be
+        // simple: capacity where the National Inventory of Dams has it, and
+        // the observed record max standing in where it doesn't. Without
+        // these, every expression would need the same null-check inline.
+        { name: "size_basis_af", alias: "Full Capacity (af)", type: "double" },
+        { name: "fill_pct", alias: "% Full", type: "double" },
         { name: "seasonal_percentile", alias: "Seasonal Percentile", type: "double" },
         { name: "days_stale", alias: "Days Since Last Reading", type: "double" },
         { name: "as_of", alias: "As Of", type: "string" }
@@ -164,6 +170,8 @@
             attributeNames.forEach((key) => {
               attributes[key] = r[key] === undefined ? null : r[key];
             });
+            attributes.size_basis_af = r.capacity_af || r.record_max_af;
+            attributes.fill_pct = ReservoirViz.headlinePct(r);
             return new Graphic({
               geometry: { type: "point", longitude: r.lon, latitude: r.lat },
               attributes: attributes
@@ -173,7 +181,7 @@
           reservoirs.forEach((r, i) => { r.__oid = i + 1; });
           const staleRecords = reservoirs.filter((r) => r.is_stale);
 
-          // The outline ring's radius is sized by absolute record_max_af
+          // The outline ring's radius is sized by absolute capacity
           // (sqrt-scaled, via Arcade, to compress the range between Lake
           // Powell at ~5-6M af and the smallest reservoirs at ~1,000 af
           // into a legible spread) -- this communicates each reservoir's
@@ -196,7 +204,8 @@
           // fraction, not the fraction itself, because circle *area*
           // needs to scale with the percentage for the fill to look
           // proportionally right, not just its radius.)
-          const maxSqrtDomain = Math.sqrt(Math.max(...reservoirs.map((r) => r.record_max_af)));
+          const maxSqrtDomain = Math.sqrt(Math.max(
+            ...reservoirs.map((r) => r.capacity_af || r.record_max_af)));
           const ringMinSize = 8;
           const ringMaxSize = 46;
 
@@ -212,7 +221,7 @@
           // expression-plus-identity-mapping dance. Kept as Arcade because
           // exercising Arcade is the point of this phase.
           const ringRadiusArcade =
-            ringMinSize + " + (Sqrt($feature.record_max_af) / " + maxSqrtDomain +
+            ringMinSize + " + (Sqrt($feature.size_basis_af) / " + maxSqrtDomain +
             ") * (" + ringMaxSize + " - " + ringMinSize + ")";
 
           // --- Outline layer: period-of-record max, drawn first (bottom) ---
@@ -240,8 +249,8 @@
               },
               visualVariables: [{
                 type: "size",
-                valueExpression: "Sqrt($feature.record_max_af)",
-                valueExpressionTitle: "Period-of-record max storage (sqrt-scaled)",
+                valueExpression: "Sqrt($feature.size_basis_af)",
+                valueExpressionTitle: "Full capacity (sqrt-scaled)",
                 minDataValue: 0,
                 maxDataValue: maxSqrtDomain,
                 minSize: ringMinSize,
@@ -317,7 +326,7 @@
                   // the real scaling happens inside the expression itself.
                   valueExpression:
                     "var ringRadius = " + ringRadiusArcade + ";\n" +
-                    "return ringRadius * Sqrt($feature.pct_of_record_max / 100);",
+                    "return ringRadius * Sqrt($feature.fill_pct / 100);",
                   valueExpressionTitle: "Current storage, as a share of this reservoir's own ring",
                   minDataValue: 0,
                   maxDataValue: ringMaxSize,
@@ -326,8 +335,8 @@
                 },
                 {
                   type: "color",
-                  valueExpression: "$feature.pct_of_record_max",
-                  valueExpressionTitle: "% of period-of-record max",
+                  valueExpression: "$feature.fill_pct",
+                  valueExpressionTitle: "% of capacity",
                   // Paired stops (x, next-x-minus-epsilon) turn the SDK's
                   // continuous interpolation into hard classes. Generated
                   // from the shared class table so the map, the legend and

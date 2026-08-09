@@ -150,6 +150,54 @@ def test_local_today_is_mountain_time():
     assert R.local_today() == expected
 
 
+# --- capacity -------------------------------------------------------------
+
+def test_capacity_produces_percent_full():
+    capacity = {"capacity_af": 200000.0, "capacity_basis": "normal_storage"}
+    idx = pd.date_range("2015-01-01", TODAY, freq="D")
+    series = np.full(len(idx), 100000.0)
+    df = pd.DataFrame({"date": idx, "storage_af": series})
+    rec = R.summarize("Halffull", 1, 40.0, -111.0, df, TODAY, capacity)
+    assert rec["capacity_af"] == 200000.0
+    assert rec["capacity_basis"] == "normal_storage"
+    assert rec["pct_of_capacity"] == 50.0
+    # record max is the observed series, so the two denominators differ
+    assert rec["pct_of_record_max"] == 100.0
+    json.dumps(rec)
+
+
+def test_missing_capacity_is_null_not_guessed():
+    """No capacity must mean no percent-full, not a silent fallback number."""
+    rec = R.summarize("Unknown", 1, 40.0, -111.0, synthetic_series(), TODAY, None)
+    assert rec["capacity_af"] is None
+    assert rec["pct_of_capacity"] is None
+    assert rec["pct_of_record_max"] is not None
+    json.dumps(rec)
+
+
+def test_committed_capacity_table_covers_every_reservoir():
+    """Guards the table the dashboards divide by."""
+    path = Path(__file__).resolve().parent.parent / "capacities.json"
+    payload = json.loads(path.read_text())
+    caps = payload["capacities"]
+    assert set(caps) == set(R.RESERVOIRS), "capacity table and RESERVOIRS disagree"
+    assert "National Inventory of Dams" in payload["source"]
+
+    published = R.load_previous(R.OUTPUT_PATH)
+    for name, entry in caps.items():
+        assert entry["capacity_af"] > 0
+        assert entry["capacity_basis"] in {"normal_storage", "max_storage", "nid_storage"}
+        assert entry["nid_id"], f"{name} has no NID id to trace back to"
+        # The check that catches a mis-matched dam: we have watched these
+        # reservoirs since 2015, so a capacity below the storage we have
+        # actually seen in one means the wrong row got attached.
+        observed = (published.get(name) or {}).get("record_max_af")
+        if observed:
+            assert entry["capacity_af"] >= observed * 0.9, (
+                f"{name}: capacity {entry['capacity_af']:,.0f} af is below the "
+                f"observed record max {observed:,.0f} af")
+
+
 # --- degenerate inputs ----------------------------------------------------
 
 def test_short_series_has_no_year_over_year_change_and_no_normals():
