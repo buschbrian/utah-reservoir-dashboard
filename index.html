@@ -57,6 +57,8 @@
       preliminary.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
       <br>
+      <a href="explore.html"><b>Statewide overview: rankings, trends and a sortable table &rarr;</b></a>
+      <br>
       <a href="maplibre/">Compare with the MapLibre GL JS + CARTO version &rarr;</a>
     </p>
   </div>
@@ -81,11 +83,46 @@
       "esri/Map",
       "esri/views/MapView",
       "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (EsriMap, MapView, FeatureLayer, Graphic) {
+    ], function (EsriMap, MapView, FeatureLayer, GraphicsLayer, Graphic) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "topo-vector" });
+
+      // --- Utah mask ---
+      //
+      // One polygon covering the world with a Utah-shaped hole in it,
+      // translucent, under everything else -- so Nevada and Wyoming stop
+      // competing with the state this dashboard is about. The rings come
+      // from the shared module in ArcGIS winding (outer clockwise, hole
+      // counterclockwise); the MapLibre page gets the same two rings
+      // flipped for GeoJSON. Deliberately a dimming pass rather than a
+      // clip: Lake Powell (Arizona) and Meeks Cabin (Wyoming) are two of
+      // the 28, and neighboring terrain is real context.
+      //
+      // A GraphicsLayer rather than a FeatureLayer because it is one static
+      // shape with no attributes, no popup and nothing to symbolize by.
+      const maskLayer = new GraphicsLayer({ title: "Outside Utah", listMode: "hide" });
+      maskLayer.add(new Graphic({
+        geometry: { type: "polygon", rings: ReservoirViz.utahMaskRings(),
+                    spatialReference: { wkid: 4326 } },
+        symbol: {
+          type: "simple-fill",
+          color: ReservoirViz.MASK_FILL,
+          outline: { color: [0, 0, 0, 0], width: 0 }
+        }
+      }));
+      maskLayer.add(new Graphic({
+        geometry: { type: "polyline", paths: [ReservoirViz.UTAH_RING],
+                    spatialReference: { wkid: 4326 } },
+        symbol: {
+          type: "simple-line",
+          color: ReservoirViz.MASK_LINE,
+          width: 1.2
+        }
+      }));
+      map.add(maskLayer);
 
       const view = new MapView({
         container: "viewDiv",
@@ -366,7 +403,12 @@
               engine: "arcgis",
               reservoirs: reservoirs.length,
               stale: staleRecords.length,
-              layers: map.layers.length
+              // The three reservoir layers, counted by name rather than as
+              // map.layers.length, so adding a decoration like the mask
+              // can't quietly satisfy a test that meant "the data drew".
+              layers: [maxLayer, staleLayer, currentLayer]
+                .filter((l) => map.layers.includes(l)).length,
+              masked: map.layers.includes(maskLayer)
             };
           });
         })

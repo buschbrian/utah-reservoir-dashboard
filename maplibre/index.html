@@ -64,6 +64,8 @@
       preliminary.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
       <br>
+      <a href="../explore.html"><b>Statewide overview: rankings, trends and a sortable table &rarr;</b></a>
+      <br>
       <a href="../">Compare with the ArcGIS Maps SDK for JS version &rarr;</a>
     </p>
   </div>
@@ -125,6 +127,35 @@
     map.on("load", () => {
       map.addImage("stale-ring", makeDashedRing(RING_SPRITE_PX, ReservoirViz.STALE_ACCENT),
                    { pixelRatio: 2 });
+
+      // --- Utah mask ---
+      //
+      // A single polygon with a Utah-shaped hole, laid over the basemap so
+      // out-of-state geography recedes. Both engines get the rings from the
+      // shared module; here they arrive as GeoJSON winding (outer
+      // counterclockwise, hole clockwise), which is what MapLibre's tiler
+      // expects. Added before the reservoir layers so it can never paint
+      // over a circle, and kept translucent on purpose -- Lake Powell and
+      // Meeks Cabin are outside the state line.
+      map.addSource("utah-mask", { type: "geojson", data: ReservoirViz.utahMaskGeoJSON() });
+      map.addSource("utah-outline", { type: "geojson", data: ReservoirViz.utahOutlineGeoJSON() });
+
+      map.addLayer({
+        id: "utah-mask",
+        type: "fill",
+        source: "utah-mask",
+        paint: { "fill-color": ReservoirViz.MASK_FILL }
+      });
+      map.addLayer({
+        id: "utah-outline",
+        type: "line",
+        source: "utah-outline",
+        paint: {
+          "line-color": ReservoirViz.MASK_LINE,
+          "line-width": 1.2,
+          "line-opacity": 0.9
+        }
+      });
 
       ReservoirViz.load("../reservoirs.json")
         .then((data) => {
@@ -283,7 +314,8 @@
             reservoirs: reservoirs.length,
             stale: reservoirs.filter((r) => r.is_stale).length,
             layers: ["max-circle", "stale-ring", "current-circle"]
-              .filter((id) => map.getLayer(id)).length
+              .filter((id) => map.getLayer(id)).length,
+            masked: !!map.getLayer("utah-mask")
           };
         })
         .catch((err) => {

@@ -1,22 +1,32 @@
 /*
- * Shared rendering logic for both dashboards (../index.html, the ArcGIS
- * Maps SDK version, and ../maplibre/index.html, the MapLibre GL JS one).
+ * Shared rendering logic for all three pages: ../index.html (the ArcGIS
+ * Maps SDK map), ../maplibre/index.html (the MapLibre GL JS map) and
+ * ../explore.html (the statewide overview, which draws no map at all).
  *
- * Why this file exists: the two pages exist to compare *rendering engines*,
- * so everything that isn't engine-specific -- the color classes, the status
- * wording, the popup markup, the 12-month trend chart, the legend -- has to
- * be identical between them or the comparison is measuring copy drift
- * instead of the engines. It used to be duplicated by hand in both files
- * and had already diverged. Engine-specific code (layers, paint properties,
- * Arcade vs. MapLibre expressions) stays in the pages.
+ * Why this file exists: the two map pages exist to compare *rendering
+ * engines*, so everything that isn't engine-specific -- the color classes,
+ * the status wording, the popup markup, the 12-month trend chart, the
+ * legend, the Utah mask geometry -- has to be identical between them or the
+ * comparison is measuring copy drift instead of the engines. It used to be
+ * duplicated by hand in both files and had already diverged.
+ * Engine-specific code (layers, paint properties, Arcade vs. MapLibre
+ * expressions) stays in the pages.
+ *
+ * The overview joined later and inherited the same argument for a different
+ * reason: a reservoir has to read identically whether you reached it by
+ * clicking a dot or a table row. It also added the first logic here that is
+ * about data rather than drawing -- the statewide rollup -- because the map
+ * pages are the obvious next place to want it.
  *
  * Same zero-build-step constraint as the rest of the project: a plain
  * script that hangs one global off window, no modules, no bundler.
  *
  * IMPROVEMENT: with a build step this would be an ES module with real
- * imports and the chart would be a tested unit. It is deliberately not,
- * to hold the project's "CDN tags only" constraint -- but the moment a
- * third page shows up, revisit that.
+ * imports and the chart and the rollup would be tested units. It is
+ * deliberately not, to hold the project's "CDN tags only" constraint -- but
+ * this note used to say "revisit when a third page shows up", and the third
+ * page has shown up. The rollup in particular is arithmetic with no DOM in
+ * it, and is currently only ever checked by a browser smoke test.
  */
 (function (global) {
   "use strict";
@@ -64,6 +74,197 @@
       if (pct >= CLASSES[i].min) chosen = CLASSES[i].color;
     }
     return chosen;
+  }
+
+  // --- Utah, and everything that isn't ---------------------------------
+  //
+  // Both maps are about Utah but neither basemap knows that: Nevada,
+  // Wyoming and the Colorado Plateau render at exactly the same weight as
+  // the state the dashboard is for, and the eye has to do the cropping.
+  // A translucent mask over everything outside the state line fixes that
+  // without hiding anything -- deliberately *slight* (see MASK_FILL), for
+  // two reasons. Neighboring geography is real context: the Uinta Basin
+  // does not stop at the Colorado line. And two of the 28 reservoirs are
+  // not in Utah at all -- Lake Powell sits behind Glen Canyon Dam in
+  // Arizona, and Meeks Cabin is in the Wyoming notch -- so a hard clip
+  // would drop them into a gray void.
+  //
+  // Utah's borders are surveyed lines of latitude and longitude, which is
+  // why this is six corners rather than a shapefile: 42°N to 37°N, 114°03'W
+  // to 109°03'W, with the northeast notch (north of 41°N, east of 111°03'W)
+  // belonging to Wyoming. Accurate to the fraction of a degree the real
+  // survey wanders, which is far finer than a dimming overlay needs.
+  var UTAH_W = -114.052, UTAH_E = -109.041;
+  var UTAH_S = 37.0, UTAH_N = 42.0;
+  var NOTCH_W = -111.047, NOTCH_S = 41.0;
+
+  // Counterclockwise, starting at the northwest corner. Used as-is for an
+  // ArcGIS *hole* ring (which wants the opposite winding from the outer
+  // ring) and reversed for GeoJSON.
+  var UTAH_RING = [
+    [UTAH_W, UTAH_N], [UTAH_W, UTAH_S], [UTAH_E, UTAH_S],
+    [UTAH_E, NOTCH_S], [NOTCH_W, NOTCH_S], [NOTCH_W, UTAH_N],
+    [UTAH_W, UTAH_N]
+  ];
+
+  // Clockwise, and far larger than either map can pan to at these zooms,
+  // so the mask never runs out before the viewport does.
+  //
+  // Deliberately not the whole world. A ring spanning the full -180..180
+  // rendered *inverted* in the ArcGIS SDK -- Utah dimmed and everything
+  // around it left bright -- because a polygon touching both edges of the
+  // antimeridian is ambiguous about which side it encloses, so the outer
+  // ring was dropped and the Utah hole was promoted to the only ring.
+  // MapLibre drew it correctly, which is exactly the kind of difference
+  // this project's two-engine setup exists to catch. A continent-sized box
+  // has no such ambiguity; the cost is that zooming out past North America
+  // reveals the mask's own edge, which no reader of a Utah dashboard is
+  // going to do.
+  var SURROUND_RING = [
+    [-160, 72], [-45, 72], [-45, 8], [-160, 8], [-160, 72]
+  ];
+
+  // A pale cool gray rather than plain white, and only ~60% opaque. White
+  // works on the ArcGIS topo basemap, which is colorful enough to wash out
+  // visibly, but does nothing at all on CARTO Positron -- which is already
+  // near-white, so a white scrim over it is a scrim over nothing. A gray
+  // dims both. The alpha is the "slightly" part: out-of-state labels and
+  // terrain stay readable, they just stop competing.
+  var MASK_FILL = "rgba(226,232,239,0.62)";
+  var MASK_LINE = "#8fa3b8";
+
+  function reversed(ring) { return ring.slice().reverse(); }
+
+  /* ArcGIS Polygon rings: outer clockwise, holes counterclockwise. */
+  function utahMaskRings() { return [SURROUND_RING.slice(), UTAH_RING.slice()]; }
+
+  /* GeoJSON winds the other way (RFC 7946: outer counterclockwise, holes
+   * clockwise), so the same two rings get flipped. */
+  function utahMaskGeoJSON() {
+    return {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "Polygon",
+        coordinates: [reversed(SURROUND_RING), reversed(UTAH_RING)]
+      }
+    };
+  }
+
+  function utahOutlineGeoJSON() {
+    return {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: UTAH_RING.slice() }
+    };
+  }
+
+  // --- Statewide rollup ------------------------------------------------
+  //
+  // The maps answer "how is this reservoir doing"; these answer "how is the
+  // state doing", which no amount of clicking 28 popups adds up to. Kept
+  // here rather than in the page that currently uses it because it is data
+  // logic, not layout, and the map pages are the obvious next place to
+  // want it.
+
+  function sizeBasis(r) {
+    return (r.capacity_af === null || r.capacity_af === undefined)
+      ? r.record_max_af : r.capacity_af;
+  }
+
+  function statewideSummary(reservoirs) {
+    var sum = function (pick) {
+      return reservoirs.reduce(function (acc, r) {
+        var v = pick(r);
+        return (v === null || v === undefined || isNaN(v)) ? acc : acc + v;
+      }, 0);
+    };
+    var storage = sum(function (r) { return r.current_storage_af; });
+    var capacity = sum(sizeBasis);
+    // Counted per class rather than averaged: a statewide mean percentage
+    // is dominated by Lake Powell, which holds more than every other
+    // reservoir here combined, so "17 of 28 are under half full" is the
+    // honest companion to the volume-weighted number.
+    var classCounts = CLASSES.map(function (cls, i) {
+      var upper = i === CLASSES.length - 1 ? Infinity : CLASSES[i + 1].min;
+      return {
+        label: cls.label,
+        color: cls.color,
+        count: reservoirs.filter(function (r) {
+          var pct = headlinePct(r);
+          return pct !== null && pct !== undefined && pct >= cls.min && pct < upper;
+        }).length
+      };
+    });
+    // "Normal for this week" only across the reservoirs that have one, and
+    // with the numerator narrowed to those same reservoirs -- dividing all
+    // 28 reservoirs' storage by 25 reservoirs' normal would read as a
+    // surplus that is really just the missing three.
+    var withNormal = reservoirs.filter(function (r) {
+      return r.seasonal_normal_af !== null && r.seasonal_normal_af !== undefined;
+    });
+    var normalTotal = withNormal.reduce(function (a, r) {
+      return a + r.seasonal_normal_af;
+    }, 0);
+    var storageWithNormal = withNormal.reduce(function (a, r) {
+      return a + (r.current_storage_af || 0);
+    }, 0);
+    return {
+      count: reservoirs.length,
+      storage_af: storage,
+      capacity_af: capacity,
+      pct_full: capacity ? (storage / capacity) * 100 : null,
+      change_30d_af: sum(function (r) { return r.change_30d_af; }),
+      change_365d_af: sum(function (r) { return r.change_365d_af; }),
+      normal_af: normalTotal,
+      pct_of_normal: normalTotal ? (storageWithNormal / normalTotal) * 100 : null,
+      normal_covers: withNormal.length,
+      stale: reservoirs.filter(function (r) { return r.is_stale; }).length,
+      below_half: reservoirs.filter(function (r) {
+        var pct = headlinePct(r);
+        return pct !== null && pct !== undefined && pct < 50;
+      }).length,
+      classes: classCounts
+    };
+  }
+
+  /* Statewide storage by month, shaped like a single reservoir's `monthly`
+   * array so the existing trend chart can draw it unchanged.
+   *
+   * Months that not every reservoir reported are dropped rather than shown
+   * short, which matters more than it sounds: a stale reservoir's 12-month
+   * window ends where its feed stopped, so the three frozen reservoirs
+   * contribute an extra month at the old end and nothing at the new one.
+   * Summed naively that renders as a near-empty bar last August and a
+   * sudden statewide drop this August -- both of them pure artifacts of who
+   * was reporting, drawn in the same ink as a real drawdown. Full coverage
+   * is measured against the best month rather than the reservoir count, so
+   * one reservoir with no monthly history at all doesn't erase the chart. */
+  function statewideMonthly(reservoirs) {
+    var byMonth = {};
+    reservoirs.forEach(function (r) {
+      (r.monthly || []).forEach(function (m) {
+        if (m.mean_af === null || m.mean_af === undefined) return;
+        var slot = byMonth[m.month] || (byMonth[m.month] = {
+          month: m.month, mean_af: 0, normal_af: 0, reservoirs: 0, normal_from: 0
+        });
+        slot.mean_af += m.mean_af;
+        slot.reservoirs += 1;
+        if (m.normal_af !== null && m.normal_af !== undefined) {
+          slot.normal_af += m.normal_af;
+          slot.normal_from += 1;
+        }
+      });
+    });
+    var months = Object.keys(byMonth).sort().map(function (k) {
+      var slot = byMonth[k];
+      if (!slot.normal_from) slot.normal_af = null;
+      return slot;
+    });
+    var full = months.reduce(function (max, m) {
+      return Math.max(max, m.reservoirs);
+    }, 0);
+    return months.filter(function (m) { return m.reservoirs === full; }).slice(-12);
   }
 
   // --- Formatting ----------------------------------------------------
@@ -489,6 +690,15 @@
     CLASSES: CLASSES,
     STALE_COLOR: STALE_COLOR,
     STALE_ACCENT: STALE_ACCENT,
+    MASK_FILL: MASK_FILL,
+    MASK_LINE: MASK_LINE,
+    UTAH_RING: UTAH_RING,
+    utahMaskRings: utahMaskRings,
+    utahMaskGeoJSON: utahMaskGeoJSON,
+    utahOutlineGeoJSON: utahOutlineGeoJSON,
+    statewideSummary: statewideSummary,
+    statewideMonthly: statewideMonthly,
+    sizeBasis: sizeBasis,
     colorFor: colorFor,
     headlinePct: headlinePct,
     headlineBasis: headlineBasis,
@@ -502,6 +712,11 @@
     freshnessHTML: freshnessHTML,
     injectStyles: injectStyles,
     fmtAf: fmtAf,
-    fmtCompact: fmtCompact
+    fmtCompact: fmtCompact,
+    fmtPct: fmtPct,
+    fmtSigned: fmtSigned,
+    fmtMonth: fmtMonth,
+    daysAgoPhrase: daysAgoPhrase,
+    esc: esc
   };
 })(window);

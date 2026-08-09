@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+
+# Local artifacts of running the browser smoke test (see README): Playwright
+# is installed with --no-save, and the test writes a screenshot per page.
+node_modules/
+package-lock.json
+screenshots/

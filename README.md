@@ -1,12 +1,18 @@
 # Utah Reservoir Drought Dashboard
 
-A static web map of current storage levels across 28 Bureau of
-Reclamation-monitored reservoirs in Utah, colored by how full each one is
-and sized by its capacity.
+Current storage levels across 28 Bureau of Reclamation-monitored reservoirs
+in Utah, in three views over one dataset:
 
-Built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
-(loaded directly from Esri's CDN — no build step, no framework). Data comes
-from the [Bureau of Reclamation RISE API](https://data.usbr.gov/).
+| | |
+|---|---|
+| [`index.html`](index.html) | The map, built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/). Each reservoir colored by how full it is and sized by its capacity. |
+| [`maplibre/`](maplibre/) | The same map rebuilt on [MapLibre GL JS](https://maplibre.org/) + CARTO, as an open-source parity comparison. |
+| [`explore.html`](explore.html) | **Statewide overview** — totals, a worst-first ranking, a sortable table of every metric with CSV export, and 28 twelve-month sparklines. No map, and no SDK. |
+
+No build step and no framework anywhere: the two maps load their SDK
+directly from a CDN with plain `<script>` tags, and the overview loads
+nothing at all. Data comes from the
+[Bureau of Reclamation RISE API](https://data.usbr.gov/).
 
 `reservoirs.json` is regenerated daily by [`refresh_reservoirs.py`](refresh_reservoirs.py),
 run on a schedule via [GitHub Actions](.github/workflows/refresh-data.yml) (6am
@@ -92,8 +98,10 @@ noticed. Three additions close that loop without a human in it:
   remember to file or tidy it.
 - **The dashboards are checked in a real browser on every push.**
   [`ci.yml`](.github/workflows/ci.yml) runs the data-script tests and a
-  Playwright smoke test that loads both maps, asserts all 28 reservoirs
-  actually rendered, fails on any console error, and uploads screenshots.
+  Playwright smoke test that loads all three pages, asserts all 28
+  reservoirs actually rendered (as map circles, and as table rows, ranking
+  bars and sparkline cards on the overview), opens a popup and the overview's
+  detail dialog, fails on any console error, and uploads screenshots.
 
 That last one exists because of a specific bug. `esri/Map` was bound as
 `Map` in the ArcGIS page's `require` callback, shadowing the global `Map`
@@ -158,6 +166,55 @@ Clicking any reservoir opens a 12-month trend chart (inline SVG, bars
 colored on the same ramp, with a dashed line for that month's normal in
 prior years) and a collapsible table of the same 12 months in numbers.
 
+Everything outside the state line is dimmed under a translucent mask, so
+Nevada and Wyoming stop rendering at the same weight as the subject of the
+dashboard. It is a scrim, not a clip, on purpose: neighboring terrain is
+real context, and two of the 28 reservoirs are not in Utah at all — Lake
+Powell sits behind Glen Canyon Dam in Arizona, and Meeks Cabin is in the
+Wyoming notch. The state is six corners of surveyed latitude and longitude
+rather than a shapefile, which is why the mask is a dozen lines in
+[`shared/reservoir-viz.js`](shared/reservoir-viz.js) and not a data file.
+
+The two engines disagreed about it, which is the sort of thing the parity
+page exists to surface: a mask ring spanning the full -180…180 renders
+correctly in MapLibre but *inverts* in the ArcGIS SDK — a polygon touching
+both sides of the antimeridian is ambiguous about which side it encloses,
+so the outer ring is dropped and the Utah hole becomes the only ring,
+dimming the state instead of its surroundings. Both pages now use a
+continent-sized box.
+
+## Statewide overview
+
+[`explore.html`](explore.html) is the half the maps can't do. A map answers
+"where"; everything past the headline number was locked behind clicking one
+dot at a time, 28 clicks to find out which reservoirs are worst off, and no
+way at all to see the state as a single quantity. The overview adds:
+
+- **Statewide totals** — combined storage against combined capacity, versus
+  the prior-years normal for this week, and 30-day and 1-year change. Beside
+  them, a count of reservoirs per color class, because the volume-weighted
+  percentage is effectively a report on Lake Powell: it holds more than the
+  other 27 combined. "31% full statewide" and "16 of 28 are below half" are
+  both true and answer different questions.
+- **Twelve months of statewide storage**, drawn by the same chart function
+  the popups use, with the state standing in for a reservoir.
+- **A worst-first ranking** of all 28, each bar carrying a tick for that
+  reservoir's normal on the same axis — so the distance between bar and tick
+  is the "is this bad or just August?" read, at a glance, for every
+  reservoir at once.
+- **A sortable table** of every metric, with a name filter, a stale-feeds-only
+  toggle, and CSV export of exactly the rows on screen (raw numbers, not the
+  formatted strings).
+- **Twelve-month sparklines for all 28 at once**, scaled against each
+  reservoir's own capacity so a short bar means low, not just small.
+- **Deep links.** `explore.html?reservoir=Deer+Creek` opens that reservoir's
+  full record directly, and opening one updates the URL so it can be shared.
+
+It shares the color classes, the popup markup, the trend chart and the
+formatting with both maps, so a reservoir reads identically whether you got
+to it by clicking a dot or a table row. It is also the only page that loads
+no SDK at all: it would still render during a CDN outage.
+
 ## Open-source parity comparison
 
 [`maplibre/`](maplibre/) rebuilds this exact dashboard with
@@ -169,10 +226,12 @@ Same data, same dual-circle symbology, same popup content. See
 [`maplibre/README.md`](maplibre/README.md) for the findings.
 
 Everything that isn't engine-specific — class breaks, popup markup, the
-trend chart, the legend, the status wording — now lives in
-[`shared/reservoir-viz.js`](shared/reservoir-viz.js), loaded by both pages.
-It had been duplicated by hand and was already drifting, which made the
-comparison partly a measurement of copy drift rather than of the engines.
+trend chart, the legend, the status wording, the Utah mask geometry and the
+statewide rollup — now lives in
+[`shared/reservoir-viz.js`](shared/reservoir-viz.js), loaded by all three
+pages. It had been duplicated by hand and was already drifting, which made
+the comparison partly a measurement of copy drift rather than of the
+engines.
 
 ## Working on the data script
 
@@ -256,25 +315,33 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### The dashboards
 
-- **A statewide table view.** Everything beyond the map is currently locked
-  behind clicking one reservoir at a time. A sortable all-28 table —
-  worst-first, sortable by any metric, CSV export — would answer "which
-  reservoirs are in the worst shape" without 28 clicks.
-- **A time slider.** The data now holds 12 months per reservoir but the map
-  only ever draws today. Animating the map through those months would show
-  the drawdown spreading across the state.
-- **Deep links.** `?reservoir=Deer+Creek` opening that popup directly would
-  make a specific reservoir's condition shareable.
-- **Accessibility.** The trend chart is an `aria-label` and a table; it
-  should have focusable bars with per-month tooltips, and the whole page
-  needs a keyboard and contrast pass.
-- **Mobile layout.** The title panel, legend and popup are all sized for a
-  desktop viewport and overlap badly on a phone.
-- **Harden the CDN dependency.** *(flagged in code)* Both pages pin their
-  SDK version in two places with no integrity hash and no fallback, so a
-  version bump means editing both and a CDN outage means a blank page.
+- **A time slider.** The data now holds 12 months per reservoir but the maps
+  only ever draw today. Animating the map through those months would show
+  the drawdown spreading across the state — the overview shows the same 12
+  months as small multiples, which is the static answer to the same
+  question, not a replacement for the moving one.
+- **Deep links on the maps.** `explore.html?reservoir=Deer+Creek` works;
+  the two map pages still ignore the parameter, so a link into a specific
+  reservoir's popup isn't shareable.
+- **Mobile layout on the maps.** The overview is responsive down to a phone;
+  the map pages' title panel, legend and popup are all still sized for a
+  desktop viewport and overlap badly.
+- **Accessibility.** Rows, ranking bars and cards on the overview are real
+  focusable buttons, and every chart carries an `aria-label` plus a table of
+  the same numbers — but the chart bars themselves still aren't focusable
+  with per-month tooltips, and none of the three pages has had a proper
+  keyboard and contrast pass.
+- **Harden the CDN dependency.** *(flagged in code)* Both map pages pin
+  their SDK version in two places with no integrity hash and no fallback,
+  so a version bump means editing both and a CDN outage means a blank page.
+  (The overview loads no SDK, so it is the page that survives that.)
 - **Size legend.** The legend explains the color ramp but not the circle
   sizing, which is doing just as much work.
+- **A real module.** *(flagged in code)* `shared/reservoir-viz.js` is a
+  plain script hanging one global off `window`, to hold the no-build-step
+  constraint. Its own comment said to revisit that "the moment a third page
+  shows up". A third page has shown up.
 
 Also still open from before: bring over the remaining matplotlib charts
-from the original notebook.
+from the original notebook — the overview covers the storage-history ones,
+not the rest.

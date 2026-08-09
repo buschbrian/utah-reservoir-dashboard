@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Utah Reservoirs — Statewide Overview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Statewide storage, rankings and 12-month trends for 28 Reclamation-monitored reservoirs in Utah." />
+
+  <!--
+    The third page, and the first one that isn't a map.
+
+    Both map pages answer "where", and answer it well, but everything past
+    the headline number is locked behind clicking one dot at a time -- 28
+    clicks to find out which reservoirs are in the worst shape, and no way
+    at all to see the state as a single quantity. This page is the other
+    half: statewide totals up top, an explicit worst-first ranking, a
+    sortable table of every metric with a CSV out, and twelve-month
+    sparklines for all 28 at once.
+
+    Same zero-build-step constraint as the rest of the project, and one
+    step further -- this page loads no SDK at all. Everything here is
+    hand-written SVG, HTML and CSS over the shared module, so it has no CDN
+    to be down and renders the moment reservoirs.json arrives.
+  -->
+  <script src="shared/reservoir-viz.js"></script>
+
+  <style>
+    /* Design tokens, so the spacing/color decisions are made once. The map
+       pages predate this and keep their own inline styles; the shared
+       rv-* classes (popup, chart, table) are injected by the module and
+       are what actually holds the three pages visually together. */
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --ink: #1b1f24;
+      --ink-2: #57606a;
+      --ink-3: #8b949e;
+      --line: #e3e6ea;
+      --accent: #0b5fa5;
+      --neg: #b3261e;
+      --pos: #1a7f37;
+      --warn: #b45309;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 14px rgba(16,24,40,.05);
+      --pad: 20px;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; line-height: 1.5;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+    /* --- Top bar ---------------------------------------------------- */
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(255,255,255,.88);
+      backdrop-filter: saturate(1.6) blur(8px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar .wrap {
+      display: flex; align-items: center; gap: 18px;
+      min-height: 60px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px;
+    }
+    .brand { font-size: 16px; font-weight: 650; letter-spacing: -.01em; margin: 0; }
+    .brand small { display: block; font-size: 11.5px; font-weight: 400; color: var(--ink-2); }
+    nav.views { display: flex; gap: 4px; margin-left: auto; }
+    nav.views a {
+      font-size: 13px; text-decoration: none; color: var(--ink-2);
+      padding: 6px 11px; border-radius: 999px; white-space: nowrap;
+    }
+    nav.views a:hover { background: #eef1f4; color: var(--ink); }
+    nav.views a[aria-current="page"] { background: var(--ink); color: #fff; }
+
+    /* --- Sections --------------------------------------------------- */
+    main { padding: 26px 0 60px; }
+    section { margin-bottom: 30px; }
+    .sec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .sec-head h2 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+    .sec-head p { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+    .card {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--pad);
+    }
+
+    /* --- KPI tiles --------------------------------------------------- */
+    .kpis { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); }
+    .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+           box-shadow: var(--shadow); padding: 15px 16px; }
+    .kpi .k-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
+                    color: var(--ink-2); margin: 0 0 6px; }
+    .kpi .k-value { font-size: 27px; font-weight: 640; letter-spacing: -.02em;
+                    line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .kpi .k-sub { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+    .k-value.neg { color: var(--neg); }
+    .k-sub.warn { color: var(--warn); font-weight: 600; }
+
+    /* Capacity meter under the headline tile. */
+    .meter { height: 8px; border-radius: 999px; background: #eceff2; overflow: hidden; margin-top: 9px; }
+    .meter span { display: block; height: 100%; border-radius: 999px; }
+
+    /* --- Statewide chart + class breakdown --------------------------- */
+    .split { display: grid; gap: 18px; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); align-items: start; }
+    .class-rows { display: flex; flex-direction: column; gap: 9px; margin: 0; }
+    .class-row { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 9px; font-size: 13px; }
+    .class-row .swatch { width: 12px; height: 12px; border-radius: 3px; }
+    .class-row .track { height: 9px; background: #eceff2; border-radius: 999px; overflow: hidden; }
+    .class-row .track span { display: block; height: 100%; }
+    .class-row .n { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12.5px; }
+
+    /* --- Ranking ----------------------------------------------------- */
+    .rank { display: flex; flex-direction: column; gap: 2px; }
+    .rank-row {
+      display: grid; grid-template-columns: 165px minmax(0, 1fr) 62px;
+      align-items: center; gap: 12px; padding: 5px 8px; border: 0; border-radius: 8px;
+      background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
+    }
+    .rank-row:hover, .rank-row:focus-visible { background: #f1f4f7; outline: none; }
+    .rank-row:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+    .rank-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-track { height: 15px; background: #eef1f4; border-radius: 4px; position: relative; }
+    .rank-track > span { display: block; height: 100%; border-radius: 4px; }
+    /* The prior-years normal, as a tick on the same axis: a reservoir can
+       sit at 40% of capacity and be either fine or historically bad, and
+       only the distance to this mark says which. */
+    .rank-normal { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #31527a; opacity: .75; }
+    .rank-pct { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
+    .rank-stale { color: var(--warn); font-size: 11px; margin-left: 5px; }
+
+    /* --- Toolbar ----------------------------------------------------- */
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .toolbar input[type="search"] {
+      flex: 1 1 220px; min-width: 0; padding: 8px 12px; font: inherit; font-size: 13.5px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+    }
+    .toolbar input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .btn {
+      padding: 8px 13px; font: inherit; font-size: 13px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+    }
+    .btn:hover { background: #f1f4f7; }
+    .btn[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .count { font-size: 12.5px; color: var(--ink-2); }
+
+    /* --- Table ------------------------------------------------------- */
+    .table-scroll { overflow-x: auto; }
+    table.data { border-collapse: collapse; width: 100%; font-size: 13px; }
+    table.data th, table.data td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    /* Not sticky. `overflow-x: auto` on the wrapper computes overflow-y to
+       auto as well, which makes it the sticky containing block instead of
+       the viewport -- so a sticky header pins 60px below the table's own
+       top and renders *under* the first row. A 28-row table does not need
+       one badly enough to fight that. */
+    table.data thead th { background: var(--surface); }
+    table.data th button {
+      font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-2);
+      background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; gap: 4px; align-items: center;
+    }
+    table.data th button:hover { color: var(--ink); }
+    table.data th[aria-sort] button { color: var(--ink); }
+    table.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.data tbody tr { cursor: pointer; }
+    table.data tbody tr:hover { background: #f6f8fa; }
+    table.data td .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; }
+    td.neg { color: var(--neg); }
+    td.pos { color: var(--pos); }
+    .sort-caret { font-size: 9px; color: var(--ink-3); }
+
+    /* --- Small multiples --------------------------------------------- */
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
+    .mini {
+      background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 13px 14px; text-align: left; font: inherit; color: inherit;
+      cursor: pointer; display: block; width: 100%;
+    }
+    .mini:hover { border-color: #c9d2db; box-shadow: 0 2px 6px rgba(16,24,40,.10); }
+    .mini:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .mini-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+    .mini-head h3 { font-size: 13.5px; margin: 0; font-weight: 600; flex: 1;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini-pct { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .mini-sub { font-size: 11.5px; color: var(--ink-2); margin-bottom: 6px; }
+    .mini svg { display: block; width: 100%; height: auto; }
+    .mini-foot { font-size: 11.5px; color: var(--ink-2); margin-top: 5px; display: flex; justify-content: space-between; gap: 8px; }
+
+    /* --- Detail dialog ------------------------------------------------ */
+    dialog#detail {
+      border: 0; border-radius: 14px; padding: 0; max-width: 620px; width: calc(100% - 32px);
+      box-shadow: 0 12px 48px rgba(16,24,40,.28);
+    }
+    dialog#detail::backdrop { background: rgba(16,24,40,.42); }
+    .detail-head {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+      border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface);
+    }
+    .detail-head h2 { font-size: 16px; margin: 0; flex: 1; }
+    .detail-body { padding: 16px 18px 20px; max-height: 72vh; overflow-y: auto; }
+    .icon-btn { border: 0; background: #f1f4f7; border-radius: 8px; width: 30px; height: 30px;
+                font-size: 16px; line-height: 1; cursor: pointer; color: var(--ink-2); }
+    .icon-btn:hover { background: #e5e9ee; color: var(--ink); }
+
+    footer.page { border-top: 1px solid var(--line); padding: 20px 0 40px; color: var(--ink-2); font-size: 12px; }
+    footer.page p { margin: 0 0 6px; max-width: 74ch; line-height: 1.55; }
+
+    .banner {
+      background: #fff7ed; border: 1px solid #fcd9a8; color: #7c2d12;
+      border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px;
+    }
+
+    /* One breakpoint, not five: below this the ranking labels stack over
+       their bars and the two-column split becomes one column. */
+    @media (max-width: 760px) {
+      .split { grid-template-columns: 1fr; }
+      .rank-row { grid-template-columns: 1fr 52px; row-gap: 2px; }
+      .rank-name { grid-column: 1 / -1; }
+      .kpi .k-value { font-size: 23px; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .mini, .rank-row { transition: background-color .12s ease, box-shadow .12s ease, border-color .12s ease; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <h1 class="brand">Utah Reservoirs
+        <small>Statewide storage &middot; Reclamation RISE &times; National Inventory of Dams</small>
+      </h1>
+      <nav class="views" aria-label="Views">
+        <a href="explore.html" aria-current="page">Overview</a>
+        <a href="index.html">Map · ArcGIS</a>
+        <a href="maplibre/">Map · MapLibre</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="freshness" class="count" style="margin:0 0 18px">Loading data&hellip;</p>
+    <div id="staleBanner" hidden class="banner"></div>
+
+    <section aria-labelledby="h-state">
+      <div class="sec-head">
+        <h2 id="h-state">Statewide right now</h2>
+        <p id="stateAsOf"></p>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section aria-labelledby="h-trend">
+      <div class="sec-head">
+        <h2 id="h-trend">Twelve months of statewide storage</h2>
+        <p>Monthly mean across all reservoirs, against the same months in prior years.</p>
+      </div>
+      <div class="split">
+        <div class="card"><div id="stateChart"></div></div>
+        <div class="card">
+          <h3 style="font-size:13px;margin:0 0 10px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em">
+            Reservoirs by class</h3>
+          <div class="class-rows" id="classRows"></div>
+          <p class="count" style="margin:12px 0 0;line-height:1.5">
+            Counted per reservoir, not weighted by volume — Lake Powell alone holds more
+            than the other 27 combined, so the statewide percentage above and this count
+            answer different questions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-rank">
+      <div class="sec-head">
+        <h2 id="h-rank">Worst first</h2>
+        <p>Percent of capacity, all reservoirs. The dark tick is normal for this week in prior years.</p>
+      </div>
+      <div class="card"><div class="rank" id="rank"></div></div>
+    </section>
+
+    <section aria-labelledby="h-table">
+      <div class="sec-head">
+        <h2 id="h-table">Every reservoir, every metric</h2>
+        <p>Click any row for its full 12-month record.</p>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Filter reservoirs…" aria-label="Filter reservoirs by name" />
+        <button class="btn" id="staleOnly" aria-pressed="false">Stale feeds only</button>
+        <button class="btn" id="csv">Download CSV</button>
+        <span class="count" id="rowCount"></span>
+      </div>
+      <div class="card" style="padding:6px 8px">
+        <div class="table-scroll">
+          <table class="data" id="table">
+            <thead><tr id="thead"></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-grid">
+      <div class="sec-head">
+        <h2 id="h-grid">Twelve-month shape, side by side</h2>
+        <p>Same order as the table above. Bars are monthly mean storage, colored on the map's ramp.</p>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <footer class="page">
+      <p>Storage: <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of
+        Reclamation RISE</a> — provisional and subject to revision; treat the last few days of any
+        series as preliminary. Capacity: <a href="https://nid.sec.usace.army.mil/" target="_blank"
+        rel="noreferrer">USACE National Inventory of Dams</a>, which RISE does not publish.</p>
+      <p>These are the 28 Reclamation-monitored reservoirs; the Utah Division of Water Resources
+        tracks others not shown here.</p>
+    </footer>
+  </main>
+
+  <dialog id="detail" aria-labelledby="detailTitle">
+    <div class="detail-head">
+      <h2 id="detailTitle"></h2>
+      <button class="icon-btn" id="detailClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </dialog>
+
+  <script>
+    ReservoirViz.injectStyles();
+
+    const RV = ReservoirViz;
+    const el = (id) => document.getElementById(id);
+
+    // Everything the page renders from. `rows` are the records decorated
+    // with the two derived numbers both maps also compute (capacity or the
+    // observed record max standing in for it, and the headline percentage),
+    // so sorting and formatting never re-derive them.
+    const state = { rows: [], q: "", staleOnly: false, sortKey: "fill_pct", sortDir: 1 };
+
+    // --- Columns -------------------------------------------------------
+    //
+    // One table drives the header, the body, the sort and the CSV, so a
+    // column can't exist in the export and not on screen (or worse, carry a
+    // different number in each).
+    const COLUMNS = [
+      { key: "name", label: "Reservoir", num: false,
+        get: (r) => r.name, cell: (r) =>
+          "<span class='dot' style='background:" + RV.colorFor(r.fill_pct) + "'></span>" +
+          RV.esc(r.name) + (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") },
+      { key: "fill_pct", label: "% full", num: true,
+        get: (r) => r.fill_pct, cell: (r) => RV.fmtPct(r.fill_pct) },
+      { key: "current_storage_af", label: "Storage af", num: true,
+        get: (r) => r.current_storage_af, cell: (r) => RV.fmtAf(r.current_storage_af) },
+      { key: "size_basis_af", label: "Capacity af", num: true,
+        get: (r) => r.size_basis_af, cell: (r) => RV.fmtAf(r.size_basis_af) },
+      { key: "pct_of_seasonal_normal", label: "% of normal", num: true,
+        get: (r) => r.pct_of_seasonal_normal, cell: (r) => RV.fmtPct(r.pct_of_seasonal_normal),
+        sign: (r) => r.pct_of_seasonal_normal === null ? 0 : r.pct_of_seasonal_normal - 100 },
+      { key: "seasonal_percentile", label: "Percentile", num: true,
+        get: (r) => r.seasonal_percentile, cell: (r) => RV.fmtPct(r.seasonal_percentile) },
+      { key: "change_30d_pct", label: "30-day", num: true,
+        get: (r) => r.change_30d_pct, cell: (r) => signedPct(r.change_30d_pct),
+        sign: (r) => r.change_30d_pct },
+      { key: "change_365d_pct", label: "1-year", num: true,
+        get: (r) => r.change_365d_pct, cell: (r) => signedPct(r.change_365d_pct),
+        sign: (r) => r.change_365d_pct },
+      { key: "as_of", label: "As of", num: false,
+        get: (r) => r.as_of || "", cell: (r) => RV.esc(r.as_of || "—") }
+    ];
+
+    function signedPct(v) {
+      if (v === null || v === undefined || isNaN(v)) return "—";
+      return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+    }
+
+    // --- Sparkline -----------------------------------------------------
+    //
+    // The popup chart shrunk to card size: no axes, no labels, no normal
+    // line -- at 210x46 those stop being readable and start being texture.
+    // What survives is the shape and the color walk, which is the whole
+    // point of showing 28 of them at once. The full chart with its axes and
+    // its prior-years line is one click away in the dialog.
+    function sparklineSVG(r) {
+      const months = r.monthly || [];
+      if (!months.length) return "<p class='rv-empty'>No monthly history yet.</p>";
+      const W = 210, H = 46;
+      const vals = months.map((m) => m.mean_af).filter((v) => v !== null && v !== undefined);
+      if (!vals.length) return "<p class='rv-empty'>No monthly values.</p>";
+      // Scaled against the reservoir's own capacity, not its own max, so
+      // the bar height means the same thing as the map's fill: a reservoir
+      // that never got close to full this year should look short.
+      const top = Math.max(r.size_basis_af || 0, ...vals) || 1;
+      const bw = W / months.length;
+      const bars = months.map((m, i) => {
+        if (m.mean_af === null || m.mean_af === undefined) return "";
+        const h = Math.max(1, (m.mean_af / top) * H);
+        const pct = r.size_basis_af ? (m.mean_af / r.size_basis_af) * 100 : null;
+        return "<rect x='" + (i * bw + 1).toFixed(1) + "' y='" + (H - h).toFixed(1) +
+          "' width='" + (bw - 2).toFixed(1) + "' height='" + h.toFixed(1) +
+          "' rx='1' fill='" + RV.colorFor(pct) + "'></rect>";
+      }).join("");
+      const label = r.name + ": " + months.length + " months of storage, " +
+        RV.fmtMonth(months[0].month) + " to " + RV.fmtMonth(months[months.length - 1].month) + ".";
+      return "<svg viewBox='0 0 " + W + " " + H + "' role='img' aria-label='" +
+        RV.esc(label) + "'>" + bars + "</svg>";
+    }
+
+    // --- Sections ------------------------------------------------------
+
+    function renderKpis(summary, data) {
+      const dir = summary.change_365d_af < 0 ? "down" : "up";
+      const tiles = [
+        {
+          label: "Statewide storage",
+          value: RV.fmtPct(summary.pct_full) + " full",
+          sub: RV.fmtAf(summary.storage_af) + " af of " + RV.fmtAf(summary.capacity_af) + " af",
+          meter: summary.pct_full
+        },
+        {
+          label: "Against normal",
+          value: RV.fmtPct(summary.pct_of_normal),
+          sub: "of the median for this week in prior years",
+          cls: summary.pct_of_normal !== null && summary.pct_of_normal < 100 ? "neg" : ""
+        },
+        {
+          label: "Change, 1 year",
+          value: (summary.change_365d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_365d_af)) + " af",
+          sub: "statewide, " + dir + " from a year ago",
+          cls: summary.change_365d_af < 0 ? "neg" : ""
+        },
+        {
+          label: "Change, 30 days",
+          value: (summary.change_30d_af < 0 ? "−" : "+") + RV.fmtCompact(Math.abs(summary.change_30d_af)) + " af",
+          sub: "summer drawdown is normal; the size is not",
+          cls: summary.change_30d_af < 0 ? "neg" : ""
+        },
+        {
+          label: "Below half full",
+          value: summary.below_half + " of " + summary.count,
+          sub: summary.stale ? summary.stale + " reservoir" + (summary.stale === 1 ? "" : "s") +
+               " not reporting" : "every feed is current",
+          // The warning belongs to the stale count, not to the headline
+          // number -- coloring "16 of 28" amber would say the count itself
+          // is suspect.
+          subCls: summary.stale ? "warn" : ""
+        }
+      ];
+      el("kpis").innerHTML = tiles.map((t) =>
+        "<div class='kpi'><p class='k-label'>" + RV.esc(t.label) + "</p>" +
+        "<div class='k-value" + (t.cls ? " " + t.cls : "") + "'>" + RV.esc(t.value) + "</div>" +
+        (t.meter === undefined ? "" :
+          "<div class='meter'><span style='width:" + Math.max(0, Math.min(100, t.meter)).toFixed(1) +
+          "%;background:" + RV.colorFor(t.meter) + "'></span></div>") +
+        "<p class='k-sub" + (t.subCls ? " " + t.subCls : "") + "'>" +
+          RV.esc(t.sub) + "</p></div>").join("");
+
+      const dates = data.reservoirs.map((r) => r.as_of).filter(Boolean).sort();
+      el("stateAsOf").textContent = dates.length
+        ? "Readings from " + (dates[0] === dates[dates.length - 1]
+            ? dates[0] : dates[0] + " to " + dates[dates.length - 1])
+        : "";
+    }
+
+    function renderStateChart(summary, reservoirs) {
+      const monthly = RV.statewideMonthly(reservoirs);
+      // The trend chart takes a reservoir; the state is one for its
+      // purposes -- a name, a monthly array and a denominator. Reusing it
+      // rather than writing a second chart is also what keeps the bar
+      // colors here meaning exactly what they mean on the map.
+      const asReservoir = {
+        name: "All " + summary.count + " reservoirs",
+        monthly: monthly,
+        record_max_af: summary.capacity_af
+      };
+      el("stateChart").innerHTML = RV.trendChartSVG(asReservoir, { width: 720, height: 260 }) +
+        (monthly.length < 12
+          ? "<p class='rv-note'>Showing " + monthly.length + " months: a month is only " +
+            "included when every reservoir reported it, and a stale feed's history ends " +
+            "where the feed did.</p>"
+          : "");
+
+      el("classRows").innerHTML = summary.classes.map((c) =>
+        "<div class='class-row'>" +
+        "<span class='swatch' style='background:" + c.color + "'></span>" +
+        "<span class='track'><span style='width:" +
+          ((c.count / summary.count) * 100).toFixed(1) + "%;background:" + c.color + "'></span></span>" +
+        "<span class='n'>" + c.count + " · " + RV.esc(c.label) + "</span></div>").join("");
+    }
+
+    function renderRank(rows) {
+      const sorted = rows.slice().sort((a, b) => (a.fill_pct ?? 999) - (b.fill_pct ?? 999));
+      el("rank").innerHTML = sorted.map((r) => {
+        const pct = Math.max(0, Math.min(100, r.fill_pct ?? 0));
+        // Normal expressed on the same 0–100% of capacity axis as the bar,
+        // so the two are directly comparable rather than two scales side by
+        // side. Off the chart (above capacity) it is clamped and simply
+        // sits at the right edge.
+        const normalPct = (r.seasonal_normal_af && r.size_basis_af)
+          ? Math.max(0, Math.min(100, (r.seasonal_normal_af / r.size_basis_af) * 100)) : null;
+        return "<button class='rank-row' data-name='" + RV.esc(r.name) + "'>" +
+          "<span class='rank-name'>" + RV.esc(r.name) +
+            (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") +
+          "</span>" +
+          "<span class='rank-track'><span style='width:" + pct.toFixed(1) + "%;background:" +
+            RV.colorFor(r.fill_pct) + "'></span>" +
+            (normalPct === null ? "" :
+              "<span class='rank-normal' style='left:" + normalPct.toFixed(1) +
+              "%' title='Normal for this week: " + RV.fmtAf(r.seasonal_normal_af) + " af'></span>") +
+          "</span>" +
+          "<span class='rank-pct'>" + RV.fmtPct(r.fill_pct) + "</span></button>";
+      }).join("");
+    }
+
+    function visibleRows() {
+      const q = state.q.trim().toLowerCase();
+      let rows = state.rows.filter((r) =>
+        (!q || r.name.toLowerCase().includes(q)) && (!state.staleOnly || r.is_stale));
+      const col = COLUMNS.find((c) => c.key === state.sortKey) || COLUMNS[1];
+      return rows.sort((a, b) => {
+        const av = col.get(a), bv = col.get(b);
+        // Missing values sort last in either direction rather than
+        // pretending to be zero, which would park a reservoir with no
+        // reading at the "emptiest" end of a percent sort.
+        const an = av === null || av === undefined || av === "" || (col.num && isNaN(av));
+        const bn = bv === null || bv === undefined || bv === "" || (col.num && isNaN(bv));
+        if (an || bn) return an && bn ? 0 : (an ? 1 : -1);
+        if (col.num) return (av - bv) * state.sortDir;
+        return String(av).localeCompare(String(bv)) * state.sortDir;
+      });
+    }
+
+    function renderTable(rows) {
+      el("thead").innerHTML = COLUMNS.map((c) => {
+        const active = state.sortKey === c.key;
+        const caret = active ? (state.sortDir === 1 ? "▲" : "▼") : "";
+        return "<th class='" + (c.num ? "num" : "") + "'" +
+          (active ? " aria-sort='" + (state.sortDir === 1 ? "ascending" : "descending") + "'" : "") +
+          "><button data-sort='" + c.key + "'>" + RV.esc(c.label) +
+          "<span class='sort-caret'>" + caret + "</span></button></th>";
+      }).join("");
+
+      el("tbody").innerHTML = rows.map((r) =>
+        "<tr data-name='" + RV.esc(r.name) + "' tabindex='0'>" + COLUMNS.map((c) => {
+          const s = c.sign ? c.sign(r) : null;
+          const cls = (c.num ? "num " : "") + (s === null || s === undefined || isNaN(s) || s === 0
+            ? "" : (s < 0 ? "neg" : "pos"));
+          return "<td class='" + cls.trim() + "'>" + c.cell(r) + "</td>";
+        }).join("") + "</tr>").join("");
+
+      el("rowCount").textContent = rows.length === state.rows.length
+        ? rows.length + " reservoirs"
+        : rows.length + " of " + state.rows.length + " reservoirs";
+    }
+
+    function renderGrid(rows) {
+      el("grid").innerHTML = rows.map((r) =>
+        "<button class='mini' data-name='" + RV.esc(r.name) + "'>" +
+        "<div class='mini-head'><h3>" + RV.esc(r.name) + "</h3>" +
+        "<span class='mini-pct' style='color:" + RV.colorFor(r.fill_pct) + "'>" +
+          RV.fmtPct(r.fill_pct) + "</span></div>" +
+        "<p class='mini-sub'>" + RV.fmtAf(r.current_storage_af) + " af of " +
+          RV.fmtAf(r.size_basis_af) + "</p>" +
+        sparklineSVG(r) +
+        "<div class='mini-foot'><span>" + (r.is_stale
+          ? "<span class='rank-stale'>&#9888;</span> " + RV.esc(RV.daysAgoPhrase(r.days_stale))
+          : "30d " + signedPct(r.change_30d_pct)) +
+        "</span><span>" + (r.pct_of_seasonal_normal === null || r.pct_of_seasonal_normal === undefined
+          ? "" : RV.fmtPct(r.pct_of_seasonal_normal) + " of normal") + "</span></div>" +
+        "</button>").join("");
+    }
+
+    function renderList() {
+      const rows = visibleRows();
+      renderTable(rows);
+      renderGrid(rows);
+    }
+
+    // --- Detail dialog ---------------------------------------------------
+
+    function openDetail(name) {
+      const r = state.rows.find((x) => x.name === name);
+      if (!r) return;
+      el("detailTitle").textContent = r.name;
+      // The same popup markup both maps render, at the width this page can
+      // afford -- so a reservoir reads identically whether you got to it by
+      // clicking a dot or a table row.
+      el("detailBody").innerHTML = RV.popupHTML(r, { width: 560, height: 190 });
+      const dlg = el("detail");
+      if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+      // Shareable without being a navigation: the URL now names the
+      // reservoir, and reloading it reopens this panel.
+      history.replaceState(null, "", "?reservoir=" + encodeURIComponent(r.name));
+    }
+
+    el("detailClose").addEventListener("click", () => el("detail").close());
+    el("detail").addEventListener("close", () => history.replaceState(null, "", location.pathname));
+
+    document.addEventListener("click", (e) => {
+      const hit = e.target.closest("[data-name]");
+      if (hit) openDetail(hit.getAttribute("data-name"));
+      const sort = e.target.closest("[data-sort]");
+      if (sort) {
+        const key = sort.getAttribute("data-sort");
+        // Re-clicking the active column flips it; a new column starts
+        // ascending for names and percentages (worst first, which is the
+        // question people arrive with) rather than remembering the last
+        // direction and surprising them.
+        if (state.sortKey === key) state.sortDir *= -1;
+        else { state.sortKey = key; state.sortDir = 1; }
+        renderList();
+      }
+    });
+    el("tbody").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest("tr[data-name]");
+      if (!row) return;
+      e.preventDefault();
+      openDetail(row.getAttribute("data-name"));
+    });
+
+    el("q").addEventListener("input", (e) => { state.q = e.target.value; renderList(); });
+    el("staleOnly").addEventListener("click", (e) => {
+      state.staleOnly = !state.staleOnly;
+      e.currentTarget.setAttribute("aria-pressed", String(state.staleOnly));
+      renderList();
+    });
+
+    // --- CSV -------------------------------------------------------------
+    //
+    // Raw numbers, not the formatted strings on screen: a spreadsheet
+    // cannot do anything with "1,234 af". Same columns and same order as
+    // the table so the export is recognizably the thing you were looking at.
+    el("csv").addEventListener("click", () => {
+      const rows = visibleRows();
+      const head = COLUMNS.map((c) => c.label).concat(["is_stale", "capacity_basis"]);
+      const body = rows.map((r) => COLUMNS.map((c) => {
+        const v = c.get(r);
+        return v === null || v === undefined ? "" : v;
+      }).concat([r.is_stale ? "true" : "false", r.capacity_basis || ""]));
+      const csv = [head].concat(body).map((line) => line.map((v) => {
+        const s = String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(",")).join("\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "utah-reservoirs-" + new Date().toISOString().slice(0, 10) + ".csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // --- Load ------------------------------------------------------------
+
+    RV.load("reservoirs.json")
+      .then((data) => {
+        const reservoirs = data.reservoirs;
+        // The same two derived fields both map pages compute, resolved once
+        // here so every renderer below reads a plain property.
+        state.rows = reservoirs.map((r) => Object.assign({}, r, {
+          size_basis_af: RV.sizeBasis(r),
+          fill_pct: RV.headlinePct(r)
+        }));
+
+        el("freshness").innerHTML = RV.freshnessHTML(data);
+
+        const stale = state.rows.filter((r) => r.is_stale);
+        if (stale.length) {
+          el("staleBanner").hidden = false;
+          el("staleBanner").innerHTML = "&#9888; " + stale.length + " reservoir" +
+            (stale.length === 1 ? " is" : "s are") + " showing a reading older than " +
+            data.staleAfterDays + " days — " + stale.map((r) =>
+              RV.esc(r.name) + " (" + RV.esc(RV.daysAgoPhrase(r.days_stale)) + ")").join(", ") +
+            ". Their numbers below describe that date, not today.";
+        }
+
+        const summary = RV.statewideSummary(state.rows);
+        renderKpis(summary, data);
+        renderStateChart(summary, state.rows);
+        renderRank(state.rows);
+        renderList();
+
+        const wanted = new URLSearchParams(location.search).get("reservoir");
+        if (wanted) {
+          const match = state.rows.find((r) =>
+            r.name.toLowerCase() === wanted.trim().toLowerCase());
+          if (match) openDetail(match.name);
+        }
+
+        // Same readiness signal the two map pages expose, so one browser
+        // smoke test covers all three (tests/smoke.mjs).
+        window.__dashboardReady = {
+          engine: "explore",
+          reservoirs: state.rows.length,
+          stale: stale.length,
+          rows: el("tbody").children.length
+        };
+      })
+      .catch((err) => {
+        console.error("Reservoir overview failed:", err);
+        el("freshness").innerHTML = "<span class='rv-fresh-warn'>Overview failed to render: " +
+          RV.esc(err && err.message ? err.message : err) + "</span>";
+      });
+  </script>
+</body>
+</html>
