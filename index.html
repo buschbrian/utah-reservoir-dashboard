@@ -11,9 +11,19 @@
     pattern: plain <script>/<link> tags pointing at Esri's CDN, no
     npm/webpack/build step. Version 4.34 confirmed live on the CDN before
     using it (4.35 404s as of this build).
+
+    IMPROVEMENT: the CDN version is pinned in two places (this stylesheet
+    href and the script src below) with no integrity hash and no fallback.
+    A version bump means editing both, and an Esri CDN outage is a blank
+    page. Same for MapLibre in the sibling page.
   -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.34/"></script>
+
+  <!-- Colors, popup markup, the 12-month trend chart and the legend are
+       shared with the MapLibre version so the two stay identical; only
+       engine-specific code lives in this file. -->
+  <script src="shared/reservoir-viz.js"></script>
 
   <style>
     html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -25,19 +35,22 @@
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
+    #freshness { font-size: 11px; margin-top: 6px; color: #555; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 10.5px; color: #777; line-height: 1.4;
     }
     #titleDiv .disclaimer a { color: #0079c1; }
-    .popup-status { font-weight: 600; font-size: 13px; margin: 0 0 6px; }
-    .popup-note { font-size: 11px; color: #888; margin-top: 8px; }
+    /* The popup is where the 12-month chart and table live, so it needs
+       more room than the SDK's default. */
+    .esri-popup__content { font-family: sans-serif; }
   </style>
 </head>
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
     <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+    <p id="freshness">Loading data&hellip;</p>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
       disclaimer for RISE data); treat the last few days of any series as
@@ -50,6 +63,8 @@
   <div id="viewDiv"></div>
 
   <script>
+    ReservoirViz.injectStyles();
+
     // require() is the AMD module loader the ArcGIS JS SDK still uses for
     // this CDN-script pattern.
     require([
@@ -66,12 +81,20 @@
         container: "viewDiv",
         map: map,
         center: [-111.6, 39.8], // roughly centered on Utah
-        zoom: 7
+        zoom: 7,
+        popup: {
+          dockEnabled: false,
+          collapseEnabled: false
+        }
       });
 
-      // Shared attribute schema for both layers -- every reservoir's full
-      // record lives on both layers' graphics, so a click on either the
-      // outline ring or the filled center shows the same complete popup.
+      // Shared attribute schema. A FeatureLayer built from client-side
+      // graphics only understands scalar fields, so the attributes are
+      // built explicitly from this list rather than by spreading the whole
+      // record in -- the JSON now carries a `monthly` array per reservoir,
+      // and spreading that in (what this used to do) hands the layer a
+      // value it has no field type for. The full record is kept alongside
+      // in `byName` for the popup, which needs the array anyway.
       const fields = [
         { name: "ObjectID", alias: "ObjectID", type: "oid" },
         { name: "name", alias: "Name", type: "string" },
@@ -79,62 +102,61 @@
         { name: "record_max_af", alias: "Record Max Storage (af)", type: "double" },
         { name: "pct_of_record_max", alias: "% of Record Max", type: "double" },
         { name: "seasonal_percentile", alias: "Seasonal Percentile", type: "double" },
+        { name: "days_stale", alias: "Days Since Last Reading", type: "double" },
         { name: "as_of", alias: "As Of", type: "string" }
       ];
+      const attributeNames = fields
+        .filter((f) => f.type !== "oid")
+        .map((f) => f.name);
 
-      // Arcade expression shared by both layers' popups -- turns the raw
-      // percentage into the same three-tier read the color ramp already
-      // encodes, spelled out in words instead of asking the reader to
-      // decode a color, plus the actual acre-foot gap to the historical
-      // peak (the number the two circles are visually showing).
-      const statusExpression =
-        "var pct = $feature.pct_of_record_max;\n" +
-        "var gap = Round($feature.record_max_af - $feature.current_storage_af, 0);\n" +
-        "var status = When(\n" +
-        "  pct < 50, 'Critically low',\n" +
-        "  pct < 75, 'Below normal',\n" +
-        "  'Near or above normal'\n" +
-        ");\n" +
-        "return status + ' — ' + Round(pct, 0) + '% of its period-of-record max, ' + \n" +
-        "  Text(gap, '#,###') + ' af below that historical peak.';";
+      // Full records by name, so the popup can reach the `monthly` array
+      // and the other fields that don't fit the scalar layer schema.
+      let byName = new Map();
 
       const popupTemplate = {
         title: "{name}",
         outFields: ["*"],
-        expressionInfos: [
-          { name: "status-line", title: "Status", expression: statusExpression }
-        ],
-        content: [
-          {
-            type: "text",
-            text: "<p class='popup-status'>{expression/status-line}</p>"
-          },
-          {
-            type: "fields",
-            fieldInfos: [
-              { fieldName: "current_storage_af", label: "Current storage (af)", format: { digitSeparator: true, places: 0 } },
-              { fieldName: "record_max_af", label: "Record max storage (af)", format: { digitSeparator: true, places: 0 } },
-              { fieldName: "seasonal_percentile", label: "Seasonal percentile (vs. same week, other years)", format: { places: 0 } },
-              { fieldName: "as_of", label: "As of" }
-            ]
-          },
-          {
-            type: "text",
-            text:
-              "<p class='popup-note'>Seasonal percentile: where today's storage ranks " +
-              "against every other year's value within a 7-day window of today's date. " +
-              "Data: <a href='https://data.usbr.gov/rise-api' target='_blank' rel='noreferrer'>Bureau of Reclamation RISE</a>.</p>"
-          }
-        ]
+        // A custom content function instead of the SDK's declarative
+        // fields/expression content. The popup now renders an inline SVG
+        // trend chart and a 12-month table, neither of which the
+        // declarative content types can express -- and routing it through
+        // the shared module is what keeps this popup byte-identical to the
+        // MapLibre one.
+        //
+        // IMPROVEMENT: returning an HTML string means the SDK sanitizes it
+        // and any future interactivity (hovering a bar, sorting the table)
+        // would need a real DOM node with listeners attached here instead.
+        content: function (event) {
+          const record = byName.get(event.graphic.attributes.name);
+          if (!record) return "No data for this reservoir.";
+          const div = document.createElement("div");
+          div.innerHTML = ReservoirViz.popupHTML(record, { width: 300 });
+          return div;
+        }
       };
 
-      fetch("reservoirs.json")
-        .then((resp) => resp.json())
-        .then((reservoirs) => {
-          const graphics = reservoirs.map((r, i) => new Graphic({
-            geometry: { type: "point", longitude: r.lon, latitude: r.lat },
-            attributes: Object.assign({ ObjectID: i }, r)
-          }));
+      ReservoirViz.load("reservoirs.json")
+        .then((data) => {
+          const reservoirs = data.reservoirs;
+          byName = new Map(reservoirs.map((r) => [r.name, r]));
+
+          document.getElementById("freshness").innerHTML =
+            ReservoirViz.freshnessHTML(data);
+
+          const graphics = reservoirs.map((r, i) => {
+            const attributes = { ObjectID: i };
+            attributeNames.forEach((key) => {
+              attributes[key] = r[key] === undefined ? null : r[key];
+            });
+            return new Graphic({
+              geometry: { type: "point", longitude: r.lon, latitude: r.lat },
+              attributes: attributes
+            });
+          });
+
+          const staleGraphics = graphics.filter(
+            (g) => byName.get(g.attributes.name).is_stale
+          );
 
           // The outline ring's radius is sized by absolute record_max_af
           // (sqrt-scaled, via Arcade, to compress the range between Lake
@@ -162,6 +184,21 @@
           const maxSqrtDomain = Math.sqrt(Math.max(...reservoirs.map((r) => r.record_max_af)));
           const ringMinSize = 8;
           const ringMaxSize = 46;
+
+          // The ring-radius formula, as an Arcade snippet, built once and
+          // reused by the layers below.
+          //
+          // IMPROVEMENT: this string-concatenated Arcade is the weakest
+          // part of the file -- the same formula and constants exist in
+          // two renderers, and a typo in either one only shows up as
+          // slightly-wrong circles, never an error. Since every reservoir
+          // is already in memory here, computing ring_px/fill_px in plain
+          // JS and storing them as fields would delete the whole
+          // expression-plus-identity-mapping dance. Kept as Arcade because
+          // exercising Arcade is the point of this phase.
+          const ringRadiusArcade =
+            ringMinSize + " + (Sqrt($feature.record_max_af) / " + maxSqrtDomain +
+            ") * (" + ringMaxSize + " - " + ringMinSize + ")";
 
           // --- Outline layer: period-of-record max, drawn first (bottom) ---
           //
@@ -198,7 +235,43 @@
             }
           });
 
-          // --- Filled layer: current storage, drawn second (on top) ---
+          // --- Stale layer: reservoirs whose feed has gone quiet ---
+          //
+          // Drawn as a dashed amber ring just outside the record-max ring.
+          // This is the symbology answer to the failure that started all
+          // of this: three reservoirs froze on 2026-07-29 and kept
+          // rendering as ordinary, current dots for eleven days. A stale
+          // reservoir's value is still real -- it just isn't *now* -- so
+          // it keeps its color class and gets a marker that says "this
+          // number is old" rather than being hidden or grayed out.
+          const staleLayer = new FeatureLayer({
+            title: "Stale data",
+            source: staleGraphics,
+            fields: fields,
+            objectIdField: "ObjectID",
+            geometryType: "point",
+            spatialReference: { wkid: 4326 },
+            popupEnabled: false,
+            renderer: {
+              type: "simple",
+              symbol: {
+                type: "simple-marker",
+                style: "circle",
+                color: [0, 0, 0, 0],
+                outline: { color: [180, 83, 9, 0.95], width: 2, style: "short-dash" }
+              },
+              visualVariables: [{
+                type: "size",
+                valueExpression: "return (" + ringRadiusArcade + ") + 7;",
+                minDataValue: 0,
+                maxDataValue: ringMaxSize + 7,
+                minSize: 0,
+                maxSize: ringMaxSize + 7
+              }]
+            }
+          });
+
+          // --- Filled layer: current storage, drawn last (on top) ---
           const currentLayer = new FeatureLayer({
             title: "Current storage",
             source: graphics,
@@ -228,8 +301,7 @@
                   // expression's output passes through unchanged -- all
                   // the real scaling happens inside the expression itself.
                   valueExpression:
-                    "var ringRadius = " + ringMinSize + " + (Sqrt($feature.record_max_af) / " +
-                    maxSqrtDomain + ") * (" + ringMaxSize + " - " + ringMinSize + ");\n" +
+                    "var ringRadius = " + ringRadiusArcade + ";\n" +
                     "return ringRadius * Sqrt($feature.pct_of_record_max / 100);",
                   valueExpressionTitle: "Current storage, as a share of this reservoir's own ring",
                   minDataValue: 0,
@@ -241,24 +313,37 @@
                   type: "color",
                   valueExpression: "$feature.pct_of_record_max",
                   valueExpressionTitle: "% of period-of-record max",
-                  stops: [
-                    { value: 0, color: [215, 48, 39] },
-                    { value: 49.99, color: [215, 48, 39] },
-                    { value: 50, color: [252, 141, 89] },
-                    { value: 74.99, color: [252, 141, 89] },
-                    { value: 75, color: [26, 152, 80] },
-                    { value: 100, color: [26, 152, 80] }
-                  ]
+                  // Paired stops (x, next-x-minus-epsilon) turn the SDK's
+                  // continuous interpolation into hard classes. Generated
+                  // from the shared class table so the map, the legend and
+                  // the chart bars can never disagree about where a
+                  // boundary is -- they used to be three hand-written
+                  // copies of the same thresholds.
+                  stops: ReservoirViz.CLASSES.reduce((acc, cls, i, all) => {
+                    const upper = i === all.length - 1 ? 100 : all[i + 1].min - 0.01;
+                    const rgb = hexToRgb(cls.color);
+                    acc.push({ value: cls.min, color: rgb });
+                    acc.push({ value: upper, color: rgb });
+                    return acc;
+                  }, [])
                 }
               ]
             }
           });
 
-          map.addMany([maxLayer, currentLayer]);
+          map.addMany([maxLayer, staleLayer, currentLayer]);
         })
         .catch((err) => {
           console.error("Failed to load reservoirs.json:", err);
+          document.getElementById("freshness").innerHTML =
+            "<span class='rv-fresh-warn'>Could not load reservoirs.json — " +
+            "the map will be empty.</span>";
         });
+
+      function hexToRgb(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      }
 
       // --- Legend ---
       //
@@ -269,15 +354,8 @@
       legendDiv.style.cssText =
         "background:white;padding:10px 14px;font-family:sans-serif;" +
         "font-size:13px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3);" +
-        "max-width:230px;";
-      legendDiv.innerHTML =
-        "<b>% of period-of-record max</b><br>" +
-        '<span style="color:#d73027;">&#9679;</span> Under 50%<br>' +
-        '<span style="color:#fc8d59;">&#9679;</span> 50&ndash;75%<br>' +
-        '<span style="color:#1a9850;">&#9679;</span> Over 75%<br>' +
-        '<span style="font-size:11px;">Filled circle = current storage. Gray outline ' +
-        'ring = that reservoir\'s own period-of-record max &mdash; the bigger the gap ' +
-        'between ring and fill, the more depleted it is.</span>';
+        "max-width:240px;";
+      legendDiv.innerHTML = ReservoirViz.legendHTML();
 
       view.ui.add(legendDiv, "bottom-left");
     });

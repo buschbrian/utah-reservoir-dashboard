@@ -11,6 +11,13 @@ on:
 permissions:
   contents: write
 
+# A scheduled run and a manual run overlapping would have both jobs pushing
+# reservoirs.json from the same base commit; the second push then fails on a
+# non-fast-forward.
+concurrency:
+  group: refresh-data-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -21,11 +28,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      # Pinned deliberately. These were unpinned, which means the daily job
+      # silently picks up major releases -- pandas 3.0 changed groupby.apply
+      # semantics and deprecated Timestamp.utcnow(), either of which would
+      # have broken the refresh on whatever morning it happened to land.
       - name: Install dependencies
-        run: pip install pandas numpy requests
+        run: pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
 
       - name: Pull fresh RISE data
         run: python refresh_reservoirs.py
+        env:
+          PYTHONUNBUFFERED: "1"
 
       - name: Commit and push if changed
         run: |
