@@ -39,8 +39,38 @@ from refresh_reservoirs import RESERVOIRS, load_previous, OUTPUT_PATH  # noqa: E
 AGOL_SEARCH = "https://www.arcgis.com/sharing/rest/search"
 CAPACITY_PATH = Path(__file__).resolve().parent.parent / "capacities.json"
 
-# NID's schema, as seen on hosted copies of the inventory.
-REQUIRED_FIELDS = {"nidid", "dam_name", "normal_storage", "max_storage", "nid_storage"}
+# Hosted copies of the inventory don't agree on field names: some use
+# `dam_name`/`normal_storage`, others `NAME`/`NORMAL_STORAGE`, others drop
+# the underscores entirely. Match on the squashed lowercase form and keep
+# the real field name, rather than demanding one exact spelling -- the
+# first attempt required `dam_name` and rejected two perfectly good copies
+# of the inventory for calling it something else.
+FIELD_OPTIONS = {
+    "name": ("damname", "name", "officialname", "damnameofficial", "dam"),
+    "normal": ("normalstorage", "normalstor", "conservationstorage", "normal"),
+    "max": ("maxstorage", "maximumstorage", "maxstor"),
+    "nid": ("nidstorage", "nidstor"),
+    "state": ("state", "statename", "stateabbr", "stateabbreviation"),
+    "nidid": ("nidid", "federalid", "nididnumber"),
+}
+
+
+def field_map(info: dict) -> dict:
+    """Resolve our logical field names against whatever this layer calls them."""
+    actual = {f["name"].lower().replace("_", ""): f["name"]
+              for f in (info.get("fields") or [])}
+    resolved = {}
+    for key, options in FIELD_OPTIONS.items():
+        for option in options:
+            if option in actual:
+                resolved[key] = actual[option]
+                break
+    return resolved
+
+
+def usable(resolved: dict) -> bool:
+    return bool(resolved.get("name") and resolved.get("state")
+                and any(resolved.get(k) for k in ("normal", "max", "nid")))
 
 # Where our name and NID's differ beyond normalization. Kept explicit and
 # small: every entry here is a human decision that a reviewer can check.
@@ -92,28 +122,28 @@ def find_nid_layer() -> str | None:
             for layer in (meta.get("layers") or [])[:3]:
                 layer_url = f"{url}/{layer['id']}"
                 info = get(layer_url, {"f": "json"}) or {}
-                names = {f["name"].lower() for f in (info.get("fields") or [])}
-                missing = REQUIRED_FIELDS - names
-                print(f"    {item['title'][:52]!r} layer {layer['id']}: "
-                      f"{'OK' if not missing else f'missing {sorted(missing)}'}")
-                if missing:
+                resolved = field_map(info)
+                if not usable(resolved):
                     continue
-                count = get(f"{layer_url}/query", {
-                    "f": "json", "where": "state='UT'", "returnCountOnly": "true"})
-                utah = (count or {}).get("count", 0)
-                print(f"      Utah rows: {utah}")
-                if utah and utah > 100:
-                    print(f"    -> using {layer_url}")
-                    return layer_url
-    return None
+                print(f"    {item['title'][:52]!r} layer {layer['id']}: {resolved}")
+                for value in ("UT", "Utah", "UTAH"):
+                    where = f"{resolved['state']}='{value}'"
+                    count = get(f"{layer_url}/query", {
+                        "f": "json", "where": where, "returnCountOnly": "true"})
+                    utah = (count or {}).get("count", 0)
+                    print(f"      {where} -> {utah} rows")
+                    if utah > 100:
+                        print(f"    -> using {layer_url}")
+                        return layer_url, resolved, where
+    return None, None, None
 
 
-def fetch_utah_dams(layer_url: str) -> list[dict]:
+def fetch_utah_dams(layer_url: str, where: str) -> list[dict]:
     """Every Utah dam in the inventory, paged."""
     rows, offset = [], 0
     while True:
         page = get(f"{layer_url}/query", {
-            "f": "json", "where": "state='UT'", "outFields": "*",
+            "f": "json", "where": where, "outFields": "*",
             "returnGeometry": "false", "resultOffset": offset,
             "resultRecordCount": 1000,
         })
@@ -138,57 +168,59 @@ def pick(value):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--layer-url", help="skip discovery and use this layer")
     args = parser.parse_args()
 
-    layer_url = args.layer_url or find_nid_layer()
+    layer_url, resolved, where = find_nid_layer()
     if not layer_url:
-        print("ERROR: no NID layer found with the expected schema", file=sys.stderr)
+        print("ERROR: no dam inventory found with a usable schema", file=sys.stderr)
         return 1
 
-    dams = fetch_utah_dams(layer_url)
+    dams = fetch_utah_dams(layer_url, where)
     if not dams:
         print("ERROR: no Utah dams returned", file=sys.stderr)
         return 1
 
+    name_field = resolved["name"]
     by_norm: dict[str, list[dict]] = {}
     for dam in dams:
-        by_norm.setdefault(normalize(dam.get("dam_name")), []).append(dam)
+        by_norm.setdefault(normalize(dam.get(name_field)), []).append(dam)
 
     # Observed record maxima, to catch a match that attached the wrong dam.
     observed = {name: rec.get("record_max_af")
                 for name, rec in load_previous(OUTPUT_PATH).items()}
 
+    def storage(dam, key):
+        return pick(dam.get(resolved[key])) if resolved.get(key) else None
+
     table, problems = {}, []
-    print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'record max':>12}  dam_name")
+    print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'nid_af':>12} "
+          f"{'record max':>12}  dam")
     for name in RESERVOIRS:
         candidates = by_norm.get(normalize(ALIASES.get(name, name)), [])
         if not candidates:
-            problems.append(f"{name}: no NID dam matched")
+            problems.append(f"{name}: no dam matched by name")
             continue
-        # Prefer the largest normal_storage when a name repeats -- the small
-        # stock ponds sharing a name are never the monitored reservoir.
-        dam = max(candidates, key=lambda d: pick(d.get("normal_storage")) or 0)
-        normal = pick(dam.get("normal_storage"))
-        maximum = pick(dam.get("max_storage"))
-        nid = pick(dam.get("nid_storage"))
+        # Prefer the largest when a name repeats -- the stock ponds sharing a
+        # name with a major reservoir are never the monitored one.
+        dam = max(candidates, key=lambda d: storage(d, "normal") or storage(d, "nid") or 0)
+        normal, maximum, nid = (storage(dam, "normal"), storage(dam, "max"),
+                                storage(dam, "nid"))
         record_max = observed.get(name)
-
-        print(f"{name:<18} {str(normal):>12} {str(maximum):>12} "
-              f"{str(record_max):>12}  {dam.get('dam_name')}")
+        print(f"{name:<18} {str(normal):>12} {str(maximum):>12} {str(nid):>12} "
+              f"{str(record_max):>12}  {dam.get(name_field)}")
 
         denominator = normal or nid or maximum
         if denominator is None:
-            problems.append(f"{name}: NID has no usable storage figure")
+            problems.append(f"{name}: no usable storage figure in the inventory")
             continue
-        # The load-bearing check: we have observed storage since 2015, so a
-        # capacity below what we have already seen in the reservoir means the
-        # match is wrong, not that the reservoir overflowed for a decade.
+        # The load-bearing check: we have observed this reservoir since 2015,
+        # so a capacity below what we have already seen in it means the match
+        # is wrong -- not that it overflowed for a decade.
         if record_max and denominator < record_max * 0.9:
             problems.append(
                 f"{name}: capacity {denominator:,.0f} af is below the observed "
                 f"record max {record_max:,.0f} af -- probably the wrong dam "
-                f"({dam.get('dam_name')})")
+                f"({dam.get(name_field)})")
             continue
 
         table[name] = {
@@ -196,8 +228,8 @@ def main() -> int:
             "normal_storage_af": normal,
             "max_storage_af": maximum,
             "nid_storage_af": nid,
-            "nid_id": dam.get("nidid"),
-            "nid_dam_name": dam.get("dam_name"),
+            "nid_id": dam.get(resolved["nidid"]) if resolved.get("nidid") else None,
+            "nid_dam_name": dam.get(name_field),
         }
 
     print(f"\n=== matched {len(table)}/{len(RESERVOIRS)} reservoirs")
@@ -219,7 +251,6 @@ def main() -> int:
 
     if args.dry_run:
         print("\n--dry-run: not writing")
-        print(json.dumps(payload, indent=2)[:2000])
         return 0
 
     CAPACITY_PATH.write_text(json.dumps(payload, indent=2) + "\n")
