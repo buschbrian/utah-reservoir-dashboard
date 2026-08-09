@@ -74,13 +74,23 @@ def usable(resolved: dict) -> bool:
 
 # Where our name and NID's differ beyond normalization. Kept explicit and
 # small: every entry here is a human decision that a reviewer can check.
+# The inventory is keyed by dam, not by reservoir, and several of ours are
+# named for neither. Each entry is a human decision a reviewer can check.
 ALIASES = {
-    "Lake Powell": "Glen Canyon",
-    "Flaming Gorge": "Flaming Gorge",
-    "Joes Valley": "Joes Valley",
-    "Huntington North": "Huntington North",
-    "Upper Stillwater": "Upper Stillwater",
-    "Willard Bay": "Arthur V Watkins",  # Willard Bay's dam is Arthur V. Watkins
+    "Lake Powell": "Glen Canyon",        # Glen Canyon Dam impounds Lake Powell
+    "Willard Bay": "Arthur V Watkins",   # Arthur V. Watkins Dam
+    "Strawberry": "Soldier Creek",       # Soldier Creek Dam
+    "Rockport": "Wanship",               # Wanship Dam
+}
+
+# Not every reservoir a Utah dashboard tracks sits in Utah: Glen Canyon Dam
+# is in Arizona and Meeks Cabin is in Wyoming, and filtering the inventory
+# to state='UT' silently dropped both. Utah rows are still preferred when a
+# name appears in more than one state.
+STATES = {
+    "UT": ("UT", "AZ", "WY"),
+    "Utah": ("Utah", "Arizona", "Wyoming"),
+    "UTAH": ("UTAH", "ARIZONA", "WYOMING"),
 }
 
 NOISE = re.compile(r"\b(reservoir|lake|dam|and|powerplant|no|number)\b", re.I)
@@ -133,9 +143,12 @@ def find_nid_layer() -> str | None:
                     utah = (count or {}).get("count", 0)
                     print(f"      {where} -> {utah} rows")
                     if utah > 100:
-                        print(f"    -> using {layer_url}")
-                        return layer_url, resolved, where
-    return None, None, None
+                        states = STATES[value]
+                        joined = ",".join(f"'{s}'" for s in states)
+                        full = f"{resolved['state']} IN ({joined})"
+                        print(f"    -> using {layer_url} with {full}")
+                        return layer_url, resolved, full, states[0]
+    return None, None, None, None
 
 
 def fetch_utah_dams(layer_url: str, where: str) -> list[dict]:
@@ -170,7 +183,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    layer_url, resolved, where = find_nid_layer()
+    layer_url, resolved, where, utah_value = find_nid_layer()
     if not layer_url:
         print("ERROR: no dam inventory found with a usable schema", file=sys.stderr)
         return 1
@@ -202,7 +215,12 @@ def main() -> int:
             continue
         # Prefer the largest when a name repeats -- the stock ponds sharing a
         # name with a major reservoir are never the monitored one.
-        dam = max(candidates, key=lambda d: storage(d, "normal") or storage(d, "nid") or 0)
+        # Prefer a Utah row when the name exists in several states, so an
+        # out-of-state namesake can't outrank the reservoir we actually track.
+        in_utah = [d for d in candidates
+                   if resolved.get("state") and d.get(resolved["state"]) == utah_value]
+        pool = in_utah or candidates
+        dam = max(pool, key=lambda d: storage(d, "normal") or storage(d, "nid") or 0)
         normal, maximum, nid = (storage(dam, "normal"), storage(dam, "max"),
                                 storage(dam, "nid"))
         record_max = observed.get(name)
