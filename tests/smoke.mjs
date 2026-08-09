@@ -154,7 +154,7 @@ for (const page of PAGES) {
         `${label}: ranking has ${rankRows} rows, expected ${expectedReservoirs}`);
       check((await tab.locator(".rank-row").first().innerText()).includes(largestReservoir),
         `${label}: ranking is not largest-first`);
-      check((await tab.locator("#kpis").innerText()).includes("WITHOUT LAKE POWELL"),
+      check((await tab.locator("#kpis").innerText()).includes("NO POWELL"),
         `${label}: no statewide KPI excluding Lake Powell`);
       const cards = await tab.locator(".mini").count();
       check(cards === expectedReservoirs,

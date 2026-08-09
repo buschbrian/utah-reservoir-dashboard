@@ -155,6 +155,7 @@
   // Utah plus the Lake Powell and Meeks Cabin markers without exposing a
   // large, low-information ring of neighboring states.
   var MAP_BOUNDS = [[-114.55, 36.70], [-108.55, 42.30]];
+  var MAP_CENTER = [-111.55, 39.50];
   var HUC_FILL = "rgba(226,232,239,0.22)";
   var HUC_LINE = "#6f8498";
 
@@ -377,6 +378,8 @@
       generatedAt: meta.generated_at || null,
       staleAfterDays: meta.stale_after_days || 2,
       source: meta.source || null,
+      sources: meta.sources || [],
+      sourceCounts: meta.source_counts || null,
       legacy: isArray,
       reservoirs: reservoirs.map(function (r) {
         // Older files predate every freshness and trend field; fill in
@@ -387,6 +390,11 @@
           copy.is_stale = copy.days_stale !== null && copy.days_stale > 2;
         }
         if (copy.fetch_ok === undefined) copy.fetch_ok = true;
+        if (!copy.source_key) copy.source_key = "rise";
+        if (!copy.source_label) copy.source_label = "Bureau of Reclamation RISE";
+        if (!copy.source_url) copy.source_url = "https://data.usbr.gov/rise-api";
+        if (!copy.data_frequency) copy.data_frequency = "daily";
+        if (copy.stale_after_days === undefined) copy.stale_after_days = 2;
         if (!Array.isArray(copy.monthly)) copy.monthly = [];
         return copy;
       })
@@ -577,6 +585,9 @@
   function popupHTML(r, opts) {
     opts = opts || {};
     var html = "";
+    var sourceLabel = r.source_label || "Bureau of Reclamation RISE";
+    var sourceUrl = r.source_url || "https://data.usbr.gov/rise-api";
+    var cadence = r.data_frequency || "daily";
 
     if (opts.includeTitle) {
       html += "<h2 class='rv-title'>" + esc(r.name) + "</h2>";
@@ -588,8 +599,8 @@
     if (r.is_stale) {
       html += "<p class='rv-stale'>⚠ Last reading is from " + esc(r.as_of) +
         " (" + esc(daysAgoPhrase(r.days_stale)) + ")" +
-        (r.fetch_ok === false ? " — the refresh could not reach RISE for this reservoir."
-                              : " — RISE has not published newer data for it.") +
+        (r.fetch_ok === false ? " — the refresh could not reach " + esc(sourceLabel) + "."
+                              : " — " + esc(sourceLabel) + " has not published newer data.") +
         " Everything below describes that date, not today.</p>";
     }
 
@@ -615,6 +626,7 @@
       statRow("Peak this year", fmtAf(r.peak_this_year_af) + " af" +
         (r.peak_this_year_date ? " <em>(" + esc(r.peak_this_year_date) + ")</em>" : "")) +
       statRow("As of", esc(r.as_of || "—")) +
+      statRow("Source cadence", esc(cadence.charAt(0).toUpperCase() + cadence.slice(1))) +
       "</div>";
 
     html += "<h3 class='rv-subhead'>Last 12 months</h3>";
@@ -623,11 +635,13 @@
 
     html += "<p class='rv-note'>Seasonal percentile: where this reading ranks " +
       "against every other year's value within a 7-day window of the same date. " +
-      "Storage data: <a href='https://data.usbr.gov/rise-api' target='_blank' " +
-      "rel='noreferrer'>Bureau of Reclamation RISE</a> — provisional and " +
-      "subject to revision. Capacity: USACE National Inventory of Dams" +
+      "Storage data: <a href='" + esc(sourceUrl) + "' target='_blank' " +
+      "rel='noreferrer'>" + esc(sourceLabel) + "</a> — provisional and " +
+      "subject to revision. Capacity: " +
+      (r.capacity_basis === "awdb_reservoir_metadata"
+        ? "NRCS AWDB reservoir metadata" : "USACE National Inventory of Dams") +
       (r.capacity_basis ? " (" + esc(r.capacity_basis.replace(/_/g, " ")) + ")" : "") +
-      ", which RISE does not publish.</p>";
+      ".</p>";
 
     return html;
   }
@@ -642,7 +656,7 @@
     return "<b>% of capacity</b>" +
       "<div class='rv-legend-scale'>" + swatches + "</div>" +
       "<span class='rv-legend-row'><span class='rv-dot rv-dot-stale'></span>" +
-      "Dashed ring: feed has gone quiet</span>" +
+      "Dashed ring: source is late for its cadence</span>" +
       "<p class='rv-legend-note'>Filled circle = current storage. Gray outline ring = " +
       "that reservoir's full capacity &mdash; the bigger the gap between ring and " +
       "fill, the more depleted it is. Capacity from the National Inventory of Dams; " +
@@ -665,6 +679,14 @@
     var age = when ? Math.round((Date.now() - when.getTime()) / 86400000) : null;
     var out = "Data refreshed " + (when ? when.toLocaleDateString("en-US",
       { year: "numeric", month: "short", day: "numeric" }) : "unknown");
+    if (data.sourceCounts) {
+      out += " &middot; " + (data.sourceCounts.rise || 0) + " RISE + " +
+        (data.sourceCounts.awdb || 0) + " AWDB";
+      var monthly = data.reservoirs.filter(function (r) {
+        return r.data_frequency === "monthly";
+      }).length;
+      if (monthly) out += " (" + monthly + " monthly)";
+    }
     if (age !== null && age > 2) {
       out = "<span class='rv-fresh-warn'>" + out + " — " + age +
         " days ago; the refresh job may be failing.</span>";
@@ -744,6 +766,7 @@
     HUC_FILL: HUC_FILL,
     HUC_LINE: HUC_LINE,
     MAP_BOUNDS: MAP_BOUNDS,
+    MAP_CENTER: MAP_CENTER,
     UTAH_RING: UTAH_RING,
     utahMaskRings: utahMaskRings,
     utahMaskGeoJSON: utahMaskGeoJSON,

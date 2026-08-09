@@ -1,23 +1,26 @@
 # Utah Reservoir Drought Dashboard
 
-Current storage levels across 28 Bureau of Reclamation-monitored reservoirs
-in Utah, in three views over one dataset:
+Current storage levels across 53 reservoirs in and serving Utah, combining
+Reclamation RISE with the wider NRCS AWDB inventory in three views:
 
 | | |
 |---|---|
 | [`index.html`](index.html) | The map, built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/). Each reservoir colored by how full it is and sized by its capacity. |
 | [`maplibre/`](maplibre/) | The same map rebuilt on [MapLibre GL JS](https://maplibre.org/) + CARTO, as an open-source parity comparison. |
-| [`explore.html`](explore.html) | **Statewide overview** — totals, a worst-first ranking, a sortable table of every metric with CSV export, and 28 twelve-month sparklines. No map, and no SDK. |
+| [`explore.html`](explore.html) | **Statewide overview** — totals excluding Lake Powell, a size-first ranking, a sortable table of every metric with CSV export, and 53 twelve-month sparklines. No map, and no SDK. |
 
 No build step and no framework anywhere: the two maps load their SDK
 directly from a CDN with plain `<script>` tags, and the overview loads
-nothing at all. Data comes from the
-[Bureau of Reclamation RISE API](https://data.usbr.gov/).
+nothing at all. Storage comes from the [Bureau of Reclamation RISE
+API](https://data.usbr.gov/) and [USDA NRCS
+AWDB](https://wcc.sc.egov.usda.gov/awdbRestApi/swagger-ui.html).
 
 `reservoirs.json` is regenerated daily by [`refresh_reservoirs.py`](refresh_reservoirs.py),
 run on a schedule via [GitHub Actions](.github/workflows/refresh-data.yml) (6am
-Mountain Time). The script re-pulls each reservoir's full 2015–present daily
-storage series from RISE and recomputes every metric from scratch.
+Mountain Time). The script re-pulls each reservoir's full 2015–present
+series and recomputes every metric from scratch. RISE and two current AWDB
+stations are daily; the other 23 AWDB additions are month-end series and are
+explicitly labeled monthly in the data and UI.
 
 ## Metrics
 
@@ -39,7 +42,8 @@ storage series from RISE and recomputes every metric from scratch.
   is the "is this normal for August?" read, which % of record max can't
   give you: a reservoir at 60% of its all-time high in late summer might be
   perfectly ordinary or historically bad, and only this number says which.
-- **7-, 30- and 365-day change**, and this year's peak with its date.
+- **7-, 30- and 365-day change**, and this year's peak with its date. Monthly
+  sources omit the unsupported 7-day claim.
 - **12 months of monthly history** — mean/min/max/end storage per month,
   plus a *normal* for each calendar month (the median of that month in
   earlier years). This drives the trend chart and table in every popup.
@@ -50,10 +54,9 @@ storage series from RISE and recomputes every metric from scratch.
   Dates are compared in Mountain Time, so an evening run and a morning run
   agree about how stale a reservoir is.
 
-RISE data is provisional per Reclamation's own disclaimer; treat the last
-few days of any series as subject to revision -- the app itself surfaces
-this disclaimer and links back to RISE, both in the title panel and in
-every popup.
+Source data is provisional and subject to revision. Every record carries its
+provider, station/item identifier and daily or monthly cadence, and every
+popup links back to the relevant source.
 
 ## Stale reservoirs
 
@@ -66,8 +69,8 @@ and the workflow stayed green the whole time.
 Staleness is now first-class data rather than something you'd have to
 notice:
 
-- The script computes `days_stale` per reservoir and flags anything older
-  than two days as `is_stale`.
+- The script computes `days_stale` per reservoir. Daily sources are flagged
+  after two days; month-end AWDB sources use a 45-day threshold.
 - Stale reservoirs are annotated as warnings in the Actions log and listed
   in the run's job summary, so a quiet feed is visible on the run page.
 - A reservoir that can't be fetched at all keeps its previous record,
@@ -98,7 +101,7 @@ noticed. Three additions close that loop without a human in it:
   remember to file or tidy it.
 - **The dashboards are checked in a real browser on every push.**
   [`ci.yml`](.github/workflows/ci.yml) runs the data-script tests and a
-  Playwright smoke test that loads all three pages, asserts all 28
+  Playwright smoke test that loads all three pages, asserts all 53
   reservoirs actually rendered (as map circles, and as table rows, ranking
   bars and sparkline cards on the overview), opens a popup and the overview's
   detail dialog, fails on any console error, and uploads screenshots.
@@ -120,7 +123,7 @@ attribute, none of the 17 catalog items on the record is a capacity,
 `hasProfile` is false so there is no elevation–area–capacity table, and the
 free-text fields are empty.
 
-So capacity comes from the USACE National Inventory of Dams, built into
+Capacity for RISE records comes from the USACE National Inventory of Dams, built into
 [`capacities.json`](capacities.json) by
 [`tools/build_capacity_table.py`](tools/build_capacity_table.py) and
 committed rather than fetched at refresh time: it changes on the order of
@@ -132,7 +135,8 @@ be traced back.
 it (25 of 28 reservoirs). It is strikingly close to what we have actually
 observed: Strawberry 1,105,910 af against 1,106,560 af seen since 2015,
 Rockport 62,120 against 62,372. The other three fall back to `max_storage`.
-`nid_storage` is deliberately last: it is the maximum pool *including flood
+The AWDB additions use AWDB's traceable reservoir-capacity metadata. For the
+RISE records, `nid_storage` is deliberately last: it is the maximum pool *including flood
 surcharge*, and taking it for Lake Powell gave 29,875,000 af against a real
 full pool nearer 25,000,000, quietly understating how empty it is.
 
@@ -169,9 +173,8 @@ prior years) and a collapsible table of the same 12 months in numbers.
 Everything outside the state line is dimmed under a translucent mask, so
 Nevada and Wyoming stop rendering at the same weight as the subject of the
 dashboard. It is a scrim, not a clip, on purpose: neighboring terrain is
-real context, and two of the 28 reservoirs are not in Utah at all — Lake
-Powell sits behind Glen Canyon Dam in Arizona, and Meeks Cabin is in the
-Wyoming notch. The state is six corners of surveyed latitude and longitude
+real context, and several monitored reservoirs cross or sit just beyond the
+state line. The state is six corners of surveyed latitude and longitude
 rather than a shapefile, which is why the mask is a dozen lines in
 [`shared/reservoir-viz.js`](shared/reservoir-viz.js) and not a data file.
 
@@ -187,25 +190,24 @@ continent-sized box.
 
 [`explore.html`](explore.html) is the half the maps can't do. A map answers
 "where"; everything past the headline number was locked behind clicking one
-dot at a time, 28 clicks to find out which reservoirs are worst off, and no
+dot at a time, dozens of clicks to compare reservoirs, and no
 way at all to see the state as a single quantity. The overview adds:
 
 - **Statewide totals** — combined storage against combined capacity, versus
   the prior-years normal for this week, and 30-day and 1-year change. Beside
   them, a count of reservoirs per color class, because the volume-weighted
-  percentage is effectively a report on Lake Powell: it holds more than the
-  other 27 combined. "31% full statewide" and "16 of 28 are below half" are
-  both true and answer different questions.
+  percentage can otherwise become effectively a report on Lake Powell. A
+  separate, prominent total excludes Lake Powell as the useful Utah read.
 - **Twelve months of statewide storage**, drawn by the same chart function
   the popups use, with the state standing in for a reservoir.
-- **A worst-first ranking** of all 28, each bar carrying a tick for that
+- **A size-first ranking** of all 53, each bar carrying a tick for that
   reservoir's normal on the same axis — so the distance between bar and tick
   is the "is this bad or just August?" read, at a glance, for every
   reservoir at once.
 - **A sortable table** of every metric, with a name filter, a stale-feeds-only
   toggle, and CSV export of exactly the rows on screen (raw numbers, not the
   formatted strings).
-- **Twelve-month sparklines for all 28 at once**, scaled against each
+- **Twelve-month sparklines for all 53 at once**, scaled against each
   reservoir's own capacity so a short bar means low, not just small.
 - **Deep links.** `explore.html?reservoir=Deer+Creek` opens that reservoir's
   full record directly, and opening one updates the URL so it can be shared.
@@ -298,7 +300,7 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### Data breadth
 
-- **Cache the daily series.** Every run re-pulls ~4,200 rows × 28
+- **Cache the daily series.** Every run re-pulls ~4,200 rows for each daily
   reservoirs to recompute values that almost all didn't change. Persisting
   the series (artifact or committed Parquet) and fetching only the delta
   would cut the run time, be considerably kinder to RISE, and make a longer
@@ -309,9 +311,10 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 - **Snowpack context.** Utah's reservoir year is decided by snowpack, and
   NRCS SNOTEL basin values would give each reservoir's trend a cause rather
   than just a shape.
-- **Non-Reclamation reservoirs.** These 28 are the Reclamation-monitored
-  ones; the Utah Division of Water Resources tracks others that a
-  statewide drought map arguably ought to include.
+- **More current local feeds.** Twenty-three expanded-inventory reservoirs
+  have reliable AWDB month-end storage but no current daily AWDB series.
+  Direct local-agency feeds could improve their cadence where stable APIs
+  and traceable capacity definitions are available.
 
 ### The dashboards
 

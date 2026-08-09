@@ -1,7 +1,7 @@
-"""Daily refresh of reservoirs.json for the Utah Reservoir Drought Dashboard.
+"""Refresh reservoirs.json for the Utah Reservoir Drought Dashboard.
 
-Pulls current-through-yesterday daily storage (af) for all 28 Bureau of
-Reclamation-monitored Utah reservoirs from the RISE API, then computes a
+Pulls daily storage (af) from Reclamation RISE and daily/monthly storage
+from USDA NRCS AWDB for the wider Utah reservoir inventory, then computes a
 set of drought metrics per reservoir:
 
 - pct_of_record_max: current storage vs. the highest storage seen in the
@@ -41,6 +41,7 @@ import pandas as pd
 import requests
 
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
+AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 START_DATE = "20150101"
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
@@ -50,6 +51,7 @@ CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 # 2 days is deliberately tight: RISE normally publishes through yesterday,
 # so anything past "yesterday, plus a day of slack" is a real signal.
 STALE_AFTER_DAYS = 2
+AWDB_MONTHLY_STALE_AFTER_DAYS = 45
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -96,6 +98,42 @@ RESERVOIRS = {
     "Washington Lake": (4530, 40.6765, -110.964),
     "Lost Lake": (4523, 40.6741, -110.9413),
 }
+
+# Additional reservoirs in the Utah Division of Water Resources' statewide
+# inventory that are not in the RISE set above. AWDB's RESC element is
+# reservoir storage volume in acre-feet. Only Utah Lake and Smith and
+# Morehouse currently publish a current daily series; the other stations are
+# derived monthly values and are deliberately labeled/aged as monthly data.
+# name -> (station triplet, lat, lon, capacity af, cadence)
+AWDB_RESERVOIRS = {
+    "Bear Lake": ("10055500:ID:BOR", 42.11667, -111.30000, 1302000.0, "monthly"),
+    "Big Sand Wash": ("09UTBSWR:UT:BOR", 40.30006, -110.22139, 25700.0, "monthly"),
+    "Cleveland": ("09UTCLEV:UT:BOR", 39.57758, -111.23896, 5400.0, "monthly"),
+    "Grantsville": ("10UTGTVL:UT:BOR", 40.54185, -112.50567, 3300.0, "monthly"),
+    "Gunlock": ("09UTGUNL:UT:BOR", 37.25136, -113.77556, 10400.0, "monthly"),
+    "Gunnison": ("10216200:UT:BOR", 39.20635, -111.71103, 20300.0, "monthly"),
+    "Jackson Flat": ("09UTJACK:UT:BOR", 37.00576, -112.51995, 4083.0, "monthly"),
+    "Ken's Lake": ("09UTKENS:UT:BOR", 38.48126, -109.42845, 2300.0, "monthly"),
+    "Lower Enterprise": ("10UTENTL:UT:BOR", 37.52601, -113.85091, 2600.0, "monthly"),
+    "Miller Flat": ("09UTMILF:UT:BOR", 39.54028, -111.24222, 5200.0, "monthly"),
+    "Millsite": ("09UTMILL:UT:BOR", 39.09558, -111.18794, 18061.0, "monthly"),
+    "Minersville": ("10238500:UT:BOR", 38.21747, -112.83550, 23300.0, "monthly"),
+    "Otter Creek": ("10188000:UT:BOR", 38.17082, -112.02436, 52500.0, "monthly"),
+    "Panguitch": ("10UTPANG:UT:BOR", 37.72436, -112.62790, 22300.0, "monthly"),
+    "Piute": ("10191000:UT:BOR", 38.32387, -112.19131, 71800.0, "monthly"),
+    "Porcupine": ("10105200:UT:BOR", 41.51828, -111.74624, 11300.0, "monthly"),
+    "Quail Creek": ("09UTQUAI:UT:BOR", 37.18022, -113.38098, 40000.0, "monthly"),
+    "Sand Hollow": ("09UTSAND:UT:BOR", 37.11417, -113.37472, 50000.0, "monthly"),
+    "Settlement Canyon": ("10UT03JJ:UT:BOR", 40.51086, -112.29504, 1000.0, "monthly"),
+    "Smith and Morehouse": ("10128000:UT:BOR", 40.76202, -111.10338, 8100.0, "daily"),
+    "Upper Enterprise": ("10UTENTU:UT:BOR", 37.51939, -113.86197, 10000.0, "monthly"),
+    "Utah Lake": ("10166500:UT:BOR", 40.35867, -111.89339, 870900.0, "daily"),
+    "Woodruff Creek": ("10UTWOOD:UT:BOR", 41.46666, -111.31838, 4000.0, "monthly"),
+    "Woodruff Narrows": ("10020200:WY:BOR", 41.50273, -111.01602, 57300.0, "monthly"),
+    "Yuba": ("10218500:UT:BOR", 39.37218, -112.03327, 236000.0, "monthly"),
+}
+
+ALL_RESERVOIR_NAMES = set(RESERVOIRS) | set(AWDB_RESERVOIRS)
 
 
 RETRY_ATTEMPTS = 3
@@ -213,6 +251,65 @@ def fetch_rise_series(item_id: int, start: str, end: str) -> pd.DataFrame:
     return df[["date", "storage_af"]].reset_index(drop=True)
 
 
+def _get_awdb_json(params: dict):
+    """GET AWDB JSON with the same transient-failure policy as RISE."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(AWDB_DATA_URL, params=params, timeout=60)
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
+
+
+def fetch_awdb_series(station_triplet: str, cadence: str,
+                      start: str, end: str) -> pd.DataFrame:
+    """Pull an AWDB RESC storage series and normalize it to [date, storage_af].
+
+    Daily values carry an ISO date. Monthly values carry only year/month;
+    with periodRef=END they represent the end of that month, so we assign the
+    calendar month-end date. The original cadence remains on the published
+    reservoir record and drives its freshness threshold.
+    """
+    payload = _get_awdb_json({
+        "stationTriplets": station_triplet,
+        "elements": "RESC",
+        "duration": cadence.upper(),
+        "beginDate": dt.datetime.strptime(start, "%Y%m%d").date().isoformat(),
+        "endDate": dt.datetime.strptime(end, "%Y%m%d").date().isoformat(),
+        "periodRef": "END",
+    })
+    stations = payload if isinstance(payload, list) else [payload]
+    values = []
+    for station in stations:
+        for block in (station.get("data") or []):
+            values.extend(block.get("values") or [])
+
+    rows = []
+    for value in values:
+        if cadence == "monthly":
+            year, month = value.get("year"), value.get("month")
+            date = (pd.Timestamp(year=int(year), month=int(month), day=1) +
+                    pd.offsets.MonthEnd(0)) if year and month else pd.NaT
+        else:
+            date = pd.to_datetime(value.get("date"), errors="coerce")
+        rows.append({"date": date, "storage_af": value.get("value")})
+
+    if not rows:
+        return pd.DataFrame({"date": pd.Series(dtype="datetime64[ns]"),
+                             "storage_af": pd.Series(dtype="float64")})
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
+    df = df.dropna(subset=["date", "storage_af"])
+    df = df[df["date"] <= local_today()]
+    return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
+              [["date", "storage_af"]].reset_index(drop=True))
+
+
 def seasonal_window(series: pd.Series, ref_date: pd.Timestamp, window_days: int = 7) -> pd.Series:
     """Every observation within +/- window_days of ref_date's day-of-year, any year.
 
@@ -313,9 +410,15 @@ def _pct(numerator: float | None, denominator: float | None) -> float | None:
     return _round(numerator / denominator * 100, 1)
 
 
-def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
-              today: pd.Timestamp, capacity: dict | None = None) -> dict:
-    """Turn one reservoir's daily series into the record the dashboards consume."""
+def summarize(name: str, item_id: int | None, lat: float, lon: float,
+              df: pd.DataFrame, today: pd.Timestamp,
+              capacity: dict | None = None, *, source_key: str = "rise",
+              source_label: str = "Bureau of Reclamation RISE",
+              source_url: str = "https://data.usbr.gov/rise-api",
+              data_frequency: str = "daily", stale_after_days: int = STALE_AFTER_DAYS,
+              change_tolerance_days: int = 10,
+              source_station_id: str | None = None) -> dict:
+    """Turn one storage series into the record the dashboards consume."""
     series = df.set_index("date")["storage_af"].sort_index()
     last_date = series.index[-1]
     current = float(series.iloc[-1])
@@ -339,7 +442,12 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
 
     changes = {}
     for label, days in (("7d", 7), ("30d", 30), ("365d", 365)):
-        past = value_asof(series, last_date - pd.Timedelta(days=days))
+        # A monthly series cannot support a seven-day claim. For 30-day and
+        # annual comparisons, month-end observations are close enough when
+        # a leap day or calendar-month length shifts the target slightly.
+        past = (None if data_frequency == "monthly" and days == 7 else
+                value_asof(series, last_date - pd.Timedelta(days=days),
+                           tolerance_days=change_tolerance_days))
         changes[f"change_{label}_af"] = _round(None if past is None else current - past)
         changes[f"change_{label}_pct"] = None if not past else _round((current - past) / past * 100, 1)
 
@@ -349,13 +457,19 @@ def summarize(name: str, item_id: int, lat: float, lon: float, df: pd.DataFrame,
     return {
         "name": name,
         "rise_item_id": item_id,
+        "source_key": source_key,
+        "source_label": source_label,
+        "source_url": source_url,
+        "source_station_id": source_station_id or (str(item_id) if item_id is not None else None),
+        "data_frequency": data_frequency,
+        "stale_after_days": stale_after_days,
         "lat": lat,
         "lon": lon,
 
         # --- freshness ---
         "as_of": last_date.date().isoformat(),
         "days_stale": days_stale,
-        "is_stale": days_stale > STALE_AFTER_DAYS,
+        "is_stale": days_stale > stale_after_days,
         "fetch_ok": True,
 
         # --- headline metrics (kept for continuity with the original notebook) ---
@@ -428,7 +542,7 @@ def load_previous(path: Path) -> dict[str, dict]:
 def _problem_table(problems: list[dict]) -> list[str]:
     rows = ["| Reservoir | As of | Days stale | Note |", "| --- | --- | ---: | --- |"]
     for r in problems:
-        note = r.get("fetch_error", "no newer data published by RISE")
+        note = r.get("fetch_error", "no newer data published by the source")
         rows.append(f"| {r['name']} | {r['as_of']} | {r.get('days_stale')} | {note} |")
     return rows
 
@@ -461,7 +575,7 @@ def emit_ci_signals(records: list[dict]) -> None:
         key=lambda r: -(r.get("days_stale") or 0),
     )
     for r in problems:
-        detail = r.get("fetch_error", "no newer data published by RISE")
+        detail = r.get("fetch_error", "no newer data published by the source")
         print(f"::warning title=Stale reservoir::{r['name']} last updated "
               f"{r['as_of']} ({r.get('days_stale')} days ago) -- {detail}")
 
@@ -493,24 +607,30 @@ def main() -> int:
                              "since a partial run would drop every other reservoir.")
     parser.add_argument("--dry-run", action="store_true",
                         help="compute everything but don't write reservoirs.json")
+    parser.add_argument("--source", choices=("all", "rise", "awdb"), default="all",
+                        help="refresh one source and merge the other source's previously "
+                             "published records (default: all)")
     args = parser.parse_args()
 
     today = local_today()
     end = (today + pd.Timedelta(days=1)).strftime("%Y%m%d")
     previous = load_previous(OUTPUT_PATH)
     capacities = load_capacities()
-    print(f"Capacities available for {len(capacities)}/{len(RESERVOIRS)} reservoirs")
+    print(f"NID capacities available for {len(capacities)}/{len(RESERVOIRS)} RISE reservoirs")
 
-    targets = RESERVOIRS
+    rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
+    awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
     if args.only:
-        targets = {k: v for k, v in RESERVOIRS.items() if k in set(args.only)}
-        missing = set(args.only) - set(targets)
+        wanted = set(args.only)
+        rise_targets = {k: v for k, v in RESERVOIRS.items() if k in wanted}
+        awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in wanted}
+        missing = wanted - set(rise_targets) - set(awdb_targets)
         if missing:
             print(f"ERROR: unknown reservoir(s): {', '.join(sorted(missing))}", file=sys.stderr)
             return 2
 
     records = []
-    for name, (item_id, lat, lon) in targets.items():
+    for name, (item_id, lat, lon) in rise_targets.items():
         try:
             df = fetch_rise_series(item_id, START_DATE, end)
         # Broad on purpose: the old handler only caught RequestException, so a
@@ -534,28 +654,97 @@ def main() -> int:
                                  capacities.get(name)))
         time.sleep(0.5)  # be polite to RISE's server
 
+    for name, (station_triplet, lat, lon, capacity_af, cadence) in awdb_targets.items():
+        try:
+            df = fetch_awdb_series(station_triplet, cadence, START_DATE, end)
+        except Exception as exc:  # noqa: BLE001
+            reason = (f"AWDB fetch failed after {RETRY_ATTEMPTS} attempts: "
+                      f"{type(exc).__name__}: {exc}")
+            print(f"WARNING: {name} ({station_triplet}) -- {reason}")
+            if name in previous:
+                records.append(carry_forward(previous[name], today, reason))
+            continue
+
+        if df.empty:
+            reason = f"AWDB returned no usable {cadence} RESC rows"
+            print(f"WARNING: {name} ({station_triplet}) -- {reason}")
+            if name in previous:
+                records.append(carry_forward(previous[name], today, reason))
+            continue
+
+        stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
+                       if cadence == "monthly" else STALE_AFTER_DAYS)
+        records.append(summarize(
+            name, None, lat, lon, df, today,
+            {"capacity_af": capacity_af,
+             "capacity_basis": "awdb_reservoir_metadata"},
+            source_key="awdb", source_label="USDA NRCS AWDB",
+            source_url="https://wcc.sc.egov.usda.gov/awdbWebService/",
+            data_frequency=cadence, stale_after_days=stale_after,
+            change_tolerance_days=45 if cadence == "monthly" else 10,
+            source_station_id=station_triplet,
+        ))
+        time.sleep(0.1)
+
     if args.only:
         print(json.dumps(records, indent=2))
         return 0 if records else 1
+
+    # A source-specific refresh is useful for the slower, independently
+    # scheduled feeds. Preserve the other source instead of turning a partial
+    # refresh into a partial dashboard.
+    selected_names = set(rise_targets) | set(awdb_targets)
+    if args.source != "all":
+        records.extend(record for name, record in previous.items()
+                       if name not in selected_names)
 
     if not records:
         print("ERROR: no reservoir data at all -- refusing to overwrite reservoirs.json",
               file=sys.stderr)
         return 1
 
-    fresh = [r for r in records if r.get("fetch_ok")]
-    if len(fresh) < len(targets) / 2:
-        print(f"ERROR: only {len(fresh)}/{len(targets)} reservoirs refreshed successfully "
+    attempted = [r for r in records if r.get("name") in selected_names]
+    fresh = [r for r in attempted if r.get("fetch_ok")]
+    if len(fresh) < len(selected_names) / 2:
+        print(f"ERROR: only {len(fresh)}/{len(selected_names)} reservoirs refreshed successfully "
               "-- refusing to overwrite reservoirs.json", file=sys.stderr)
         return 1
 
-    records.sort(key=lambda r: (r.get("pct_of_record_max") is None, r.get("pct_of_record_max")))
+    # Older committed RISE records predate mixed-source provenance. A
+    # source-specific AWDB refresh merges them unchanged numerically, but the
+    # newly written envelope should still be self-describing without relying
+    # on browser-side defaults.
+    for record in records:
+        if not record.get("source_key"):
+            record["source_key"] = "rise"
+            record["source_label"] = "Bureau of Reclamation RISE"
+            record["source_url"] = "https://data.usbr.gov/rise-api"
+            record["source_station_id"] = str(record.get("rise_item_id"))
+            record["data_frequency"] = "daily"
+            record["stale_after_days"] = STALE_AFTER_DAYS
+
+    # Physical size is the primary browse order in every surface.
+    records.sort(key=lambda r: (r.get("capacity_af") is None,
+                                -(r.get("capacity_af") or 0), r.get("name", "")))
 
     payload = {
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "start_date": dt.datetime.strptime(START_DATE, "%Y%m%d").date().isoformat(),
         "stale_after_days": STALE_AFTER_DAYS,
-        "source": "Bureau of Reclamation RISE API (https://data.usbr.gov/rise-api)",
+        "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
+                                         "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},
+        "source": "Bureau of Reclamation RISE API and USDA NRCS AWDB",
+        "sources": [
+            {"key": "rise", "label": "Bureau of Reclamation RISE",
+             "url": "https://data.usbr.gov/rise-api", "cadence": "daily"},
+            {"key": "awdb", "label": "USDA NRCS AWDB",
+             "url": "https://wcc.sc.egov.usda.gov/awdbWebService/",
+             "cadence": "daily or monthly by station"},
+        ],
+        "source_counts": {
+            "rise": sum(1 for r in records if r.get("source_key", "rise") == "rise"),
+            "awdb": sum(1 for r in records if r.get("source_key") == "awdb"),
+        },
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
         "capacity_count": sum(1 for r in records if r.get("capacity_af")),

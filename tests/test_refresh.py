@@ -92,6 +92,23 @@ def test_fresh_boundary_is_not_flagged():
     assert rec["is_stale"] is False
 
 
+def test_monthly_source_uses_monthly_freshness_and_provenance():
+    idx = pd.date_range("2015-01-31", TODAY - pd.offsets.MonthEnd(1), freq="ME")
+    df = pd.DataFrame({"date": idx, "storage_af": np.linspace(5000, 4000, len(idx))})
+    rec = R.summarize(
+        "Monthly", None, 40.0, -111.0, df, TODAY,
+        {"capacity_af": 10000, "capacity_basis": "awdb_reservoir_metadata"},
+        source_key="awdb", source_label="USDA NRCS AWDB",
+        data_frequency="monthly", stale_after_days=R.AWDB_MONTHLY_STALE_AFTER_DAYS,
+        change_tolerance_days=45, source_station_id="TEST:UT:BOR")
+    assert rec["source_key"] == "awdb"
+    assert rec["source_station_id"] == "TEST:UT:BOR"
+    assert rec["data_frequency"] == "monthly"
+    assert rec["change_7d_af"] is None
+    assert rec["change_30d_af"] is not None
+    assert rec["is_stale"] is False
+
+
 # --- metric corrections ---------------------------------------------------
 
 def test_seasonal_percentile_excludes_the_current_year():
@@ -198,6 +215,17 @@ def test_committed_capacity_table_covers_every_reservoir():
                 f"observed record max {observed:,.0f} af")
 
 
+def test_awdb_inventory_has_traceable_capacity_and_cadence():
+    assert len(R.AWDB_RESERVOIRS) == 25
+    assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
+    for name, (triplet, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
+        assert name
+        assert triplet.count(":") == 2
+        assert 36 <= lat <= 43 and -114.5 <= lon <= -109
+        assert capacity > 0
+        assert cadence in {"daily", "monthly"}
+
+
 # --- degenerate inputs ----------------------------------------------------
 
 def test_short_series_has_no_year_over_year_change_and_no_normals():
@@ -296,6 +324,19 @@ def test_pagination_is_bounded(monkeypatch):
     assert calls["n"] == R.MAX_PAGES
 
 
+def test_awdb_monthly_values_become_month_end_rows(monkeypatch):
+    monkeypatch.setattr(R, "_get_awdb_json", lambda params: [{
+        "stationTriplet": "TEST:UT:BOR",
+        "data": [{"values": [
+            {"year": 2026, "month": 6, "value": 1234},
+            {"year": 2026, "month": 7, "value": 1100},
+        ]}],
+    }])
+    frame = R.fetch_awdb_series("TEST:UT:BOR", "monthly", "20260101", "20260810")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-06-30", "2026-07-31"]
+    assert frame["storage_af"].tolist() == [1234, 1100]
+
+
 # --- published output -----------------------------------------------------
 
 def test_committed_reservoirs_json_is_well_formed():
@@ -303,7 +344,7 @@ def test_committed_reservoirs_json_is_well_formed():
     payload = json.loads((Path(__file__).resolve().parent.parent / "reservoirs.json").read_text())
     assert isinstance(payload, dict), "expected the envelope shape"
     records = payload["reservoirs"]
-    assert len(records) == payload["reservoir_count"] == len(R.RESERVOIRS)
+    assert len(records) == payload["reservoir_count"] == len(R.ALL_RESERVOIR_NAMES)
     assert payload["stale_count"] == sum(1 for r in records if r["is_stale"])
 
     for record in records:

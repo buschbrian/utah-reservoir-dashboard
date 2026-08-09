@@ -51,7 +51,7 @@ the outline circle. Fixed identically in both: only the front-most
 | | ArcGIS Maps SDK for JS | MapLibre GL JS |
 |---|---|---|
 | Rendering | WebGL vector | WebGL vector |
-| Basemap | Esri "topo-vector" (bundled) | CARTO Positron (free vector style, external fetch) |
+| Basemap | Selectable Esri topographic, gray, streets or imagery | Selectable CARTO Voyager, Positron or Dark Matter |
 | Data-driven styling | Arcade `valueExpression`s inside `visualVariables` | Native expressions (`interpolate`, `step`, `sqrt`) inside paint properties |
 | Popups | Declarative `PopupTemplate` + `expressionInfos`, `{field}`/`{expression/name}` substitution | Manual HTML string built in JS, `Popup().setHTML()` |
 | Multi-layer setup | Two separate `FeatureLayer`s, each rebuilding the same `Graphic` array from JSON | One shared GeoJSON source, two `circle` layers reading from it |
@@ -90,14 +90,14 @@ approach for this specific use case, since both layers already share one
 authoritative feature set.
 
 Verified via local server + Playwright: zero console errors, dual circles
-render correctly across all 28 reservoirs, popup content confirmed identical
+render correctly across all 53 reservoirs, popup content confirmed identical
 to the ArcGIS version by clicking the same reservoir (Flaming Gorge) in both.
 
 **Not yet re-verified in a browser** as of the shared-module / trend-chart
 change: that work was done in an environment whose network policy blocks
 `js.arcgis.com`, `unpkg.com` and `basemaps.cartocdn.com`, so neither map
 could be loaded. What *was* verified there: `shared/reservoir-viz.js`
-rendered in headless Chromium against a synthetic 28-reservoir fixture
+rendered in headless Chromium against a synthetic 53-reservoir fixture
 (popup, trend chart, 12-month table, legend, staleness banner — zero
 console errors), plus a syntax check of both pages' inline scripts. The
 map layers themselves — the stale-ring sprite, the generated class stops,

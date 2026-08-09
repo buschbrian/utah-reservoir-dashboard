@@ -23,7 +23,7 @@
   <!-- Colors, popup markup, the 12-month trend chart and the legend are
        shared with the MapLibre version so the two stay identical; only
        engine-specific code lives in this file. -->
-  <script src="shared/reservoir-viz.js"></script>
+  <script src="shared/reservoir-viz.js?v=20260809-2"></script>
 
   <style>
     html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -74,7 +74,7 @@
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
-    <p>Percent full &mdash; Reclamation RISE storage against National Inventory of Dams capacity</p>
+    <p>Percent full &mdash; Reclamation RISE + NRCS AWDB storage</p>
     <p id="freshness">Loading data&hellip;</p>
     <p id="statewideTotal">Calculating statewide total without Lake Powell&hellip;</p>
     <div class="map-actions">
@@ -92,10 +92,10 @@
       <a href="maplibre/">MapLibre comparison</a>
     </nav>
     <p class="disclaimer">
-      Data is provisional and subject to revision (Reclamation's own
-      disclaimer for RISE data); treat the last few days of any series as
-      preliminary.
-      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
+      Storage data is provisional and subject to revision; cadence is shown
+      for every reservoir.
+      <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">RISE</a>
+      &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">NRCS AWDB</a>
     </p>
   </div>
   <div id="viewDiv"></div>
@@ -163,10 +163,7 @@
       });
       map.add(hucLayer);
 
-      const initialBounds = ReservoirViz.MAP_BOUNDS;
-      const viewPadding = () => window.innerWidth <= 640
-        ? { top: 155, right: 8, bottom: 8, left: 8 }
-        : { top: 10, right: 20, bottom: 20, left: 410 };
+      const initialBounds = ReservoirViz.MAP_BOUNDS || [[-114.55, 36.70], [-108.55, 42.30]];
 
       const view = new MapView({
         container: "viewDiv",
@@ -176,7 +173,10 @@
           xmax: initialBounds[1][0], ymax: initialBounds[1][1],
           spatialReference: { wkid: 4326 }
         },
-        padding: viewPadding(),
+        padding: window.innerWidth <= 640
+          ? { top: 150, right: 8, bottom: 8, left: 8 }
+          : { top: 24, right: 24, bottom: 24, left: 24 },
+        constraints: { snapToZoom: false },
         popup: {
           dockEnabled: false,
           collapseEnabled: false
@@ -243,7 +243,10 @@
 
           document.getElementById("freshness").innerHTML =
             ReservoirViz.freshnessHTML(data);
-          const statewide = ReservoirViz.statewideSummary(reservoirs).without_lake_powell;
+          const summary = ReservoirViz.statewideSummary(reservoirs);
+          const statewide = summary.without_lake_powell ||
+            ReservoirViz.statewideSummary(reservoirs.filter((r) =>
+              String(r.name || "").trim().toLowerCase() !== "lake powell"));
           document.getElementById("statewideTotal").textContent =
             "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
             " full across " + statewide.count + " monitored reservoirs";

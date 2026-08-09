@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Utah Reservoirs — Statewide Overview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Statewide storage, rankings and 12-month trends for 28 Reclamation-monitored reservoirs in Utah." />
+  <meta name="description" content="Statewide storage, rankings and 12-month trends for 53 Utah reservoirs." />
 
   <!--
     The third page, and the first one that isn't a map.
@@ -22,7 +22,7 @@
     hand-written SVG, HTML and CSS over the shared module, so it has no CDN
     to be down and renders the moment reservoirs.json arrives.
   -->
-  <script src="shared/reservoir-viz.js"></script>
+  <script src="shared/reservoir-viz.js?v=20260809-2"></script>
 
   <style>
     /* Design tokens, so the spacing/color decisions are made once. The map
@@ -228,7 +228,7 @@
   <header class="topbar">
     <div class="wrap">
       <h1 class="brand">Utah Reservoirs
-        <small>Statewide storage &middot; Reclamation RISE &times; National Inventory of Dams</small>
+        <small>Statewide storage &middot; Reclamation RISE + NRCS AWDB</small>
       </h1>
       <nav class="views" aria-label="Views">
         <a href="explore.html" aria-current="page">Overview</a>
@@ -308,11 +308,13 @@
 
     <footer class="page">
       <p>Storage: <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of
-        Reclamation RISE</a> — provisional and subject to revision; treat the last few days of any
-        series as preliminary. Capacity: <a href="https://nid.sec.usace.army.mil/" target="_blank"
-        rel="noreferrer">USACE National Inventory of Dams</a>, which RISE does not publish.</p>
-      <p>These are the 28 Reclamation-monitored reservoirs; the Utah Division of Water Resources
-        tracks others not shown here.</p>
+        Reclamation RISE</a> and <a href="https://wcc.sc.egov.usda.gov/awdbWebService/"
+        target="_blank" rel="noreferrer">USDA NRCS AWDB</a> — provisional and subject to revision.
+        AWDB-only stations use monthly data unless a current daily series is available; each detail
+        panel shows its cadence. Capacity comes from either <a href="https://nid.sec.usace.army.mil/"
+        target="_blank" rel="noreferrer">USACE NID</a> or AWDB reservoir metadata.</p>
+      <p>The 53-reservoir set combines the RISE inventory with the additional reservoirs in Utah's
+        statewide monitoring experience.</p>
     </footer>
   </main>
 
@@ -346,6 +348,10 @@
         get: (r) => r.name, cell: (r) =>
           "<span class='dot' style='background:" + RV.colorFor(r.fill_pct) + "'></span>" +
           RV.esc(r.name) + (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") },
+      { key: "source_key", label: "Source", num: false,
+        get: (r) => (r.source_key || "rise") + " " + (r.data_frequency || "daily"),
+        cell: (r) => RV.esc((r.source_key === "awdb" ? "AWDB" : "RISE") +
+          " · " + (r.data_frequency || "daily")) },
       { key: "fill_pct", label: "% full", num: true,
         get: (r) => r.fill_pct, cell: (r) => RV.fmtPct(r.fill_pct) },
       { key: "current_storage_af", label: "Storage af", num: true,
@@ -406,22 +412,22 @@
 
     // --- Sections ------------------------------------------------------
 
-    function renderKpis(summary, data) {
+    function renderKpis(summary, allSummary, data) {
       const dir = summary.change_365d_af < 0 ? "down" : "up";
       const tiles = [
         {
-          label: "Statewide storage",
+          label: "Utah statewide (no Powell)",
           value: RV.fmtPct(summary.pct_full) + " full",
           sub: RV.fmtAf(summary.storage_af) + " af of " + RV.fmtAf(summary.capacity_af) + " af",
           meter: summary.pct_full
         },
         {
-          label: "Without Lake Powell",
-          value: RV.fmtPct(summary.without_lake_powell.pct_full) + " full",
-          sub: RV.fmtAf(summary.without_lake_powell.storage_af) + " af of " +
-            RV.fmtAf(summary.without_lake_powell.capacity_af) + " af across " +
-            summary.without_lake_powell.count + " reservoirs",
-          meter: summary.without_lake_powell.pct_full
+          label: "All monitored (incl. Powell)",
+          value: RV.fmtPct(allSummary.pct_full) + " full",
+          sub: RV.fmtAf(allSummary.storage_af) + " af of " +
+            RV.fmtAf(allSummary.capacity_af) + " af across " +
+            allSummary.count + " reservoirs",
+          meter: allSummary.pct_full
         },
         {
           label: "Against normal",
@@ -675,15 +681,18 @@
         if (stale.length) {
           el("staleBanner").hidden = false;
           el("staleBanner").innerHTML = "&#9888; " + stale.length + " reservoir" +
-            (stale.length === 1 ? " is" : "s are") + " showing a reading older than " +
-            data.staleAfterDays + " days — " + stale.map((r) =>
+            (stale.length === 1 ? " is" : "s are") +
+            " later than its source cadence — " + stale.map((r) =>
               RV.esc(r.name) + " (" + RV.esc(RV.daysAgoPhrase(r.days_stale)) + ")").join(", ") +
             ". Their numbers below describe that date, not today.";
         }
 
-        const summary = RV.statewideSummary(state.rows);
-        renderKpis(summary, data);
-        renderStateChart(summary, state.rows);
+        const statewideRows = state.rows.filter((r) =>
+          String(r.name || "").trim().toLowerCase() !== "lake powell");
+        const summary = RV.statewideSummary(statewideRows);
+        const allSummary = RV.statewideSummary(state.rows);
+        renderKpis(summary, allSummary, data);
+        renderStateChart(summary, statewideRows);
         renderRank(state.rows);
         renderList();
 
