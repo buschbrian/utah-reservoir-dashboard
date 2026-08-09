@@ -227,7 +227,18 @@ def main() -> int:
         print(f"{name:<18} {str(normal):>12} {str(maximum):>12} {str(nid):>12} "
               f"{str(record_max):>12}  {dam.get(name_field)}")
 
-        denominator = normal or nid or maximum
+        # Order matters. normal_storage (conservation pool) is the figure
+        # that tracks reality: for reservoirs that have it, it lands within a
+        # percent of the storage actually observed since 2015 (Strawberry
+        # 1,105,910 vs 1,106,560 observed; Rockport 62,120 vs 62,372).
+        # nid_storage is the maximum pool *including flood surcharge* and is
+        # the worst choice of the three -- Lake Powell has no normal_storage,
+        # and taking nid_storage gave 29,875,000 af against a real full pool
+        # nearer 25,000,000, quietly understating how empty it is. Fall back
+        # to max_storage before nid_storage.
+        denominator = normal or maximum or nid
+        basis = ("normal_storage" if normal else
+                 "max_storage" if maximum else "nid_storage")
         if denominator is None:
             problems.append(f"{name}: no usable storage figure in the inventory")
             continue
@@ -243,6 +254,7 @@ def main() -> int:
 
         table[name] = {
             "capacity_af": round(denominator, 1),
+            "capacity_basis": basis,
             "normal_storage_af": normal,
             "max_storage_af": maximum,
             "nid_storage_af": nid,
@@ -258,8 +270,10 @@ def main() -> int:
         "source": "U.S. Army Corps of Engineers, National Inventory of Dams",
         "source_layer": layer_url,
         "retrieved": dt.date.today().isoformat(),
-        "denominator": "normal_storage (storage at the normal/conservation pool), "
-                       "falling back to nid_storage then max_storage",
+        "denominator": "normal_storage (storage at the normal/conservation "
+                       "pool), falling back to max_storage then nid_storage. "
+                       "Each reservoir records which one it used as "
+                       "capacity_basis.",
         "note": "Capacities are NID's, not Utah DWR's; the two can differ on "
                 "what counts as capacity. Every entry was checked against the "
                 "storage observed since 2015 and rejected if it came in lower.",
