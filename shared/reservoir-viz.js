@@ -6,7 +6,8 @@
  * Why this file exists: the two map pages exist to compare *rendering
  * engines*, so everything that isn't engine-specific -- the color classes,
  * the status wording, the popup markup, the 12-month trend chart, the
- * legend, the Utah mask geometry -- has to be identical between them or the
+ * legend, the watershed source and the map extent -- has to be identical
+ * between them or the
  * comparison is measuring copy drift instead of the engines. It used to be
  * duplicated by hand in both files and had already diverged.
  * Engine-specific code (layers, paint properties, Arcade vs. MapLibre
@@ -76,8 +77,11 @@
     return chosen;
   }
 
-  // --- Utah, and everything that isn't ---------------------------------
+  // --- Shared geographic context ---------------------------------------
   //
+  // The state-ring helpers immediately below are retained as a lightweight
+  // fallback for older forks. The current map pages render the HUC6 source
+  // declared after them instead.
   // Both maps are about Utah but neither basemap knows that: Nevada,
   // Wyoming and the Colorado Plateau render at exactly the same weight as
   // the state the dashboard is for, and the eye has to do the cropping.
@@ -132,6 +136,27 @@
   // terrain stay readable, they just stop competing.
   var MASK_FILL = "rgba(226,232,239,0.62)";
   var MASK_LINE = "#8fa3b8";
+
+  /* Both engines use the authoritative WBD service whose 2-to-16-digit layer
+   * structure matches the RISE Experience Builder release notes. Layer 3 is
+   * the six-digit basin level. Filtering
+   * on the service's `states` field keeps the 15 basins that intersect Utah;
+   * unlike a state clip, those polygons preserve the cross-border watersheds
+   * that matter to Lake Powell, the Bear River and the Green River system. */
+  var HUC6_SERVICE_URL =
+    "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3";
+  var HUC6_WHERE = "states LIKE '%UT%'";
+  var HUC6_GEOJSON_URL = HUC6_SERVICE_URL + "/query?where=" +
+    encodeURIComponent(HUC6_WHERE) +
+    "&outFields=huc6%2Cname%2Cstates&returnGeometry=true&outSR=4326" +
+    "&geometryPrecision=5&f=geojson";
+
+  // One explicit starting extent for both renderers. It includes all of
+  // Utah plus the Lake Powell and Meeks Cabin markers without exposing a
+  // large, low-information ring of neighboring states.
+  var MAP_BOUNDS = [[-114.55, 36.70], [-108.55, 42.30]];
+  var HUC_FILL = "rgba(226,232,239,0.22)";
+  var HUC_LINE = "#6f8498";
 
   function reversed(ring) { return ring.slice().reverse(); }
 
@@ -209,6 +234,18 @@
     var storageWithNormal = withNormal.reduce(function (a, r) {
       return a + (r.current_storage_af || 0);
     }, 0);
+    var withoutPowell = reservoirs.filter(function (r) {
+      return String(r.name || "").trim().toLowerCase() !== "lake powell";
+    });
+    var storageWithoutPowell = withoutPowell.reduce(function (a, r) {
+      return a + ((r.current_storage_af === null || r.current_storage_af === undefined)
+        ? 0 : r.current_storage_af);
+    }, 0);
+    var capacityWithoutPowell = withoutPowell.reduce(function (a, r) {
+      var v = sizeBasis(r);
+      return a + ((v === null || v === undefined || isNaN(v)) ? 0 : v);
+    }, 0);
+
     return {
       count: reservoirs.length,
       storage_af: storage,
@@ -224,6 +261,13 @@
         var pct = headlinePct(r);
         return pct !== null && pct !== undefined && pct < 50;
       }).length,
+      without_lake_powell: {
+        count: withoutPowell.length,
+        storage_af: storageWithoutPowell,
+        capacity_af: capacityWithoutPowell,
+        pct_full: capacityWithoutPowell
+          ? (storageWithoutPowell / capacityWithoutPowell) * 100 : null
+      },
       classes: classCounts
     };
   }
@@ -603,7 +647,9 @@
       "that reservoir's full capacity &mdash; the bigger the gap between ring and " +
       "fill, the more depleted it is. Capacity from the National Inventory of Dams; " +
       "where it is missing, the period-of-record max stands in. Click any reservoir " +
-      "for its 12-month trend.</p>";
+      "for its 12-month trend.</p>" +
+      "<p class='rv-legend-note'>Shaded outlines are HUC6 basins from the USGS " +
+      "Watershed Boundary Dataset.</p>";
   }
 
   /* One line under the title telling the reader how old the whole file is,
@@ -692,6 +738,12 @@
     STALE_ACCENT: STALE_ACCENT,
     MASK_FILL: MASK_FILL,
     MASK_LINE: MASK_LINE,
+    HUC6_SERVICE_URL: HUC6_SERVICE_URL,
+    HUC6_WHERE: HUC6_WHERE,
+    HUC6_GEOJSON_URL: HUC6_GEOJSON_URL,
+    HUC_FILL: HUC_FILL,
+    HUC_LINE: HUC_LINE,
+    MAP_BOUNDS: MAP_BOUNDS,
     UTAH_RING: UTAH_RING,
     utahMaskRings: utahMaskRings,
     utahMaskGeoJSON: utahMaskGeoJSON,

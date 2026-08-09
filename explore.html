@@ -13,7 +13,7 @@
     the headline number is locked behind clicking one dot at a time -- 28
     clicks to find out which reservoirs are in the worst shape, and no way
     at all to see the state as a single quantity. This page is the other
-    half: statewide totals up top, an explicit worst-first ranking, a
+    half: statewide totals up top, an explicit size-first ranking, a
     sortable table of every metric with a CSV out, and twelve-month
     sparklines for all 28 at once.
 
@@ -121,6 +121,7 @@
     .rank-row:hover, .rank-row:focus-visible { background: #f1f4f7; outline: none; }
     .rank-row:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
     .rank-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-name small { display: block; color: var(--ink-2); font-size: 10.5px; font-weight: 400; }
     .rank-track { height: 15px; background: #eef1f4; border-radius: 4px; position: relative; }
     .rank-track > span { display: block; height: 100%; border-radius: 4px; }
     /* The prior-years normal, as a tick on the same axis: a reservoir can
@@ -261,17 +262,17 @@
             Reservoirs by class</h3>
           <div class="class-rows" id="classRows"></div>
           <p class="count" style="margin:12px 0 0;line-height:1.5">
-            Counted per reservoir, not weighted by volume — Lake Powell alone holds more
-            than the other 27 combined, so the statewide percentage above and this count
-            answer different questions.</p>
+            Counted per reservoir, not weighted by volume. Compare this distribution with
+            both volume-weighted statewide percentages above; the no-Powell total is the
+            better read on Utah's other monitored storage.</p>
         </div>
       </div>
     </section>
 
     <section aria-labelledby="h-rank">
       <div class="sec-head">
-        <h2 id="h-rank">Worst first</h2>
-        <p>Percent of capacity, all reservoirs. The dark tick is normal for this week in prior years.</p>
+        <h2 id="h-rank">Largest reservoirs first</h2>
+        <p>Ranked by capacity; each bar still shows percent full. The dark tick is normal for this week.</p>
       </div>
       <div class="card"><div class="rank" id="rank"></div></div>
     </section>
@@ -333,7 +334,7 @@
     // with the two derived numbers both maps also compute (capacity or the
     // observed record max standing in for it, and the headline percentage),
     // so sorting and formatting never re-derive them.
-    const state = { rows: [], q: "", staleOnly: false, sortKey: "fill_pct", sortDir: 1 };
+    const state = { rows: [], q: "", staleOnly: false, sortKey: "size_basis_af", sortDir: -1 };
 
     // --- Columns -------------------------------------------------------
     //
@@ -415,6 +416,14 @@
           meter: summary.pct_full
         },
         {
+          label: "Without Lake Powell",
+          value: RV.fmtPct(summary.without_lake_powell.pct_full) + " full",
+          sub: RV.fmtAf(summary.without_lake_powell.storage_af) + " af of " +
+            RV.fmtAf(summary.without_lake_powell.capacity_af) + " af across " +
+            summary.without_lake_powell.count + " reservoirs",
+          meter: summary.without_lake_powell.pct_full
+        },
+        {
           label: "Against normal",
           value: RV.fmtPct(summary.pct_of_normal),
           sub: "of the median for this week in prior years",
@@ -486,7 +495,8 @@
     }
 
     function renderRank(rows) {
-      const sorted = rows.slice().sort((a, b) => (a.fill_pct ?? 999) - (b.fill_pct ?? 999));
+      const sorted = rows.slice().sort((a, b) =>
+        (b.size_basis_af ?? -1) - (a.size_basis_af ?? -1));
       el("rank").innerHTML = sorted.map((r) => {
         const pct = Math.max(0, Math.min(100, r.fill_pct ?? 0));
         // Normal expressed on the same 0–100% of capacity axis as the bar,
@@ -498,6 +508,7 @@
         return "<button class='rank-row' data-name='" + RV.esc(r.name) + "'>" +
           "<span class='rank-name'>" + RV.esc(r.name) +
             (r.is_stale ? "<span class='rank-stale' title='Feed has gone quiet'>&#9888;</span>" : "") +
+            "<small>" + RV.fmtAf(r.size_basis_af) + " af capacity</small>" +
           "</span>" +
           "<span class='rank-track'><span style='width:" + pct.toFixed(1) + "%;background:" +
             RV.colorFor(r.fill_pct) + "'></span>" +
@@ -600,11 +611,10 @@
       if (sort) {
         const key = sort.getAttribute("data-sort");
         // Re-clicking the active column flips it; a new column starts
-        // ascending for names and percentages (worst first, which is the
-        // question people arrive with) rather than remembering the last
-        // direction and surprising them.
+        // ascending for names and percentages; capacity starts descending
+        // because physical size is the dashboard's primary browse order.
         if (state.sortKey === key) state.sortDir *= -1;
-        else { state.sortKey = key; state.sortDir = 1; }
+        else { state.sortKey = key; state.sortDir = key === "size_basis_af" ? -1 : 1; }
         renderList();
       }
     });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Utah Reservoir Drought Dashboard — MapLibre GL JS</title>
-  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!--
     Open-source WebGL parity pass for ../index.html (ArcGIS Maps SDK for
@@ -35,6 +35,15 @@
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
     #freshness { font-size: 11px; margin-top: 6px; color: #555; }
+    #statewideTotal { font-size: 12px; margin-top: 5px; color: #263746; font-weight: 600; }
+    .map-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .map-actions label { font-size: 11px; color: #555; }
+    .map-actions select {
+      margin-left: 4px; max-width: 170px; padding: 4px 24px 4px 7px;
+      border: 1px solid #c8d0d8; border-radius: 4px; background: white; font: inherit;
+    }
+    .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
+    .map-links a { color: #0079c1; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 10.5px; color: #777; line-height: 1.4;
@@ -51,6 +60,18 @@
        height cap of its own -- MapLibre has no docked-popup mode to fall
        back on the way the ArcGIS SDK does. */
     .maplibregl-popup-content { max-height: 70vh; overflow-y: auto; }
+    @media (max-width: 640px) {
+      #titleDiv { top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px; }
+      #titleDiv .disclaimer { display: none; }
+      #titleDiv h1 { font-size: 15px; }
+      .map-actions { margin-top: 5px; }
+      .map-links { margin-top: 5px; }
+      #legendDiv { bottom: 8px; left: 8px; max-width: 160px; padding: 7px 9px; font-size: 11px; }
+      #legendDiv .rv-legend-note { display: none; }
+      .maplibregl-ctrl-top-right { top: 150px; }
+      .maplibregl-popup { max-width: calc(100vw - 16px) !important; }
+      .maplibregl-popup-content { max-height: 65vh; padding: 9px 10px; }
+    }
   </style>
 </head>
 <body>
@@ -58,15 +79,25 @@
     <h1>Utah Reservoir Drought Dashboard</h1>
     <p>Percent full &mdash; Reclamation RISE storage against National Inventory of Dams capacity</p>
     <p id="freshness">Loading data&hellip;</p>
+    <p id="statewideTotal">Calculating statewide total without Lake Powell&hellip;</p>
+    <div class="map-actions">
+      <label for="basemapSelect">Basemap
+        <select id="basemapSelect">
+          <option value="voyager">CARTO Voyager</option>
+          <option value="positron">CARTO Positron</option>
+          <option value="dark-matter">CARTO Dark Matter</option>
+        </select>
+      </label>
+    </div>
+    <nav class="map-links" aria-label="Other dashboard views">
+      <a href="../explore.html"><b>Statewide overview</b></a>
+      <a href="../">ArcGIS comparison</a>
+    </nav>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
       disclaimer for RISE data); treat the last few days of any series as
       preliminary.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
-      <br>
-      <a href="../explore.html"><b>Statewide overview: rankings, trends and a sortable table &rarr;</b></a>
-      <br>
-      <a href="../">Compare with the ArcGIS Maps SDK for JS version &rarr;</a>
     </p>
   </div>
   <div id="legendDiv"></div>
@@ -76,15 +107,35 @@
     ReservoirViz.injectStyles();
     document.getElementById("legendDiv").innerHTML = ReservoirViz.legendHTML();
 
-    // CARTO's free "Positron" vector style -- no API key, no signup,
+    // CARTO's free vector styles -- no API key, no signup,
     // same "zero tooling / zero account" constraint the rest of this
     // project holds to. This is the genuine WebGL-vector counterpart to
     // Esri's "topo-vector" basemap in the ArcGIS version.
+    const CARTO_STYLES = {
+      voyager: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      positron: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      "dark-matter": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+    };
+    const params = new URLSearchParams(location.search);
+    const requestedBasemap = params.get("basemap");
+    const basemapKey = CARTO_STYLES[requestedBasemap] ? requestedBasemap : "voyager";
+    const basemapSelect = document.getElementById("basemapSelect");
+    basemapSelect.value = basemapKey;
+    basemapSelect.addEventListener("change", () => {
+      params.set("basemap", basemapSelect.value);
+      location.search = params.toString();
+    });
+
+    const mobileMap = window.innerWidth <= 640;
     const map = new maplibregl.Map({
       container: "map",
-      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-      center: [-111.6, 39.8],
-      zoom: 6.3
+      style: CARTO_STYLES[basemapKey],
+      bounds: ReservoirViz.MAP_BOUNDS,
+      fitBoundsOptions: {
+        padding: mobileMap
+          ? { top: 155, right: 8, bottom: 8, left: 8 }
+          : { top: 10, right: 20, bottom: 20, left: 400 }
+      }
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -128,32 +179,44 @@
       map.addImage("stale-ring", makeDashedRing(RING_SPRITE_PX, ReservoirViz.STALE_ACCENT),
                    { pixelRatio: 2 });
 
-      // --- Utah mask ---
+      // --- HUC6 watershed mask ---
       //
-      // A single polygon with a Utah-shaped hole, laid over the basemap so
-      // out-of-state geography recedes. Both engines get the rings from the
-      // shared module; here they arrive as GeoJSON winding (outer
-      // counterclockwise, hole clockwise), which is what MapLibre's tiler
-      // expects. Added before the reservoir layers so it can never paint
-      // over a circle, and kept translucent on purpose -- Lake Powell and
-      // Meeks Cabin are outside the state line.
-      map.addSource("utah-mask", { type: "geojson", data: ReservoirViz.utahMaskGeoJSON() });
-      map.addSource("utah-outline", { type: "geojson", data: ReservoirViz.utahOutlineGeoJSON() });
+      // The USGS WBD query returns the 15 HUC6 basins that intersect Utah
+      // as GeoJSON. A light fill and labeled boundary make the watershed
+      // geography readable without hiding cross-border reservoirs.
+      map.addSource("huc6", { type: "geojson", data: ReservoirViz.HUC6_GEOJSON_URL });
 
       map.addLayer({
-        id: "utah-mask",
+        id: "huc6-mask",
         type: "fill",
-        source: "utah-mask",
-        paint: { "fill-color": ReservoirViz.MASK_FILL }
+        source: "huc6",
+        paint: { "fill-color": ReservoirViz.HUC_FILL }
       });
       map.addLayer({
-        id: "utah-outline",
+        id: "huc6-outline",
         type: "line",
-        source: "utah-outline",
+        source: "huc6",
         paint: {
-          "line-color": ReservoirViz.MASK_LINE,
-          "line-width": 1.2,
+          "line-color": ReservoirViz.HUC_LINE,
+          "line-width": 1.1,
           "line-opacity": 0.9
+        }
+      });
+      map.addLayer({
+        id: "huc6-labels",
+        type: "symbol",
+        source: "huc6",
+        minzoom: 5,
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": 10,
+          "text-max-width": 10,
+          "text-allow-overlap": false
+        },
+        paint: {
+          "text-color": "#43576a",
+          "text-halo-color": "rgba(255,255,255,0.9)",
+          "text-halo-width": 1
         }
       });
 
@@ -164,6 +227,10 @@
 
           document.getElementById("freshness").innerHTML =
             ReservoirViz.freshnessHTML(data);
+          const statewide = ReservoirViz.statewideSummary(reservoirs).without_lake_powell;
+          document.getElementById("statewideTotal").textContent =
+            "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
+            " full across " + statewide.count + " monitored reservoirs";
 
           const geojson = {
             type: "FeatureCollection",
@@ -315,7 +382,8 @@
             stale: reservoirs.filter((r) => r.is_stale).length,
             layers: ["max-circle", "stale-ring", "current-circle"]
               .filter((id) => map.getLayer(id)).length,
-            masked: !!map.getLayer("utah-mask")
+            masked: !!map.getLayer("huc6-mask"),
+            huc6: !!map.getLayer("huc6-outline")
           };
         })
         .catch((err) => {

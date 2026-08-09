@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Utah Reservoir Drought Dashboard</title>
-  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!--
     ArcGIS Maps SDK for JavaScript — Phase 4 of the learning track, revised
@@ -36,6 +36,15 @@
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
     #freshness { font-size: 11px; margin-top: 6px; color: #555; }
+    #statewideTotal { font-size: 12px; margin-top: 5px; color: #263746; font-weight: 600; }
+    .map-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .map-actions label { font-size: 11px; color: #555; }
+    .map-actions select {
+      margin-left: 4px; max-width: 170px; padding: 4px 24px 4px 7px;
+      border: 1px solid #c8d0d8; border-radius: 4px; background: white; font: inherit;
+    }
+    .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
+    .map-links a { color: #0079c1; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 10.5px; color: #777; line-height: 1.4;
@@ -44,6 +53,22 @@
     /* The popup is where the 12-month chart and table live, so it needs
        more room than the SDK's default. */
     .esri-popup__content { font-family: sans-serif; }
+    #legendDiv {
+      background: white; padding: 10px 14px; font-family: sans-serif;
+      font-size: 13px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      max-width: 240px;
+    }
+    @media (max-width: 640px) {
+      #titleDiv { top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px; }
+      #titleDiv .disclaimer { display: none; }
+      #titleDiv h1 { font-size: 15px; }
+      .map-actions { margin-top: 5px; }
+      .map-links { margin-top: 5px; }
+      #legendDiv { max-width: 160px; padding: 7px 9px; font-size: 11px; }
+      #legendDiv .rv-legend-note { display: none; }
+      .esri-popup__main-container { max-width: calc(100vw - 16px) !important; max-height: 68vh; }
+      .esri-ui-top-left { top: 150px; }
+    }
   </style>
 </head>
 <body>
@@ -51,15 +76,26 @@
     <h1>Utah Reservoir Drought Dashboard</h1>
     <p>Percent full &mdash; Reclamation RISE storage against National Inventory of Dams capacity</p>
     <p id="freshness">Loading data&hellip;</p>
+    <p id="statewideTotal">Calculating statewide total without Lake Powell&hellip;</p>
+    <div class="map-actions">
+      <label for="basemapSelect">Basemap
+        <select id="basemapSelect">
+          <option value="topo-vector">Topographic</option>
+          <option value="gray-vector">Light gray canvas</option>
+          <option value="streets-vector">Streets</option>
+          <option value="satellite">Imagery</option>
+        </select>
+      </label>
+    </div>
+    <nav class="map-links" aria-label="Other dashboard views">
+      <a href="explore.html"><b>Statewide overview</b></a>
+      <a href="maplibre/">MapLibre comparison</a>
+    </nav>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
       disclaimer for RISE data); treat the last few days of any series as
       preliminary.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">View this data on RISE &rarr;</a>
-      <br>
-      <a href="explore.html"><b>Statewide overview: rankings, trends and a sortable table &rarr;</b></a>
-      <br>
-      <a href="maplibre/">Compare with the MapLibre GL JS + CARTO version &rarr;</a>
     </p>
   </div>
   <div id="viewDiv"></div>
@@ -82,53 +118,65 @@
     require([
       "esri/Map",
       "esri/views/MapView",
-      "esri/layers/FeatureLayer",
-      "esri/layers/GraphicsLayer",
-      "esri/Graphic"
-    ], function (EsriMap, MapView, FeatureLayer, GraphicsLayer, Graphic) {
+      "esri/layers/FeatureLayer"
+    ], function (EsriMap, MapView, FeatureLayer) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "topo-vector" });
+      const basemapSelect = document.getElementById("basemapSelect");
+      basemapSelect.addEventListener("change", () => { map.basemap = basemapSelect.value; });
 
-      // --- Utah mask ---
+      // --- HUC6 watershed mask ---
       //
-      // One polygon covering the world with a Utah-shaped hole in it,
-      // translucent, under everything else -- so Nevada and Wyoming stop
-      // competing with the state this dashboard is about. The rings come
-      // from the shared module in ArcGIS winding (outer clockwise, hole
-      // counterclockwise); the MapLibre page gets the same two rings
-      // flipped for GeoJSON. Deliberately a dimming pass rather than a
-      // clip: Lake Powell (Arizona) and Meeks Cabin (Wyoming) are two of
-      // the 28, and neighboring terrain is real context.
-      //
-      // A GraphicsLayer rather than a FeatureLayer because it is one static
-      // shape with no attributes, no popup and nothing to symbolize by.
-      const maskLayer = new GraphicsLayer({ title: "Outside Utah", listMode: "hide" });
-      maskLayer.add(new Graphic({
-        geometry: { type: "polygon", rings: ReservoirViz.utahMaskRings(),
-                    spatialReference: { wkid: 4326 } },
-        symbol: {
-          type: "simple-fill",
-          color: ReservoirViz.MASK_FILL,
-          outline: { color: [0, 0, 0, 0], width: 0 }
-        }
-      }));
-      maskLayer.add(new Graphic({
-        geometry: { type: "polyline", paths: [ReservoirViz.UTAH_RING],
-                    spatialReference: { wkid: 4326 } },
-        symbol: {
-          type: "simple-line",
-          color: ReservoirViz.MASK_LINE,
-          width: 1.2
-        }
-      }));
-      map.add(maskLayer);
+      // The same USGS WBD HUC6 service used for the MapLibre GeoJSON layer,
+      // filtered to basins whose `states` field includes Utah. This keeps
+      // cross-border watershed context that a hard state clip would lose.
+      const hucLayer = new FeatureLayer({
+        url: ReservoirViz.HUC6_SERVICE_URL,
+        title: "HUC6 basins intersecting Utah",
+        listMode: "hide",
+        popupEnabled: false,
+        definitionExpression: ReservoirViz.HUC6_WHERE,
+        outFields: ["huc6", "name", "states"],
+        minScale: 0,
+        maxScale: 0,
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: ReservoirViz.HUC_FILL,
+            outline: { color: ReservoirViz.HUC_LINE, width: 1.1 }
+          }
+        },
+        labelingInfo: [{
+          labelExpressionInfo: { expression: "$feature.name" },
+          minScale: 7000000,
+          maxScale: 0,
+          symbol: {
+            type: "text",
+            color: "#43576a",
+            haloColor: "rgba(255,255,255,0.9)",
+            haloSize: 1,
+            font: { family: "sans-serif", size: 9.5, weight: "normal" }
+          }
+        }]
+      });
+      map.add(hucLayer);
+
+      const initialBounds = ReservoirViz.MAP_BOUNDS;
+      const viewPadding = () => window.innerWidth <= 640
+        ? { top: 155, right: 8, bottom: 8, left: 8 }
+        : { top: 10, right: 20, bottom: 20, left: 410 };
 
       const view = new MapView({
         container: "viewDiv",
         map: map,
-        center: [-111.6, 39.8], // roughly centered on Utah
-        zoom: 7,
+        extent: {
+          xmin: initialBounds[0][0], ymin: initialBounds[0][1],
+          xmax: initialBounds[1][0], ymax: initialBounds[1][1],
+          spatialReference: { wkid: 4326 }
+        },
+        padding: viewPadding(),
         popup: {
           dockEnabled: false,
           collapseEnabled: false
@@ -195,6 +243,10 @@
 
           document.getElementById("freshness").innerHTML =
             ReservoirViz.freshnessHTML(data);
+          const statewide = ReservoirViz.statewideSummary(reservoirs).without_lake_powell;
+          document.getElementById("statewideTotal").textContent =
+            "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
+            " full across " + statewide.count + " monitored reservoirs";
 
           // Each layer gets its OWN Graphic instances. A Graphic carries a
           // single `layer` reference, so handing the same instances to more
@@ -408,7 +460,8 @@
               // can't quietly satisfy a test that meant "the data drew".
               layers: [maxLayer, staleLayer, currentLayer]
                 .filter((l) => map.layers.includes(l)).length,
-              masked: map.layers.includes(maskLayer)
+              masked: map.layers.includes(hucLayer),
+              huc6: map.layers.includes(hucLayer)
             };
           });
         })
@@ -437,10 +490,7 @@
       // Expand, which previously looked fine (no console errors, valid
       // bounding rect) but never actually rendered on screen.
       const legendDiv = document.createElement("div");
-      legendDiv.style.cssText =
-        "background:white;padding:10px 14px;font-family:sans-serif;" +
-        "font-size:13px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3);" +
-        "max-width:240px;";
+      legendDiv.id = "legendDiv";
       legendDiv.innerHTML = ReservoirViz.legendHTML();
 
       view.ui.add(legendDiv, "bottom-left");
