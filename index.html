@@ -118,8 +118,9 @@
     require([
       "esri/Map",
       "esri/views/MapView",
+      "esri/Graphic",
       "esri/layers/FeatureLayer"
-    ], function (EsriMap, MapView, FeatureLayer) {
+    ], function (EsriMap, MapView, Graphic, FeatureLayer) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "topo-vector" });
