@@ -166,13 +166,29 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
 ### Correctness of the metrics
 
-- **Use real capacity instead of record max.** Every headline number is
-  currently a share of the highest storage seen since 2015, which is a
-  proxy and drifts as the record grows — a reservoir that sets a new high
-  makes every earlier percentage retroactively smaller. RISE publishes
-  active/total capacity per reservoir; pulling it would turn
-  `pct_of_record_max` into a real "percent full" and let the two be shown
-  side by side.
+- **Use real capacity instead of record max — needs a second source.**
+  Every headline number is a share of the highest storage seen since 2015,
+  which is a proxy and drifts as the record grows: a reservoir that sets a
+  new high makes every earlier percentage retroactively smaller.
+
+  An earlier version of this list claimed RISE publishes active/total
+  capacity and that pulling it was straightforward. **That was wrong.**
+  Walking the catalog for Lake Powell (item 509 → record 2362 → location
+  393) with [`tools/probe_rise.py`](tools/probe_rise.py) found no capacity
+  anywhere: the location's only volume-adjacent attribute is `elevation`
+  (the dam's, in feet); all 17 catalog items on the record are storage,
+  elevation, inflow, release, evaporation, area, bank storage and change in
+  storage; `hasProfile` is false and every profile endpoint 404s, so there
+  is no elevation–area–capacity table either; and the free-text fields are
+  empty. The findings are written up at the top of the probe so nobody
+  repeats the walk.
+
+  Turning this into a true "percent full" therefore needs a second, cited
+  source — Reclamation's project data sheets or Utah DWR — stored as a
+  reviewed table with provenance per reservoir. That is a real piece of
+  work with a real risk of publishing authoritative-looking numbers nobody
+  checked, which is the opposite of what the rest of this change is for.
+  Until then `pct_of_record_max` stays, named for exactly what it measures.
 - **Flag implausible readings.** A gage that reports a 40% overnight jump
   is far more likely broken than real, and nothing currently distinguishes
   the two. A per-reservoir plausibility check would catch a different

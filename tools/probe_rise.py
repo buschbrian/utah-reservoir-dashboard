@@ -12,6 +12,31 @@ Run it from CI (`.github/workflows/probe-rise.yml`) rather than locally if
 your network can't reach data.usbr.gov:
 
     python tools/probe_rise.py --item-id 509
+    python tools/probe_rise.py --name "Lake Powell" --capacity-hunt
+
+WHAT THIS FOUND (2026-08-09, Lake Powell / item 509 / location 393):
+RISE does not publish reservoir capacity anywhere reachable from the API.
+
+  - The location carries no capacity attribute. Its only volume-adjacent
+    field is `elevation` (3596.0), which is the dam's elevation in feet,
+    not a storage volume.
+  - The catalogRecord's 17 catalog items are Storage, Elevation, Inflow
+    (several variants), Release (powerplant/spillway/bypass/total),
+    Evaporation, Area, Bank Storage and Change In Storage. No capacity.
+  - `hasProfile` is False, and /rise/api/profile, /catalog-item/{id}/profile
+    and /profile?itemId= all 404, so there is no elevation-area-capacity
+    table to read a full-pool figure off.
+  - `locationDescription`, `projectNames`, `externalDataUrl` and
+    `metadataFilePath` are all empty, so it is not hiding in free text.
+  - Careful: /catalog-item?locationId= silently ignores the filter and
+    returns items from other basins. Use the catalogRecord's catalogItems
+    relationship instead, or you will draw confident conclusions from the
+    wrong reservoir's data.
+
+So `pct_of_record_max` cannot be turned into a true "percent full" from
+RISE alone. Doing it properly needs a second, cited source for capacity
+(Reclamation's project data sheets or Utah DWR), stored as a reviewed table
+with provenance -- not guessed at.
 """
 
 import argparse

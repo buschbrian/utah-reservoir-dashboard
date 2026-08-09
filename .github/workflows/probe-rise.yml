@@ -4,13 +4,10 @@ name: Probe RISE catalog
 # beyond its storage timeseries, so catalog work can be written against the
 # real payload rather than a guess about the API's shape.
 #
-# TEMPORARY: also runs on pushes to the capacity branch. workflow_dispatch
-# can only target a workflow that already exists on the default branch, and
-# this one doesn't yet -- so until it lands on main, a push is the only way
-# to run it. Drop the `push:` trigger once the capacity work is done.
+# Manual only. Note that workflow_dispatch can only target a workflow that
+# already exists on the default branch -- until this lands on main, the only
+# way to run it is a temporary `push:` trigger on your branch.
 on:
-  push:
-    branches: ["claude/reservoir-updates-trends-xpg4nj"]
   workflow_dispatch:
     inputs:
       name:
@@ -36,4 +33,4 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           NAME="${{ inputs.name }}"
-          python tools/probe_rise.py --name "${NAME:-Lake Powell}" --capacity-hunt
+          python tools/probe_rise.py --name "${NAME:-Lake Powell}"
