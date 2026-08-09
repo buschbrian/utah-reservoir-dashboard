@@ -140,12 +140,60 @@ def summarize_keys(payload, label: str):
                     print(f"    data[0].attributes keys: {list(attrs)}")
 
 
+def capacity_hunt(item_id: int) -> int:
+    """Chase the last places a real capacity figure could be hiding.
+
+    The catalog walk already ruled out the obvious ones: the location has no
+    capacity attribute (only `elevation`, which is the dam's, not a volume),
+    and none of the 17 catalog items on the record is a capacity parameter.
+    What's left is the `hasProfile` flag on a catalog item -- RISE profiles
+    are elevation/area/capacity tables -- and free text on the location.
+    """
+    print(f"=== item {item_id}: profile-related attributes")
+    item = get(f"{BASE}/catalog-item/{item_id}")
+    attrs = ((item or {}).get("data") or {}).get("attributes") or {}
+    for key in ("hasProfile", "isModeled", "dataStructure", "itemStructureId",
+                "matrix", "parameterGroup", "externalDataUrl", "metadataFilePath"):
+        print(f"    {key} = {attrs.get(key)!r}")
+
+    print("\n=== location free text (capacity is often only prose)")
+    record_iri = (related_iris(item).get("catalogRecord") or [None])[0]
+    location_iri = None
+    if record_iri:
+        record = get(resolve(record_iri))
+        for key, values in related_iris(record).items():
+            if "location" in key.lower() and values:
+                location_iri = values[0]
+    if location_iri:
+        loc = get(resolve(location_iri))
+        lattrs = ((loc or {}).get("data") or {}).get("attributes") or {}
+        for key in ("locationName", "locationDescription", "projectNames",
+                    "locationTags", "locationTypeName", "elevation"):
+            value = str(lattrs.get(key))
+            print(f"    {key} = {value[:500]}")
+
+    print("\n=== candidate profile endpoints")
+    for url, params in (
+        (f"{BASE}/profile", {"itemId": item_id}),
+        (f"{BASE}/catalog-item/{item_id}/profile", None),
+        (f"{BASE}/profile", None),
+        (f"{BASE}/result/downloadall", {"itemId": item_id}),
+    ):
+        payload = get(url, params)
+        if payload:
+            summarize_keys(payload, url.rsplit("/", 1)[-1])
+            show_interesting(payload, url.rsplit("/", 1)[-1])
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--item-id", type=int, help="a RISE catalog-item id")
     parser.add_argument("--name", help="a reservoir name from RESERVOIRS instead")
     parser.add_argument("--dump", action="store_true",
                         help="also print each full payload")
+    parser.add_argument("--capacity-hunt", action="store_true",
+                        help="chase the remaining capacity leads and stop")
     args = parser.parse_args()
 
     item_id = args.item_id
@@ -157,6 +205,9 @@ def main() -> int:
     if not item_id:
         print("need --item-id or --name", file=sys.stderr)
         return 2
+
+    if args.capacity_hunt:
+        return capacity_hunt(item_id)
 
     print(f"=== catalog-item/{item_id}")
     item = get(f"{BASE}/catalog-item/{item_id}")

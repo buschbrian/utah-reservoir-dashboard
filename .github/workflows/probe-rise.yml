@@ -36,4 +36,4 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           NAME="${{ inputs.name }}"
-          python tools/probe_rise.py --name "${NAME:-Lake Powell}"
+          python tools/probe_rise.py --name "${NAME:-Lake Powell}" --capacity-hunt
