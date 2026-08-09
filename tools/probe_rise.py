@@ -191,26 +191,41 @@ def main() -> int:
         print(f"\n=== location {location_iri}")
         loc = get(resolve(location_iri))
         if loc:
-            summarize_keys(loc, "location")
-            dump_attributes(loc, "location")
-            show_interesting(loc, "location")
+            attrs = ((loc.get("data") or {}).get("attributes")) or {}
+            print(f"  location attribute keys: {list(attrs)}")
+            print("  --- location attributes that could be a capacity ---")
+            for key, value in attrs.items():
+                low = key.lower()
+                if any(n in low for n in ("capac", "storage", "volume", "elev",
+                                          "area", "full", "pool", "acre")):
+                    printable = str(value)
+                    if len(printable) > 200:
+                        printable = printable[:200] + "…"
+                    print(f"    {key} = {printable}")
             lrels = related_iris(loc)
-            print(f"  relationships: { {k: v[:5] for k, v in lrels.items()} }")
+            print(f"  location relationships: {list(lrels)}")
 
-            # Every catalog item recorded at this location, so we can see
-            # whether a capacity parameter exists as a sibling series.
-            loc_id = location_iri.rstrip("/").split("/")[-1]
-            print(f"\n=== catalog items at location {loc_id}")
-            listing = get(f"{BASE}/catalog-item", {"locationId": loc_id, "itemsPerPage": 200})
-            if listing:
-                entries = listing.get("data") or []
-                print(f"  --- {len(entries)} catalog items ---")
-                for entry in entries:
-                    attrs = (entry or {}).get("attributes") or {}
-                    print(f"    id={attrs.get('_id')} "
-                          f"param={attrs.get('parameterName')!r} "
-                          f"unit={attrs.get('parameterUnit')!r} "
-                          f"step={attrs.get('parameterTimestep')!r}")
+    # The authoritative sibling list is the catalogRecord's own catalogItems
+    # relationship. The /catalog-item?locationId= filter is silently ignored
+    # -- the first attempt came back with items from other basins entirely,
+    # which would have made any conclusion about "no capacity parameter
+    # exists" worthless.
+    if record_iri:
+        record = get(resolve(record_iri))
+        item_iris = []
+        for key, values in related_iris(record).items():
+            if "item" in key.lower():
+                item_iris = values
+        print(f"\n=== {len(item_iris)} catalog items on this record")
+        seen = set()
+        for iri in item_iris[:40]:
+            payload = get(resolve(iri))
+            a = ((payload or {}).get("data") or {}).get("attributes") or {}
+            line = (f"    id={a.get('_id')} param={a.get('parameterName')!r} "
+                    f"unit={a.get('parameterUnit')!r} step={a.get('parameterTimestep')!r}")
+            if line not in seen:
+                seen.add(line)
+                print(line)
 
     print("\n=== done")
     return 0
