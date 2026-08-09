@@ -19,6 +19,11 @@
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" />
   <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 
+  <!-- Colors, popup markup, the 12-month trend chart and the legend come
+       from the same module the ArcGIS version uses, so any difference you
+       see between the two pages is the rendering engine and nothing else. -->
+  <script src="../shared/reservoir-viz.js"></script>
+
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
     #titleDiv {
@@ -29,6 +34,7 @@
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
+    #freshness { font-size: 11px; margin-top: 6px; color: #555; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 10.5px; color: #777; line-height: 1.4;
@@ -38,22 +44,20 @@
       position: absolute; bottom: 24px; left: 10px; z-index: 10;
       background: white; padding: 10px 14px; border-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-family: sans-serif;
-      font-size: 13px; max-width: 230px;
+      font-size: 13px; max-width: 240px;
     }
-    .popup-status { font-weight: 600; font-size: 13px; margin: 0 0 6px; }
-    .popup-table { border-collapse: collapse; font-size: 12.5px; }
-    .popup-table td { padding: 2px 8px 2px 0; }
-    .popup-table td.label { color: #666; }
-    .popup-table td.value { font-weight: 600; text-align: right; }
-    .popup-note { font-size: 11px; color: #888; margin-top: 8px; max-width: 260px; }
-    .popup-note a { color: #0079c1; }
-    .maplibregl-popup-content { padding: 12px 14px; }
+    .maplibregl-popup-content { padding: 12px 14px; font-family: sans-serif; }
+    /* The popup now carries a chart and a 12-month table, so it needs a
+       height cap of its own -- MapLibre has no docked-popup mode to fall
+       back on the way the ArcGIS SDK does. */
+    .maplibregl-popup-content { max-height: 70vh; overflow-y: auto; }
   </style>
 </head>
 <body>
   <div id="titleDiv">
     <h1>Utah Reservoir Drought Dashboard</h1>
     <p>Current storage vs. period-of-record max &mdash; Bureau of Reclamation RISE data</p>
+    <p id="freshness">Loading data&hellip;</p>
     <p class="disclaimer">
       Data is provisional and subject to revision (Reclamation's own
       disclaimer for RISE data); treat the last few days of any series as
@@ -63,18 +67,13 @@
       <a href="../">Compare with the ArcGIS Maps SDK for JS version &rarr;</a>
     </p>
   </div>
-  <div id="legendDiv">
-    <b>% of period-of-record max</b><br>
-    <span style="color:#d73027;">&#9679;</span> Under 50%<br>
-    <span style="color:#fc8d59;">&#9679;</span> 50&ndash;75%<br>
-    <span style="color:#1a9850;">&#9679;</span> Over 75%<br>
-    <span style="font-size:11px;">Filled circle = current storage. Gray outline
-    ring = that reservoir's own period-of-record max &mdash; the bigger the gap
-    between ring and fill, the more depleted it is.</span>
-  </div>
+  <div id="legendDiv"></div>
   <div id="map"></div>
 
   <script>
+    ReservoirViz.injectStyles();
+    document.getElementById("legendDiv").innerHTML = ReservoirViz.legendHTML();
+
     // CARTO's free "Positron" vector style -- no API key, no signup,
     // same "zero tooling / zero account" constraint the rest of this
     // project holds to. This is the genuine WebGL-vector counterpart to
@@ -88,51 +87,68 @@
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    // Status line + acre-foot gap, computed the same way as the Arcade
-    // expression in the ArcGIS version, so the two dashboards give
-    // identical popup wording -- the comparison should be about the
-    // rendering engines, not accidentally different copy.
-    function statusLine(props) {
-      const pct = props.pct_of_record_max;
-      const gap = Math.round(props.record_max_af - props.current_storage_af);
-      let status;
-      if (pct < 50) status = "Critically low";
-      else if (pct < 75) status = "Below normal";
-      else status = "Near or above normal";
-      return (
-        status + " — " + Math.round(pct) + "% of its period-of-record max, " +
-        gap.toLocaleString("en-US") + " af below that historical peak."
-      );
+    // MapLibre flattens GeoJSON properties through the tile pipeline, so
+    // the per-reservoir `monthly` array comes back out of
+    // e.features[0].properties as a JSON *string*. Rather than re-parsing
+    // it on every click, the full records are kept here and looked up by
+    // name -- the same pattern the ArcGIS version uses for the same
+    // underlying reason (its FeatureLayer fields are scalar-only).
+    let byName = new Map();
+
+    /*
+     * A dashed ring for stale reservoirs, as a generated sprite.
+     *
+     * Engine-comparison finding worth recording: MapLibre's `circle` layer
+     * has no stroke-dash property (circle-stroke-* is solid only), while
+     * the ArcGIS SDK takes outline.style = "short-dash" directly on a
+     * simple-marker. Getting parity here means drawing the ring to a
+     * canvas, registering it with map.addImage(), and scaling it per
+     * feature with icon-size -- three moving parts where the Esri version
+     * has one property.
+     */
+    function makeDashedRing(size, color) {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const r = size / 2 - 6;
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r, 0, 2 * Math.PI);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5;
+      ctx.setLineDash([10, 8]);
+      ctx.stroke();
+      return ctx.getImageData(0, 0, size, size);
     }
 
-    function popupHTML(props) {
-      return (
-        "<p class='popup-status'>" + statusLine(props) + "</p>" +
-        "<table class='popup-table'>" +
-        "<tr><td class='label'>Current storage (af)</td><td class='value'>" +
-          Math.round(props.current_storage_af).toLocaleString("en-US") + "</td></tr>" +
-        "<tr><td class='label'>Record max storage (af)</td><td class='value'>" +
-          Math.round(props.record_max_af).toLocaleString("en-US") + "</td></tr>" +
-        "<tr><td class='label'>Seasonal percentile</td><td class='value'>" +
-          Math.round(props.seasonal_percentile) + "</td></tr>" +
-        "<tr><td class='label'>As of</td><td class='value'>" + props.as_of + "</td></tr>" +
-        "</table>" +
-        "<p class='popup-note'>Seasonal percentile: where today's storage ranks " +
-        "against every other year's value within a 7-day window of today's date. " +
-        "Data: <a href='https://data.usbr.gov/rise-api' target='_blank' rel='noreferrer'>Bureau of Reclamation RISE</a>.</p>"
-      );
-    }
+    const RING_SPRITE_PX = 128; // drawn at 2x, declared with pixelRatio 2
 
     map.on("load", () => {
-      fetch("../reservoirs.json")
-        .then((resp) => resp.json())
-        .then((reservoirs) => {
+      map.addImage("stale-ring", makeDashedRing(RING_SPRITE_PX, ReservoirViz.STALE_ACCENT),
+                   { pixelRatio: 2 });
+
+      ReservoirViz.load("../reservoirs.json")
+        .then((data) => {
+          const reservoirs = data.reservoirs;
+          byName = new Map(reservoirs.map((r) => [r.name, r]));
+
+          document.getElementById("freshness").innerHTML =
+            ReservoirViz.freshnessHTML(data);
+
           const geojson = {
             type: "FeatureCollection",
             features: reservoirs.map((r) => ({
               type: "Feature",
               geometry: { type: "Point", coordinates: [r.lon, r.lat] },
-              properties: r
+              // Only the properties the paint expressions actually read.
+              // Passing the whole record (what this used to do) now ships
+              // a 12-element array per feature into the tile pipeline for
+              // no benefit, since the popup reads from byName instead.
+              properties: {
+                name: r.name,
+                record_max_af: r.record_max_af,
+                pct_of_record_max: r.pct_of_record_max,
+                is_stale: !!r.is_stale
+              }
             }))
           };
 
@@ -153,8 +169,9 @@
           const ringMinSize = 4;
           const ringMaxSize = 23;
 
-          // Reused by both layers -- the ring's own radius expression, so
-          // the fill layer below can scale itself relative to it.
+          // Reused by all three layers -- the ring's own radius expression,
+          // so the fill and the stale ring can scale themselves relative
+          // to it.
           const ringRadiusExpr = [
             "interpolate", ["linear"],
             ["sqrt", ["get", "record_max_af"]],
@@ -175,7 +192,32 @@
             }
           });
 
-          // --- Filled layer: current storage, drawn second (on top) ---
+          // --- Stale layer: reservoirs whose feed has gone quiet ---
+          //
+          // Same idea as the ArcGIS version's stale layer: three
+          // reservoirs sat frozen at their 2026-07-29 values for eleven
+          // days while rendering as ordinary current dots. The value is
+          // still real, just not current, so it keeps its color class and
+          // gains a dashed amber ring. icon-size converts the desired ring
+          // radius into a multiple of the sprite's own CSS size.
+          map.addLayer({
+            id: "stale-ring",
+            type: "symbol",
+            source: "reservoirs",
+            filter: ["==", ["get", "is_stale"], true],
+            layout: {
+              "icon-image": "stale-ring",
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+              "icon-size": [
+                "/",
+                ["*", 2, ["+", ringRadiusExpr, 7]],
+                RING_SPRITE_PX / 2
+              ]
+            }
+          });
+
+          // --- Filled layer: current storage, drawn last (on top) ---
           //
           // Radius is NOT sized independently off current_storage_af on
           // the shared absolute domain -- that clamps small reservoirs'
@@ -197,12 +239,14 @@
                 ringRadiusExpr,
                 ["sqrt", ["/", ["get", "pct_of_record_max"], 100]]
               ],
-              "circle-color": [
-                "step", ["get", "pct_of_record_max"],
-                "#d73027",
-                50, "#fc8d59",
-                75, "#1a9850"
-              ],
+              // Built from the shared class table rather than hand-written
+              // step stops, so this can't drift from the ArcGIS renderer,
+              // the legend, or the chart bars the way three hand-kept
+              // copies of the thresholds did.
+              "circle-color": ReservoirViz.CLASSES.reduce(
+                (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, cls.color]),
+                ["step", ["get", "pct_of_record_max"], ReservoirViz.CLASSES[0].color]
+              ),
               "circle-stroke-color": "rgba(0,0,0,0.4)",
               "circle-stroke-width": 0.75
             }
@@ -214,10 +258,11 @@
           // this layer's circle always sits inside the outline layer's
           // circle at the same point.
           map.on("click", "current-circle", (e) => {
-            const props = e.features[0].properties;
-            new maplibregl.Popup({ maxWidth: "300px" })
+            const record = byName.get(e.features[0].properties.name);
+            if (!record) return;
+            new maplibregl.Popup({ maxWidth: "330px" })
               .setLngLat(e.features[0].geometry.coordinates)
-              .setHTML(popupHTML(props))
+              .setHTML(ReservoirViz.popupHTML(record, { includeTitle: true, width: 300 }))
               .addTo(map);
           });
           map.on("mouseenter", "current-circle", () => {
@@ -229,6 +274,9 @@
         })
         .catch((err) => {
           console.error("Failed to load reservoirs.json:", err);
+          document.getElementById("freshness").innerHTML =
+            "<span class='rv-fresh-warn'>Could not load reservoirs.json — " +
+            "the map will be empty.</span>";
         });
     });
   </script>
