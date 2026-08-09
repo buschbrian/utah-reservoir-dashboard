@@ -50,6 +50,44 @@ unit parity tests against the real 53-reservoir payload, a Vite production
 build, and a small modernization workbench. The Python refresh pipeline is not
 part of this modernization track.
 
+### Follow-up review — 2026-08-09 (second pass)
+
+Two problems in the first frontend commit, both found by replacing the unit
+tests' hardcoded expectations with a real comparison against the legacy module:
+
+- **The tests were snapshots of one day's payload.** `reservoirs.json` is
+  rewritten every morning, so assertions like `percentFull` to ten decimal
+  places would have failed on the next refresh — and because `build` runs the
+  tests, a data refresh would have broken the build too. They now load
+  `shared/reservoir-viz.js` in a `node:vm` sandbox and compare against
+  `statewideSummary` directly, which is what Phase 1 asked for and is
+  data-independent. Verified by mutating every storage value, the class
+  distribution and the stale count, and re-running green.
+- **The class-break table had already drifted.** `src/viz/classes.ts` shipped a
+  different RdYlGn palette (every class one stop lighter) and reworded labels,
+  which the snapshot test could not see. This is the exact risk in §4. Now a
+  verbatim port, with `STALE_COLOR`/`STALE_ACCENT`, guarded by an assertion
+  that the table equals the legacy one value for value.
+
+One divergence is **deliberate** and asserted rather than silently carried:
+
+| | Legacy | Port |
+|---|---|---|
+| Headline % | reads the pipeline's rounded `pct_of_capacity` | recomputed from `current_storage_af` |
+| Stale count | the pipeline's `is_stale` flag | late for its own cadence (2d daily / 45d monthly) |
+
+Recomputing is the more precise number and keeps the client off a derived
+field, at the cost of disagreeing with the legacy pages by up to the
+pipeline's rounding (0.05 pp today). Percentage comparisons therefore carry a
+0.1 pp tolerance and class-boundary comparisons skip reservoirs sitting inside
+it, so a reservoir drifting past 50.00% cannot fail the suite on a morning
+when no code changed.
+
+Phase 0 is now closed: `deploy-pages.yml` builds and publishes `dist/`,
+asserting that every current URL still resolves and that the payload is not
+in the bundle. **It is inert until the repository's Pages source is switched
+to "GitHub Actions"** — a settings change, not a code change.
+
 ---
 
 ## 1. Where the project is today

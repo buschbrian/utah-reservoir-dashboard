@@ -1,0 +1,94 @@
+name: Deploy to Pages
+
+# The build step changed the operating model and this workflow is where the
+# change is contained.
+#
+# `reservoirs.json` is rewritten every morning by refresh-data.yml, and that
+# commit *is* the deploy -- the pages fetch the file at runtime and the new
+# numbers go live. So the rule this workflow exists to enforce is: data is
+# copied into the published output, never bundled into it. vite.config.ts
+# copies reservoirs.json and capacities.json into dist/ and dist/data/ at
+# the end of the build; nothing imports them.
+#
+# The corollary is that a failing build now freezes the dashboard's numbers,
+# which is why the unit tests are written against shared/reservoir-viz.js
+# rather than against literals from one day's payload. A data refresh cannot
+# turn this workflow red on its own.
+#
+# NOTE: inert until the repository's Pages source is switched to "GitHub
+# Actions" (Settings -> Pages -> Build and deployment -> Source). Until
+# then Pages keeps serving whatever it serves today and this workflow's
+# deploy job fails without changing the live site.
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Queue rather than cancel. An in-flight deploy is usually publishing the
+# morning's data; cancelling it in favour of a later run risks leaving the
+# site a refresh behind for no benefit.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the published site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+      # The legacy pages are the production contract: their URLs are what
+      # people have bookmarked, and they stay live until the unified
+      # dashboard replaces them. Asserted here rather than trusted, because
+      # the copy happens in a closeBundle hook that no other job exercises.
+      - name: Verify the published output still serves every current URL
+        run: |
+          missing=0
+          for path in index.html explore.html maplibre/index.html \
+                      shared/reservoir-viz.js reservoirs.json capacities.json \
+                      data/reservoirs.json data/capacities.json modern.html; do
+            if [ ! -s "dist/$path" ]; then
+              echo "::error title=Missing from dist::$path"
+              missing=1
+            fi
+          done
+          # The runtime-data rule, checked directly: the published JS must
+          # not contain the payload. A bundled reservoirs.json would make
+          # every daily refresh depend on a successful rebuild.
+          as_of=$(node -p "require('./reservoirs.json').generated_at")
+          if grep -rqF "$as_of" dist/assets 2>/dev/null; then
+            echo "::error title=Data was bundled::dist/assets contains the payload's generated_at; data must be fetched at runtime, not built in"
+            missing=1
+          fi
+          exit $missing
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

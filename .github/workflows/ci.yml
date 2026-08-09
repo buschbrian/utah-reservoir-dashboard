@@ -25,8 +25,17 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
-      - name: Verify modernization build
-        run: npm run build
+      # Split into three steps rather than one `npm run build`: this job runs
+      # on every daily data refresh, and when it goes red the step name is
+      # the whole diagnosis -- a type error, a broken parity assertion
+      # against shared/reservoir-viz.js, or a bundling failure are three
+      # different mornings.
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npx vite build
 
   python-tests:
     name: Data script tests
@@ -51,7 +60,10 @@ jobs:
           node-version: "22"
       - name: Install Playwright
         run: |
-          npm install --no-save playwright
+          # --no-save and no lockfile install: the smoke test drives the
+          # legacy pages straight from the working tree and must not depend
+          # on the modernization dependency graph.
+          npm install --no-save --no-package-lock playwright
           npx playwright install --with-deps chromium
       - name: Load both dashboards in a real browser
         run: |
