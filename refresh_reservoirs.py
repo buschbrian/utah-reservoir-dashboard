@@ -77,10 +77,13 @@ def _get_json(params: dict) -> dict:
 
     RISE occasionally returns a non-JSON (often empty) body on an
     otherwise-2xx response, which crashed the whole run on 2026-08-03.
+    The request itself (connect/read timeouts) must be inside the try too --
+    on 2026-08-08 a bare read timeout raised from requests.get() before it
+    ever reached the try block, so the retry never engaged.
     """
     for attempt in range(RETRY_ATTEMPTS):
-        resp = requests.get(RISE_RESULT_URL, params=params, timeout=60)
         try:
+            resp = requests.get(RISE_RESULT_URL, params=params, timeout=60)
             resp.raise_for_status()
             return resp.json()
         except (requests.exceptions.RequestException, ValueError):
@@ -132,7 +135,11 @@ def main() -> None:
 
     frames = []
     for name, (item_id, lat, lon) in RESERVOIRS.items():
-        df = fetch_rise_series(item_id, START_DATE, end)
+        try:
+            df = fetch_rise_series(item_id, START_DATE, end)
+        except requests.exceptions.RequestException as exc:
+            print(f"WARNING: {name} (item {item_id}) failed after {RETRY_ATTEMPTS} attempts ({exc}) -- skipping")
+            continue
         if df.empty:
             print(f"WARNING: no data returned for {name} (item {item_id}) -- skipping")
             continue
