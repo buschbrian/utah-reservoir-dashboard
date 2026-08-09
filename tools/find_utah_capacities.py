@@ -11,14 +11,30 @@ Discovery only -- it never writes a capacity table.
     python tools/find_utah_capacities.py            # targeted org sweep
     python tools/find_utah_capacities.py --search   # broad AGOL search
 
-FIRST PASS FINDINGS (2026-08-09):
+FINDINGS SO FAR (2026-08-09) -- no Utah DWR capacity table located yet:
+
   - services1.arcgis.com/wQnFk5ouCfPzTlPw is NRCS (NWCC), not Utah. Its
     "Reservoir Storage Capacity" layer's `StorageCapacity` reads 22 for
-    Pineview and 35 for Panguitch Lake -- those are percent-of-capacity
-    readings, not acre-feet. Do not mistake that field for a capacity.
+    Pineview and 35 for Panguitch Lake. Pineview's real capacity is around
+    110,000 af, so those are percent-of-capacity readings. Do NOT mistake
+    that field for a capacity in acre-feet -- it is the single most
+    plausible-looking wrong answer in this whole search.
   - services.arcgis.com/ZzrwjTRez6FJiOq4 carries Utah DNR planning layers
-    (West Colorado Basin, Hydropower Facilities in Utah), so it is the most
-    likely home for a Utah capacity table.
+    (West Colorado Basin, Hydropower Facilities in Utah). Its "CAPACITY"
+    field on Hydro_Dams_Con is megawatts, not storage.
+  - The only schema found with real storage volumes is the National
+    Inventory of Dams layout: `nid_storage`, `normal_storage`,
+    `max_storage`, `surface_area`, keyed by `nidid` and `dam_name`. NRCS
+    hosts one such layer, but scoped to a Virginia watershed, not Utah.
+    NID is the promising direction: it is authoritative, in acre-feet, and
+    covers every Utah dam -- but it is USACE/NRCS data, not Utah DWR's own
+    numbers, and the two can disagree on what "capacity" means (total vs.
+    normal vs. active conservation pool).
+
+Whoever picks this up next: decide *which* capacity definition the
+dashboard should divide by before wiring anything, and record the source
+per reservoir. A denominator nobody can trace is worse than the honest
+`pct_of_record_max` we already have.
 """
 
 import argparse
