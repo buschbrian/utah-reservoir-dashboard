@@ -3,7 +3,14 @@ name: Probe RISE catalog
 # Manual-only diagnostic. Prints what RISE publishes about a reservoir
 # beyond its storage timeseries, so catalog work can be written against the
 # real payload rather than a guess about the API's shape.
+#
+# TEMPORARY: also runs on pushes to the capacity branch. workflow_dispatch
+# can only target a workflow that already exists on the default branch, and
+# this one doesn't yet -- so until it lands on main, a push is the only way
+# to run it. Drop the `push:` trigger once the capacity work is done.
 on:
+  push:
+    branches: ["claude/reservoir-updates-trends-xpg4nj"]
   workflow_dispatch:
     inputs:
       name:
@@ -28,5 +35,5 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
         run: |
-          python tools/probe_rise.py --name "${{ inputs.name }}" \
-            ${{ inputs.dump && '--dump' || '' }}
+          NAME="${{ inputs.name }}"
+          python tools/probe_rise.py --name "${NAME:-Lake Powell}"
