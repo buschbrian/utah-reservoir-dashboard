@@ -4,12 +4,7 @@
   "retrieved": "2026-08-09",
   "denominator": "normal_storage (storage at the normal/conservation pool), falling back to nid_storage then max_storage",
   "note": "Capacities are NID's, not Utah DWR's; the two can differ on what counts as capacity. Every entry was checked against the storage observed since 2015 and rejected if it came in lower.",
-  "unmatched": [
-    "Strawberry: no dam matched by name",
-    "Rockport: no dam matched by name",
-    "Lake Powell: no dam matched by name",
-    "Meeks Cabin: no dam matched by name"
-  ],
+  "unmatched": [],
   "capacities": {
     "Deer Creek": {
       "capacity_af": 152570.0,
@@ -26,6 +21,22 @@
       "nid_storage_af": 363000.0,
       "nid_id": "UT10204",
       "nid_dam_name": "Jordanelle Dam"
+    },
+    "Strawberry": {
+      "capacity_af": 1105910.0,
+      "normal_storage_af": 1105910.0,
+      "max_storage_af": 1106500.0,
+      "nid_storage_af": 1127610.0,
+      "nid_id": "UT10135",
+      "nid_dam_name": "Soldier Creek Dam"
+    },
+    "Rockport": {
+      "capacity_af": 62120.0,
+      "normal_storage_af": 62120.0,
+      "max_storage_af": 75730.0,
+      "nid_storage_af": 75730.0,
+      "nid_id": "UT10131",
+      "nid_dam_name": "Wanship Dam"
     },
     "Echo": {
       "capacity_af": 73940.0,
@@ -83,6 +94,14 @@
       "nid_id": "UT10121",
       "nid_dam_name": "Flaming Gorge Dam"
     },
+    "Lake Powell": {
+      "capacity_af": 29875000.0,
+      "normal_storage_af": null,
+      "max_storage_af": 25025826.0,
+      "nid_storage_af": 29875000.0,
+      "nid_id": "AZ10307",
+      "nid_dam_name": "Glen Canyon Dam"
+    },
     "Causey": {
       "capacity_af": 7870.0,
       "normal_storage_af": 7870.0,
@@ -130,6 +149,14 @@
       "nid_storage_af": 26760.0,
       "nid_id": "UT10125",
       "nid_dam_name": "Lost Creek Dam"
+    },
+    "Meeks Cabin": {
+      "capacity_af": 32470.0,
+      "normal_storage_af": 32470.0,
+      "max_storage_af": 38720.0,
+      "nid_storage_af": 38720.0,
+      "nid_id": "WY01390",
+      "nid_dam_name": "Meeks Cabin Dam"
     },
     "Moon Lake": {
       "capacity_af": 49500.0,
