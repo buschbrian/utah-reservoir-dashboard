@@ -67,7 +67,6 @@
       #legendDiv { max-width: 160px; padding: 7px 9px; font-size: 11px; }
       #legendDiv .rv-legend-note { display: none; }
       .esri-popup__main-container { max-width: calc(100vw - 16px) !important; max-height: 68vh; }
-      .esri-ui-top-left { top: 150px; }
     }
   </style>
 </head>
@@ -183,6 +182,11 @@
           collapseEnabled: false
         }
       });
+
+      // The title card occupies the upper-left corner. Leaving the SDK's
+      // default zoom control there makes the two surfaces overlap at desktop
+      // widths and puts the control under the card on narrow screens.
+      view.ui.move("zoom", "top-right");
 
       // Shared attribute schema. A FeatureLayer built from client-side
       // graphics only understands scalar fields, so the attributes are

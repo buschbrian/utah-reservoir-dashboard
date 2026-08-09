@@ -16,7 +16,8 @@
     "@arcgis/common-components": "^5.1.0",
     "@arcgis/core": "^5.1.0",
     "@arcgis/map-components": "^5.1.0",
-    "@esri/calcite-components": "^5.1.0"
+    "@esri/calcite-components": "^5.1.0",
+    "@observablehq/plot": "^0.6.17"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

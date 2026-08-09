@@ -58,11 +58,15 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+          cache: npm
+      - name: Install locked dependencies and build the published pages
+        run: |
+          npm ci
+          npx vite build
       - name: Install Playwright
         run: |
-          # --no-save and no lockfile install: the smoke test drives the
-          # legacy pages straight from the working tree and must not depend
-          # on the modernization dependency graph.
+          # Browser-only test dependency; the application dependency graph
+          # remains exactly what npm ci installed from the lockfile.
           npm install --no-save --no-package-lock playwright
           npx playwright install --with-deps chromium
       - name: Load both dashboards in a real browser

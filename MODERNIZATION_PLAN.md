@@ -232,7 +232,7 @@ Five source files do all the work, with no dependencies and no build:
 |---|---|
 | `index.html` | ArcGIS Maps SDK **4.34**, loaded from CDN with a `<link>` + `<script>` pair and AMD `require()`. Two `FeatureLayer`s, `SimpleRenderer` + Arcade `valueExpression` visual variables. |
 | `maplibre/index.html` | MapLibre GL JS from unpkg. One GeoJSON source, two `circle` layers, native expressions. Open-source parity comparison. |
-| `explore.html` | Statewide overview. Loads no SDK at all. Totals, ranking, sortable table + CSV, 53 sparklines. |
+| `explore.html` | Statewide overview. Vite entry using bundled Observable Plot, but no map SDK. Totals, interactive statewide trend, ranking, sortable table + CSV, 53 sparklines. |
 | `shared/reservoir-viz.js` | An IIFE hanging one global off `window`. Class breaks, popup markup, the 12-month trend chart, the legend, the Utah mask, the statewide rollup. |
 | `refresh_reservoirs.py` | Regenerates `reservoirs.json` daily via GitHub Actions. **Out of scope — do not touch.** |
 
@@ -254,7 +254,7 @@ Those are folded in below rather than listed separately.
 | ArcGIS Maps SDK for JS | 4.34 | **5.1** (June 2026) | A major version. 5.0 (Feb 2026) moved the SDK to semantic versioning and **deprecated every widget** — components are now the only forward path, with widget removal scheduled for 6.0 in Q1 2027. |
 | MapLibre GL JS | v5 line, from unpkg | **6.1.0** (Aug 2026) | 6.0 (July 2026) made **WebGL2 mandatory** and the distribution **ESM-only**. The v5 line ended at 5.24. |
 | Calcite Design System | not used | **5.0** (Feb 2026) | Not previously in play. Now the recommended layout foundation for SDK apps. |
-| Charting | hand-rolled inline SVG | `@arcgis/charts-components`, `@arcgis/common-components` | Both are new packages; common-components (Slider, Histogram, Ticks) shipped in 5.0. |
+| Charting | hand-rolled inline SVG | Observable Plot 0.6 for time series; `@arcgis/charts-components` for layer-driven charts | Plot is now proven on the production statewide trend; ArcGIS Charts remains for Phase 4's layer-bound ranking and distribution views. |
 
 Relevant to us specifically from the 5.x line:
 
@@ -448,6 +448,13 @@ with materially less code while adding per-month tooltips and focusable marks.
 Use it for the 12-month trend (with the dashed normal line), the 53 sparklines,
 and the statewide 12-month chart.
 
+The statewide chart is the first production proof: `explore.html` is now a
+Vite entry and ships Plot as a 102.4 kB gzip bundle alongside the existing
+runtime-loaded data. It adds pointer tooltips, with/without-Powell scope and
+acre-feet/percent controls without taking a dependency on either map SDK. Keep
+the 53 tiny multiples as lightweight SVG until the unified shell can measure
+whether replacing all of them is worth the DOM and interaction cost.
+
 Both must read colors from `src/viz/classes.ts`. The single-source-of-truth
 property that the current code protects is the thing most likely to be lost in a
 rewrite — assert it in a test.
@@ -503,7 +510,7 @@ with per-month tooltips.
    5.1; only the `arcgis/*` basemap styles service returns 401. See the
    [basemap authentication spike](#basemap-authentication-spike--2026-08-09).
    A key is now an optional upgrade, not a dependency.
-2. **Observable Plot vs. ECharts vs. keeping hand-rolled SVG** for the time series. Plot is recommended (smallest, cleanest, SVG, themeable). ECharts is the answer only if we want heavy interactivity (brushing, linked zoom) later.
+2. ~~**Observable Plot vs. ECharts vs. keeping hand-rolled SVG**~~ — **resolved 2026-08-09: Observable Plot.** It is live in the statewide Vite entry with pointer tips, responsive axes, scope switching and unit switching. ECharts remains unnecessary unless a later phase needs linked brushing or zoom-heavy analysis.
 3. **Validation library** — Zod adds a dependency for a small, stable schema. A hand-written guard may be enough.
 4. **Fate of `explore.html`** — recommend keeping it as the deliberate no-SDK fallback rather than retiring it.
 5. **Framework** — the plan assumes vanilla TS + web components, which is what Calcite and the SDK components are designed for and keeps the dependency surface small. React would be a defensible alternative if the state management in Phase 5 gets unwieldy; decide at Phase 5, not now.

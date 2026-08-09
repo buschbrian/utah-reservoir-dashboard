@@ -20,9 +20,9 @@
  * Every assertion runs at desktop and phone widths. This catches the map
  * panels and controls that previously covered most of a mobile viewport.
  *
- * The two map pages pull their SDK from a CDN, so this needs network access.
- * The overview page does not — it is the one page that would still render
- * during a CDN outage.
+ * This serves the production build, not source files: the overview now uses
+ * Observable Plot from the Vite bundle. The two map pages still pull their
+ * SDK from a CDN, while the overview remains independent of either map SDK.
  */
 
 import { chromium } from "playwright";
@@ -31,7 +31,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = path.join(REPO_ROOT, "dist");
 const PORT = 8137;
 const TYPES = {
   ".html": "text/html", ".js": "text/javascript",
@@ -64,10 +65,10 @@ const PAGES = [
 ];
 
 const expectedReservoirs = JSON.parse(
-  await readFile(path.join(ROOT, "reservoirs.json"), "utf8")
+  await readFile(path.join(REPO_ROOT, "reservoirs.json"), "utf8")
 ).reservoirs.length;
 const reservoirPayload = JSON.parse(
-  await readFile(path.join(ROOT, "reservoirs.json"), "utf8")
+  await readFile(path.join(REPO_ROOT, "reservoirs.json"), "utf8")
 );
 const largestReservoir = reservoirPayload.reservoirs.slice().sort((a, b) =>
   (b.capacity_af || b.record_max_af || 0) - (a.capacity_af || a.record_max_af || 0)
@@ -125,7 +126,11 @@ for (const page of PAGES) {
       return {
         viewport: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth,
-        title: box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null
+        title: box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null,
+        zoom: (() => {
+          const rect = document.querySelector(".esri-zoom")?.getBoundingClientRect();
+          return rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } : null;
+        })()
       };
     });
     check(layout.scroll <= layout.viewport + 1,
@@ -133,6 +138,13 @@ for (const page of PAGES) {
     if (page.map && viewport.name === "mobile") {
       check(layout.title && layout.title.left >= 0 && layout.title.right <= layout.viewport + 1,
         `${label}: title panel extends outside the phone viewport`);
+    }
+    if (page.engine === "arcgis") {
+      const overlaps = layout.title && layout.zoom &&
+        layout.title.left < layout.zoom.right && layout.title.right > layout.zoom.left &&
+        layout.title.top < layout.zoom.bottom && layout.title.bottom > layout.zoom.top;
+      check(layout.zoom, `${label}: ArcGIS zoom control is missing`);
+      check(!overlaps, `${label}: ArcGIS zoom control overlaps the title panel`);
     }
 
     if (page.map) {
@@ -147,8 +159,14 @@ for (const page of PAGES) {
       // own: the statewide chart, the size-first ranking, and the card
       // grid. Then the detail dialog, which is the only path from this page
       // to a reservoir's full record.
-      check(await tab.locator("#stateChart svg rect").count() > 0,
-        `${label}: statewide trend chart drew no bars`);
+      check(await tab.locator("#stateChart > svg").count() === 1,
+        `${label}: Observable Plot statewide chart did not render`);
+      await tab.locator("#trendScope").selectOption("all");
+      await tab.locator("#trendMetric").selectOption("percent");
+      check(await tab.locator("#stateChart").getAttribute("data-scope") === "all",
+        `${label}: statewide chart scope control did not update the plot`);
+      check(await tab.locator("#stateChart").getAttribute("data-metric") === "percent",
+        `${label}: statewide chart measure control did not update the plot`);
       const rankRows = await tab.locator(".rank-row").count();
       check(rankRows === expectedReservoirs,
         `${label}: ranking has ${rankRows} rows, expected ${expectedReservoirs}`);

@@ -19,7 +19,6 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
         await copyFile(resolve(root, file), resolve(outDir, "data", file));
       }
       await copyFile(resolve(root, "index.html"), resolve(outDir, "index.html"));
-      await copyFile(resolve(root, "explore.html"), resolve(outDir, "explore.html"));
       await copyFile(resolve(root, "maplibre", "index.html"),
         resolve(outDir, "maplibre", "index.html"));
     }
@@ -31,7 +30,12 @@ export default defineConfig({
   build: {
     outDir,
     emptyOutDir: true,
-    rollupOptions: { input: resolve(root, "modern.html") }
+    rollupOptions: {
+      input: {
+        modern: resolve(root, "modern.html"),
+        explore: resolve(root, "explore.html")
+      }
+    }
   },
   plugins: [preserveRuntimeAndLegacyFiles()]
 });
