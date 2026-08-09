@@ -2,12 +2,13 @@
   "source": "U.S. Army Corps of Engineers, National Inventory of Dams",
   "source_layer": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0",
   "retrieved": "2026-08-09",
-  "denominator": "normal_storage (storage at the normal/conservation pool), falling back to nid_storage then max_storage",
+  "denominator": "normal_storage (storage at the normal/conservation pool), falling back to max_storage then nid_storage. Each reservoir records which one it used as capacity_basis.",
   "note": "Capacities are NID's, not Utah DWR's; the two can differ on what counts as capacity. Every entry was checked against the storage observed since 2015 and rejected if it came in lower.",
   "unmatched": [],
   "capacities": {
     "Deer Creek": {
       "capacity_af": 152570.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 152570.0,
       "max_storage_af": 161070.0,
       "nid_storage_af": 161070.0,
@@ -15,7 +16,8 @@
       "nid_dam_name": "Deer Creek Dam"
     },
     "Jordanelle": {
-      "capacity_af": 363000.0,
+      "capacity_af": 363354.0,
+      "capacity_basis": "max_storage",
       "normal_storage_af": null,
       "max_storage_af": 363354.0,
       "nid_storage_af": 363000.0,
@@ -24,6 +26,7 @@
     },
     "Strawberry": {
       "capacity_af": 1105910.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 1105910.0,
       "max_storage_af": 1106500.0,
       "nid_storage_af": 1127610.0,
@@ -32,6 +35,7 @@
     },
     "Rockport": {
       "capacity_af": 62120.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 62120.0,
       "max_storage_af": 75730.0,
       "nid_storage_af": 75730.0,
@@ -40,6 +44,7 @@
     },
     "Echo": {
       "capacity_af": 73940.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 73940.0,
       "max_storage_af": 73940.0,
       "nid_storage_af": 73940.0,
@@ -48,6 +53,7 @@
     },
     "East Canyon": {
       "capacity_af": 51200.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 51200.0,
       "max_storage_af": 58350.0,
       "nid_storage_af": 58350.0,
@@ -56,6 +62,7 @@
     },
     "Pineview": {
       "capacity_af": 110150.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 110150.0,
       "max_storage_af": 116000.0,
       "nid_storage_af": 116150.0,
@@ -64,6 +71,7 @@
     },
     "Willard Bay": {
       "capacity_af": 215500.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 215500.0,
       "max_storage_af": 223000.0,
       "nid_storage_af": 223100.0,
@@ -72,6 +80,7 @@
     },
     "Scofield": {
       "capacity_af": 73600.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 73600.0,
       "max_storage_af": 73600.0,
       "nid_storage_af": 87900.0,
@@ -80,6 +89,7 @@
     },
     "Starvation": {
       "capacity_af": 165320.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 165320.0,
       "max_storage_af": 186990.0,
       "nid_storage_af": 186990.0,
@@ -88,6 +98,7 @@
     },
     "Flaming Gorge": {
       "capacity_af": 3788900.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 3788900.0,
       "max_storage_af": 4005200.0,
       "nid_storage_af": 4003100.0,
@@ -95,7 +106,8 @@
       "nid_dam_name": "Flaming Gorge Dam"
     },
     "Lake Powell": {
-      "capacity_af": 29875000.0,
+      "capacity_af": 25025826.0,
+      "capacity_basis": "max_storage",
       "normal_storage_af": null,
       "max_storage_af": 25025826.0,
       "nid_storage_af": 29875000.0,
@@ -104,6 +116,7 @@
     },
     "Causey": {
       "capacity_af": 7870.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 7870.0,
       "max_storage_af": 8730.0,
       "nid_storage_af": 8730.0,
@@ -112,6 +125,7 @@
     },
     "Currant Creek": {
       "capacity_af": 15671.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 15671.0,
       "max_storage_af": 15671.0,
       "nid_storage_af": 17210.0,
@@ -120,6 +134,7 @@
     },
     "Huntington North": {
       "capacity_af": 5420.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 5420.0,
       "max_storage_af": 5690.0,
       "nid_storage_af": null,
@@ -128,6 +143,7 @@
     },
     "Hyrum": {
       "capacity_af": 18685.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 18685.0,
       "max_storage_af": 18685.0,
       "nid_storage_af": 18685.0,
@@ -136,6 +152,7 @@
     },
     "Joes Valley": {
       "capacity_af": 61538.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 61538.0,
       "max_storage_af": 74237.0,
       "nid_storage_af": null,
@@ -144,6 +161,7 @@
     },
     "Lost Creek": {
       "capacity_af": 22510.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 22510.0,
       "max_storage_af": 26760.0,
       "nid_storage_af": 26760.0,
@@ -152,6 +170,7 @@
     },
     "Meeks Cabin": {
       "capacity_af": 32470.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 32470.0,
       "max_storage_af": 38720.0,
       "nid_storage_af": 38720.0,
@@ -160,6 +179,7 @@
     },
     "Moon Lake": {
       "capacity_af": 49500.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 49500.0,
       "max_storage_af": 49500.0,
       "nid_storage_af": 49500.0,
@@ -168,6 +188,7 @@
     },
     "Newton": {
       "capacity_af": 5594.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 5594.0,
       "max_storage_af": 5594.0,
       "nid_storage_af": 5594.0,
@@ -176,6 +197,7 @@
     },
     "Red Fleet": {
       "capacity_af": 26000.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 26000.0,
       "max_storage_af": 26000.0,
       "nid_storage_af": 33600.0,
@@ -184,6 +206,7 @@
     },
     "Stateline": {
       "capacity_af": 14020.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 14020.0,
       "max_storage_af": 15932.0,
       "nid_storage_af": 15932.0,
@@ -192,6 +215,7 @@
     },
     "Steinaker": {
       "capacity_af": 38173.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 38173.0,
       "max_storage_af": 40358.0,
       "nid_storage_af": 40358.0,
@@ -200,6 +224,7 @@
     },
     "Trial Lake": {
       "capacity_af": 1661.0,
+      "capacity_basis": "max_storage",
       "normal_storage_af": null,
       "max_storage_af": 1661.0,
       "nid_storage_af": 1661.0,
@@ -208,6 +233,7 @@
     },
     "Upper Stillwater": {
       "capacity_af": 33123.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 33123.0,
       "max_storage_af": 35253.0,
       "nid_storage_af": 35253.0,
@@ -216,6 +242,7 @@
     },
     "Washington Lake": {
       "capacity_af": 2705.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 2705.0,
       "max_storage_af": 2705.0,
       "nid_storage_af": 2705.0,
@@ -224,6 +251,7 @@
     },
     "Lost Lake": {
       "capacity_af": 1155.0,
+      "capacity_basis": "normal_storage",
       "normal_storage_af": 1155.0,
       "max_storage_af": 1350.0,
       "nid_storage_af": 1660.0,
