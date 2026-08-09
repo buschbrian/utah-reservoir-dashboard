@@ -32,10 +32,11 @@ before installing anything:
   `as_of` is circular because the client only knows `as_of` after fetching the
   payload. The build copies data to `dist/data/` and never imports it into the
   application bundle.
-- Local copies of every ArcGIS component asset are optional, not a Phase 0
-  requirement. The npm components can use ArcGIS-hosted assets initially;
-  copying the full asset trees should be an explicit deployment/offline choice
-  because it materially increases output size.
+- **SDK assets stay on Esri's CDN for this deployment.** A local copy of the
+  installed core, map, common, chart and Calcite asset trees is 57.9 MiB across
+  22,906 files. The dashboard already requires ArcGIS Online for basemaps, so
+  copying those trees would not make it offline-capable; it would only enlarge
+  the Pages artifact and create another version-sync obligation.
 - The basemap/authentication question remains a Phase 2 spike, but it does not
   block typed data and build groundwork. Official 5.1 guidance allows public
   apps to omit authentication for public resources, while specific location
@@ -85,8 +86,141 @@ when no code changed.
 
 Phase 0 is now closed: `deploy-pages.yml` builds and publishes `dist/`,
 asserting that every current URL still resolves and that the payload is not
-in the bundle. **It is inert until the repository's Pages source is switched
-to "GitHub Actions"** — a settings change, not a code change.
+in the bundle. The Pages source has been switched to "GitHub Actions"; the
+first run succeeded, the classic `pages-build-deployment` stopped firing, and
+all seven published URLs (`/`, `explore.html`, `maplibre/`, `modern.html`,
+`reservoirs.json`, `data/reservoirs.json`, `shared/reservoir-viz.js`) return
+200 from the new deploy.
+
+### Basemap authentication spike — 2026-08-09
+
+**Resolved, and the plan survives it.** Measured against `@arcgis/core`
+5.1.15 in a browser with no API key and no ArcGIS session, loading each
+basemap and then fetching the service URLs it resolved to. Two identical
+runs.
+
+| Construction | Result |
+|---|---|
+| `Basemap.fromId("topo-vector")` | **Keyless.** 2 layers loaded, both service URLs 200 |
+| `Basemap.fromId("gray-vector")` | **Keyless.** 2 layers loaded, both service URLs 200 |
+| `new VectorTileLayer({ portalItem })` | **Keyless.** public AGOL item, 200 |
+| `new Basemap({ style: { id: "arcgis/topographic" } })` | **401** from `basemapstyles-api.arcgis.com`, then an interactive ArcGIS Online sign-in prompt |
+| `new Basemap({ style: { id: "arcgis/outdoor" } })` | **401**, same |
+
+So the split is by *service*, not by SDK version: the well-known 4.x ids the
+current picker uses still resolve to public ArcGIS Online vector tile items
+and serve without credentials on 5.1. It is the **basemap styles service**
+that is key-gated, and nothing forces us onto it.
+
+Consequences:
+
+- **Phase 2 is unblocked and needs no API key.** Keep `topo-vector`,
+  `gray-vector`, `streets` and `imagery` — the ids already in the picker.
+- A key remains optional, and buys exactly one thing: the modern
+  `arcgis/*` styles and the basemap gallery built on them. Worth taking
+  only if we decide those styles are visibly better than the current ones.
+- Do not call `Basemap.fromId()` with a style id. It returns `null` rather
+  than throwing, which reads like an auth failure and is not one.
+- **Never let an unauthenticated style id reach production.** The failure
+  mode is not a blank basemap, it is a modal username/password prompt on a
+  public dashboard. If a key is ever added, `IdentityManager` should be
+  configured not to challenge interactively.
+
+### SDK hardening — anonymous auth policy, 2026-08-09
+
+The spike's real lesson was not "no key needed", it was the *failure mode*: a
+401 raised a username/password modal on a public page and then left the load
+promise pending. Basemaps are only the example. Any secured resource does
+this — a hosted feature service whose sharing changed, a portal item that
+moved, an ArcGIS Server layer behind token auth — and Phase 2 onward adds
+exactly those. Hardened before building the shell rather than after.
+
+- **`src/arcgis/auth.ts`** — refuses credential challenges outright.
+  `IdentityManager.getCredential` is the single choke point every secured
+  resource funnels through, so overriding it to reject covers layers and
+  basemaps alike rather than patching one call site. It must *reject*, not
+  merely hide the dialog: hiding leaves the promise pending, which was the
+  measured 20-second hang. A `dialog-create` listener tears down a modal if
+  some other path still builds one.
+- **`src/arcgis/fallback.ts`** — `resolveFirstLoadable` tries candidates in
+  order, times out a hung one, and resolves with `null` rather than
+  rejecting, because a caller out of options needs to render and explain
+  itself, not handle another exception.
+- **`src/arcgis/basemaps.ts`** — the only SDK-coupled seam; the other two
+  take their dependencies as arguments and are unit-tested without a
+  browser. Chain: `topo-vector` → `gray-vector` → the same tiles as a direct
+  portal item → nothing, with a notice.
+
+Verified in a browser against the real 401, not just against fakes:
+
+| | Before | After |
+|---|---|---|
+| Key-gated style | modal, then pending forever | fails in **54 ms**, no modal |
+| Fallback | none | falls through to `topo-vector`, renders |
+
+Two findings worth carrying into Phase 2:
+
+1. **The SDK rewraps the error.** The caller receives `[request:server]:
+   <our message>` — an esri request error, not ours, so `instanceof
+   SecuredResourceError` is `false` downstream. Detection has to match on
+   content; use `isSecuredResourceRefusal()`, never `instanceof`.
+2. **`Basemap.fromId()` returns `Basemap | null | undefined`** and really
+   does return null for an unknown id. `basemaps.ts` converts that to a
+   thrown candidate failure so a null never reaches a `MapView`.
+
+**Decision — keep `exactOptionalPropertyTypes`.** The SDK's typings are not
+authored for it: property getters include `undefined` where the matching
+`*Properties` constructor shapes do not, so documented constructor usage can
+fail to typecheck. The flag has earned its keep — it surfaced the real
+`Basemap.fromId()` null path. Confine SDK construction and component assignment
+to adapter seams; where Esri's instance and property types disagree, use a
+narrow, commented assertion at that seam instead of weakening the application.
+`src/architecture.test.ts` locks the compiler flag on.
+
+**Regression guard is missing.** The verification above was a temporary page,
+now deleted; the unit tests cover the policy against a fake IdentityManager
+but nothing asserts end-to-end that no modal can reach production. Add it to
+the Phase 7 Playwright run: load the shell with a deliberately key-gated
+basemap first in the chain and assert no password input exists in the DOM.
+
+### SDK structural decisions — 2026-08-09
+
+The remaining pre-shell choices are now explicit and enforced:
+
+- **Use CDN-hosted SDK assets.** This matches the SDK default and Esri's
+  recommendation for connected apps. Do not add asset-copy steps or call a
+  package `setAssetPath()` unless the requirement changes to a disconnected
+  deployment; that would be a measured change for all five asset trees, not a
+  one-package tweak.
+- **Import individual custom elements.** Do not use package barrels or loader
+  builds. `src/architecture.test.ts` fails on any package-wide component import
+  and on any `@arcgis/core/widgets/*` import. Widgets are excluded by the build
+  rather than by convention.
+- **One Calcite installation.** The app keeps the direct Calcite dependency
+  required by Esri's npm setup, while npm dedupes all ArcGIS peer dependencies
+  to the same 5.1.x installation. The architecture test reads the lockfile and
+  fails if a second physical Calcite copy appears.
+- **A real Phase 2 bundle baseline runs in `npm run build`.** The planned
+  shell/map/layer import surface emits 15.49 MiB raw / 5.43 MiB gzip across
+  1,352 code-split files on 5.1.15; its static entry path is 2.19 MiB gzip.
+  Ceilings are 18 MiB raw / 6 MiB gzip emitted and 2.5 MiB gzip static. Replace
+  the fixture with the real shell entry and re-baseline deliberately when
+  Phase 2 lands; chart and common-component costs enter in their own phases.
+
+One plan correction fell out of checking the installed 5.1 component catalog:
+there is no `arcgis-placement` component. Arbitrary KPI content belongs directly
+in an `arcgis-map` named slot. Also start with a configured keyless
+`arcgis-basemap-toggle`, not a gallery whose default source can expose the
+key-gated `arcgis/*` styles this hardening deliberately excludes.
+
+### Noticed while testing, not fixed
+
+The live 4.34 page logs `Found 10 Visual Variable stops, but MapView only
+supports 8. Displayed stops will be simplified` — three times, once per
+layer. The size ramp is being silently truncated today, so the current map's
+circle sizing is not quite what the code asks for. Phase 3 rebuilds this
+symbology on `CIMSymbol` anyway; fold the fix in there rather than patching
+the page being replaced.
 
 ---
 
@@ -260,9 +394,9 @@ calcite-shell
 ├── main
 │     arcgis-map
 │       ├── arcgis-legend        (with the size legend the README asks for)
-│       ├── arcgis-basemap-toggle / arcgis-basemap-gallery in an arcgis-expand
+│       ├── arcgis-basemap-toggle (topo-vector ↔ gray-vector) in an arcgis-expand
 │       ├── arcgis-home, arcgis-scale-bar, arcgis-fullscreen
-│       └── arcgis-placement: statewide KPI tiles (glass panel, top-left)
+│       └── custom KPI container in the top-left named slot (glass panel)
 ├── calcite-shell-panel (end)    — selected reservoir
 │     KPI tiles · 12-month trend chart · monthly table (calcite-block, collapsed)
 │     · sample-depth and staleness notices · source links
@@ -339,8 +473,9 @@ with per-month tooltips.
 ### Phase 7 — Consolidation, verification, docs
 
 - Rewrite the Playwright smoke test against the new DOM. **Gotcha: Calcite and ArcGIS components are shadow-DOM.** Playwright's CSS locators pierce open shadow roots, but map readiness cannot be asserted from the DOM — wait on the `arcgis-map` component's ready event / `view.when()` via `page.waitForFunction`, not on a selector. Keep the existing assertions: all 53 render, a popup opens, zero console errors, screenshots uploaded.
+- **Assert no credential prompt can reach production.** Load the shell with a key-gated basemap forced to the front of the chain and assert there is no password input anywhere in the DOM (piercing shadow roots), and that the fallback basemap rendered. The policy in `src/arcgis/auth.ts` is unit-tested against a fake IdentityManager; this is the end-to-end half.
 - Add axe-core to the Playwright run. Keyboard and contrast pass across the shell — the README's open accessibility item.
-- Lighthouse/bundle budget. `@arcgis/core` is large; verify Vite is code-splitting, that `@arcgis/core/assets` are copied correctly, and that only used modules are imported.
+- Lighthouse and runtime-transfer audit. The emitted SDK budget already runs in every build; replace its fixture with the real shell entry, verify lazy chunks are requested only when used, and verify CDN-hosted assets resolve under the production CSP.
 - Decide the fate of `explore.html`: the unified dashboard supersedes most of it. Either retire it with a redirect, or keep it deliberately as the no-SDK fallback (recommended — it is the page that survives a CDN outage, and that is a real property worth keeping).
 - Rewrite the main README. It is excellent and should stay that way; the architecture section is what changes.
 
@@ -350,10 +485,10 @@ with per-month tooltips.
 
 | Risk | Notes / mitigation |
 |---|---|
-| **ArcGIS basemaps and API keys** | 5.x pushes toward ArcGIS Location Platform keys and the new session-based basemap billing. Verify before Phase 2 whether the current keyless basemap strings (`topo-vector`, `gray-vector`, …) still work, and if not, whether a referrer-restricted API key is acceptable for a public repo. **This is the one item that can invalidate the plan — check it first.** Fallback: use a keyless `VectorTileLayer`, or make MapLibre + CARTO the default map. |
-| **Widget deprecation** | All widgets are deprecated in 5.0 and slated for removal in 6.0 (Q1 2027). Write **zero** widget code. Components only. Anything ported from the 4.34 page must be re-expressed as components. |
+| ~~**ArcGIS basemaps and API keys**~~ | **Checked and cleared, 2026-08-09.** The current keyless basemap strings still work on 5.1; only the `arcgis/*` styles service is key-gated, and we are not obliged to use it. The keyless `VectorTileLayer` fallback was verified to work too, so the contingency exists if Esri changes this later. Residual risk is that Esri meters or retires the public AGOL basemap items — worth re-running the spike at each SDK upgrade. |
+| **Widget deprecation** | All widgets are deprecated in 5.0 and slated for removal in 6.0 (Q1 2027). Write **zero** widget code. `src/architecture.test.ts` fails on `@arcgis/core/widgets/*`; anything ported from the 4.34 page must be re-expressed as components. |
 | **Daily data must not need a rebuild** | Covered by the runtime-fetch rule in §2. Verify explicitly with a data-only commit before Phase 2. |
-| **Bundle size** | Full `@arcgis/core` plus four component packages is heavy. Set a budget in Phase 0 and check it every phase, not at the end. |
+| **Bundle size** | The Phase 2 SDK surface baseline is 15.49 MiB raw / 5.43 MiB gzip emitted, with a 2.19 MiB gzip static entry path, and is checked by every build. Re-baseline deliberately from the real entry as each component phase expands it. |
 | **MapLibre 6 browser floor** | WebGL2 mandatory, ESM only. Detect and message. |
 | **Shadow DOM in tests** | Existing smoke test will not survive the port unchanged. Rewrite in Phase 7, don't patch. |
 | **Losing single-source-of-truth for class breaks** | The current code is careful that breaks, legend, chart colors and both engines' expressions derive from one table. A rewrite across four packages is exactly where that drifts. Assert it in a unit test. |
@@ -363,7 +498,11 @@ with per-month tooltips.
 
 ## 5. Open decisions
 
-1. **API key / basemap** — see the risk table. Blocking; resolve before Phase 2.
+1. ~~**API key / basemap**~~ — **resolved 2026-08-09, no key needed.** The
+   well-known ids (`topo-vector`, `gray-vector`, …) still serve keyless on
+   5.1; only the `arcgis/*` basemap styles service returns 401. See the
+   [basemap authentication spike](#basemap-authentication-spike--2026-08-09).
+   A key is now an optional upgrade, not a dependency.
 2. **Observable Plot vs. ECharts vs. keeping hand-rolled SVG** for the time series. Plot is recommended (smallest, cleanest, SVG, themeable). ECharts is the answer only if we want heavy interactivity (brushing, linked zoom) later.
 3. **Validation library** — Zod adds a dependency for a small, stable schema. A hand-written guard may be enough.
 4. **Fate of `explore.html`** — recommend keeping it as the deliberate no-SDK fallback rather than retiring it.
