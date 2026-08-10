@@ -221,8 +221,9 @@ Fontenelle; snowpack and drought context remain research tracks.
 
 Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 shell now runs at
 `modern.html` without replacing the current production URLs prematurely.
-Phase 3 adds the measured symbology and interaction improvements on that shell.
-The executable milestones and acceptance gates are in
+Phase 3 has begun with pointer hover and corrected map-click selection. Its
+ordered increments and gates are in [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md);
+the completed shell contract remains in
 [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence, measurements,
 and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
 
@@ -232,8 +233,10 @@ and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.
   contributors and coding agents.
 - [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — working roadmap,
   measurements, spikes, and implementation history.
-- [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) — the current shell scope,
+- [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) — the completed shell scope,
   milestones, and acceptance gates.
+- [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) — ordered symbology and
+  interaction increments.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data

@@ -933,6 +933,10 @@ leaves the three production views unchanged.
 ### Phase 3 — Symbology and micro-interactions
 
 The "slick" phase. Everything here is a real SDK capability, not CSS trickery.
+The executable order and release gates are in
+[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md). Increment 3.1 is complete:
+throttled pointer hover now reports name, percent full, and reading date, and
+map click selection follows the map component's `event.detail.x/y` contract.
 
 - **Dual circles → `CIMSymbol`.** Replace the two-`FeatureLayer` construction with a single layer and a `CIMSymbol` composed of stacked symbol layers: an offset, blurred **drop shadow**, the capacity ring, and the storage fill. CIM gives real per-symbol effects (offset, buffer, dash) that `simple-marker` cannot, and collapses the two layers into one — which also removes the duplicate-popup trap both engines hit.
   - Keep the sqrt-scaled shared size domain. Size still comes from visual variables so the ring-to-fill gap stays a true read of depletion.

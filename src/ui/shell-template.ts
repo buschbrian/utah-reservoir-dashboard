@@ -84,6 +84,7 @@ export function renderShell(root: HTMLElement): void {
             <p>Loading the map&hellip;</p>
           </div>
         </div>
+        <div id="map-hover" class="map-hover" aria-hidden="true" hidden></div>
         <a id="map-alternative" class="map-alternative" href="./explore.html">
           View the reservoir table and charts
         </a>

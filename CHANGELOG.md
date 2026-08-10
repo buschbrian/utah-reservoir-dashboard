@@ -17,6 +17,10 @@ and is not listed here.
 
 ### Added
 
+- **Phase 3 pointer interaction.** The modern map now throttles hover hit tests,
+  shows reservoir name, percent full, and reading date in a lightweight card,
+  and supports pointer selection through the map component's documented event
+  coordinates.
 - **A browser smoke test for the Phase 2 shell**, at 1280, 390 and 360 pixels,
   asserting every reservoir drew, the details a selection produces, no
   sideways scroll, and no retired vocabulary anywhere a reader can see it —

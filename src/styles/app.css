@@ -84,6 +84,25 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 .map-alternative:focus-visible { outline: .2rem solid #00619b; outline-offset: .15rem; }
 
+.map-hover {
+  position: absolute;
+  z-index: 5;
+  width: max-content;
+  max-width: min(17rem, calc(100% - 1rem));
+  padding: .55rem .7rem;
+  color: var(--app-text);
+  background: var(--app-surface-raised);
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+  box-shadow: 0 .25rem .8rem rgb(20 45 56 / 18%);
+  pointer-events: none;
+}
+.map-hover[hidden] { display: none; }
+.map-hover strong,
+.map-hover span { display: block; }
+.map-hover strong { margin-block-end: .15rem; font-size: .875rem; }
+.map-hover span { color: var(--app-muted); font-size: .75rem; line-height: 1.35; }
+
 #map-host > calcite-notice {
   position: absolute;
   z-index: 4;

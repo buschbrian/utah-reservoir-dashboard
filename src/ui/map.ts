@@ -11,6 +11,8 @@ import { resolveBasemap } from "../arcgis/basemaps";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { Reservoir } from "../types";
+import { formatDate, formatPercent } from "../viz/format";
+import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
 import {
   NAME_FIELD,
@@ -44,10 +46,13 @@ type MapElement = HTMLElement & {
   map?: ArcGISMap | null;
   basemap?: unknown;
   animationsDisabled?: boolean;
-  hitTest(target: { x: number; y: number }): Promise<{
+  hitTest(target: { x: number; y: number }, options?: { include?: unknown }): Promise<{
     results: { type: string; graphic?: { attributes?: Record<string, unknown> } }[];
   }>;
 };
+
+interface ScreenPoint { x: number; y: number }
+interface PointerDetail extends ScreenPoint { screenPoint?: ScreenPoint }
 
 function showMapMessage(heading: string, detail: string, role: "status" | "alert"): void {
   const host = elementById<HTMLElement>("map-host");
@@ -98,10 +103,41 @@ function showMissingBasemap(): void {
  * keyboard trap over a canvas -- and it works in the one environment the
  * canvas does not, a hidden or headless browser, where `hitTest` never
  * settles because the render loop that resolves it never runs. */
+function eventPoint(event: Event): ScreenPoint | null {
+  const detail = (event as CustomEvent<PointerDetail>).detail;
+  const point = detail?.screenPoint ?? detail;
+  return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? point : null;
+}
+
+function hideMapHover(): void {
+  const card = elementById<HTMLElement>("map-hover");
+  card.hidden = true;
+  card.replaceChildren();
+}
+
+function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
+  const card = elementById<HTMLElement>("map-hover");
+  const heading = document.createElement("strong");
+  heading.textContent = reservoir.name;
+  const summary = document.createElement("span");
+  summary.textContent = `${formatPercent(headlinePercent(reservoir))} full · ` +
+    `Reading ${formatDate(reservoir.as_of)}`;
+  card.replaceChildren(heading, summary);
+  card.hidden = false;
+
+  requestAnimationFrame(() => {
+    const stage = card.parentElement;
+    if (!stage || card.hidden) return;
+    const left = Math.max(8, Math.min(point.x + 12, stage.clientWidth - card.offsetWidth - 8));
+    const top = Math.max(8, Math.min(point.y + 12, stage.clientHeight - card.offsetHeight - 8));
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+  });
+}
+
 function wirePointerSelection(element: MapElement, selection: SelectionStore): void {
   element.addEventListener("arcgisViewClick", (event) => {
-    const detail = (event as CustomEvent<{ screenPoint?: { x: number; y: number } }>).detail;
-    const screenPoint = detail?.screenPoint;
+    const screenPoint = eventPoint(event);
     if (!screenPoint) return;
     void element.hitTest(screenPoint).then((response) => {
       const hit = response.results.find((result) =>
@@ -115,6 +151,43 @@ function wirePointerSelection(element: MapElement, selection: SelectionStore): v
       console.warn("The map could not answer a pointer selection:", error);
     });
   });
+}
+
+/** One hit test per animation frame, with stale async answers discarded. */
+function wirePointerHover(element: MapElement, drawn: () => readonly Reservoir[]): void {
+  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  let queued: ScreenPoint | null = null;
+  let frame = 0;
+  let request = 0;
+
+  element.addEventListener("arcgisViewPointerMove", (event) => {
+    queued = eventPoint(event);
+    if (!queued || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const point = queued;
+      queued = null;
+      if (!point) return;
+      const current = ++request;
+      void element.hitTest(point).then((response) => {
+        if (current !== request) return;
+        const hit = response.results.find((result) =>
+          typeof result.graphic?.attributes?.[NAME_FIELD] === "string");
+        const name = hit?.graphic?.attributes?.[NAME_FIELD];
+        const reservoir = typeof name === "string" ? findReservoir(drawn(), name) : null;
+        if (reservoir) showMapHover(reservoir, point);
+        else hideMapHover();
+      }).catch(() => hideMapHover());
+    });
+  });
+  element.addEventListener("arcgisViewPointerLeave", () => {
+    request += 1;
+    queued = null;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    hideMapHover();
+  });
+  element.addEventListener("arcgisViewClick", hideMapHover);
 }
 
 export async function loadMap(
@@ -157,7 +230,10 @@ export async function loadMap(
       "alert"
     );
   }, { once: true });
+  let drainageLayer: GraphicsLayer | null = null;
+  let drawn: readonly Reservoir[] = [];
   wirePointerSelection(element, selection);
+  wirePointerHover(element, () => drawn);
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();
   else if (resolution.degraded) showDegradedBasemap(resolution.name);
@@ -171,9 +247,6 @@ export async function loadMap(
     drainageAreas: 0,
     reservoirsDrawn: 0
   };
-  let drainageLayer: GraphicsLayer | null = null;
-  let drawn: readonly Reservoir[] = [];
-
   selection.subscribe((name) => {
     showHighlight(highlightLayer, findReservoir(drawn, name), drawn);
   });

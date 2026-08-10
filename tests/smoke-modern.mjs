@@ -164,6 +164,47 @@ for (const viewport of VIEWPORTS) {
     check(credentialUi.length === 0,
       `${label}: a credential prompt exists (${credentialUi.join(", ")})`);
 
+    if (viewport.name === "desktop") {
+      const pointerName = await tab.locator("#start-panel .list-btn").first()
+        .getAttribute("data-reservoir");
+      await tab.evaluate((name) => {
+        const map = document.querySelector("arcgis-map");
+        map.hitTest = async () => ({
+          results: [{ type: "graphic", graphic: { attributes: { name } } }]
+        });
+        map.dispatchEvent(new CustomEvent("arcgisViewPointerMove", {
+          detail: { x: 500, y: 300 }
+        }));
+      }, pointerName);
+      await tab.waitForFunction(
+        "document.querySelector('#map-hover')?.hidden === false",
+        { timeout: 5000 });
+      const hoverText = (await tab.locator("#map-hover").innerText()).trim();
+      check(hoverText.includes(pointerName) && hoverText.includes("%"),
+        `${label}: pointer hover did not summarize ${pointerName}`);
+      const hoverBounds = await tab.evaluate(() => {
+        const stage = document.querySelector(".map-stage").getBoundingClientRect();
+        const card = document.querySelector("#map-hover").getBoundingClientRect();
+        return {
+          inside: card.left >= stage.left && card.top >= stage.top &&
+            card.right <= stage.right && card.bottom <= stage.bottom
+        };
+      });
+      check(hoverBounds.inside, `${label}: pointer hover card extends outside the map`);
+
+      await tab.evaluate(() => {
+        document.querySelector("arcgis-map").dispatchEvent(
+          new CustomEvent("arcgisViewClick", { detail: { x: 500, y: 300 } }));
+      });
+      await tab.waitForFunction(
+        (name) => window.__dashboardReady.selected === name,
+        pointerName,
+        { timeout: 5000 });
+      check(await tab.locator("#detail-panel [data-detail]").innerText()
+        .then((text) => text.includes(pointerName)),
+      `${label}: map pointer selection did not open ${pointerName}`);
+    }
+
     // Selection, through the list rather than the map: `hitTest` is resolved
     // by the render loop, which does not run reliably in headless Chromium.
     // Use the surface a reader can actually reach at this width; a scripted
