@@ -163,7 +163,7 @@
       });
       map.add(hucLayer);
 
-      const initialBounds = ReservoirViz.MAP_BOUNDS || [[-114.55, 36.70], [-108.55, 42.30]];
+      const initialBounds = ReservoirViz.MAP_BOUNDS || [[-117.55, 33.90], [-105.55, 45.10]];
 
       const view = new MapView({
         container: "viewDiv",
@@ -186,7 +186,16 @@
       // The title card occupies the upper-left corner. Leaving the SDK's
       // default zoom control there makes the two surfaces overlap at desktop
       // widths and puts the control under the card on narrow screens.
-      view.ui.move("zoom", "top-right");
+      //
+      // On a phone the card spans the full width, so the top-right corner is
+      // taken too: the Simplified Technical English status text is tall
+      // enough that the control lands inside the card. Below 640px the zoom
+      // control therefore goes to the bottom right, opposite the legend.
+      const ZOOM_NARROW = window.matchMedia("(max-width: 640px)");
+      const placeZoom = () =>
+        view.ui.move("zoom", ZOOM_NARROW.matches ? "bottom-right" : "top-right");
+      placeZoom();
+      ZOOM_NARROW.addEventListener("change", placeZoom);
 
       // Shared attribute schema. A FeatureLayer built from client-side
       // graphics only understands scalar fields, so the attributes are

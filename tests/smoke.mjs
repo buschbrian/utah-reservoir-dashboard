@@ -76,7 +76,12 @@ const largestReservoir = reservoirPayload.reservoirs.slice().sort((a, b) =>
 
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 900 },
-  { name: "mobile", width: 390, height: 844 }
+  { name: "mobile", width: 390, height: 844 },
+  // A small phone, because the horizontal-overflow failures this catches
+  // come from font metrics -- an unbreakable control is a few pixels wider
+  // on Linux than on Windows, so a check with no margin passes locally and
+  // fails in CI. 360px leaves that margin.
+  { name: "small-phone", width: 360, height: 780 }
 ];
 
 await new Promise((resolve) => server.listen(PORT, resolve));

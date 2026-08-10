@@ -85,6 +85,9 @@
     .card {
       background: var(--surface); border: 1px solid var(--line);
       border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--pad);
+      /* A grid item defaults to a minimum of its content's min-content width,
+         so one unbreakable control inside a card widens the whole page. */
+      min-width: 0;
     }
 
     /* --- KPI tiles --------------------------------------------------- */
@@ -115,13 +118,25 @@
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       margin: -4px 0 10px; color: var(--ink-2); font-size: 12px;
     }
-    .chart-toolbar label { display: inline-flex; align-items: center; gap: 6px; }
+    /* A `select` is as wide as its longest option unless it is told
+       otherwise, and "All reservoirs, including Lake Powell" is wider than a
+       phone. Without `min-width: 0` the flex label refuses to shrink and the
+       whole page scrolls sideways -- by a platform-dependent amount, since
+       the width comes from font metrics. */
+    .chart-toolbar label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
     .chart-toolbar select {
       border: 1px solid var(--line); border-radius: 7px; background: var(--surface);
       color: var(--ink); padding: 5px 26px 5px 8px; font: inherit;
+      min-width: 0; max-width: 100%; text-overflow: ellipsis;
     }
     .chart-toolbar .count { margin-left: auto; }
-    .state-plot { min-height: 278px; }
+    /* Plot draws its axis labels with `overflow: visible` so a wide tick
+       label can paint past the SVG box. That overflow counts toward the
+       document's scroll width, so on a phone the last month label pushed the
+       whole page sideways -- and only on Linux, where the font is wider.
+       `clip` on the x axis only: the y axis stays visible so pointer tips
+       are not cut off. */
+    .state-plot { min-height: 278px; overflow-x: clip; }
     .state-plot figure { margin: 0; max-width: 100%; }
     .state-plot svg { display: block; max-width: 100%; height: auto; overflow: visible; }
     .chart-key { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 0; }

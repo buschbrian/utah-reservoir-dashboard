@@ -289,6 +289,48 @@ The HUC chart uses the same shared selection state as the map and table:
 This is a data-enrichment step. It does not change the existing storage,
 capacity, normal-value, or late-data formulas.
 
+### Phase 1.5 scaffolding — 2026-08-09
+
+The pure half of the watershed work is written and tested; nothing published
+changes yet.
+
+- **`src/data/huc.ts`** — point-in-polygon assignment (rings with holes and
+  multipolygons), `rollupByHuc`, `monthlyRollupByHuc` and `coverageReport`.
+  16 tests cover capacity weighting against naive averaging, the missing-
+  capacity fallback, a site with no denominator at all, duplicate sites,
+  cross-border assignment by outlet, and partial monthly coverage.
+- **The coverage gate is a deliberate divergence** from `statewideMonthly` in
+  `shared/reservoir-viz.js`, which sums whatever months are present. Across 53
+  reservoirs a missing month barely moves the total; in a unit with three
+  reservoirs it is a cliff that reads as a drought. HUC months are therefore
+  all-or-nothing, and carry their `covered`/`count`.
+- **`scripts/fetch-huc6.mjs`** publishes the units as versioned GeoJSON, and
+  fails rather than writing if the service stops returning exactly 15 — the
+  `states` filter and the layer numbering are both things that can change
+  without notice. Verified against the live service: the 15 units are correct.
+- **Not committed yet: the boundary file.** 1.7 MiB at metre precision. The
+  likely answer is two files, full precision for the assignment and a
+  generalized copy for the map, decided with both sizes measured. Until then
+  the pages keep their live query.
+- The typed record now carries optional `in_utah`, `huc6`, `huc6_name`,
+  `huc_assignment_point` and `huc_assignment_source`. Optional because the
+  Python refresh does not emit them and the pages must keep working without
+  them.
+
+**Still to do in this phase:** the Python side. The refresh job has no HUC
+code at all — assignment, the dam/outlet coordinates to assign by, the
+Reclamation candidate audit, and writing the fields into `reservoirs.json`.
+
+### Starting extent — 2026-08-09
+
+The starting box was a tight fit around Utah and cropped hard against the
+state line. It is now one zoom level wider. This is provisional and marked as
+such in `shared/reservoir-viz.js`: a hand-set box around one state stops
+making sense as soon as the connected sites land, because the drainage areas
+that touch Utah reach into Colorado, Wyoming and New Mexico. Once those are
+published the extent should be computed from the sites and boundaries on the
+map, not written down.
+
 ### Noticed while testing, not fixed
 
 The live 4.34 page logs `Found 10 Visual Variable stops, but MapView only
@@ -502,6 +544,15 @@ calcite-shell
 ```
 
 - Calcite handles responsive collapse; on mobile the side panels become sheets. This closes the README's "mobile layout on the maps" item structurally rather than with media-query patches.
+- **Known ArcGIS phone-layout failure, confirmed in CI runs 27 and 28:** at a
+  390-pixel screen width, the legacy title panel spans from 8 pixels inside the
+  left edge to 8 pixels inside the right edge. The longer Simplified Technical
+  English status text makes the panel tall enough to overlap the ArcGIS zoom
+  control at the upper right by about 17 pixels. Keep the existing Playwright
+  no-overlap check. In the unified shell, responsive Calcite panels and named map
+  component positions must prevent this by design. If the legacy page is changed
+  before Phase 2 replaces it, move the zoom control to the lower right below 640
+  pixels and keep it at the upper right on larger screens.
 - Light/dark via `calcite-mode-light` / `calcite-mode-dark` on the root. **Caveat from Esri's docs: `calcite-mode-dark` is not applied to charts components** — chart theming must be handled explicitly.
 - Theme tokens in `src/styles/theme.css`. Style with Calcite CSS variables; use plain CSS only for structure. Do not override Calcite internals.
 

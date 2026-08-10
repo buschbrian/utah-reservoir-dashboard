@@ -52,6 +52,18 @@ export interface Reservoir {
   first_obs: string;
   n_obs: number;
   years_of_record: number;
+
+  // Watershed membership (Phase 1.5). Optional because the Python refresh
+  // does not publish these yet and the pages must keep working without
+  // them. `huc6` is the six-digit hydrologic unit that contains the
+  // reservoir's dam or outlet point -- not the centre of its water polygon,
+  // because a large reservoir can cross a boundary and what matters is
+  // where the stored water leaves it.
+  in_utah?: boolean;
+  huc6?: string | null;
+  huc6_name?: string | null;
+  huc_assignment_point?: [number, number] | null;
+  huc_assignment_source?: string | null;
 }
 
 export interface ReservoirSource {

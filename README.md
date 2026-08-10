@@ -1,5 +1,7 @@
 # Utah Reservoir Drought Dashboard
 
+**Live: <https://buschbrian.github.io/utah-reservoir-dashboard/>**
+
 Current storage levels across 53 reservoirs in and serving Utah, combining
 Reclamation RISE with the wider NRCS AWDB inventory in three views:
 
@@ -7,13 +9,25 @@ Reclamation RISE with the wider NRCS AWDB inventory in three views:
 |---|---|
 | [`index.html`](index.html) | The map, built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/). Each reservoir colored by how full it is and sized by its capacity. |
 | [`maplibre/`](maplibre/) | The same map rebuilt on [MapLibre GL JS](https://maplibre.org/) + CARTO, as an open-source parity comparison. |
-| [`explore.html`](explore.html) | **Statewide overview** — totals excluding Lake Powell, a size-first ranking, a sortable table of every metric with CSV export, and 53 twelve-month sparklines. No map, and no SDK. |
+| [`explore.html`](explore.html) | **Statewide overview** — totals excluding Lake Powell, a size-first ranking, a sortable table of every metric with CSV export, and 53 twelve-month sparklines. No map SDK. |
 
-No build step and no framework anywhere: the two maps load their SDK
-directly from a CDN with plain `<script>` tags, and the overview loads
-nothing at all. Storage comes from the [Bureau of Reclamation RISE
+Storage comes from the [Bureau of Reclamation RISE
 API](https://data.usbr.gov/) and [USDA NRCS
 AWDB](https://wcc.sc.egov.usda.gov/awdbRestApi/swagger-ui.html).
+
+The two map pages still load their SDK from a CDN with plain `<script>`
+tags. The overview is now a [Vite](https://vite.dev/) entry point, because
+its statewide chart uses [Observable Plot](https://observablehq.com/plot/).
+The site is built and published to GitHub Pages by
+[`deploy-pages.yml`](.github/workflows/deploy-pages.yml). See
+[Build and deploy](#build-and-deploy) — the rule that matters is that the
+daily data is *copied* into the published output, never bundled into it.
+
+A larger rebuild is under way: one unified dashboard on ArcGIS Maps SDK 5.1
+and Calcite 5, with the three current pages staying live until it lands.
+[`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) is the working plan and the
+record of what has been measured; [What is done and what is
+next](#what-is-done-and-what-is-next) summarizes where it stands.
 
 `reservoirs.json` is regenerated daily by [`refresh_reservoirs.py`](refresh_reservoirs.py),
 run on a schedule via [GitHub Actions](.github/workflows/refresh-data.yml) (6am
@@ -234,6 +248,50 @@ pages. It had been duplicated by hand and was already drifting, which made
 the comparison partly a measurement of copy drift rather than of the
 engines.
 
+## Wording
+
+Visible text follows [ASD-STE100 Simplified Technical
+English](https://asd-ste100.org/): short sentences, one term for one thing,
+and no unexplained specialist word. `af` is written *acre-feet*,
+*period-of-record max* is *highest recorded storage*, *stale* is *late data*,
+and *cadence* is *update schedule*. The overview defines capacity, acre-foot,
+normal, history rank, update schedule and CSV file in a *Meaning of terms*
+block. Two tests enforce it: `src/content-language.test.ts` on the source, and
+the browser smoke test, which fails if any retired term reappears in text a
+reader can see.
+
+## Build and deploy
+
+This is the one place the build step changes the operating model, and it has
+a trap in it. `reservoirs.json` is rewritten every morning, and that commit
+*is* the deploy — the pages fetch the file at runtime. If the app baked the
+data in at build time, every refresh would need a rebuild, and a failing
+build would silently freeze the dashboard's numbers.
+
+**Rule: data is copied into the published output, never bundled into it.**
+`vite.config.ts` copies `reservoirs.json` and `capacities.json` into `dist/`
+and `dist/data/` after the bundle is written, and nothing imports them. The
+deploy workflow asserts both halves: that every current URL still resolves in
+`dist/`, and that the payload's `generated_at` does not appear anywhere in
+`dist/assets`.
+
+The corollary is that a red build now freezes the numbers, which is why the
+unit tests are written against `shared/reservoir-viz.js` rather than against
+literals from one day's payload. A data refresh cannot turn the build red on
+its own.
+
+```bash
+npm ci
+npm run dev        # Vite dev server
+npm run build      # typecheck, unit tests, SDK bundle budget, then vite build
+npm test           # vitest only
+```
+
+`npm run build` runs `scripts/check-sdk-bundle.mjs`, which builds the planned
+ArcGIS 5.1 import surface and fails if it exceeds 18 MiB raw / 6 MiB gzip
+emitted or a 2.5 MiB gzip static entry path. It is a budget for the rebuild,
+checked before the rebuild depends on it.
+
 ## Working on the data script
 
 ```bash
@@ -255,20 +313,75 @@ pip install pytest
 python -m pytest tests/ -v
 ```
 
-The browser smoke test needs network access, since both pages load their
-SDK from a CDN:
+The browser smoke test runs against the **built** site in `dist/`, not the
+source files, because the overview's chart now comes from the bundle. It
+needs network access, since both map pages load their SDK from a CDN:
 
 ```bash
-npm install --no-save playwright && npx playwright install chromium
+npm ci && npx playwright install chromium
+npm run build
 mkdir -p screenshots && node tests/smoke.mjs
 ```
 
-## Future improvements
+It loads all three pages at three viewport widths — 1280, 390 and 360 — and
+asserts every reservoir rendered, that no retired term is visible, that the
+page does not scroll sideways, and that nothing overlaps the map controls.
+The narrowest width is there deliberately: the overflow bugs it catches come
+from font metrics, so a check with no margin passes on Windows and fails on
+CI's Linux.
+
+## What is done and what is next
+
+### Resolved in the modernization pass so far
+
+| | |
+|---|---|
+| **A build step** | Vite 8 + TypeScript 7 (strict, `exactOptionalPropertyTypes`) + Vitest. The zero-build constraint is retired deliberately, not by accident. |
+| **Published from a build** | GitHub Pages now deploys `dist/` from Actions. All seven public URLs — `/`, `explore.html`, `maplibre/`, `modern.html`, `reservoirs.json`, `data/reservoirs.json`, `shared/reservoir-viz.js` — are asserted in the workflow and return 200. |
+| **A real module** | The flagged `IMPROVEMENT` in `shared/reservoir-viz.js`. Class breaks, `percentFull`, the statewide rollup and the formatters are now typed modules in `src/`, unit-tested against the legacy script loaded in a `node:vm` sandbox rather than against one day's numbers. Two divergences were found this way and are asserted, not hidden. |
+| **A runtime validator** | A malformed refresh fails loudly at the fetch boundary instead of rendering an empty map. |
+| **Charts** | Observable Plot drives the statewide 12-month chart, with pointer tips and with/without-Powell and acre-feet/percent controls. Colors still come from the one class-break table. |
+| **Basemap authentication** | Measured, not assumed: the well-known ids (`topo-vector`, `gray-vector`, …) still serve keyless on 5.1; only the `arcgis/*` styles service is key-gated. **No API key is needed.** |
+| **No credential prompt can reach a public page** | The real failure mode was a 401 raising a username/password modal and then hanging the load for 20 seconds. `src/arcgis/auth.ts` refuses credential challenges at `IdentityManager.getCredential`, and `src/arcgis/basemaps.ts` falls through a chain of candidates. Measured after: fails in 54 ms, no modal, map renders. |
+| **A bundle budget** | Every build measures the planned SDK import surface (15.49 MiB raw / 5.43 MiB gzip today) against a ceiling, so Phase 2 cannot quietly become enormous. |
+| **Plain wording** | Simplified Technical English across all visible text, enforced by two tests. See [Wording](#wording). |
+| **Mobile layout on the maps** | Partly. The phone viewport is now tested at two widths on all three pages: the title panel stays inside the viewport, the ArcGIS zoom control moves to the bottom right below 640px instead of landing under the title card, and no page scrolls sideways. The structural fix is still Phase 2. |
+
+### Next, in order
+
+1. **Phase 1.5 — watershed data.** *Started.* The pure half is written and
+   tested in [`src/data/huc.ts`](src/data/huc.ts): point-in-polygon
+   assignment by dam or outlet point (not the water polygon's center — a
+   large reservoir can straddle a boundary, and what matters is where its
+   water leaves), capacity-weighted `rollupByHuc`, a monthly rollup that
+   shows a gap rather than a partial total, and a coverage report.
+   [`scripts/fetch-huc6.mjs`](scripts/fetch-huc6.mjs) publishes the 15
+   Utah-intersecting units and refuses to write if that count changes. What
+   remains is the Python side: the dam and outlet coordinates, the
+   Reclamation candidate audit, and writing the fields into
+   `reservoirs.json`. This has to land before the new shell can filter by
+   drainage area.
+2. **Phase 2 — the unified dashboard shell.** One Calcite 5 shell holding the
+   map, filters, the selected reservoir and the ranking/table/sparkline tabs.
+   This is what replaces the three pages, and it closes mobile layout
+   structurally rather than with more media queries.
+3. **Phase 3–5 — symbology, charts, state.** `CIMSymbol` dual circles with a
+   real drop shadow, `featureEffect` filter dimming, layer-bound charts,
+   one filter/selection state object, deep links on the maps, and the time
+   slider over the 12 months already in the data.
+4. **Phase 6–7 — MapLibre 6 parity, then verification.** Rewrite the smoke
+   test against the new DOM, add axe-core, and assert end-to-end that no
+   password prompt can appear.
+
+[`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) has the detail, the
+measurements behind each decision, and the traps found on the way.
+
+### Still open, and not part of that plan
 
 Roughly in order of how much they'd pay back. Items marked *(flagged in
 code)* have a matching `IMPROVEMENT:` comment at the relevant line.
 
-### Correctness of the metrics
+#### Correctness of the metrics
 
 - **Revisit the capacity denominator.** Capacity now comes from NID (see
   below), using `normal_storage` where it exists and `max_storage` for the
@@ -281,7 +394,7 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
   the two. A per-reservoir plausibility check would catch a different
   failure mode than staleness does.
 
-### Making failures impossible to sit on
+#### Making failures impossible to sit on
 
 - **Verify the catalog IDs.** *(flagged in code)* The `RESERVOIRS` table is
   hand-maintained with no verification. A weekly job that re-walks RISE's
@@ -297,7 +410,7 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
   changed ID. Having it rewrite the `RESERVOIRS` table and open a PR would
   make the most likely permanent failure fix itself.
 
-### Data breadth
+#### Data breadth
 
 - **Cache the daily series.** Every run re-pulls ~4,200 rows for each daily
   reservoirs to recompute values that almost all didn't change. Persisting
@@ -315,7 +428,7 @@ code)* have a matching `IMPROVEMENT:` comment at the relevant line.
   Direct local-agency feeds could improve their cadence where stable APIs
   and traceable capacity definitions are available.
 
-### The dashboards
+#### The dashboards
 
 - **A time slider.** The data now holds 12 months per reservoir but the maps
   only ever draw today. Animating the map through those months would show

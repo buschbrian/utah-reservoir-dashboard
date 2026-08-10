@@ -151,10 +151,18 @@
     "&outFields=huc6%2Cname%2Cstates&returnGeometry=true&outSR=4326" +
     "&geometryPrecision=5&f=geojson";
 
-  // One explicit starting extent for both renderers. It includes all of
-  // Utah plus the Lake Powell and Meeks Cabin markers without exposing a
-  // large, low-information ring of neighboring states.
-  var MAP_BOUNDS = [[-114.55, 36.70], [-108.55, 42.30]];
+  // One explicit starting extent for both renderers, one zoom level wider
+  // than a tight fit around Utah: the tight version cropped hard against the
+  // state line and gave a reader no idea where these basins sit.
+  //
+  // PROVISIONAL. This is a hand-set box around one state, and it stops
+  // making sense the moment the connected sites land. The drainage areas
+  // that touch Utah reach into Colorado, Wyoming and New Mexico -- Blue
+  // Mesa, Morrow Point, Navajo, Fontenelle -- so once those are published
+  // the starting extent should be computed from the sites and boundaries
+  // actually on the map, not written down here. See Phase 1.5 in
+  // MODERNIZATION_PLAN.md.
+  var MAP_BOUNDS = [[-117.55, 33.90], [-105.55, 45.10]];
   var MAP_CENTER = [-111.55, 39.50];
   var HUC_FILL = "rgba(226,232,239,0.22)";
   var HUC_LINE = "#6f8498";
