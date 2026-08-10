@@ -40,7 +40,7 @@ const selection = createSelectionStore();
 
 /* The headline scope: waterbodies that touch Utah, without Lake Powell,
  * whose 25 million acre-feet otherwise dominate every statewide number
- * (ADR-011). The map draws exactly the reservoirs the summary counts, so a
+ * (ADR-013). The map draws exactly the reservoirs the summary counts, so a
  * reader cannot find a point the totals do not include. */
 function inScope(reservoirs: readonly Reservoir[]): Reservoir[] {
   return reservoirs.filter((reservoir) =>

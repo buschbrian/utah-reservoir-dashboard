@@ -881,7 +881,7 @@ This phase must finish before the new shell depends on HUC filters.
 Utah-only totals do not change; and each HUC total states its reservoir count and
 coverage.
 
-### Phase 2 — The unified dashboard shell (next)
+### Phase 2 — The unified dashboard shell (complete)
 
 Start from Esri's [dashboard layout sample](https://github.com/Esri/jsapi-resources/tree/main/layouts/dashboard-sample). Structure, per Esri's own guidance, keeps layout (Calcite) strictly separate from GIS functionality (map components).
 

@@ -214,8 +214,9 @@ types and runtime validation, tested rollups, drainage-area enrichment, and
 the modernization workbench are in place. The connected-reservoir audit added
 Fontenelle; snowpack and drought context remain research tracks.
 
-Phase 2 is the next application milestone: build the unified ArcGIS 5.1 and
-Calcite 5 shell without replacing the current production URLs prematurely.
+Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 shell now runs at
+`modern.html` without replacing the current production URLs prematurely.
+Phase 3 adds the measured symbology and interaction improvements on that shell.
 The executable milestones and acceptance gates are in
 [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence, measurements,
 and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).

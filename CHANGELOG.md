@@ -12,7 +12,8 @@ and is not listed here.
   sideways scroll, and no retired vocabulary anywhere a reader can see it —
   open shadow roots included.
 - **Reservoirs on the Phase 2 shell.** `modern.html` now draws every reservoir
-  in the connected scope from the committed data, over the Utah mask and the
+  in the selected Utah waterbody scope, excluding Lake Powell, from the
+  committed data, over the Utah mask and the
   drainage-area outlines, with the same class colours and the same size basis
   the production maps use. Selecting one — by pointer on the map, or from a
   focusable list of every reservoir in the storage summary — gives its name,

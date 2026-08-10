@@ -64,7 +64,16 @@ export function wirePanels(): void {
     void elementById<CalciteFocusable>("controls-toggle").setFocus();
   });
   detailSheet.addEventListener("calciteSheetClose", () => {
-    void elementById<CalciteFocusable>("detail-toggle").setFocus();
+    /* On a phone, details open over the still-open storage summary. Return
+     * to the selected reservoir in that sheet, not to navigation behind the
+     * modal surface. Calcite restores focus on its own too, so wait until its
+     * close event has finished before choosing the application-level target. */
+    requestAnimationFrame(() => {
+      const selected = document.querySelector<HTMLButtonElement>(
+        '#start-sheet .list-btn[aria-pressed="true"]');
+      if (mobileQuery.matches && selected) selected.focus({ preventScroll: true });
+      else void elementById<CalciteFocusable>("detail-toggle").setFocus();
+    });
   });
   elementById("controls-toggle").addEventListener("click", () => {
     const surface = activeSurface("start");

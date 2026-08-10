@@ -92,8 +92,8 @@ real-entry bundle budget remain P2.4 work.
 
 **Acceptance**
 
-- The readiness signal reports every published reservoir drawn for the
-  connected scope.
+- The readiness signal reports every reservoir drawn for the selected Utah
+  waterbody scope, excluding Lake Powell.
 - Each point has the current class colour and shared size basis.
 - Selecting a reservoir exposes its name, percent full, data date, source, and
   whether its data is late.

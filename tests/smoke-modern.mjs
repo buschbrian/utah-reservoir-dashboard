@@ -17,8 +17,8 @@
  *     shadow roots, and it runs with the first basemap answering 401 --
  *     the exact condition that produces a prompt when the anonymous-auth
  *     policy is missing.
- *   - Nothing scrolls sideways and nothing covers the map controls at 1280,
- *     390 and 360 pixels.
+ *   - Nothing scrolls sideways and the interactive map controls stay in a
+ *     clear touch lane at 1280, 390 and 360 pixels.
  */
 
 import { chromium } from "playwright";
@@ -164,17 +164,22 @@ for (const viewport of VIEWPORTS) {
 
     // Selection, through the list rather than the map: `hitTest` is resolved
     // by the render loop, which does not run reliably in headless Chromium.
-    const firstName = await tab.evaluate(() =>
-      document.querySelector(".list-btn")?.dataset.reservoir ?? null);
-    await tab.evaluate(() => document.querySelector(".list-btn")?.click());
+    // Use the surface a reader can actually reach at this width; a scripted
+    // click on the hidden desktop panel would make the phone run meaningless.
+    const mobile = viewport.width < 768;
+    const listSelector = mobile ? "#start-sheet .list-btn" : "#start-panel .list-btn";
+    const detailSelector = mobile ? "#detail-sheet [data-detail]" :
+      "#detail-panel [data-detail]";
+    const firstButton = tab.locator(listSelector).first();
+    check(await firstButton.isVisible(), `${label}: the active reservoir list is not visible`);
+    const firstName = await firstButton.getAttribute("data-reservoir");
+    await firstButton.click();
     const selected = await tab.evaluate(() => window.__dashboardReady.selected);
     check(selected === firstName,
       `${label}: selecting ${firstName} left the signal at ${selected}`);
-    const detail = await tab.evaluate(() => {
-      const host = [...document.querySelectorAll("[data-detail]")]
-        .map((element) => element.innerText.trim()).find((text) => text.length > 0);
-      return host ?? "";
-    });
+    const detailHost = tab.locator(detailSelector);
+    check(await detailHost.isVisible(), `${label}: the active detail surface is not visible`);
+    const detail = (await detailHost.innerText()).trim();
     for (const expected of [firstName, "%", "Stored now", "Reading date", "Measured by"]) {
       check(detail.includes(expected),
         `${label}: the details panel does not report ${expected}`);
@@ -192,7 +197,9 @@ for (const viewport of VIEWPORTS) {
         // alternative link and the navigation are the light-DOM surfaces
         // that have covered them before.
         mapAlternative: rect("#map-alternative"),
-        navigation: rect("calcite-navigation")
+        navigation: rect("calcite-navigation"),
+        home: rect("arcgis-home"),
+        fullscreen: rect("arcgis-fullscreen")
       };
     });
     check(layout.scroll <= layout.viewport + 1,
@@ -203,6 +210,24 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map alternative link extends outside the viewport`);
     check(layout.navigation && layout.navigation.right <= layout.viewport + 1,
       `${label}: the navigation is clipped`);
+    for (const [control, box] of [["Home", layout.home], ["Fullscreen", layout.fullscreen]]) {
+      check(box && box.left >= 0 && box.right <= layout.viewport + 1 &&
+        box.top >= (layout.navigation?.bottom ?? 0) && box.bottom <= viewport.height + 1,
+      `${label}: the ${control} map control is clipped or covered by navigation`);
+    }
+
+    if (mobile) {
+      await tab.locator("#detail-sheet-close").click();
+      await tab.waitForFunction(
+        "!document.querySelector('#detail-sheet')?.hasAttribute('opened')",
+        { timeout: 5000 });
+      // The application restores focus on the next animation frame so it
+      // runs after Calcite's own close lifecycle has finished.
+      await tab.waitForFunction(
+        "document.activeElement?.matches(" +
+          "'#start-sheet .list-btn[aria-pressed=\"true\"]') === true",
+        { timeout: 5000 });
+    }
 
     await tab.screenshot({ path: `screenshots/modern-${viewport.name}.png`, fullPage: false });
   } catch (err) {
