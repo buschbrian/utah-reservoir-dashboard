@@ -115,6 +115,10 @@ for (const page of PAGES) {
       check(ready.layers === 3, `${label}: ${ready.layers} reservoir layers, expected 3`);
       check(ready.masked === true, `${label}: HUC6 mask layer missing`);
       check(ready.huc6 === true, `${label}: HUC6 boundary layer missing`);
+      check(ready.minZoom >= 4,
+        `${label}: users can zoom out to a world view (minimum ${ready.minZoom})`);
+      check(ready.navigationBounds === true,
+        `${label}: lateral navigation is not constrained to the Utah region`);
     } else {
       check(ready.rows === expectedReservoirs,
         `${label}: table has ${ready.rows} rows, expected ${expectedReservoirs}`);

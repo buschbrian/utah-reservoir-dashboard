@@ -196,7 +196,9 @@
       container: "map",
       style: CARTO_STYLES[basemapKey],
       bounds: mapBounds,
-      fitBoundsOptions: { padding: fitPadding() }
+      fitBoundsOptions: { padding: fitPadding() },
+      minZoom: ReservoirViz.MAP_MIN_ZOOM || 4,
+      maxBounds: mapBounds
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -847,6 +849,8 @@
             // Additive, matching the ArcGIS page's signal field for field.
             hover: true,
             filters: !!document.getElementById("classFilter"),
+            minZoom: map.getMinZoom(),
+            navigationBounds: map.getMaxBounds() !== null,
             // The month slider, for a test that wants to prove it moves:
             // `months` is how many positions it offers besides today, and
             // `month` is the one on screen -- null while the map shows the

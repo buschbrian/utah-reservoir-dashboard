@@ -177,6 +177,9 @@
   // actually on the map, not written down here. See Phase 1.5 in
   // MODERNIZATION_PLAN.md.
   var MAP_BOUNDS = [[-117.55, 33.90], [-105.55, 45.10]];
+  // Keeps a Utah dashboard from becoming a world map while leaving the
+  // connected Colorado River and Great Basin context visible.
+  var MAP_MIN_ZOOM = 4;
   var MAP_CENTER = [-111.55, 39.50];
   var HUC_FILL = "rgba(226,232,239,0.22)";
   var HUC_LINE = "#6f8498";
@@ -1809,6 +1812,7 @@
     HUC_FILL: HUC_FILL,
     HUC_LINE: HUC_LINE,
     MAP_BOUNDS: MAP_BOUNDS,
+    MAP_MIN_ZOOM: MAP_MIN_ZOOM,
     MAP_CENTER: MAP_CENTER,
     UTAH_RING: UTAH_RING,
     utahMaskRings: utahMaskRings,

@@ -268,7 +268,16 @@
         padding: window.innerWidth <= 640
           ? { top: 150, right: 8, bottom: 8, left: 8 }
           : { top: 24, right: 24, bottom: 24, left: 24 },
-        constraints: { snapToZoom: false },
+        constraints: {
+          snapToZoom: false,
+          minZoom: ReservoirViz.MAP_MIN_ZOOM || 4,
+          geometry: {
+            type: "extent",
+            xmin: initialBounds[0][0], ymin: initialBounds[0][1],
+            xmax: initialBounds[1][0], ymax: initialBounds[1][1],
+            spatialReference: { wkid: 4326 }
+          }
+        },
         popup: {
           dockEnabled: false,
           collapseEnabled: false
@@ -1058,6 +1067,8 @@
               // were wired up at all.
               hover: true,
               filters: !!document.getElementById("classFilter"),
+              minZoom: view.constraints.effectiveMinZoom,
+              navigationBounds: view.constraints.geometry !== null,
               // The month slider, for a test that wants to prove it moves:
               // `months` is how many positions it offers besides today, and
               // `month` is the one on screen -- null while the map shows the
