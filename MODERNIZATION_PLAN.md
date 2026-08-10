@@ -910,7 +910,14 @@ calcite-shell
 - Light/dark via `calcite-mode-light` / `calcite-mode-dark` on the root. **Caveat from Esri's docs: `calcite-mode-dark` is not applied to charts components** — chart theming must be handled explicitly.
 - Theme tokens in `src/styles/theme.css`. Style with Calcite CSS variables; use plain CSS only for structure. Do not override Calcite internals.
 
-**Done when:** the new `index.html` shows every published reservoir with the current symbology, in one responsive shell, at parity with the 4.34 page.
+The executable scope, responsive contract, and verification gates are in
+[`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). ADR-012 narrows this phase to
+the shell and current map parity; charts, complete filters, and production
+cutover stay in their later phases.
+
+**Done when:** `modern.html` shows every published reservoir with the current
+symbology in one responsive shell, passes the Phase 2 integration gates, and
+leaves the three production views unchanged.
 
 ### Phase 3 — Symbology and micro-interactions
 
@@ -1035,7 +1042,13 @@ with per-month tooltips.
    guard.** The payload is small and stable, the complete runtime contract is
    covered by focused tests, and no additional dependency is required.
 4. **Fate of `explore.html`** — recommend keeping it as the deliberate no-SDK fallback rather than retiring it.
-5. **Framework** — the plan assumes vanilla TS + web components, which is what Calcite and the SDK components are designed for and keeps the dependency surface small. React would be a defensible alternative if the state management in Phase 5 gets unwieldy; decide at Phase 5, not now.
+5. ~~**Phase 2 framework and entry**~~ — **resolved 2026-08-10: vanilla
+   TypeScript with ArcGIS and Calcite web components at `modern.html`.** Keep
+   the production entry unchanged until a later cutover review (ADR-012).
+6. ~~**Statewide scope semantics**~~ — **resolved 2026-08-10: location and
+   Lake Powell inclusion are independent dimensions.** The default is Utah
+   reservoirs without Lake Powell; the connected comparison includes all
+   published reservoirs (ADR-011).
 
 ## 6. Deferred
 

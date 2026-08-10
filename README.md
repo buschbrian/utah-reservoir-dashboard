@@ -209,8 +209,9 @@ Fontenelle; snowpack and drought context remain research tracks.
 
 Phase 2 is the next application milestone: build the unified ArcGIS 5.1 and
 Calcite 5 shell without replacing the current production URLs prematurely.
-The full sequence, measurements, and unresolved choices live in
-[`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
+The executable milestones and acceptance gates are in
+[`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence, measurements,
+and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
 
 ## Documentation map
 
@@ -218,6 +219,8 @@ The full sequence, measurements, and unresolved choices live in
   contributors and coding agents.
 - [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — working roadmap,
   measurements, spikes, and implementation history.
+- [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) — the current shell scope,
+  milestones, and acceptance gates.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
