@@ -1,6 +1,6 @@
 """Find reservoir stations inside our drainage areas that we do not track.
 
-ADR-009 fixes the geography: a site belongs here when it sits in one of the
+ADR-010 fixes the geography: a site belongs here when it sits in one of the
 fourteen six-digit hydrologic units that touch Utah. That rule is mechanical,
 so the list of missing sites should be mechanical too, rather than hand-picked
 from somebody's operating region.
@@ -37,6 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import assign_huc, in_utah, load_units  # noqa: E402
+from admission import NAMED_RADIUS_KM, distance_km  # noqa: E402
 
 # The same normalization build_capacity_table.py uses to match our names
 # against a second agency's. Without it "Causey" and "Causey Reservoir" read
@@ -64,66 +65,108 @@ def get_json(url: str, params: dict):
         return None
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--json", action="store_true")
-    args = parser.parse_args()
-
-    units = load_units()
+def select_candidates(stations, payload, units):
+    """Apply the canonical point-in-polygon scope rule without network I/O."""
     ours = {unit["huc6"]: unit["name"] for unit in units}
-
-    payload = json.loads((ROOT / "reservoirs.json").read_text())
     tracked_ids = {str(r.get("source_station_id") or "") for r in payload["reservoirs"]}
-    tracked_names = {normalize(r["name"]) for r in payload["reservoirs"]}
-
-    stations = get_json(AWDB_STATIONS, {
-        "stateCds": "UT", "elements": "RESC", "activeOnly": "true"})
-    if not stations:
-        print("ERROR: no stations returned", file=sys.stderr)
-        return 1
-    print(f"{len(stations)} active storage stations returned "
-          "(the state filter is ignored; this is the national set)\n")
+    tracked_by_name = {}
+    for reservoir in payload["reservoirs"]:
+        tracked_by_name.setdefault(normalize(reservoir["name"]), []).append(reservoir)
 
     candidates, outside, already = [], 0, 0
     for station in stations:
         triplet = str(station.get("stationTriplet") or "")
         name = str(station.get("name") or "").strip()
         huc12 = str(station.get("huc") or "")
-        huc6 = huc12[:6]
-        if huc6 not in ours:
+        station_huc6 = huc12[:6]
+        lat, lon = station.get("latitude"), station.get("longitude")
+        point = (lon, lat) if lon is not None and lat is not None else None
+        geometric = assign_huc(point, units) if point else None
+
+        # ADR-010 makes the committed polygons canonical. Provider metadata is
+        # useful disagreement evidence, but cannot include or exclude a site.
+        if not geometric:
             outside += 1
             continue
-        if triplet in tracked_ids or normalize(name) in tracked_names:
+        if triplet in tracked_ids:
             already += 1
             continue
 
-        lat, lon = station.get("latitude"), station.get("longitude")
-        point = (lon, lat) if lon is not None and lat is not None else None
-        # The station's own HUC and our polygons should agree. Where they do
-        # not, the coordinate is the one to trust for a map and the mismatch
-        # is worth seeing rather than silently preferring one.
-        geometric = assign_huc(point, units) if point else None
+        # Provider identifiers are strongest. When providers use different
+        # identifiers for the same site, require both name and position. Name
+        # alone is not identity; distinct reservoirs can share one.
+        same_named = tracked_by_name.get(normalize(name), [])
+        if point and any(
+            distance_km(point, (reservoir["lon"], reservoir["lat"])) <= NAMED_RADIUS_KM
+            for reservoir in same_named
+        ):
+            already += 1
+            continue
+
+        geometric_huc6 = geometric["huc6"]
         candidates.append({
             "name": name,
             "station": triplet,
             "state": station.get("stateCode"),
             "county": station.get("countyName"),
-            "huc6_from_station": huc6,
-            "huc6_name": ours[huc6],
-            "huc6_from_point": geometric["huc6"] if geometric else None,
-            "agrees": bool(geometric and geometric["huc6"] == huc6),
-            "in_utah": in_utah(point) if point else None,
+            "huc6_from_station": station_huc6,
+            "huc6_name": ours[geometric_huc6],
+            "huc6_from_point": geometric_huc6,
+            "agrees": geometric_huc6 == station_huc6,
+            "tracked_name_match": bool(same_named),
+            "in_utah": in_utah(point),
             "lat": lat, "lon": lon,
             "begins": station.get("beginDate"),
         })
 
-    candidates.sort(key=lambda c: (c["huc6_from_station"], c["name"]))
+    candidates.sort(key=lambda c: (c["huc6_from_point"], c["name"]))
+    return candidates, already, outside
+
+
+def find_candidates(units=None):
+    """Active storage stations in our drainage areas that we do not track.
+
+    Extracted so tools/audit_candidate_capacity.py decides admission for
+    exactly the list this tool prints. Two tools with two definitions of
+    "candidate" would disagree the first time either one changed.
+
+    Returns (candidates, info), where info carries the counts each caller
+    reports for itself: `units`, `payload`, `stations`, `tracked`, `outside`.
+    Printing is left to the caller so `--json` output stays machine-readable.
+    """
+    units = units or load_units()
+    payload = json.loads((ROOT / "reservoirs.json").read_text())
+
+    stations = get_json(AWDB_STATIONS, {
+        "stateCds": "UT", "elements": "RESC", "activeOnly": "true"})
+    if not stations:
+        return None, {"units": units, "payload": payload, "stations": 0,
+                      "tracked": 0, "outside": 0}
+
+    candidates, already, outside = select_candidates(stations, payload, units)
+    return candidates, {"units": units, "payload": payload, "stations": len(stations),
+                        "tracked": already, "outside": outside}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+
+    candidates, info = find_candidates()
+    if candidates is None:
+        print("ERROR: no stations returned", file=sys.stderr)
+        return 1
+    units, payload = info["units"], info["payload"]
+
     if args.json:
         print(json.dumps({"candidates": candidates}, indent=1))
         return 0
 
-    print(f"{already} already tracked, {outside} outside our drainage areas, "
-          f"{len(candidates)} candidates.\n")
+    print(f"{info['stations']} active storage stations returned "
+          "(the state filter is ignored; this is the national set)\n")
+    print(f"{info['tracked']} already tracked, {info['outside']} outside our "
+          f"drainage areas, {len(candidates)} candidates.\n")
     print(f"{'reservoir':<34} {'station':<20} {'st':<3} {'area':<28} agree")
     for c in candidates:
         print(f"{c['name'][:33]:<34} {c['station']:<20} {c['state']:<3} "
