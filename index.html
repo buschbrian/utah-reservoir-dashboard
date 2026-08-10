@@ -23,7 +23,7 @@
   <!-- Colors, popup markup, the 12-month trend chart and the legend are
        shared with the MapLibre version so the two stay identical; only
        engine-specific code lives in this file. -->
-  <script src="shared/reservoir-viz.js?v=20260809-3"></script>
+  <script src="shared/reservoir-viz.js?v=20260810-2"></script>
 
   <style>
     html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -61,6 +61,13 @@
     /* #0079c1 reaches only 3.9:1 on this panel, below WCAG AA for text.
        Same blue family, dark enough to read: 6.6:1. */
     .map-links a { color: #0b6198; }
+    /* The month slider's note is a <p> inside this card, so `#titleDiv p`
+       above outranks the shared module's own rule for it on specificity
+       alone, whatever the order the two stylesheets land in. Restated here
+       at the same weight rather than fought over in the shared file, which
+       has no idea what card either page drops the slider into. #777 is the
+       same contrast failure the disclaimer had, so it takes the same fix. */
+    #titleDiv .rv-month-note { font-size: 10.5px; color: #5f6368; margin: 4px 0 0; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       /* #777 at 10.5px measured 4.6:1 here, close enough to the line that a
@@ -299,6 +306,12 @@
         // the observed record max standing in where it doesn't. Without
         // these, every expression would need the same null-check inline.
         { name: "size_basis_af", alias: "Full level (acre-feet)", type: "double" },
+        // NO_DATA (-1) rather than null when the percentage is unknown. A
+        // renderer cannot branch on an empty numeric field and still hand a
+        // size and a color back for it, but it can branch on a number that
+        // no real percentage can reach -- one sentinel below the color
+        // ramp's first stop, and the whole "this month has no reading" case
+        // becomes two ordinary stops and one Arcade comparison.
         { name: "fill_pct", alias: "% Full", type: "double" },
         { name: "seasonal_percentile", alias: "History rank", type: "double" },
         { name: "days_stale", alias: "Days Since Last Reading", type: "double" },
@@ -328,6 +341,18 @@
       // map itself, in which case there is nothing to go back to.
       let popupOpener = null;
 
+      // The month the slider is on, or null for today. Read by the popup so
+      // a reader who clicks a grey dot in February is told what February
+      // was, instead of being handed today's numbers with no explanation of
+      // why the dot on the map does not match them.
+      let selectedMonth = null;
+
+      // The sentinel the renderers below branch on. Kept next to the helper
+      // that produces it so the two can never disagree.
+      const NO_DATA = -1;
+      const toPct = (value) =>
+        (value === null || value === undefined || isNaN(value)) ? NO_DATA : value;
+
       const popupTemplate = {
         title: "{name}",
         outFields: ["*"],
@@ -345,7 +370,10 @@
           const record = byName.get(event.graphic.attributes.name);
           if (!record) return "No data for this reservoir.";
           const div = document.createElement("div");
-          div.innerHTML = ReservoirViz.popupHTML(record, { width: 300 });
+          div.innerHTML = ReservoirViz.popupHTML(record, {
+            width: 300,
+            month: selectedMonth
+          });
           return div;
         }
       };
@@ -365,6 +393,24 @@
             "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
             " full for " + statewide.count + " reservoirs in this dashboard";
 
+          // The twelve months the slider offers, and one scalar field per
+          // month holding that month's percent full.
+          //
+          // Twelve fields rather than one field rewritten on every move of
+          // the slider: a client-side FeatureLayer can be edited through
+          // applyEdits, but that is an asynchronous round trip per frame
+          // during playback, and every reservoir's whole year is already in
+          // memory here. With the values precomputed, moving the slider is
+          // a single synchronous renderer assignment naming a different
+          // field -- nothing to await, nothing to fail halfway.
+          const months = ReservoirViz.monthKeys(reservoirs);
+          const monthFields = months.map((month, i) => ({
+            name: "pct_m" + i,
+            alias: "Percent full in " + ReservoirViz.fmtMonth(month),
+            type: "double"
+          }));
+          const layerFields = fields.concat(monthFields);
+
           // Each layer gets its OWN Graphic instances. A Graphic carries a
           // single `layer` reference, so handing the same instances to more
           // than one FeatureLayer source is asking for whichever layer
@@ -377,8 +423,11 @@
               attributes[key] = r[key] === undefined ? null : r[key];
             });
             attributes.size_basis_af = r.capacity_af || r.record_max_af;
-            attributes.fill_pct = ReservoirViz.headlinePct(r);
+            attributes.fill_pct = toPct(ReservoirViz.headlinePct(r));
             attributes.is_late = r.is_stale ? 1 : 0;
+            months.forEach((month, i) => {
+              attributes["pct_m" + i] = toPct(ReservoirViz.monthPct(r, month));
+            });
             return new Graphic({
               geometry: { type: "point", longitude: r.lon, latitude: r.lat },
               attributes: attributes
@@ -431,6 +480,131 @@
             ringMinSize + " + (Sqrt($feature.size_basis_af) / " + maxSqrtDomain +
             ") * (" + ringMaxSize + " - " + ringMinSize + ")";
 
+          /* Class breaks as a UniqueValueRenderer, not as a color visual
+           * variable.
+           *
+           * The color visual variable was the wrong tool and had been
+           * quietly failing for longer than the month slider has existed. A
+           * MapView supports at most 8 visual-variable stops; the paired
+           * (x, next-x-minus-epsilon) trick this used to play to fake hard
+           * class edges needs two stops per class, so five classes were
+           * already 10 stops and the SDK was logging
+           *
+           *   Found 10 Visual Variable stops, but MapView only supports 8.
+           *   Displayed stops will be simplified.
+           *
+           * on every load -- once per layer. "Simplified" means the SDK
+           * dropped stops and interpolated across the gaps, so the map was
+           * drawing an approximation of the class table while the legend,
+           * the chart bars and the overview all drew the table itself. That
+           * is exactly the drift the shared table exists to prevent, and it
+           * was invisible because a slightly-wrong red still looks like a
+           * red. (Recorded in MODERNIZATION_PLAN.md as a Phase 3 item;
+           * adding the no-data pair here would have made it 12 stops, so it
+           * is fixed here instead of deferred again.)
+           *
+           * A unique-value renderer has no stop limit, gives genuinely hard
+           * edges rather than a fake ramp, and turns the no-data case into
+           * one more key instead of two sentinel stops below the ramp.
+           */
+          const fillSymbol = (color) => ({
+            type: "simple-marker",
+            style: "circle",
+            color: color,
+            outline: { color: [0, 0, 0, 0.4], width: 0.75 }
+          });
+
+          // Every class in the shared table, plus one key for "no reading".
+          // Generated, never typed, so the map cannot disagree with the
+          // legend about either a boundary or a color.
+          const NO_DATA_KEY = "none";
+          const classInfos = ReservoirViz.CLASSES.map((cls, i) => ({
+            value: "c" + i,
+            label: cls.label,
+            symbol: fillSymbol(cls.color)
+          })).concat([{
+            value: NO_DATA_KEY,
+            label: "No data",
+            symbol: fillSymbol(ReservoirViz.STALE_COLOR)
+          }]);
+
+          /* Arcade that returns one of those keys.
+           *
+           * Walks the table from the top class down and returns on the
+           * first threshold the value reaches, which is `pct >= min` with
+           * the classes ascending -- the same rule colorFor() applies, so
+           * 24.99 is still "Under 25%" and 25 is still "25-50%". The last
+           * class is deliberately open-ended: a reservoir can hold more
+           * than its listed capacity, and 104% is "Over 90%", not
+           * off-the-end-of-the-ramp.
+           */
+          const classKeyArcade = (field) => {
+            const lines = [
+              "var pct = $feature." + field + ";",
+              "if (pct < 0) { return '" + NO_DATA_KEY + "'; }"
+            ];
+            for (let i = ReservoirViz.CLASSES.length - 1; i > 0; i--) {
+              lines.push("if (pct >= " + ReservoirViz.CLASSES[i].min +
+                ") { return 'c" + i + "'; }");
+            }
+            lines.push("return 'c0';");
+            return lines.join("\n");
+          };
+
+          // A reservoir with no reading for the selected month is drawn as
+          // a small grey dot rather than as an empty one. Zero and unknown
+          // look identical once a circle shrinks to nothing, and on a
+          // drought map "empty" is the most consequential thing a dot can
+          // say -- so the no-data marker is deliberately smaller than the
+          // smallest ring (8) and a color that is in no class.
+          const NO_DATA_SIZE = 6;
+
+          /* The storage fill, as a function of which field holds the
+           * percentage: `fill_pct` for today, `pct_m<n>` for a month. This
+           * is the whole month-slider mechanism on this page -- assigning
+           * currentLayer.renderer to a new one of these redraws all 53
+           * reservoirs at once, and the ring layer above is untouched, so
+           * the gap between ring and fill keeps meaning the same thing at
+           * every position of the slider. */
+          const fillRenderer = (field) => ({
+            type: "unique-value",
+            valueExpression: classKeyArcade(field),
+            valueExpressionTitle: "Percent of the full level",
+            uniqueValueInfos: classInfos,
+            // Unreachable -- the Arcade above returns a key for every
+            // possible number -- but a visible grey beats an invisible
+            // reservoir if that ever stops being true.
+            defaultSymbol: fillSymbol(ReservoirViz.STALE_COLOR),
+            // The size variable is unaffected by the stop limit that ruled
+            // out a color one: it is a minDataValue/maxDataValue mapping,
+            // which has no stops at all.
+            visualVariables: [
+              {
+                type: "size",
+                // Computes the reservoir's own ring radius (identical
+                // formula to the outline layer's visualVariable above,
+                // with the same constants) and scales it down by
+                // Sqrt(pct/100) -- see the comment above ringMinSize for
+                // why this replaces independently sizing the fill off
+                // its own absolute current_storage_af. minDataValue/
+                // maxDataValue/minSize/maxSize below form an identity
+                // mapping (0->0, ringMaxSize->ringMaxSize) so this
+                // expression's output passes through unchanged -- all
+                // the real scaling happens inside the expression itself.
+                valueExpression:
+                  "var pct = $feature." + field + ";\n" +
+                  "if (pct < 0) { return " + NO_DATA_SIZE + "; }\n" +
+                  "var ringRadius = " + ringRadiusArcade + ";\n" +
+                  "return ringRadius * Sqrt(pct / 100);",
+                valueExpressionTitle: "Storage, as a share of this reservoir's own ring",
+                minDataValue: 0,
+                maxDataValue: ringMaxSize,
+                minSize: 0,
+                maxSize: ringMaxSize
+              }
+            ]
+          });
+
           // --- Outline layer: period-of-record max, drawn first (bottom) ---
           //
           // No popupTemplate here on purpose: this layer's circle always
@@ -441,7 +615,7 @@
           const maxLayer = new FeatureLayer({
             title: "Highest recorded storage",
             source: makeGraphics(reservoirs),
-            fields: fields,
+            fields: layerFields,
             objectIdField: "ObjectID",
             geometryType: "point",
             spatialReference: { wkid: 4326 },
@@ -478,7 +652,7 @@
           const staleLayer = new FeatureLayer({
             title: "Late data",
             source: makeGraphics(staleRecords),
-            fields: fields,
+            fields: layerFields,
             objectIdField: "ObjectID",
             geometryType: "point",
             spatialReference: { wkid: 4326 },
@@ -502,7 +676,11 @@
             }
           });
 
-          // --- Filled layer: current storage, drawn last (on top) ---
+          // --- Filled layer: storage, drawn last (on top) ---
+          //
+          // The only layer the month slider touches. It starts on
+          // `fill_pct`, which is today, so the page opens exactly as it did
+          // before the slider existed.
           //
           // These graphics are kept in a variable rather than built inline
           // like the two layers above, because a deep link has to open a
@@ -520,62 +698,14 @@
             currentGraphics.map((g) => [g.attributes.name, g]));
 
           currentLayer = new FeatureLayer({
-            title: "Current storage",
+            title: "Storage",
             source: currentGraphics,
-            fields: fields,
+            fields: layerFields,
             objectIdField: "ObjectID",
             geometryType: "point",
             spatialReference: { wkid: 4326 },
             popupTemplate: popupTemplate,
-            renderer: {
-              type: "simple",
-              symbol: {
-                type: "simple-marker",
-                style: "circle",
-                outline: { color: [0, 0, 0, 0.4], width: 0.75 }
-              },
-              visualVariables: [
-                {
-                  type: "size",
-                  // Computes the reservoir's own ring radius (identical
-                  // formula to the outline layer's visualVariable above,
-                  // with the same constants) and scales it down by
-                  // Sqrt(pct/100) -- see the comment above ringMinSize for
-                  // why this replaces independently sizing the fill off
-                  // its own absolute current_storage_af. minDataValue/
-                  // maxDataValue/minSize/maxSize below form an identity
-                  // mapping (0->0, ringMaxSize->ringMaxSize) so this
-                  // expression's output passes through unchanged -- all
-                  // the real scaling happens inside the expression itself.
-                  valueExpression:
-                    "var ringRadius = " + ringRadiusArcade + ";\n" +
-                    "return ringRadius * Sqrt($feature.fill_pct / 100);",
-                  valueExpressionTitle: "Current storage, as a share of this reservoir's own ring",
-                  minDataValue: 0,
-                  maxDataValue: ringMaxSize,
-                  minSize: 0,
-                  maxSize: ringMaxSize
-                },
-                {
-                  type: "color",
-                  valueExpression: "$feature.fill_pct",
-                  valueExpressionTitle: "% of capacity",
-                  // Paired stops (x, next-x-minus-epsilon) turn the SDK's
-                  // continuous interpolation into hard classes. Generated
-                  // from the shared class table so the map, the legend and
-                  // the chart bars can never disagree about where a
-                  // boundary is -- they used to be three hand-written
-                  // copies of the same thresholds.
-                  stops: ReservoirViz.CLASSES.reduce((acc, cls, i, all) => {
-                    const upper = i === all.length - 1 ? 100 : all[i + 1].min - 0.01;
-                    const rgb = hexToRgb(cls.color);
-                    acc.push({ value: cls.min, color: rgb });
-                    acc.push({ value: upper, color: rgb });
-                    return acc;
-                  }, [])
-                }
-              ]
-            }
+            renderer: fillRenderer("fill_pct")
           });
 
           map.addMany([maxLayer, staleLayer, currentLayer]);
@@ -621,25 +751,40 @@
           // hand-kept copies of the same thresholds is how they drift.
           // Reservoirs with no reading have a null fill_pct and fail every
           // comparison, which is the behavior the shared predicate has too.
+          //
+          // The field is whichever one the map is currently painted from,
+          // not always `fill_pct`. A class filter is a claim about the
+          // percentages on screen, so with the slider on February it has to
+          // read February's field -- otherwise "under 25%" dims by today's
+          // numbers while the colors show a different month, and the two
+          // disagree with no way for a reader to tell which is which.
+          let fillField = "fill_pct";
+          let filterState = ReservoirViz.defaultFilterState();
+
           const whereFor = (state) => {
             const clauses = [];
             if (state.lateOnly) clauses.push("is_late = 1");
             if (state.classIndex !== null && state.classIndex !== undefined) {
               const range = ReservoirViz.classRange(state.classIndex);
-              clauses.push("fill_pct >= " + range.min);
-              if (range.max !== Infinity) clauses.push("fill_pct < " + range.max);
+              clauses.push(fillField + " >= " + range.min);
+              if (range.max !== Infinity) clauses.push(fillField + " < " + range.max);
             }
             return clauses.join(" AND ");
           };
 
+          const applyFilter = () => {
+            const where = whereFor(filterState);
+            effectLayers.forEach((layer) => {
+              layer.featureEffect = where
+                ? { filter: { where: where }, excludedEffect: dimEffect }
+                : null;
+            });
+          };
+
           ReservoirViz.attachFilterControls(
             document.getElementById("filterControls"), reservoirs, (state) => {
-              const where = whereFor(state);
-              effectLayers.forEach((layer) => {
-                layer.featureEffect = where
-                  ? { filter: { where: where }, excludedEffect: dimEffect }
-                  : null;
-              });
+              filterState = state;
+              applyFilter();
             });
 
           // --- Hover ---
@@ -737,6 +882,40 @@
           // Leaving the map entirely never produces a "no hit" pointer-move,
           // so without this the card stays pinned wherever it was last drawn.
           view.on("pointer-leave", clearHover);
+          // --- Month slider ---
+          //
+          // Built from the shared factory, so this page and the MapLibre
+          // page offer the same control with the same words; only the two
+          // lines inside onChange are engine-specific.
+          const slider = ReservoirViz.createMonthSlider({
+            months: months,
+            missingCount: (month) => ReservoirViz.monthMissingCount(reservoirs, month),
+            onChange: (month, index) => {
+              selectedMonth = month;
+              fillField = month === null ? "fill_pct" : "pct_m" + index;
+              currentLayer.renderer = fillRenderer(fillField);
+              // The dimming is expressed against the field that just
+              // changed, so it has to be rebuilt with it.
+              applyFilter();
+              // The dashed ring means "this reservoir's newest reading is
+              // old", which is a fact about today and says nothing about
+              // last February. Left on, it would read as a claim about the
+              // month on screen.
+              staleLayer.visible = month === null;
+              if (window.__dashboardReady) window.__dashboardReady.month = month;
+            }
+          });
+          const titleDiv = document.getElementById("titleDiv");
+          titleDiv.insertBefore(slider.element, titleDiv.querySelector(".map-links"));
+
+          // The title card is now taller, and on a phone it is what the
+          // view's top padding is holding room for. Measured rather than
+          // written down, because the number that used to be here (150) was
+          // already a guess about a card whose height depends on how many
+          // reservoirs have late data.
+          view.padding = window.innerWidth <= 640
+            ? { top: titleDiv.offsetHeight + 16, right: 8, bottom: 8, left: 8 }
+            : { top: 24, right: 24, bottom: 24, left: 24 };
           // Readiness signal for the CI browser smoke test (tests/smoke.mjs).
           // Deliberately tiny and inert: the alternative is a smoke test that
           // can only assert "no exception was thrown", which is not the same
@@ -876,7 +1055,14 @@
               // page at rest, so the smoke test needs a way to see that they
               // were wired up at all.
               hover: true,
-              filters: !!document.getElementById("classFilter")            };
+              filters: !!document.getElementById("classFilter"),
+              // The month slider, for a test that wants to prove it moves:
+              // `months` is how many positions it offers besides today, and
+              // `month` is the one on screen -- null while the map shows the
+              // newest reading, which is how the page opens.
+              months: months.length,
+              month: slider.month()
+            };
           });
         })
         .catch((err) => {
@@ -893,10 +1079,10 @@
             "</span>";
         });
 
-      function hexToRgb(hex) {
-        const n = parseInt(hex.slice(1), 16);
-        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-      }
+      // hexToRgb() used to live here, converting the shared table's hex
+      // colors for a color visual variable's stops. The unique-value
+      // renderer that replaced those stops takes the hex strings straight
+      // from the table, so there is nothing left to convert.
 
       // --- Selecting a reservoir without a mouse ---------------------------
       //
@@ -975,8 +1161,19 @@
       // reactiveUtils rather than the Accessor's own `watch`: the latter is
       // deprecated in 4.x and gone in 5.0, and this page is the one that
       // tracks the SDK version.
+      //
+      // `popupWasVisible` is not redundant. Opening a popup does not go
+      // straight from closed to open: the watcher fires a `false` first,
+      // between the button being pressed and the SDK putting the popup up.
+      // Without this guard that first `false` was read as a close, consumed
+      // the stored opener, and left the real close -- the reader's Escape --
+      // with nothing to give focus back to, so it fell through to the body.
+      // Measured: false, then true, then false, for one Enter and one Escape.
+      let popupWasVisible = false;
       reactiveUtils.watch(() => view.popup && view.popup.visible, (visible) => {
-        if (visible) { focusPopup(0); return; }
+        if (visible) { popupWasVisible = true; focusPopup(0); return; }
+        if (!popupWasVisible) return;
+        popupWasVisible = false;
         const trigger = popupOpener;
         popupOpener = null;
         // Only if the trigger is still on the page: re-rendering the list
