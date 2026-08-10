@@ -35,6 +35,7 @@
     "unit_count": 15,
     "assigned": 53,
     "unassigned": 0,
+    "assigned_by_dam": 28,
     "in_utah": 50
   },
   "reservoirs": [
@@ -190,10 +191,10 @@
       "huc6": "140700",
       "huc6_name": "Upper Colorado-Dirty Devil",
       "huc_assignment_point": [
-        -111.30332,
-        37.05778
+        -111.48421,
+        36.93791
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Flaming Gorge",
@@ -347,10 +348,10 @@
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
-        -109.57304,
-        40.97789
+        -109.42191,
+        40.91491
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Bear Lake",
@@ -661,10 +662,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -111.1311,
-        40.16882
+        -111.02621,
+        40.13691
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Utah Lake",
@@ -975,10 +976,10 @@
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
-        -111.41655,
-        40.60689
+        -111.42461,
+        40.59781
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Yuba",
@@ -1289,10 +1290,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -112.08339,
-        41.37738
+        -112.07781,
+        41.35571
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Starvation",
@@ -1446,10 +1447,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -110.44722,
-        40.19324
+        -110.44351,
+        40.19101
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Deer Creek",
@@ -1603,10 +1604,10 @@
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
-        -111.50035,
-        40.43511
+        -111.52781,
+        40.40721
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Pineview",
@@ -1760,10 +1761,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.80998,
-        41.26543
+        -111.84221,
+        41.25461
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Echo",
@@ -1917,10 +1918,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.4179,
-        40.9574
+        -111.43101,
+        40.96551
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Scofield",
@@ -2074,10 +2075,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -111.05074,
-        39.77656
+        -111.11991,
+        39.78681
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Piute",
@@ -2388,10 +2389,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.39859,
-        40.77498
+        -111.40531,
+        40.78841
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Joes Valley",
@@ -2545,10 +2546,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -111.27888,
-        39.2901
+        -111.27074,
+        39.29018
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Woodruff Narrows",
@@ -3016,10 +3017,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.59293,
-        40.91017
+        -111.60091,
+        40.92041
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Sand Hollow",
@@ -3330,10 +3331,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -110.50665,
-        40.57445
+        -110.48831,
+        40.56181
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Quail Creek",
@@ -3644,10 +3645,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -109.53275,
-        40.51456
+        -109.53091,
+        40.50691
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Upper Stillwater",
@@ -3801,10 +3802,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -110.70044,
-        40.56565
+        -110.69991,
+        40.55991
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Meeks Cabin",
@@ -3958,10 +3959,10 @@
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
-        -110.58344,
-        41.01664
+        -110.57921,
+        41.02581
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Red Fleet",
@@ -4115,10 +4116,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -109.42853,
-        40.57832
+        -109.42221,
+        40.57481
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Big Sand Wash",
@@ -4586,10 +4587,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.39628,
-        41.18887
+        -111.39901,
+        41.18421
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Panguitch",
@@ -5057,10 +5058,10 @@
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
-        -111.86099,
-        41.62117
+        -111.87321,
+        41.62401
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Millsite",
@@ -5371,10 +5372,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -111.05821,
-        40.33841
+        -111.05211,
+        40.33281
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Stateline",
@@ -5528,10 +5529,10 @@
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
-        -110.39038,
-        40.98291
+        -110.38571,
+        40.98851
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Porcupine",
@@ -6313,10 +6314,10 @@
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
-        -111.58591,
-        41.29828
+        -111.58721,
+        41.29831
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Newton",
@@ -6470,10 +6471,10 @@
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
-        -111.97562,
-        41.8998
+        -111.97371,
+        41.89591
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Huntington North",
@@ -6627,10 +6628,10 @@
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
-        -111.09082,
-        39.38458
+        -110.9424,
+        39.34519
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Cleveland",
@@ -7569,10 +7570,10 @@
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
-        -110.964,
-        40.6765
+        -110.96361,
+        40.67651
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Lower Enterprise",
@@ -8040,10 +8041,10 @@
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
-        -110.95684,
-        40.6799
+        -110.95701,
+        40.67991
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Lost Lake",
@@ -8197,10 +8198,10 @@
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
-        -110.9413,
-        40.6741
+        -110.94151,
+        40.67411
       ],
-      "huc_assignment_source": "published_point"
+      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Settlement Canyon",

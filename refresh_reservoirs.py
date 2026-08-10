@@ -534,6 +534,24 @@ def carry_forward(previous: dict, today: pd.Timestamp, reason: str) -> dict:
     return record
 
 
+def dam_points() -> dict[str, tuple[float, float]]:
+    """Dam coordinates by reservoir name, from capacities.json.
+
+    Written by tools/add_dam_points.py, queried from the National Inventory
+    of Dams by the NID id the capacity already came from. These are the
+    points the watershed assignment should use: a drainage area is where
+    the stored water leaves, and for a reservoir that spans a divide the
+    middle of the lake is not that place.
+    """
+    points = {}
+    for name, entry in load_capacities().items():
+        lon, lat = entry.get("dam_lon"), entry.get("dam_lat")
+        if lon is not None and lat is not None:
+            points[name] = (lon, lat)
+    return points
+
+
+
 def attach_watersheds(records: list[dict]) -> dict:
     """Add watershed membership to every record and summarize the result.
 
@@ -553,19 +571,32 @@ def attach_watersheds(records: list[dict]) -> dict:
               "publishing without HUC fields")
         return {"unit_count": 0, "assigned": 0, "unassigned": len(records)}
 
+    dams = dam_points()
     unassigned = []
     for record in records:
         lat, lon = record.get("lat"), record.get("lon")
         if lat is None or lon is None:
             unassigned.append(record.get("name"))
             continue
-        record.update(huc.describe(lat, lon, units))
+        # The dam point where we have one, the published lake point where
+        # we do not, and the record says which it used. Measured across
+        # all 53 reservoirs, switching to dam points moves no assignment
+        # -- so this is a provenance improvement, not a correction, and a
+        # reader can tell the two apart without having to know that.
+        dam = dams.get(record["name"])
+        record.update(huc.describe(
+            lat, lon, units,
+            assignment_point=dam,
+            source="nid_dam_point" if dam else "published_point"))
         if record["huc6"] is None:
             unassigned.append(record["name"])
 
     in_utah = sum(1 for r in records if r.get("in_utah"))
+    by_dam = sum(1 for r in records
+                 if r.get("huc_assignment_source") == "nid_dam_point")
     print(f"\nWatersheds: {len(records) - len(unassigned)}/{len(records)} reservoirs "
-          f"assigned across {len(units)} drainage areas; {in_utah} in Utah")
+          f"assigned across {len(units)} drainage areas; {in_utah} in Utah; "
+          f"{by_dam} assigned by their dam")
     if unassigned:
         # Not a failure. A reservoir outside every unit that touches Utah is
         # a real possibility as the inventory grows east, and the honest
@@ -575,6 +606,7 @@ def attach_watersheds(records: list[dict]) -> dict:
         "unit_count": len(units),
         "assigned": len(records) - len(unassigned),
         "unassigned": len(unassigned),
+        "assigned_by_dam": by_dam,
     }
 
 

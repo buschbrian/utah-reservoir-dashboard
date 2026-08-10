@@ -352,11 +352,61 @@ tracked reservoirs; the four empty ones are where the connected out-of-state
 reservoirs would land. The browser test asserts the filter actually filters --
 a section that renders but filters nothing looks correct in a screenshot.
 
-**Still to do in this phase:** upgrade the 28 RISE reservoirs to real dam
-points (measured as moving no assignment, so it is a provenance improvement),
-and audit the connected out-of-state reservoirs. Colorado Headwaters,
-White-Yampa and Lower San Juan currently have zero tracked reservoirs — which
-is where Blue Mesa, Morrow Point and Navajo would land.
+### Dam points, and the connected-reservoir audit — 2026-08-10
+
+**Dam points are in.** `tools/add_dam_points.py` queries the National
+Inventory of Dams *by the NID id the capacity already came from*, so there is
+no name matching and none of its risk, and writes `dam_lon`/`dam_lat` into
+`capacities.json`. The refresh uses the dam point where it has one and the
+published lake point where it does not, recording which in
+`huc_assignment_source`. 28 of 53 are now assigned by their dam and — as
+measured beforehand — **no reservoir changed drainage area**. Lake Powell now
+assigns from Glen Canyon Dam in Arizona while still reading `in_utah: true`,
+which is exactly the case the two-points rule was written for.
+
+**The audit found a scoping conflict, not a shopping list.**
+`tools/audit_connected_reservoirs.py` checks each candidate against the four
+admission criteria:
+
+| Candidate | Storage series | Capacity | Drainage area | Admissible |
+|---|---|---|---|---|
+| Blue Mesa | RISE item | 748,430 af | 140200 Gunnison (CO) | **no** |
+| Morrow Point | RISE 592 | 117,190 af | 140200 Gunnison (CO) | **no** |
+| Crystal | RISE 274 | 25,236 af | 140200 Gunnison (CO) | **no** |
+| Navajo | RISE 613 | 1,708,600 af | 140801 Upper San Juan (AZ,CO,NM) | **no** |
+| **Fontenelle** | RISE 347 | 334,411 af | **140401 Upper Green (CO,UT,WY)** | **yes** |
+
+Every one of them has an observed storage series and a traceable capacity.
+Four are rejected on **geography alone**: their drainage areas do not touch
+Utah. The candidate list comes from Reclamation's *Upper Colorado operating
+region*, while this dashboard's rule is *drainage areas that intersect Utah*,
+and those are different sets. Blue Mesa's water reaches Lake Powell, but the
+Gunnison basin never enters the state.
+
+So there is a decision here, and it is not "add these five":
+
+- **Keep the intersect-Utah rule.** Only Fontenelle is admissible, and it
+  joins Upper Green, which already has three reservoirs.
+- **Widen the rule to "upstream of Utah".** That admits all five and a good
+  deal more, changes every statewide total, and needs a different sentence in
+  the methods text than the one there now.
+
+**None of the five fills an empty area.** Colorado Headwaters, White-Yampa,
+Lower San Juan and Upper Snake stay empty either way, for a different reason
+in each case — which is the next thing to look at rather than assuming the
+Reclamation list covers it.
+
+**Two API traps found on the way, both the same shape.** RISE answered 200 and
+*ignored the filter* for `?itemTitle=`, returning California reservoirs, so
+the first pass of the audit reported "no storage series" for all five;
+`tools/probe_rise.py` already records the identical trap for `locationId`. And
+NID's `STATE` column holds `Colorado`, not `CO`, which
+`build_capacity_table.py` already guards against and this tool did not.
+**Treat any filter on these services as unsupported until its output proves
+otherwise.**
+
+**Still to do in this phase:** decide the geography rule above, and work out
+why each of the four empty drainage areas is empty.
 
 ### Watershed assignment measured — 2026-08-09
 

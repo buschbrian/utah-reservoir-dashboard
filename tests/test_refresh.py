@@ -373,11 +373,17 @@ def test_every_record_gets_a_watershed_and_the_summary_agrees():
     records = [{"name": "Deer Creek", "lat": 40.43511, "lon": -111.50035},
                {"name": "Bear Lake", "lat": 42.11667, "lon": -111.30000}]
     summary = R.attach_watersheds(records)
-    assert summary == {"unit_count": 15, "assigned": 2, "unassigned": 0}
+    # Deer Creek has a dam in the National Inventory of Dams and Bear Lake
+    # does not, so exactly one of the two is assigned by its dam -- and each
+    # record says which kind of point produced it.
+    assert summary == {"unit_count": 15, "assigned": 2, "unassigned": 0,
+                       "assigned_by_dam": 1}
     assert records[0]["huc6"] == "160202" and records[0]["in_utah"] is True
+    assert records[0]["huc_assignment_source"] == "nid_dam_point"
     # Bear Lake's gage is on the Idaho side, and the dashboard should say so
     # rather than rounding it into the state to keep a tidy count.
     assert records[1]["huc6"] == "160102" and records[1]["in_utah"] is False
+    assert records[1]["huc_assignment_source"] == "published_point"
 
 
 def test_a_carried_forward_record_still_gets_its_watershed():

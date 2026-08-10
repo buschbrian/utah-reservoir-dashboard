@@ -13,7 +13,9 @@
       "max_storage_af": 161070.0,
       "nid_storage_af": 161070.0,
       "nid_id": "UT10117",
-      "nid_dam_name": "Deer Creek Dam"
+      "nid_dam_name": "Deer Creek Dam",
+      "dam_lon": -111.52781,
+      "dam_lat": 40.40721
     },
     "Jordanelle": {
       "capacity_af": 363354.0,
@@ -22,7 +24,9 @@
       "max_storage_af": 363354.0,
       "nid_storage_af": 363000.0,
       "nid_id": "UT10204",
-      "nid_dam_name": "Jordanelle Dam"
+      "nid_dam_name": "Jordanelle Dam",
+      "dam_lon": -111.42461,
+      "dam_lat": 40.59781
     },
     "Strawberry": {
       "capacity_af": 1105910.0,
@@ -31,7 +35,9 @@
       "max_storage_af": 1106500.0,
       "nid_storage_af": 1127610.0,
       "nid_id": "UT10135",
-      "nid_dam_name": "Soldier Creek Dam"
+      "nid_dam_name": "Soldier Creek Dam",
+      "dam_lon": -111.02621,
+      "dam_lat": 40.13691
     },
     "Rockport": {
       "capacity_af": 62120.0,
@@ -40,7 +46,9 @@
       "max_storage_af": 75730.0,
       "nid_storage_af": 75730.0,
       "nid_id": "UT10131",
-      "nid_dam_name": "Wanship Dam"
+      "nid_dam_name": "Wanship Dam",
+      "dam_lon": -111.40531,
+      "dam_lat": 40.78841
     },
     "Echo": {
       "capacity_af": 73940.0,
@@ -49,7 +57,9 @@
       "max_storage_af": 73940.0,
       "nid_storage_af": 73940.0,
       "nid_id": "UT10120",
-      "nid_dam_name": "Echo Dam"
+      "nid_dam_name": "Echo Dam",
+      "dam_lon": -111.43101,
+      "dam_lat": 40.96551
     },
     "East Canyon": {
       "capacity_af": 51200.0,
@@ -58,7 +68,9 @@
       "max_storage_af": 58350.0,
       "nid_storage_af": 58350.0,
       "nid_id": "UT10119",
-      "nid_dam_name": "East Canyon Dam"
+      "nid_dam_name": "East Canyon Dam",
+      "dam_lon": -111.60091,
+      "dam_lat": 40.92041
     },
     "Pineview": {
       "capacity_af": 110150.0,
@@ -67,7 +79,9 @@
       "max_storage_af": 116000.0,
       "nid_storage_af": 116150.0,
       "nid_id": "UT10132",
-      "nid_dam_name": "Pineview Dam"
+      "nid_dam_name": "Pineview Dam",
+      "dam_lon": -111.84221,
+      "dam_lat": 41.25461
     },
     "Willard Bay": {
       "capacity_af": 215500.0,
@@ -76,7 +90,9 @@
       "max_storage_af": 223000.0,
       "nid_storage_af": 223100.0,
       "nid_id": "UT10112",
-      "nid_dam_name": "Arthur V. Watkins Dam"
+      "nid_dam_name": "Arthur V. Watkins Dam",
+      "dam_lon": -112.07781,
+      "dam_lat": 41.35571
     },
     "Scofield": {
       "capacity_af": 73600.0,
@@ -85,7 +101,9 @@
       "max_storage_af": 73600.0,
       "nid_storage_af": 87900.0,
       "nid_id": "UT10133",
-      "nid_dam_name": "Scofield Dam"
+      "nid_dam_name": "Scofield Dam",
+      "dam_lon": -111.11991,
+      "dam_lat": 39.78681
     },
     "Starvation": {
       "capacity_af": 165320.0,
@@ -94,7 +112,9 @@
       "max_storage_af": 186990.0,
       "nid_storage_af": 186990.0,
       "nid_id": "UT10136",
-      "nid_dam_name": "Starvation Dam"
+      "nid_dam_name": "Starvation Dam",
+      "dam_lon": -110.44351,
+      "dam_lat": 40.19101
     },
     "Flaming Gorge": {
       "capacity_af": 3788900.0,
@@ -103,7 +123,9 @@
       "max_storage_af": 4005200.0,
       "nid_storage_af": 4003100.0,
       "nid_id": "UT10121",
-      "nid_dam_name": "Flaming Gorge Dam"
+      "nid_dam_name": "Flaming Gorge Dam",
+      "dam_lon": -109.42191,
+      "dam_lat": 40.91491
     },
     "Lake Powell": {
       "capacity_af": 25025826.0,
@@ -112,7 +134,9 @@
       "max_storage_af": 25025826.0,
       "nid_storage_af": 29875000.0,
       "nid_id": "AZ10307",
-      "nid_dam_name": "Glen Canyon Dam"
+      "nid_dam_name": "Glen Canyon Dam",
+      "dam_lon": -111.48421,
+      "dam_lat": 36.93791
     },
     "Causey": {
       "capacity_af": 7870.0,
@@ -121,7 +145,9 @@
       "max_storage_af": 8730.0,
       "nid_storage_af": 8730.0,
       "nid_id": "UT10116",
-      "nid_dam_name": "Causey Dam"
+      "nid_dam_name": "Causey Dam",
+      "dam_lon": -111.58721,
+      "dam_lat": 41.29831
     },
     "Currant Creek": {
       "capacity_af": 15671.0,
@@ -130,7 +156,9 @@
       "max_storage_af": 15671.0,
       "nid_storage_af": 17210.0,
       "nid_id": "UT10149",
-      "nid_dam_name": "Currant Creek Dam"
+      "nid_dam_name": "Currant Creek Dam",
+      "dam_lon": -111.05211,
+      "dam_lat": 40.33281
     },
     "Huntington North": {
       "capacity_af": 5420.0,
@@ -139,7 +167,9 @@
       "max_storage_af": 5690.0,
       "nid_storage_af": null,
       "nid_id": "UT10122",
-      "nid_dam_name": "Huntington North"
+      "nid_dam_name": "Huntington North",
+      "dam_lon": -110.9424,
+      "dam_lat": 39.34519
     },
     "Hyrum": {
       "capacity_af": 18685.0,
@@ -148,7 +178,9 @@
       "max_storage_af": 18685.0,
       "nid_storage_af": 18685.0,
       "nid_id": "UT10123",
-      "nid_dam_name": "Hyrum Dam"
+      "nid_dam_name": "Hyrum Dam",
+      "dam_lon": -111.87321,
+      "dam_lat": 41.62401
     },
     "Joes Valley": {
       "capacity_af": 61538.0,
@@ -157,7 +189,9 @@
       "max_storage_af": 74237.0,
       "nid_storage_af": null,
       "nid_id": "UT10124",
-      "nid_dam_name": "Joes Valley"
+      "nid_dam_name": "Joes Valley",
+      "dam_lon": -111.27074,
+      "dam_lat": 39.29018
     },
     "Lost Creek": {
       "capacity_af": 22510.0,
@@ -166,7 +200,9 @@
       "max_storage_af": 26760.0,
       "nid_storage_af": 26760.0,
       "nid_id": "UT10125",
-      "nid_dam_name": "Lost Creek Dam"
+      "nid_dam_name": "Lost Creek Dam",
+      "dam_lon": -111.39901,
+      "dam_lat": 41.18421
     },
     "Meeks Cabin": {
       "capacity_af": 32470.0,
@@ -175,7 +211,9 @@
       "max_storage_af": 38720.0,
       "nid_storage_af": 38720.0,
       "nid_id": "WY01390",
-      "nid_dam_name": "Meeks Cabin Dam"
+      "nid_dam_name": "Meeks Cabin Dam",
+      "dam_lon": -110.57921,
+      "dam_lat": 41.02581
     },
     "Moon Lake": {
       "capacity_af": 49500.0,
@@ -184,7 +222,9 @@
       "max_storage_af": 49500.0,
       "nid_storage_af": 49500.0,
       "nid_id": "UT10128",
-      "nid_dam_name": "Moon Lake Dam"
+      "nid_dam_name": "Moon Lake Dam",
+      "dam_lon": -110.48831,
+      "dam_lat": 40.56181
     },
     "Newton": {
       "capacity_af": 5594.0,
@@ -193,7 +233,9 @@
       "max_storage_af": 5594.0,
       "nid_storage_af": 5594.0,
       "nid_id": "UT10129",
-      "nid_dam_name": "Newton Dam"
+      "nid_dam_name": "Newton Dam",
+      "dam_lon": -111.97371,
+      "dam_lat": 41.89591
     },
     "Red Fleet": {
       "capacity_af": 26000.0,
@@ -202,7 +244,9 @@
       "max_storage_af": 26000.0,
       "nid_storage_af": 33600.0,
       "nid_id": "UT82901",
-      "nid_dam_name": "Red Fleet Dam"
+      "nid_dam_name": "Red Fleet Dam",
+      "dam_lon": -109.42221,
+      "dam_lat": 40.57481
     },
     "Stateline": {
       "capacity_af": 14020.0,
@@ -211,7 +255,9 @@
       "max_storage_af": 15932.0,
       "nid_storage_af": 15932.0,
       "nid_id": "UT10156",
-      "nid_dam_name": "Stateline Dam"
+      "nid_dam_name": "Stateline Dam",
+      "dam_lon": -110.38571,
+      "dam_lat": 40.98851
     },
     "Steinaker": {
       "capacity_af": 38173.0,
@@ -220,7 +266,9 @@
       "max_storage_af": 40358.0,
       "nid_storage_af": 40358.0,
       "nid_id": "UT10113",
-      "nid_dam_name": "Steinaker Dam"
+      "nid_dam_name": "Steinaker Dam",
+      "dam_lon": -109.53091,
+      "dam_lat": 40.50691
     },
     "Trial Lake": {
       "capacity_af": 1661.0,
@@ -229,7 +277,9 @@
       "max_storage_af": 1661.0,
       "nid_storage_af": 1661.0,
       "nid_id": "UT00301",
-      "nid_dam_name": "Trial Lake Dam"
+      "nid_dam_name": "Trial Lake Dam",
+      "dam_lon": -110.95701,
+      "dam_lat": 40.67991
     },
     "Upper Stillwater": {
       "capacity_af": 33123.0,
@@ -238,7 +288,9 @@
       "max_storage_af": 35253.0,
       "nid_storage_af": 35253.0,
       "nid_id": "UT00608",
-      "nid_dam_name": "Upper Stillwater Dam"
+      "nid_dam_name": "Upper Stillwater Dam",
+      "dam_lon": -110.69991,
+      "dam_lat": 40.55991
     },
     "Washington Lake": {
       "capacity_af": 2705.0,
@@ -247,7 +299,9 @@
       "max_storage_af": 2705.0,
       "nid_storage_af": 2705.0,
       "nid_id": "UT00315",
-      "nid_dam_name": "Washington Lake Dam"
+      "nid_dam_name": "Washington Lake Dam",
+      "dam_lon": -110.96361,
+      "dam_lat": 40.67651
     },
     "Lost Lake": {
       "capacity_af": 1155.0,
@@ -256,7 +310,14 @@
       "max_storage_af": 1350.0,
       "nid_storage_af": 1660.0,
       "nid_id": "UT00184",
-      "nid_dam_name": "Lost Lake Dam"
+      "nid_dam_name": "Lost Lake Dam",
+      "dam_lon": -110.94151,
+      "dam_lat": 40.67411
     }
+  },
+  "dam_points": {
+    "source": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0",
+    "note": "Dam coordinates, queried by NID id. Used as the watershed assignment point: the drainage area is where the stored water leaves, not where the middle of the lake is.",
+    "count": 28
   }
 }
