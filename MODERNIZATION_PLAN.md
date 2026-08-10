@@ -405,8 +405,98 @@ NID's `STATE` column holds `Colorado`, not `CO`, which
 **Treat any filter on these services as unsupported until its output proves
 otherwise.**
 
-**Still to do in this phase:** decide the geography rule above, and work out
-why each of the four empty drainage areas is empty.
+**Geography rule decided — 2026-08-10: keep intersect-Utah.** Recorded as
+[ADR-009](docs/decisions/ADR-009-geography-is-drainage-areas-that-touch-utah.md).
+Fontenelle is therefore admissible and is **not yet added**: it moves the
+statewide totals, so it is its own deliberate step. The four empty drainage
+areas stay empty, and why each is empty is still open.
+
+---
+
+## Phase 1.6 — Snowpack, drought context, and the Colorado/Wyoming inventory
+
+Scoped 2026-08-10. Three related additions, in the order they pay back.
+
+### What was measured before scoping this
+
+The important finding is that **the biggest piece needs no new data
+provider.** The AWDB REST API the pipeline already calls carries both the
+snowpack and the out-of-state reservoirs, on the same station triplets, with
+no key:
+
+| | Colorado | Wyoming | Utah |
+|---|---|---|---|
+| Reservoir storage stations (`RESC`, all BOR network) | **85** | **20** | 58 |
+| Snow water equivalent stations (`WTEQ`) | **199** | **150** | 159 |
+
+**A third silently-ignored filter, same shape as the other two.** `stateCds`
+does nothing: `?stateCds=CO`, `?stateCds=WY` and `?stateCds=UT` all return the
+identical national set (347 storage stations, 2,175 snow stations). The
+numbers above come from filtering the returned station triplets in the client.
+This is now three services — RISE `itemTitle`, NID `STATE`, AWDB `stateCds` —
+where an unsupported filter is answered with 200 and ignored rather than
+rejected. **Filter client-side, and assert the counts.**
+
+### 1.6a Snowpack (SNOTEL, via AWDB)
+
+Utah's reservoir year is decided by snowpack, and every reservoir trend on the
+dashboard is currently a shape with no cause.
+
+- `WTEQ` (snow water equivalent) and `SNWD` (snow depth), daily, from the same
+  AWDB endpoint and the same retry and staleness handling the reservoirs use.
+- Roll up **by drainage area**, not by state: the page already groups by
+  six-digit unit, so snowpack joins the existing structure with no new
+  geography. Assign each station by point-in-polygon, exactly as reservoirs are.
+- Compare against the **median for the same day-of-year in prior years** — the
+  same "normal" definition already used for storage, so the two read alike.
+- The honest caveat has to be visible: snow water equivalent in August is not
+  a meaningful number. Show the seasonal series, not a single current value,
+  and say what part of the year it describes.
+
+### 1.6b Drought context (U.S. Drought Monitor)
+
+An independent weekly read to set against storage. Where the two disagree is
+the interesting part: a full reservoir in a D3 basin is a story.
+
+- **Needs a spike first.** `usdmdataservices.unl.edu`'s HUC statistics
+  endpoint answered **200 with zero rows for every HUC level tried** (2, 4, 6,
+  8, in both region 14 and 16), and the comprehensive-statistics endpoint
+  answered 400 for the parameter shape tried. So the service is reachable and
+  its contract is **unverified**. Do not plan a phase on it until a spike
+  returns real rows; try the county and state endpoints too, and check whether
+  it wants a different date format or an `aoi` that is not a bare HUC code.
+- If it works, store the weekly D0–D4 area percentages per drainage area and
+  show them beside the storage bar. Percentages of *area*, not of severity —
+  the wording has to make that clear.
+- If it does not, the fallback is the published weekly shapefile or GeoJSON,
+  processed the same way the watershed boundaries are: fetched by a tool,
+  committed, and versioned.
+
+### 1.6c The Colorado and Wyoming inventory
+
+ADR-009 keeps the intersect-Utah rule, so this is not "add Colorado". It is:
+**which sites inside the fifteen units are we missing?**
+
+- Start from the 85 Colorado and 20 Wyoming AWDB storage stations, assign each
+  by point-in-polygon against the committed units, and keep the ones that land
+  inside. That is a mechanical, reproducible list rather than a hand-picked one.
+- Then apply the same four admission criteria as the Reclamation audit:
+  observed series, traceable capacity, stable identifier, usable outlet point.
+  Capacity is the likely bottleneck — NID covers the dams, but the match has to
+  survive the same "capacity below observed storage means the wrong dam" check.
+- **Fontenelle is already known-admissible** and is the natural first addition.
+- Expect the four empty areas to stay empty: Colorado Headwaters and
+  White-Yampa are in the units that touch Utah only at their edges, so a
+  station inside them is possible but not guaranteed. Report the count found
+  per area rather than assuming.
+- Every addition changes the statewide totals, so land them as one reviewable
+  change with the before-and-after numbers stated, not one at a time.
+
+**Not in scope:** state-agency APIs. Colorado's CDSS and Wyoming's SEO both
+publish reservoir data, but AWDB already covers 105 sites in those two states
+through an integration this project has, with identifiers it already handles.
+A second provider is only worth taking on if the AWDB pass leaves a gap that
+matters, and the pass has to come first.
 
 ### Watershed assignment measured — 2026-08-09
 
