@@ -32,7 +32,7 @@
     "source": "USGS Watershed Boundary Dataset, six-digit units",
     "boundaries": "huc6.geojson",
     "assignment_rule": "the dam or outlet point, not the middle of the water",
-    "unit_count": 15,
+    "unit_count": 14,
     "assigned": 54,
     "unassigned": 0,
     "assigned_by_dam": 29,

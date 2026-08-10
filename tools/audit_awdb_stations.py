@@ -1,7 +1,7 @@
 """Find reservoir stations inside our drainage areas that we do not track.
 
 ADR-009 fixes the geography: a site belongs here when it sits in one of the
-fifteen six-digit hydrologic units that touch Utah. That rule is mechanical,
+fourteen six-digit hydrologic units that touch Utah. That rule is mechanical,
 so the list of missing sites should be mechanical too, rather than hand-picked
 from somebody's operating region.
 

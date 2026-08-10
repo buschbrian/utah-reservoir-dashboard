@@ -43,7 +43,12 @@ import { resolve } from "node:path";
 
 const SERVICE = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3";
 const QUERY = new URLSearchParams({
-  where: "states LIKE '%UT%'",
+  // Touching Utah is necessary but not sufficient. Upper Snake (170402)
+  // touches the state's northern edge and drains to the Columbia, and
+  // its thirteen storage stations are Idaho reservoirs with no bearing
+  // on Utah's water supply. The dashboard covers the Colorado River and
+  // Great Basin systems -- regions 14, 15 and 16. See ADR-010.
+  where: "states LIKE '%UT%' AND huc6 NOT LIKE '17%'",
   outFields: "huc6,name,states",
   returnGeometry: "true",
   outSR: "4326",
@@ -54,7 +59,7 @@ const QUERY = new URLSearchParams({
   f: "geojson"
 });
 const OUT = resolve(process.cwd(), "huc6.geojson");
-const EXPECTED_UNITS = 15;
+const EXPECTED_UNITS = 14;
 const dryRun = process.argv.includes("--dry-run");
 
 const response = await fetch(`${SERVICE}/query?${QUERY}`);
@@ -75,7 +80,7 @@ const features = (collection.features ?? []).filter((feature) =>
   feature?.geometry && feature.properties?.huc6);
 if (features.length !== EXPECTED_UNITS) {
   console.error(
-    `Expected ${EXPECTED_UNITS} units that touch Utah, received ${features.length}. ` +
+    `Expected ${EXPECTED_UNITS} units in scope, received ${features.length}. ` +
     "The service's `states` field or its layer numbering has changed; check " +
     "before committing a different set of boundaries."
   );

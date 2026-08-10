@@ -29,6 +29,11 @@ and is not listed here.
   unit, with the reservoir count and combined full level beside each one.
   Selecting an area filters the ranking, table and cards together and is
   shareable as `?area=160201`.
+- **Upper Snake is out of scope.** The drainage areas are now those that touch
+  Utah *and* belong to the Colorado River or Great Basin systems. Upper Snake
+  clips Utah's northern edge but drains to the Columbia, and its thirteen
+  storage stations are Idaho reservoirs. Fourteen areas, not fifteen; no
+  published number changes, because it never held a tracked reservoir.
 - **Fontenelle Reservoir**, in Wyoming on the Green above Flaming Gorge. The
   54th reservoir, and the only one of Reclamation's five Upper Colorado
   candidates whose drainage area touches Utah.

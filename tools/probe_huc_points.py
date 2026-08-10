@@ -45,7 +45,7 @@ CAPACITIES_PATH = ROOT / "capacities.json"
 
 WBD_LAYER = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3"
 WBD_WHERE = "states LIKE '%UT%'"
-EXPECTED_UNITS = 15
+EXPECTED_UNITS = 14
 
 # The same inventory build_capacity_table.py resolves by searching ArcGIS
 # Online. Pinned here instead: this probe queries by NID id, so it needs one

@@ -198,8 +198,8 @@ for (const page of PAGES) {
       // section that renders but filters nothing looks completely correct
       // in a screenshot.
       const areaRows = await tab.locator(".area-row").count();
-      check(areaRows > 0 && areaRows <= 15,
-        `${label}: ${areaRows} drainage areas, expected between 1 and 15`);
+      check(areaRows > 0 && areaRows <= 14,
+        `${label}: ${areaRows} drainage areas, expected between 1 and 14`);
       const firstArea = tab.locator(".area-row").first();
       const areaCode = await firstArea.getAttribute("data-huc");
       await firstArea.click();

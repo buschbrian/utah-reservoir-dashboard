@@ -376,7 +376,7 @@ def test_every_record_gets_a_watershed_and_the_summary_agrees():
     # Deer Creek has a dam in the National Inventory of Dams and Bear Lake
     # does not, so exactly one of the two is assigned by its dam -- and each
     # record says which kind of point produced it.
-    assert summary == {"unit_count": 15, "assigned": 2, "unassigned": 0,
+    assert summary == {"unit_count": 14, "assigned": 2, "unassigned": 0,
                        "assigned_by_dam": 1}
     assert records[0]["huc6"] == "160202" and records[0]["in_utah"] is True
     assert records[0]["huc_assignment_source"] == "nid_dam_point"

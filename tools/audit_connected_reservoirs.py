@@ -1,6 +1,6 @@
 """Audit reservoirs outside Utah that drain through the same watersheds.
 
-Four of the fifteen drainage areas that touch Utah currently have no tracked
+Four of the fourteen drainage areas that touch Utah currently have no tracked
 reservoir at all: Colorado Headwaters, White-Yampa, Lower San Juan and Upper
 Snake. That is not because they are empty. It is because this dashboard grew
 from a Utah inventory, and the water that arrives in Lake Powell is stored

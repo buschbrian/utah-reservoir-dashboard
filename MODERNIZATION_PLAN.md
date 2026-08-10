@@ -516,6 +516,8 @@ and Jordan return zero candidates, which is the reassuring half — those are
 fully covered, and it is what tells us the matching is working rather than
 just permissive.
 
+**Decisions:** Upper Snake is now excluded by ADR-010; capacity remains the bottleneck.
+
 **Two decisions this forces, neither taken yet:**
 
 1. **Upper Snake is thirteen Idaho reservoirs.** The unit qualifies under

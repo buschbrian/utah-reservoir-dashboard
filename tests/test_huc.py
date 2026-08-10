@@ -32,7 +32,9 @@ BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 
-# Every hydrologic unit whose six-digit code touches Utah. Written down so a
+# Every hydrologic unit in scope: touching Utah, and in the Colorado River or
+# Great Basin systems. Upper Snake (170402) touches the state and is excluded
+# on purpose -- it drains to the Columbia. See ADR-010. Written down so a
 # service change that quietly drops or adds one is a failed test rather than
 # a differently-shaped map.
 EXPECTED_UNITS = {
@@ -50,7 +52,6 @@ EXPECTED_UNITS = {
     "160202": "Jordan",
     "160203": "Great Salt Lake",
     "160300": "Escalante Desert-Sevier Lake",
-    "170402": "Upper Snake",
 }
 
 # Assignments a reader can check against a map without running anything.

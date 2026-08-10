@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+**Superseded by [ADR-010](ADR-010-colorado-and-great-basin-systems-only.md).**
+The intersect-Utah test stands; ADR-010 adds the second condition it was
+missing, after the AWDB pass showed the rule admitting thirteen Idaho
+reservoirs on the Snake.
 
 ## Date
 
