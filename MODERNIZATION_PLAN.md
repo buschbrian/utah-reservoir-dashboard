@@ -317,9 +317,36 @@ changes yet.
   Python refresh does not emit them and the pages must keep working without
   them.
 
-**Still to do in this phase:** the Python side. The refresh job has no HUC
-code at all — assignment, the dam/outlet coordinates to assign by, the
-Reclamation candidate audit, and writing the fields into `reservoirs.json`.
+### The pipeline publishes watersheds — 2026-08-09
+
+`huc.py` (standard library, no pandas) holds the geometry, the Utah outline
+and `describe()`; `refresh_reservoirs.attach_watersheds()` calls it once per
+run and writes `in_utah`, `huc6`, `huc6_name`, `huc_assignment_point` and
+`huc_assignment_source` onto every record, plus a `watersheds` block in the
+envelope. All 53 assigned, 50 in Utah. `huc6.geojson` is copied into `dist/`
+and `dist/data/` alongside the other runtime data and asserted in the deploy
+workflow, so the pages can stop querying the USGS service on every load.
+
+Three decisions worth keeping:
+
+- **Carried-forward records are enriched too.** A reservoir whose feed went
+  quiet has not moved. Leaving it without a basin would drop it out of every
+  drainage-area total on the day it most needs to be visible as late data.
+- **A missing boundary file is not fatal.** The fields are optional in the
+  schema and the dashboards work without them; losing a day of data over a
+  geometry lookup would be the worse failure. It warns and publishes.
+- **`in_utah` is computed from the reservoir's point, not the assignment
+  point.** Found by running it: Glen Canyon Dam is in Arizona and Lake Powell
+  reaches well into Utah, so once the dam points land, deriving `in_utah`
+  from the assignment would drop the largest reservoir on the dashboard out
+  of its own default view. The two points are now separate arguments and a
+  test pins the Lake Powell case.
+
+**Still to do in this phase:** upgrade the 28 RISE reservoirs to real dam
+points (measured as moving no assignment, so it is a provenance improvement),
+and audit the connected out-of-state reservoirs. Colorado Headwaters,
+White-Yampa and Lower San Juan currently have zero tracked reservoirs — which
+is where Blue Mesa, Morrow Point and Navajo would land.
 
 ### Watershed assignment measured — 2026-08-09
 

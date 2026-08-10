@@ -303,7 +303,42 @@ python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, 
 
 python tools/build_capacity_table.py --dry-run   # re-derive capacities from NID
 python tools/probe_rise.py --name "Lake Powell"  # dump RISE's catalog for a reservoir
+python tools/probe_huc_points.py                 # compare our points against the dams
+node scripts/fetch-huc6.mjs --dry-run            # re-derive the watershed boundaries
 ```
+
+## Watersheds
+
+Every reservoir carries the six-digit hydrologic unit its water drains
+through, and separately whether the reservoir is in Utah. The two are not the
+same question and are deliberately not merged: a drainage area does not stop
+at a state line, so "reservoirs in Utah" and "reservoirs in drainage areas
+that touch Utah" have different answers, and Lake Powell's water arrives from
+Wyoming and Colorado.
+
+- Assignment is by the **dam or outlet point** — where the stored water
+  leaves — not the middle of the reservoir, because a large reservoir can
+  span a boundary. `huc_assignment_source` records which kind of point
+  produced each row.
+- Boundaries live in [`huc6.geojson`](huc6.geojson), written by
+  [`scripts/fetch-huc6.mjs`](scripts/fetch-huc6.mjs) from the USGS Watershed
+  Boundary Dataset and **committed**, for the same reason as
+  `capacities.json`: an assignment that can change underneath you is not
+  reproducible, and a reservoir that silently moves basin between two runs is
+  not something anyone would catch by looking.
+- The file is generalized to roughly 500 m, which is a measured choice rather
+  than a default. No tracked reservoir sits closer than 2.72 km to a unit
+  boundary, and all 53 assignments are identical to the ungeneralized
+  geometry — at 1/5 the size.
+- `in_utah` comes from the **reservoir's** point, not the assignment point.
+  Glen Canyon Dam is in Arizona while Lake Powell reaches well into Utah, so
+  the two must not be collapsed.
+
+Utah's outline is six corners of surveyed latitude and longitude rather than
+a shapefile — 42°N to 37°N, 114°03′W to 109°03′W, with the northeast notch
+belonging to Wyoming. It exists twice, in [`huc.py`](huc.py) and in the map
+mask in [`shared/reservoir-viz.js`](shared/reservoir-viz.js); a test reads the
+numbers out of the JavaScript and fails if they drift apart.
 
 Tests (no network — RISE is slow, rate-limited and occasionally wrong, and
 none of that should decide whether CI is green):
@@ -349,18 +384,19 @@ CI's Linux.
 
 ### Next, in order
 
-1. **Phase 1.5 — watershed data.** *Started.* The pure half is written and
-   tested in [`src/data/huc.ts`](src/data/huc.ts): point-in-polygon
-   assignment by dam or outlet point (not the water polygon's center — a
-   large reservoir can straddle a boundary, and what matters is where its
-   water leaves), capacity-weighted `rollupByHuc`, a monthly rollup that
-   shows a gap rather than a partial total, and a coverage report.
-   [`scripts/fetch-huc6.mjs`](scripts/fetch-huc6.mjs) publishes the 15
-   Utah-intersecting units and refuses to write if that count changes. What
-   remains is the Python side: the dam and outlet coordinates, the
-   Reclamation candidate audit, and writing the fields into
-   `reservoirs.json`. This has to land before the new shell can filter by
-   drainage area.
+1. **Phase 1.5 — watershed data.** *Mostly done.* Every published reservoir
+   now carries its drainage area (see [Watersheds](#watersheds)); the
+   boundaries are committed; the rollups are written and tested on both
+   sides — [`huc.py`](huc.py) for the pipeline and
+   [`src/data/huc.ts`](src/data/huc.ts) for the dashboards, with
+   capacity-weighted `rollupByHuc` and a monthly rollup that shows a gap
+   rather than a partial total. What remains: **upgrade the 28 RISE
+   reservoirs to real dam points** from the National Inventory of Dams (a
+   correctness improvement — measured, it moves no assignment), and **audit
+   the connected out-of-state reservoirs**. Three drainage areas —
+   Colorado Headwaters, White-Yampa and Lower San Juan — currently have zero
+   tracked reservoirs, which is exactly where Blue Mesa, Morrow Point and
+   Navajo would land.
 2. **Phase 2 — the unified dashboard shell.** One Calcite 5 shell holding the
    map, filters, the selected reservoir and the ranking/table/sparkline tabs.
    This is what replaces the three pages, and it closes mobile layout

@@ -28,7 +28,6 @@ should not need the pandas/numpy stack the refresh job needs.
 
 import argparse
 import json
-import math
 import sys
 import urllib.error
 import urllib.parse
@@ -36,6 +35,11 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from huc import (  # noqa: E402
+    assign_huc, distance_to_boundary_km, haversine_km, in_polygon,
+)
+
 RESERVOIRS_PATH = ROOT / "reservoirs.json"
 CAPACITIES_PATH = ROOT / "capacities.json"
 
@@ -71,82 +75,6 @@ def get_json(url: str, params: dict) -> dict | None:
         print(f"    !! service error: {payload['error'].get('message')}", file=sys.stderr)
         return None
     return payload
-
-
-# --- geometry -------------------------------------------------------------
-#
-# Ray casting, deliberately the same algorithm as src/data/huc.ts. The two
-# implementations are checked against each other at the end of this file's
-# report rather than trusted to agree.
-
-def in_ring(point: tuple[float, float], ring: list) -> bool:
-    x, y = point
-    inside = False
-    count = len(ring)
-    for i in range(count):
-        xi, yi = ring[i][0], ring[i][1]
-        xj, yj = ring[i - 1][0], ring[i - 1][1]
-        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
-            inside = not inside
-    return inside
-
-
-def in_polygon(point: tuple[float, float], rings: list) -> bool:
-    if not rings or not in_ring(point, rings[0]):
-        return False
-    return not any(in_ring(point, hole) for hole in rings[1:])
-
-
-def assign_huc(point: tuple[float, float], units: list[dict]) -> dict | None:
-    for unit in units:
-        if any(in_polygon(point, polygon) for polygon in unit["polygons"]):
-            return unit
-    return None
-
-
-def distance_to_boundary_km(point: tuple[float, float], unit: dict) -> float:
-    """Shortest distance from the point to any edge of the unit.
-
-    This is the number that says how much boundary precision the assignment
-    actually needs. A reservoir 200 m from a boundary could be moved into the
-    next unit by a generalized polygon or a slightly different dam
-    coordinate; one 20 km inside cannot.
-
-    Distances are computed on a local equirectangular projection about the
-    point. Over the few kilometres that matter here the error is far below
-    the thing being measured, and it avoids a geodesic dependency in a probe
-    that is deliberately standard library only.
-    """
-    lon, lat = point
-    scale = math.cos(math.radians(lat))
-    km_per_degree = 111.32
-
-    def to_local(vertex) -> tuple[float, float]:
-        return ((vertex[0] - lon) * scale * km_per_degree,
-                (vertex[1] - lat) * km_per_degree)
-
-    best = float("inf")
-    for polygon in unit["polygons"]:
-        for ring in polygon:
-            local = [to_local(vertex) for vertex in ring]
-            for i in range(len(local) - 1):
-                (x1, y1), (x2, y2) = local[i], local[i + 1]
-                dx, dy = x2 - x1, y2 - y1
-                length_squared = dx * dx + dy * dy
-                if length_squared == 0:
-                    best = min(best, math.hypot(x1, y1))
-                    continue
-                # Projection of the origin onto the segment, clamped to it.
-                t = max(0.0, min(1.0, -(x1 * dx + y1 * dy) / length_squared))
-                best = min(best, math.hypot(x1 + t * dx, y1 + t * dy))
-    return best
-
-
-def haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
-    lon1, lat1, lon2, lat2 = map(math.radians, (a[0], a[1], b[0], b[1]))
-    h = (math.sin((lat2 - lat1) / 2) ** 2
-         + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
-    return 2 * 6371.0088 * math.asin(math.sqrt(h))
 
 
 # --- sources --------------------------------------------------------------

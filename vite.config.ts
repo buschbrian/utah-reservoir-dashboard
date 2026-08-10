@@ -14,7 +14,12 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
       await mkdir(resolve(outDir, "maplibre"), { recursive: true });
       await cp(resolve(root, "shared"), resolve(outDir, "shared"), { recursive: true });
 
-      for (const file of ["reservoirs.json", "capacities.json"]) {
+      // huc6.geojson joins the runtime data for the same reason as the other
+      // two: it is fetched, never imported. It is also what lets the pages
+      // stop querying the USGS service on every load -- a page that draws
+      // its own committed boundaries cannot disagree with the assignments in
+      // reservoirs.json, and cannot go blank when that service is down.
+      for (const file of ["reservoirs.json", "capacities.json", "huc6.geojson"]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));
       }

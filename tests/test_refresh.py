@@ -355,6 +355,60 @@ def test_committed_reservoirs_json_is_well_formed():
         assert -180 <= record["lon"] <= 0 and 0 <= record["lat"] <= 90
         assert record["monthly"], f"{record['name']} has no monthly history"
 
+    # Watershed membership, once the refresh has run at least once with it.
+    # Asserted on the committed file because a reservoir with no basin
+    # silently disappears from every drainage-area total rather than failing.
+    watersheds = payload["watersheds"]
+    assert watersheds["unassigned"] == 0, "some reservoirs have no drainage area"
+    assert watersheds["assigned"] == len(records)
+    for record in records:
+        assert record["huc6"], f"{record['name']} has no drainage area"
+        assert record["huc6_name"] and record["huc_assignment_source"]
+        assert isinstance(record["in_utah"], bool)
+
+
+# --- watershed enrichment -------------------------------------------------
+
+def test_every_record_gets_a_watershed_and_the_summary_agrees():
+    records = [{"name": "Deer Creek", "lat": 40.43511, "lon": -111.50035},
+               {"name": "Bear Lake", "lat": 42.11667, "lon": -111.30000}]
+    summary = R.attach_watersheds(records)
+    assert summary == {"unit_count": 15, "assigned": 2, "unassigned": 0}
+    assert records[0]["huc6"] == "160202" and records[0]["in_utah"] is True
+    # Bear Lake's gage is on the Idaho side, and the dashboard should say so
+    # rather than rounding it into the state to keep a tidy count.
+    assert records[1]["huc6"] == "160102" and records[1]["in_utah"] is False
+
+
+def test_a_carried_forward_record_still_gets_its_watershed():
+    """A reservoir whose feed went quiet has not moved. Leaving it without a
+    basin would drop it out of every watershed total on the day it most needs
+    to be visible as late data."""
+    records = [{"name": "Steinaker", "lat": 40.51456, "lon": -109.53275,
+                "fetch_ok": False, "is_stale": True}]
+    R.attach_watersheds(records)
+    assert records[0]["huc6"] == "140600"
+    assert records[0]["fetch_ok"] is False
+
+
+def test_a_record_without_coordinates_is_counted_not_crashed_on():
+    records = [{"name": "Nowhere"}, {"name": "Deer Creek", "lat": 40.43511,
+                                     "lon": -111.50035}]
+    summary = R.attach_watersheds(records)
+    assert summary["assigned"] == 1 and summary["unassigned"] == 1
+    assert "huc6" not in records[0]
+
+
+def test_a_missing_boundary_file_does_not_lose_the_days_data(monkeypatch, tmp_path):
+    """The watershed fields are optional and the dashboards work without
+    them. Losing the whole daily refresh over a geometry lookup would be a
+    far worse failure than shipping a day without one."""
+    monkeypatch.setattr(R.huc, "BOUNDARY_PATH", tmp_path / "absent.geojson")
+    records = [{"name": "Deer Creek", "lat": 40.43511, "lon": -111.50035}]
+    summary = R.attach_watersheds(records)
+    assert summary == {"unit_count": 0, "assigned": 0, "unassigned": 1}
+    assert records[0] == {"name": "Deer Creek", "lat": 40.43511, "lon": -111.50035}
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

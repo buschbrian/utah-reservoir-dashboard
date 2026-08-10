@@ -15,19 +15,22 @@ Run with `pytest tests/` or directly with `python tests/test_huc.py`.
 
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
-from probe_huc_points import (  # noqa: E402
-    assign_huc, distance_to_boundary_km, in_polygon,
+sys.path.insert(0, str(ROOT))
+from huc import (  # noqa: E402
+    UTAH_RING, assign_huc, describe, distance_to_boundary_km, in_polygon,
+    in_utah, load_units,
 )
 
 BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
+SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 
 # Every hydrologic unit whose six-digit code touches Utah. Written down so a
 # service change that quietly drops or adds one is a failed test rather than
@@ -74,17 +77,7 @@ MIN_BOUNDARY_MARGIN_KM = 2.0
 
 @pytest.fixture(scope="module")
 def units() -> list[dict]:
-    payload = json.loads(BOUNDARIES.read_text())
-    parsed = []
-    for feature in payload["features"]:
-        geometry = feature["geometry"]
-        coordinates = geometry["coordinates"]
-        parsed.append({
-            "huc6": feature["properties"]["huc6"],
-            "name": feature["properties"]["name"],
-            "polygons": coordinates if geometry["type"] == "MultiPolygon" else [coordinates],
-        })
-    return parsed
+    return load_units()
 
 
 @pytest.fixture(scope="module")
@@ -141,6 +134,65 @@ def test_ray_casting_agrees_with_the_typescript_port():
     assert in_polygon((0.5, 0.5), donut) is True
     assert in_polygon((2, 2), donut) is False
     assert in_polygon((9, 9), donut) is False
+
+
+def test_the_utah_ring_matches_the_one_the_maps_draw():
+    """Two copies of the state outline exist: this module's, and the mask in
+    shared/reservoir-viz.js. They are six surveyed corners, so keeping them
+    in step by hand is reasonable -- but only if a drift is a failed test."""
+    source = SHARED_VIZ.read_text(encoding="utf-8")
+    numbers = {}
+    for key in ("UTAH_W", "UTAH_E", "UTAH_S", "UTAH_N", "NOTCH_W", "NOTCH_S"):
+        match = re.search(rf"\b{key}\s*=\s*(-?\d+(?:\.\d+)?)", source)
+        assert match, f"{key} is no longer declared in shared/reservoir-viz.js"
+        numbers[key] = float(match.group(1))
+    expected = [
+        (numbers["UTAH_W"], numbers["UTAH_N"]), (numbers["UTAH_W"], numbers["UTAH_S"]),
+        (numbers["UTAH_E"], numbers["UTAH_S"]), (numbers["UTAH_E"], numbers["NOTCH_S"]),
+        (numbers["NOTCH_W"], numbers["NOTCH_S"]), (numbers["NOTCH_W"], numbers["UTAH_N"]),
+        (numbers["UTAH_W"], numbers["UTAH_N"]),
+    ]
+    assert UTAH_RING == expected
+
+
+@pytest.mark.parametrize("name,lon,lat,expected", [
+    ("Salt Lake City", -111.89, 40.76, True),
+    ("St George", -113.58, 37.10, True),
+    ("Bear Lake, on the Idaho side", -111.30, 42.12, False),
+    ("Meeks Cabin, in Wyoming", -110.58, 41.02, False),
+    ("inside the northeast notch, which is Wyoming", -110.50, 41.50, False),
+    ("just south of the notch, which is Utah", -110.50, 40.90, True),
+    ("Glen Canyon Dam, in Arizona", -111.48, 36.94, False),
+])
+def test_the_state_outline_includes_the_northeast_notch(name, lon, lat, expected):
+    assert in_utah((lon, lat)) is expected, name
+
+
+def test_in_utah_describes_the_reservoir_and_not_its_outlet(units):
+    """Lake Powell is the case this distinction exists for: Glen Canyon Dam
+    is in Arizona, the reservoir reaches well into Utah, and it is the
+    largest thing on the dashboard. Assigning the drainage area by the dam
+    must not drop it out of the Utah view."""
+    powell = next(r for r in json.loads(RESERVOIRS.read_text())["reservoirs"]
+                  if r["name"] == "Lake Powell")
+    glen_canyon_dam = (-111.483, 36.937)
+    fields = describe(powell["lat"], powell["lon"], units,
+                      assignment_point=glen_canyon_dam, source="nid_dam_point")
+    assert fields["in_utah"] is True
+    assert fields["huc_assignment_point"] == [-111.483, 36.937]
+    assert fields["huc_assignment_source"] == "nid_dam_point"
+    # And the dam point still lands in the same drainage area as the lake.
+    assert fields["huc6"] == describe(powell["lat"], powell["lon"], units)["huc6"]
+
+
+def test_an_unassigned_point_reports_no_source(units):
+    """A point outside every unit gets no basin and no provenance for one.
+    Naming the source anyway would claim an assignment that did not happen."""
+    fields = describe(35.0, -95.0, units)  # Oklahoma
+    assert fields["huc6"] is None
+    assert fields["huc6_name"] is None
+    assert fields["huc_assignment_source"] is None
+    assert fields["in_utah"] is False
 
 
 def test_boundary_distance_is_zero_on_the_edge_and_grows_inward():

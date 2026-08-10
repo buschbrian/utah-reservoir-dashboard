@@ -40,6 +40,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+import huc
+
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
 AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 START_DATE = "20150101"
@@ -508,6 +510,11 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         "first_obs": series.index[0].date().isoformat(),
         "n_obs": int(series.size),
         "years_of_record": _round((last_date - series.index[0]).days / 365.25, 1),
+
+        # Watershed membership is attached in main() rather than here: it is
+        # pure geometry against a committed boundary file, it applies equally
+        # to records carried forward from a failed fetch, and loading the
+        # boundaries once for the whole run beats loading them 53 times.
     }
 
 
@@ -525,6 +532,50 @@ def carry_forward(previous: dict, today: pd.Timestamp, reason: str) -> dict:
     record["fetch_ok"] = False
     record["fetch_error"] = reason
     return record
+
+
+def attach_watersheds(records: list[dict]) -> dict:
+    """Add watershed membership to every record and summarize the result.
+
+    Runs over carried-forward records too. A reservoir whose feed went quiet
+    has not moved, and leaving it without a basin would drop it out of every
+    watershed total on the day it most needs to be visible as late data.
+
+    A missing or unreadable boundary file is not fatal. The fields are
+    optional in the published schema and the dashboards work without them;
+    losing the whole daily refresh over a watershed lookup would be a much
+    worse failure than shipping a day without one.
+    """
+    try:
+        units = huc.load_units()
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"WARNING: no watershed boundaries ({type(exc).__name__}: {exc}); "
+              "publishing without HUC fields")
+        return {"unit_count": 0, "assigned": 0, "unassigned": len(records)}
+
+    unassigned = []
+    for record in records:
+        lat, lon = record.get("lat"), record.get("lon")
+        if lat is None or lon is None:
+            unassigned.append(record.get("name"))
+            continue
+        record.update(huc.describe(lat, lon, units))
+        if record["huc6"] is None:
+            unassigned.append(record["name"])
+
+    in_utah = sum(1 for r in records if r.get("in_utah"))
+    print(f"\nWatersheds: {len(records) - len(unassigned)}/{len(records)} reservoirs "
+          f"assigned across {len(units)} drainage areas; {in_utah} in Utah")
+    if unassigned:
+        # Not a failure. A reservoir outside every unit that touches Utah is
+        # a real possibility as the inventory grows east, and the honest
+        # response is to name it rather than to drop or guess it.
+        print(f"  no drainage area matched: {', '.join(sorted(unassigned))}")
+    return {
+        "unit_count": len(units),
+        "assigned": len(records) - len(unassigned),
+        "unassigned": len(unassigned),
+    }
 
 
 def load_previous(path: Path) -> dict[str, dict]:
@@ -723,6 +774,8 @@ def main() -> int:
             record["data_frequency"] = "daily"
             record["stale_after_days"] = STALE_AFTER_DAYS
 
+    watersheds = attach_watersheds(records)
+
     # Physical size is the primary browse order in every surface.
     records.sort(key=lambda r: (r.get("capacity_af") is None,
                                 -(r.get("capacity_af") or 0), r.get("name", "")))
@@ -748,6 +801,16 @@ def main() -> int:
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
         "capacity_count": sum(1 for r in records if r.get("capacity_af")),
+        # Drainage areas are described in the envelope so a reader can tell
+        # a run that assigned nothing (a missing boundary file) from one
+        # where nothing needed assigning.
+        "watersheds": {
+            "source": "USGS Watershed Boundary Dataset, six-digit units",
+            "boundaries": huc.BOUNDARY_PATH.name,
+            "assignment_rule": "the dam or outlet point, not the middle of the water",
+            **watersheds,
+            "in_utah": sum(1 for r in records if r.get("in_utah")),
+        },
         "reservoirs": records,
     }
 

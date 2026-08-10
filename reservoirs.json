@@ -176,7 +176,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "509",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140700",
+      "huc6_name": "Upper Colorado-Dirty Devil",
+      "huc_assignment_point": [
+        -111.30332,
+        37.05778
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Flaming Gorge",
@@ -325,7 +333,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "337",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140401",
+      "huc6_name": "Upper Green",
+      "huc_assignment_point": [
+        -109.57304,
+        40.97789
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Bear Lake",
@@ -474,7 +490,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": false,
+      "huc6": "160102",
+      "huc6_name": "Lower Bear",
+      "huc_assignment_point": [
+        -111.3,
+        42.11667
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Strawberry",
@@ -623,7 +647,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "779",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.1311,
+        40.16882
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Utah Lake",
@@ -772,7 +804,15 @@
       ],
       "first_obs": "2015-01-01",
       "n_obs": 4238,
-      "years_of_record": 11.6
+      "years_of_record": 11.6,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -111.89339,
+        40.35867
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Jordanelle",
@@ -921,7 +961,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "468",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -111.41655,
+        40.60689
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Yuba",
@@ -1070,7 +1118,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -112.03327,
+        39.37218
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Willard Bay",
@@ -1219,7 +1275,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "866",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -112.08339,
+        41.37738
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Starvation",
@@ -1368,7 +1432,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "764",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -110.44722,
+        40.19324
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Deer Creek",
@@ -1517,7 +1589,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "290",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -111.50035,
+        40.43511
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Pineview",
@@ -1666,7 +1746,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "652",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.80998,
+        41.26543
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Echo",
@@ -1815,7 +1903,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "314",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.4179,
+        40.9574
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Scofield",
@@ -1964,7 +2060,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "727",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.05074,
+        39.77656
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Piute",
@@ -2113,7 +2217,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -112.19131,
+        38.32387
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Rockport",
@@ -2262,7 +2374,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "706",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.39859,
+        40.77498
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Joes Valley",
@@ -2411,7 +2531,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "463",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.27888,
+        39.2901
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Woodruff Narrows",
@@ -2560,7 +2688,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": false,
+      "huc6": "160101",
+      "huc6_name": "Upper Bear",
+      "huc_assignment_point": [
+        -111.01602,
+        41.50273
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Otter Creek",
@@ -2709,7 +2845,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -112.02436,
+        38.17082
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "East Canyon",
@@ -2858,7 +3002,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "310",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.59293,
+        40.91017
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Sand Hollow",
@@ -3007,7 +3159,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "150100",
+      "huc6_name": "Lower Colorado-Lake Mead",
+      "huc_assignment_point": [
+        -113.37472,
+        37.11417
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Moon Lake",
@@ -3156,7 +3316,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "587",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -110.50665,
+        40.57445
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Quail Creek",
@@ -3305,7 +3473,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "150100",
+      "huc6_name": "Lower Colorado-Lake Mead",
+      "huc_assignment_point": [
+        -113.38098,
+        37.18022
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Steinaker",
@@ -3454,7 +3630,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "774",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -109.53275,
+        40.51456
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Upper Stillwater",
@@ -3603,7 +3787,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "826",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -110.70044,
+        40.56565
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Meeks Cabin",
@@ -3752,7 +3944,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "574",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": false,
+      "huc6": "140401",
+      "huc6_name": "Upper Green",
+      "huc_assignment_point": [
+        -110.58344,
+        41.01664
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Red Fleet",
@@ -3901,7 +4101,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "685",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -109.42853,
+        40.57832
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Big Sand Wash",
@@ -4050,7 +4258,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -110.22139,
+        40.30006
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Minersville",
@@ -4199,7 +4415,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -112.8355,
+        38.21747
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Lost Creek",
@@ -4348,7 +4572,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "544",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.39628,
+        41.18887
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Panguitch",
@@ -4497,7 +4729,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -112.6279,
+        37.72436
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Gunnison",
@@ -4646,7 +4886,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -111.71103,
+        39.20635
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Hyrum",
@@ -4795,7 +5043,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "439",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160102",
+      "huc6_name": "Lower Bear",
+      "huc_assignment_point": [
+        -111.86099,
+        41.62117
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Millsite",
@@ -4944,7 +5200,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.18794,
+        39.09558
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Currant Creek",
@@ -5093,7 +5357,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "278",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.05821,
+        40.33841
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Stateline",
@@ -5242,7 +5514,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "769",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140401",
+      "huc6_name": "Upper Green",
+      "huc_assignment_point": [
+        -110.39038,
+        40.98291
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Porcupine",
@@ -5391,7 +5671,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160102",
+      "huc6_name": "Lower Bear",
+      "huc_assignment_point": [
+        -111.74624,
+        41.51828
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Gunlock",
@@ -5540,7 +5828,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "150100",
+      "huc6_name": "Lower Colorado-Lake Mead",
+      "huc_assignment_point": [
+        -113.77556,
+        37.25136
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Upper Enterprise",
@@ -5689,7 +5985,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -113.86197,
+        37.51939
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Smith and Morehouse",
@@ -5838,7 +6142,15 @@
       ],
       "first_obs": "2015-01-01",
       "n_obs": 4238,
-      "years_of_record": 11.6
+      "years_of_record": 11.6,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.10338,
+        40.76202
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Causey",
@@ -5987,7 +6299,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "219",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160201",
+      "huc6_name": "Weber",
+      "huc_assignment_point": [
+        -111.58591,
+        41.29828
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Newton",
@@ -6136,7 +6456,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "623",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160102",
+      "huc6_name": "Lower Bear",
+      "huc_assignment_point": [
+        -111.97562,
+        41.8998
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Huntington North",
@@ -6285,7 +6613,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "432",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.09082,
+        39.38458
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Cleveland",
@@ -6434,7 +6770,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.23896,
+        39.57758
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Miller Flat",
@@ -6583,7 +6927,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "140600",
+      "huc6_name": "Lower Green",
+      "huc_assignment_point": [
+        -111.24222,
+        39.54028
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Jackson Flat",
@@ -6732,7 +7084,15 @@
       ],
       "first_obs": "2017-08-31",
       "n_obs": 108,
-      "years_of_record": 8.9
+      "years_of_record": 8.9,
+      "in_utah": true,
+      "huc6": "150100",
+      "huc6_name": "Lower Colorado-Lake Mead",
+      "huc_assignment_point": [
+        -112.51995,
+        37.00576
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Woodruff Creek",
@@ -6881,7 +7241,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160101",
+      "huc6_name": "Upper Bear",
+      "huc_assignment_point": [
+        -111.31838,
+        41.46666
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Grantsville",
@@ -7030,7 +7398,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 138,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160203",
+      "huc6_name": "Great Salt Lake",
+      "huc_assignment_point": [
+        -112.50567,
+        40.54185
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Washington Lake",
@@ -7179,7 +7555,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "4530",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -110.964,
+        40.6765
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Lower Enterprise",
@@ -7328,7 +7712,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160300",
+      "huc6_name": "Escalante Desert-Sevier Lake",
+      "huc_assignment_point": [
+        -113.85091,
+        37.52601
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Ken's Lake",
@@ -7477,7 +7869,15 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 139,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "140300",
+      "huc6_name": "Upper Colorado-Dolores",
+      "huc_assignment_point": [
+        -109.42845,
+        38.48126
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Trial Lake",
@@ -7626,7 +8026,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "4516",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -110.95684,
+        40.6799
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Lost Lake",
@@ -7775,7 +8183,15 @@
       "source_url": "https://data.usbr.gov/rise-api",
       "source_station_id": "4523",
       "data_frequency": "daily",
-      "stale_after_days": 2
+      "stale_after_days": 2,
+      "in_utah": true,
+      "huc6": "160202",
+      "huc6_name": "Jordan",
+      "huc_assignment_point": [
+        -110.9413,
+        40.6741
+      ],
+      "huc_assignment_source": "published_point"
     },
     {
       "name": "Settlement Canyon",
@@ -7924,7 +8340,24 @@
       ],
       "first_obs": "2015-01-31",
       "n_obs": 138,
-      "years_of_record": 11.5
+      "years_of_record": 11.5,
+      "in_utah": true,
+      "huc6": "160203",
+      "huc6_name": "Great Salt Lake",
+      "huc_assignment_point": [
+        -112.29504,
+        40.51086
+      ],
+      "huc_assignment_source": "published_point"
     }
-  ]
+  ],
+  "watersheds": {
+    "source": "USGS Watershed Boundary Dataset, six-digit units",
+    "boundaries": "huc6.geojson",
+    "assignment_rule": "the dam or outlet point, not the middle of the water",
+    "unit_count": 15,
+    "assigned": 53,
+    "unassigned": 0,
+    "in_utah": 50
+  }
 }
