@@ -151,6 +151,38 @@
     }
 
     /* --- Ranking ----------------------------------------------------- */
+    /* --- Drainage areas ---------------------------------------------- */
+    .areas { display: flex; flex-direction: column; gap: 3px; }
+    .area-head, .area-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) 74px minmax(0, 1.1fr) 58px;
+      align-items: center; gap: 12px;
+    }
+    .area-head {
+      padding: 0 8px 7px; color: var(--ink-2); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: .045em; border-bottom: 1px solid var(--line);
+    }
+    .area-head span:nth-child(2), .area-head span:nth-child(4) { text-align: center; }
+    .area-row {
+      padding: 7px 8px; border: 0; border-radius: 8px;
+      background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
+    }
+    .area-row:hover { background: #e9efec; }
+    .area-row[aria-pressed="true"] { background: #dde7e3; }
+    .area-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .area-name small { color: var(--ink-2); font-size: 11px; }
+    .area-count { font-size: 12.5px; color: var(--ink-2); text-align: center;
+                  font-variant-numeric: tabular-nums; }
+    .area-track { height: 13px; background: #e3e9e7; border-radius: 999px; overflow: hidden; }
+    .area-track span { display: block; height: 100%; border-radius: 999px; }
+    .area-pct { font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+    .area-empty { color: var(--ink-3); }
+    @media (max-width: 760px) {
+      .area-head { display: none; }
+      .area-row { grid-template-columns: minmax(0, 1fr) 58px; row-gap: 3px; }
+      .area-row .area-count { grid-column: 1; text-align: left; }
+      .area-row .area-track { grid-column: 1 / -1; }
+    }
+
     .rank { display: flex; flex-direction: column; gap: 3px; }
     .rank-head, .rank-row {
       display: grid; grid-template-columns: 175px 52px minmax(0, 1fr) 58px;
@@ -335,6 +367,8 @@
         <dd>The middle value for the same time in earlier years. To get this value, put the earlier values in order and select the value in the center.</dd>
         <dt>History rank</dt>
         <dd>A comparison with values near the same date in earlier years. A rank of 90% means that the value is higher than 90% of those earlier values.</dd>
+        <dt>Drainage area</dt>
+        <dd>The land where the rain and snow that falls on it flows to the same river. A drainage area does not stop at a state border.</dd>
         <dt>Update schedule</dt>
         <dd>How often a source supplies new data.</dd>
         <dt>CSV file</dt>
@@ -396,6 +430,21 @@
             more weight to large reservoirs. Use the total without Lake Powell to see the
             other reservoirs in Utah.</p>
         </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-areas">
+      <div class="sec-head">
+        <h2 id="h-areas">Drainage areas</h2>
+        <p>Each bar shows the tracked reservoir storage in one drainage area. Select an
+          area to show only its reservoirs in the sections below.</p>
+      </div>
+      <div class="card">
+        <div class="area-head" aria-hidden="true">
+          <span>Drainage area</span><span>Reservoirs</span><span>Tracked storage</span><span>Full</span>
+        </div>
+        <div class="areas" id="areas"></div>
+        <p class="count" id="areaNote" style="margin:10px 0 0"></p>
       </div>
     </section>
 
@@ -469,6 +518,11 @@
 
   <script type="module">
     import * as Plot from "@observablehq/plot";
+    // The capacity-weighted rollup, imported rather than written again here:
+    // it is the same function the unified dashboard will use, and it is
+    // already tested against capacity weighting, missing capacity, duplicate
+    // sites and partial monthly coverage. This page is its first consumer.
+    import { rollupByHuc } from "./src/data/huc";
 
     ReservoirViz.injectStyles();
 
@@ -481,7 +535,14 @@
     // so sorting and formatting never re-derive them.
     const state = {
       rows: [], q: "", staleOnly: false, sortKey: "size_basis_af", sortDir: -1,
-      trend: null
+      trend: null,
+      // The reservoir whose panel is open, so the address bar can carry it
+      // and the selected drainage area at the same time.
+      detail: null,
+      // The six-digit drainage area to show, or null for all of them. It is
+      // a filter like `q` and `staleOnly`, not a separate mode: everything
+      // below still derives from visibleRows().
+      huc: null
     };
 
     // --- Columns -------------------------------------------------------
@@ -774,7 +835,9 @@
     function visibleRows() {
       const q = state.q.trim().toLowerCase();
       let rows = state.rows.filter((r) =>
-        (!q || r.name.toLowerCase().includes(q)) && (!state.staleOnly || r.is_stale));
+        (!q || r.name.toLowerCase().includes(q)) &&
+        (!state.staleOnly || r.is_stale) &&
+        (!state.huc || r.huc6 === state.huc));
       const col = COLUMNS.find((c) => c.key === state.sortKey) || COLUMNS[1];
       return rows.sort((a, b) => {
         const av = col.get(a), bv = col.get(b);
@@ -829,6 +892,88 @@
         "</button>").join("");
     }
 
+    // --- Drainage areas ---------------------------------------------------
+    //
+    // A capacity-weighted total per area: sum(storage) / sum(capacity), not
+    // the average of the percentages. The two disagree sharply here -- one
+    // area holds Lake Powell and another holds four ponds -- and the
+    // weighted number is the one that answers "how much water is in this
+    // drainage area".
+    //
+    // It is *tracked* storage, and the wording says so. This is not the
+    // percentage of all water in the watershed; it is the reservoirs this
+    // dashboard follows, which is why every row carries its reservoir count
+    // and its combined full level next to the percentage.
+    function renderAreas() {
+      const areas = rollupByHuc(state.rows);
+      el("areas").innerHTML = areas.map((a) => {
+        const pct = a.percentFull;
+        const width = Math.max(0, Math.min(100, pct ?? 0));
+        const known = pct !== null && !isNaN(pct);
+        const selected = state.huc === a.huc6;
+        const label = a.name + ". " +
+          (known ? RV.fmtPct(pct) + " full. " : "No percentage available. ") +
+          a.count + (a.count === 1 ? " reservoir. " : " reservoirs. ") +
+          "Full level: " + RV.fmtAf(a.capacityAf) + " acre-feet." +
+          (selected ? " Selected." : "");
+        return "<button class='area-row' data-huc='" + RV.esc(a.huc6) +
+          "' aria-pressed='" + (selected ? "true" : "false") +
+          "' aria-label='" + RV.esc(label) + "'>" +
+          "<span class='area-name'>" + RV.esc(a.name) +
+            "<small> " + RV.fmtAf(a.capacityAf) + " acre-feet at full level</small></span>" +
+          "<span class='area-count'>" + a.count + "</span>" +
+          "<span class='area-track'><span style='width:" + width.toFixed(1) +
+            "%;background:" + RV.colorFor(pct) + "'></span></span>" +
+          "<span class='area-pct" + (known ? "" : " area-empty") + "'>" +
+            (known ? RV.fmtPct(pct) : "no data") + "</span></button>";
+      }).join("");
+
+      const shown = visibleRows().length;
+      el("areaNote").textContent = state.huc
+        ? "Showing " + shown + (shown === 1 ? " reservoir" : " reservoirs") +
+          " in this drainage area. Select the area again to show all of them."
+        : areas.length + " drainage areas have reservoirs in this dashboard. " +
+          "A percentage is the total storage divided by the total full level " +
+          "for the reservoirs in that area.";
+    }
+
+    el("areas").addEventListener("click", (e) => {
+      const row = e.target.closest(".area-row");
+      if (!row) return;
+      const huc = row.getAttribute("data-huc");
+      // Selecting the selected area clears it, so the control that filters
+      // is also the control that unfilters -- there is no separate "clear"
+      // button to find.
+      state.huc = state.huc === huc ? null : huc;
+      applyFilters();
+      RV.announce(state.huc
+        ? row.querySelector(".area-name").firstChild.textContent.trim() +
+          " selected. " + el("rowCount").textContent + "."
+        : "All drainage areas shown. " + el("rowCount").textContent + ".");
+    });
+
+    // Everything below the drainage areas derives from the same filtered
+    // rows, so the ranking, the table and the cards cannot disagree about
+    // which reservoirs are in view.
+    function applyFilters() {
+      renderAreas();
+      renderRank(visibleRows());
+      renderList();
+      writeUrl(state.detail);
+    }
+
+    // One place that composes the address bar, because two parameters can be
+    // set at once -- a reservoir open inside a selected area -- and each used
+    // to overwrite the other. encodeURIComponent rather than URLSearchParams:
+    // the latter writes a space as `+`, and the two map pages parse the
+    // `%20` form this page has always produced.
+    function writeUrl(reservoirName) {
+      const parts = [];
+      if (state.huc) parts.push("area=" + encodeURIComponent(state.huc));
+      if (reservoirName) parts.push("reservoir=" + encodeURIComponent(reservoirName));
+      history.replaceState(null, "", parts.length ? "?" + parts.join("&") : location.pathname);
+    }
+
     function renderList() {
       const rows = visibleRows();
       renderTable(rows);
@@ -864,8 +1009,10 @@
       // are not announced -- a reader lands inside it and can read on.
       RV.announce(RV.selectionMessage(r));
       // Shareable without being a navigation: the URL now names the
-      // reservoir, and reloading it reopens this panel.
-      history.replaceState(null, "", "?reservoir=" + encodeURIComponent(r.name));
+      // reservoir, and reloading it reopens this panel. Written through
+      // writeUrl so a selected drainage area is not dropped on the way.
+      state.detail = r.name;
+      writeUrl(r.name);
     }
 
     el("detailClose").addEventListener("click", () => closeDetail());
@@ -875,7 +1022,8 @@
       if (event.key === "Escape") { event.preventDefault(); closeDetail(); }
     });
     el("detail").addEventListener("close", () => {
-      history.replaceState(null, "", location.pathname);
+      state.detail = null;
+      writeUrl(null);
       returnFocusFromDetail();
     });
 
@@ -984,10 +1132,18 @@
         state.trend = { utahRows: statewideRows, utahSummary: summary, allSummary };
         renderKpis(summary, allSummary, data);
         renderStateChart();
-        renderRank(state.rows);
+
+        // Read the drainage area before the first render, so a shared link
+        // arrives with the filter already applied rather than visibly
+        // redrawing a moment later.
+        const params = new URLSearchParams(location.search);
+        const area = params.get("area");
+        if (area && state.rows.some((r) => r.huc6 === area)) state.huc = area;
+        renderAreas();
+        renderRank(visibleRows());
         renderList();
 
-        const wanted = new URLSearchParams(location.search).get("reservoir");
+        const wanted = params.get("reservoir");
         if (wanted) {
           const match = state.rows.find((r) =>
             r.name.toLowerCase() === wanted.trim().toLowerCase());
@@ -1000,7 +1156,11 @@
           engine: "explore",
           reservoirs: state.rows.length,
           stale: stale.length,
-          rows: el("tbody").children.length
+          rows: el("tbody").children.length,
+          // Added, never replacing a field: the drainage-area section is
+          // invisible to the assertions above, which all count reservoirs.
+          areas: el("areas").children.length,
+          area: state.huc
         };
       })
       .catch((err) => {

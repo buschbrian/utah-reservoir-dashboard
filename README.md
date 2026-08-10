@@ -286,8 +286,16 @@ way at all to see the state as a single quantity. The overview adds:
   formatted strings).
 - **Twelve-month sparklines for all 53 at once**, scaled against each
   reservoir's own capacity so a short bar means low, not just small.
+- **Drainage areas.** One capacity-weighted bar per six-digit hydrologic
+  unit: total storage over total full level, *not* the average of the
+  percentages — one area holds Lake Powell and another holds four ponds, and
+  the two answers differ sharply. Every row carries its reservoir count and
+  combined full level, because this is the storage of the reservoirs the
+  dashboard tracks, not the water in the watershed. Selecting an area filters
+  the ranking, the table and the cards together.
 - **Deep links.** `explore.html?reservoir=Deer+Creek` opens that reservoir's
   full record directly, and opening one updates the URL so it can be shared.
+  `?area=160201` selects a drainage area, and the two combine.
 
 It shares the color classes, the popup markup, the trend chart and the
 formatting with both maps, so a reservoir reads identically whether you got

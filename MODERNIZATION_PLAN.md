@@ -342,6 +342,16 @@ Three decisions worth keeping:
   of its own default view. The two points are now separate arguments and a
   test pins the Lake Powell case.
 
+**The overview reads it — 2026-08-10.** `explore.html` now imports
+`rollupByHuc` from `src/data/huc.ts` (its first consumer, so the tested module
+and the shipped page are the same code) and renders one capacity-weighted bar
+per drainage area. Selecting an area filters the ranking, table and cards
+through the existing `visibleRows()`, so it is a filter beside `q` and
+`staleOnly` rather than a second mode. Eleven of the fifteen units have
+tracked reservoirs; the four empty ones are where the connected out-of-state
+reservoirs would land. The browser test asserts the filter actually filters --
+a section that renders but filters nothing looks correct in a screenshot.
+
 **Still to do in this phase:** upgrade the 28 RISE reservoirs to real dam
 points (measured as moving no assignment, so it is a provenance improvement),
 and audit the connected out-of-state reservoirs. Colorado Headwaters,

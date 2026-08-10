@@ -25,6 +25,10 @@ and is not listed here.
   of all 53, in size order, with focus moving into a popup when it opens and
   back to the button when it closes. Chart bars are reachable, and selections
   are announced politely.
+- **Drainage areas on the overview.** A capacity-weighted total per hydrologic
+  unit, with the reservoir count and combined full level beside each one.
+  Selecting an area filters the ranking, table and cards together and is
+  shareable as `?area=160201`.
 - **Watershed membership.** Every reservoir carries the six-digit hydrologic
   unit its water drains through, whether it is in Utah, and the point the
   assignment used. Boundaries ship as a committed `huc6.geojson`.

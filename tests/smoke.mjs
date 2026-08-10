@@ -193,6 +193,30 @@ for (const page of PAGES) {
         `${label}: statewide chart scope control did not update the plot`);
       check(await tab.locator("#stateChart").getAttribute("data-metric") === "percent",
         `${label}: statewide chart measure control did not update the plot`);
+      // The drainage areas, and the thing that makes them more than a
+      // second list: selecting one has to filter every other section. A
+      // section that renders but filters nothing looks completely correct
+      // in a screenshot.
+      const areaRows = await tab.locator(".area-row").count();
+      check(areaRows > 0 && areaRows <= 15,
+        `${label}: ${areaRows} drainage areas, expected between 1 and 15`);
+      const firstArea = tab.locator(".area-row").first();
+      const areaCode = await firstArea.getAttribute("data-huc");
+      await firstArea.click();
+      const filtered = await tab.locator("#tbody tr").count();
+      check(filtered > 0 && filtered < expectedReservoirs,
+        `${label}: selecting a drainage area left ${filtered} of ` +
+        `${expectedReservoirs} rows, expected fewer and not none`);
+      check(await tab.locator(".rank-row").count() === filtered,
+        `${label}: the ranking did not follow the drainage area selection`);
+      check(await tab.locator(".mini").count() === filtered,
+        `${label}: the cards did not follow the drainage area selection`);
+      check(tab.url().includes("area=" + areaCode),
+        `${label}: selecting a drainage area did not deep-link`);
+      await firstArea.click();
+      check(await tab.locator("#tbody tr").count() === expectedReservoirs,
+        `${label}: clearing the drainage area did not restore every reservoir`);
+
       const rankRows = await tab.locator(".rank-row").count();
       check(rankRows === expectedReservoirs,
         `${label}: ranking has ${rankRows} rows, expected ${expectedReservoirs}`);
@@ -201,7 +225,8 @@ for (const page of PAGES) {
       check((await tab.locator("#kpis").innerText()).includes("WITHOUT LAKE POWELL"),
         `${label}: no statewide KPI excluding Lake Powell`);
       const termText = await tab.locator("#terms").textContent();
-      for (const term of ["Capacity", "Acre-foot", "Normal", "History rank", "Update schedule", "CSV file"]) {
+      for (const term of ["Capacity", "Acre-foot", "Normal", "History rank", "Update schedule",
+        "CSV file", "Drainage area"]) {
         check(termText.includes(term), `${label}: the terms section does not define ${term}`);
       }
       const cards = await tab.locator(".mini").count();
