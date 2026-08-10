@@ -22,6 +22,14 @@ export interface StatewideRollup {
   classes: ClassCount[];
 }
 
+export type ReservoirGeography = "utah" | "connected";
+export type LakePowellChoice = "include" | "exclude";
+
+export interface StatewideRollupOptions {
+  geography: ReservoirGeography;
+  lakePowell: LakePowellChoice;
+}
+
 export function sizeBasis(reservoir: Reservoir): number {
   return reservoir.capacity_af ?? reservoir.record_max_af;
 }
@@ -41,11 +49,13 @@ export function isLateForCadence(reservoir: Reservoir): boolean {
 
 export function statewideRollup(
   allReservoirs: readonly Reservoir[],
-  options: { excludeLakePowell?: boolean } = {}
+  options: StatewideRollupOptions
 ): StatewideRollup {
-  const reservoirs = options.excludeLakePowell
-    ? allReservoirs.filter((reservoir) => reservoir.name.trim().toLowerCase() !== "lake powell")
-    : [...allReservoirs];
+  const reservoirs = allReservoirs.filter((reservoir) => {
+    if (options.geography === "utah" && reservoir.in_utah !== true) return false;
+    return options.lakePowell === "include"
+      || reservoir.name.trim().toLowerCase() !== "lake powell";
+  });
   const sum = (pick: (reservoir: Reservoir) => number | null): number =>
     reservoirs.reduce((total, reservoir) => total + (pick(reservoir) ?? 0), 0);
   const storageAf = sum((reservoir) => reservoir.current_storage_af);

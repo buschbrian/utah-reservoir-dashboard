@@ -59,7 +59,8 @@ function validPayload(): Record<string, unknown> {
       }],
       first_obs: "2015-01-01",
       n_obs: 4000,
-      years_of_record: 11.6
+      years_of_record: 11.6,
+      in_utah: true
     }]
   };
 }
@@ -86,6 +87,14 @@ describe("reservoir payload validation", () => {
   it("rejects a reservoir missing a field used by statewide totals", () => {
     const payload = validPayload();
     delete (payload.reservoirs as Record<string, unknown>[])[0]?.days_stale;
+
+    expect(() => validateReservoirPayload(payload))
+      .toThrow("Invalid reservoir record at index 0 (Testwater)");
+  });
+
+  it("rejects missing Utah membership before a scoped total is calculated", () => {
+    const payload = validPayload();
+    delete (payload.reservoirs as Record<string, unknown>[])[0]?.in_utah;
 
     expect(() => validateReservoirPayload(payload))
       .toThrow("Invalid reservoir record at index 0 (Testwater)");

@@ -11,6 +11,10 @@ const payload = validateReservoirPayload(JSON.parse(
 
 const legacy = loadLegacyApi();
 const legacyAll = legacy.statewideSummary(payload.reservoirs);
+const CONNECTED_WITH_LAKE_POWELL = {
+  geography: "connected",
+  lakePowell: "include"
+} as const;
 
 /* The port recomputes the headline percentage from `current_storage_af` and
  * the size basis; `shared/reservoir-viz.js` reads the percentage the Python
@@ -32,7 +36,7 @@ function nearBreak(percent: number | null): boolean {
 
 describe("statewide rollup parity with shared/reservoir-viz.js", () => {
   it("reproduces the legacy volume aggregates exactly", () => {
-    const ported = statewideRollup(payload.reservoirs);
+    const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
     expect(ported.count).toBe(legacyAll.count);
     expect(ported.storageAf).toBeCloseTo(legacyAll.storage_af, 6);
     expect(ported.capacityAf).toBeCloseTo(legacyAll.capacity_af, 6);
@@ -42,14 +46,17 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
   });
 
   it("reproduces the legacy seasonal-normal aggregate and its coverage", () => {
-    const ported = statewideRollup(payload.reservoirs);
+    const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
     expect(ported.normalAf).toBeCloseTo(legacyAll.normal_af, 6);
     expect(ported.normalCovers).toBe(legacyAll.normal_covers);
     expect(ported.percentOfNormal).toBeCloseTo(legacyAll.pct_of_normal ?? Number.NaN, 6);
   });
 
   it("reproduces the legacy exclude-Lake-Powell aggregation", () => {
-    const ported = statewideRollup(payload.reservoirs, { excludeLakePowell: true });
+    const ported = statewideRollup(payload.reservoirs, {
+      geography: "connected",
+      lakePowell: "exclude"
+    });
     expect(ported.count).toBe(legacyAll.without_lake_powell.count);
     expect(ported.storageAf).toBeCloseTo(legacyAll.without_lake_powell.storage_af, 6);
     expect(ported.capacityAf).toBeCloseTo(legacyAll.without_lake_powell.capacity_af, 6);
@@ -83,7 +90,7 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
   });
 
   it("counts the same class histogram, allowing for boundary drift", () => {
-    const ported = statewideRollup(payload.reservoirs);
+    const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
     const drift = payload.reservoirs.filter((reservoir) =>
       nearBreak(percentFull(reservoir))).length;
     expect(ported.classes.map((entry) => entry.label))
@@ -105,13 +112,13 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
    * here so the divergence stays a decision rather than a surprise.
    */
   it("counts staleness per cadence rather than by the legacy flag", () => {
-    const ported = statewideRollup(payload.reservoirs);
+    const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
     expect(ported.stale).toBe(payload.reservoirs.filter(isLateForCadence).length);
     expect(ported.stale).toBe(payload.stale_count);
   });
 
   it("classifies every reservoir, so the histogram accounts for all of them", () => {
-    const ported = statewideRollup(payload.reservoirs);
+    const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
     const classified = ported.classes.reduce((total, entry) => total + entry.count, 0);
     const unclassifiable = payload.reservoirs
       .filter((reservoir) => percentFull(reservoir) === null).length;
@@ -120,6 +127,61 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
 });
 
 describe("rollup rules independent of today's data", () => {
+  it("separates reservoirs in Utah from all connected reservoirs", () => {
+    const example = payload.reservoirs[0];
+    expect(example).toBeDefined();
+    if (!example) return;
+    const reservoirs = [
+      { ...example, name: "Utah example", in_utah: true },
+      { ...example, name: "Connected example", in_utah: false }
+    ];
+
+    const utah = statewideRollup(reservoirs, {
+      geography: "utah",
+      lakePowell: "include"
+    });
+    const connected = statewideRollup(reservoirs, {
+      geography: "connected",
+      lakePowell: "include"
+    });
+
+    expect(utah.count).toBe(1);
+    expect(connected.count).toBe(2);
+  });
+
+  it("applies the Lake Powell choice independently of geography", () => {
+    const example = payload.reservoirs[0];
+    expect(example).toBeDefined();
+    if (!example) return;
+    const lakePowell = { ...example, name: "Lake Powell", in_utah: true };
+    const reservoirs = [
+      lakePowell,
+      { ...example, name: "Utah example", in_utah: true },
+      { ...example, name: "Connected example", in_utah: false }
+    ];
+
+    for (const geography of ["utah", "connected"] as const) {
+      const included = statewideRollup(reservoirs, {
+        geography,
+        lakePowell: "include"
+      });
+      const excluded = statewideRollup(reservoirs, {
+        geography,
+        lakePowell: "exclude"
+      });
+
+      expect(excluded.count).toBe(included.count - 1);
+      expect(excluded.storageAf).toBeCloseTo(
+        included.storageAf - lakePowell.current_storage_af,
+        6
+      );
+      expect(excluded.capacityAf).toBeCloseTo(
+        included.capacityAf - sizeBasis(lakePowell),
+        6
+      );
+    }
+  });
+
   it("uses capacity and falls back to record max", () => {
     const reservoir = payload.reservoirs.find((entry) => entry.capacity_af !== null);
     expect(reservoir).toBeDefined();

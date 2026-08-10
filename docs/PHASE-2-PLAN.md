@@ -25,6 +25,8 @@ rankings, tables, CSV export, and final production consolidation.
 
 ### P2.1 — Scope contract and workbench copy
 
+**Status:** Complete on 2026-08-10.
+
 **Work**
 
 - Replace the ambiguous rollup option with explicit `geography` and
