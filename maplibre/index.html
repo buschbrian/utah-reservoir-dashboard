@@ -42,6 +42,14 @@
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
     #freshness { font-size: 11px; margin-top: 6px; color: #555; }
     #statewideTotal { font-size: 12px; margin-top: 5px; color: #263746; font-weight: 600; }
+    /* The note a link with an unknown reservoir name lands in. `break-word`
+       because the name comes from the address bar and can be one long
+       unbreakable string, which is a sideways scrollbar on a 360px phone. */
+    #selectNote {
+      font-size: 11px; margin-top: 5px; color: #7c2d12;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    #selectNote[hidden] { display: none; }
     .map-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     .map-actions label { font-size: 11px; color: #555; }
     .map-actions select {
@@ -94,6 +102,7 @@
     <p>Current storage as a percent of the full level</p>
     <p id="freshness">Loading data&hellip;</p>
     <p id="statewideTotal">Calculating the total without Lake Powell&hellip;</p>
+    <p id="selectNote" role="status" hidden></p>
     <div class="map-actions">
       <label for="basemapSelect">Map background
         <select id="basemapSelect">
@@ -136,14 +145,19 @@
       positron: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
       "dark-matter": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
     };
-    const params = new URLSearchParams(location.search);
-    const requestedBasemap = params.get("basemap");
+    const requestedBasemap = new URLSearchParams(location.search).get("basemap");
     const basemapKey = CARTO_STYLES[requestedBasemap] ? requestedBasemap : "positron";
     const basemapSelect = document.getElementById("basemapSelect");
     basemapSelect.value = basemapKey;
     basemapSelect.addEventListener("change", () => {
-      params.set("basemap", basemapSelect.value);
-      location.search = params.toString();
+      // Read the address bar again here rather than reusing the parameters
+      // parsed at load. Choosing a background reloads the page, and the URL
+      // now also carries the selected reservoir, which is written after
+      // load -- a copy taken at load would silently drop the selection and
+      // close the popup the reader had open.
+      const next = new URLSearchParams(location.search);
+      next.set("basemap", basemapSelect.value);
+      location.search = next.toString();
     });
 
     const mapBounds = ReservoirViz.MAP_BOUNDS || [[-117.55, 33.90], [-105.55, 45.10]];
@@ -162,11 +176,13 @@
 
     // MapLibre flattens GeoJSON properties through the tile pipeline, so
     // the per-reservoir `monthly` array comes back out of
-    // e.features[0].properties as a JSON *string*. Rather than re-parsing
-    // it on every click, the full records are kept here and looked up by
-    // name -- the same pattern the ArcGIS version uses for the same
-    // underlying reason (its FeatureLayer fields are scalar-only).
-    let byName = new Map();
+    // e.features[0].properties as a JSON *string*. The popup therefore
+    // never reads a clicked feature: a click carries only the reservoir's
+    // name into the shared selection store, and the full record is looked
+    // up from the loaded data by name. The ArcGIS version does the same
+    // thing for the same underlying reason (its FeatureLayer fields are
+    // scalar-only), which is also what lets a link -- where there is no
+    // clicked feature at all -- take exactly the same path as a click.
 
     // --- Selecting a reservoir -------------------------------------------
     //
@@ -176,13 +192,30 @@
     // tolerable with a mouse and impossible to escape from with a keyboard.
     let activePopup = null;
 
+    // Set by the load handler once the selection store exists. Called when a
+    // popup closes *because the reader closed it*, so the store can clear the
+    // selection and the address bar with it. Teardowns we do ourselves -- to
+    // put a different popup up, or because the store told us to -- are
+    // suppressed, or MapLibre's own close event would land back in the store
+    // as a deselection and undo the selection being made one line earlier.
+    let popupClosedHandler = null;
+    let suppressCloseNotify = false;
+
+    function closeActivePopup() {
+      if (!activePopup) return;
+      suppressCloseNotify = true;
+      try { activePopup.remove(); } finally { suppressCloseNotify = false; }
+      activePopup = null;
+    }
+
     function showReservoir(record, coordinates, trigger) {
       ReservoirViz.announce(ReservoirViz.selectionMessage(record));
       if (activePopup) {
         // Clearing the old popup's return target first, so closing it does
         // not pull focus backwards while the new one is opening.
         activePopup.__rvTrigger = null;
-        activePopup.remove();
+        suppressCloseNotify = true;
+        try { activePopup.remove(); } finally { suppressCloseNotify = false; }
       }
       const popup = new maplibregl.Popup({ maxWidth: "330px" })
         .setLngLat(coordinates)
@@ -197,6 +230,7 @@
         // Only if the button is still on the page: focusing a detached
         // node silently sends focus to the body instead.
         if (back && document.contains(back)) back.focus();
+        if (!suppressCloseNotify && popupClosedHandler) popupClosedHandler();
       });
 
       const node = popup.getElement()
@@ -324,7 +358,6 @@
       ReservoirViz.load("../reservoirs.json")
         .then((data) => {
           const reservoirs = data.reservoirs;
-          byName = new Map(reservoirs.map((r) => [r.name, r]));
 
           document.getElementById("freshness").innerHTML =
             ReservoirViz.freshnessHTML(data);
@@ -344,7 +377,7 @@
               // Only the properties the paint expressions actually read.
               // Passing the whole record (what this used to do) now ships
               // a 12-element array per feature into the tile pipeline for
-              // no benefit, since the popup reads from byName instead.
+              // no benefit, since the popup reads the loaded record instead.
               properties: {
                 name: r.name,
                 // Same two derived fields as the ArcGIS version: capacity
@@ -458,15 +491,38 @@
             }
           });
 
+          // --- Shared selection <-> popup <-> URL ---
+          //
+          // The store in ../shared/reservoir-viz.js is the only thing that
+          // knows what is selected, exactly as on the ArcGIS page. The
+          // engine difference is worth recording: the ArcGIS SDK owns its
+          // popup and this page has to own its own, so here the store's
+          // listener *builds* the popup for a click as well as for a link,
+          // while the ArcGIS version only has to stay out of the SDK's way.
+          const selection = ReservoirViz.selection;
+          const note = document.getElementById("selectNote");
+          // The popup itself is showReservoir() above -- one implementation,
+          // so a reservoir reached by a link is announced, focusable and
+          // escapable exactly like one reached by the keyboard list. All
+          // that is wired here is the direction the accessible popup could
+          // not know about: a reader closing it clears the selection, and
+          // the address bar with it.
+          popupClosedHandler = () =>
+            selection.set({ reservoir: null }, { source: "map" });
+          const removePopup = closeActivePopup;
+          // Set just before a selection that came from the keyboard list, so
+          // the popup knows where to send focus back to when it closes. A
+          // click on the map has nowhere to return to and leaves it null.
+          let pendingOpener = null;
+
           // Popup only on the front-most (current-storage) layer -- the
           // same lesson as the ArcGIS version: binding it to both layers
           // produces a confusing double-popup for the same click, since
           // this layer's circle always sits inside the outline layer's
           // circle at the same point.
           map.on("click", "current-circle", (e) => {
-            const record = byName.get(e.features[0].properties.name);
-            if (!record) return;
-            showReservoir(record, e.features[0].geometry.coordinates, null);
+            selection.set({ reservoir: e.features[0].properties.name },
+                          { source: "map" });
           });
 
           // --- Keyboard list of reservoirs ---
@@ -482,19 +538,63 @@
           // One listener on the container rather than 53 on the buttons.
           // A <button> fires `click` for Enter and for Space as well as for
           // the mouse, so this is the whole keyboard path.
+          //
+          // It sets the selection rather than opening a popup itself: the
+          // store is the one path, so a reservoir opened from the keyboard
+          // updates the address bar and moves the map exactly like one
+          // opened from a link. The only thing the store cannot know is
+          // which button to hand focus back to, which is what pendingOpener
+          // carries across.
           listHost.addEventListener("click", (event) => {
             const button = event.target.closest(".rv-list-btn");
             if (!button) return;
-            const record = byName.get(button.getAttribute("data-name"));
-            if (!record) return;
-            // Move first, then open: a popup anchored to a point that is
-            // off screen has nothing to point at.
-            map.easeTo({
-              center: [record.lon, record.lat],
-              zoom: Math.max(map.getZoom(), 8)
-            });
-            showReservoir(record, [record.lon, record.lat], button);
+            const name = button.getAttribute("data-name");
+            if (!ReservoirViz.findReservoir(reservoirs, name)) return;
+            pendingOpener = button;
+            selection.set({ reservoir: name }, { source: "list" });
           });
+
+          selection.subscribe((state, info) => {
+            const fromMap = info.source === "map";
+            const opener = pendingOpener;
+            pendingOpener = null;
+            if (!state.reservoir) {
+              note.hidden = true;
+              note.textContent = "";
+              // A popup the reader just closed is already gone; removing it
+              // again would fire another close event.
+              if (!fromMap) removePopup();
+              return;
+            }
+            const record = ReservoirViz.findReservoir(reservoirs, state.reservoir);
+            if (!record) {
+              // A link naming a reservoir this dashboard does not carry.
+              // The map stays where it started and says so in one line.
+              note.textContent = ReservoirViz.unknownReservoirMessage(state.reservoir);
+              note.hidden = false;
+              return;
+            }
+            note.hidden = true;
+            note.textContent = "";
+            showReservoir(record, [record.lon, record.lat], opener);
+            // Only a link, the keyboard list or the back button moves the
+            // map. A click already happened where the reader was looking.
+            if (!fromMap) {
+              map.flyTo({
+                center: [record.lon, record.lat],
+                // Never zooms out, so stepping through history cannot throw
+                // a reader who panned in back out to the state view.
+                zoom: Math.max(map.getZoom(), 7.5),
+                duration: 700
+              });
+            }
+          });
+
+          // Reads the address bar (which is what opens the popup for a
+          // shared link), writes it back with history.replaceState on every
+          // change, and follows the back and forward buttons. Called after
+          // the listener above, because the first read happens inside it.
+          ReservoirViz.connectSelectionToUrl(selection);
 
           map.on("mouseenter", "current-circle", () => {
             map.getCanvas().style.cursor = "pointer";
@@ -509,6 +609,9 @@
             engine: "maplibre",
             reservoirs: reservoirs.length,
             stale: reservoirs.filter((r) => r.is_stale).length,
+            // Added for the deep-link tests. Never removed a field:
+            // tests/smoke.mjs asserts on the ones below.
+            selected: selection.get().reservoir,
             layers: ["max-circle", "stale-ring", "current-circle"]
               .filter((id) => map.getLayer(id)).length,
             masked: !!map.getLayer("huc6-mask"),

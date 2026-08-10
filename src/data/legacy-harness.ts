@@ -38,12 +38,54 @@ export interface LegacySummary {
   classes: LegacyClassCount[];
 }
 
+/* The selection the three pages share, and the URL it is carried in. Typed
+ * here for the same reason the summary above is: the store is plain
+ * browser-free logic living in a file the build cannot import, so the only
+ * way to hold it to a contract is to describe that contract at the sandbox
+ * boundary. */
+export interface LegacySelectionState {
+  reservoir: string | null;
+  [field: string]: string | null;
+}
+
+export interface LegacySelectionMeta {
+  changed: string[];
+  source: string;
+}
+
+export interface LegacySelectionStore {
+  fields: string[];
+  get(): LegacySelectionState;
+  set(patch: Record<string, unknown>, meta?: { source?: string }): boolean;
+  clear(meta?: { source?: string }): boolean;
+  subscribe(
+    listener: (state: LegacySelectionState, meta: LegacySelectionMeta) => void
+  ): () => void;
+}
+
 export interface LegacyApi {
   CLASSES: readonly { min: number; label: string; color: string }[];
   headlinePct(reservoir: unknown): number | null;
   sizeBasis(reservoir: unknown): number;
   colorFor(percent: number | null): string;
   statewideSummary(reservoirs: readonly unknown[]): LegacySummary;
+  SELECTION_FIELDS: string[];
+  selection: LegacySelectionStore;
+  createSelectionStore(fields?: string[]): LegacySelectionStore;
+  selectionFromSearch(search: string | null | undefined): LegacySelectionState;
+  searchWithSelection(
+    state: Partial<LegacySelectionState>,
+    currentSearch?: string | null
+  ): string;
+  findReservoir<T extends { name?: unknown }>(
+    reservoirs: readonly T[] | null | undefined,
+    name: string | null | undefined
+  ): T | null;
+  unknownReservoirMessage(name: string): string;
+  connectSelectionToUrl(
+    store: LegacySelectionStore,
+    options?: { window?: unknown }
+  ): () => void;
 }
 
 export function loadLegacyApi(): LegacyApi {

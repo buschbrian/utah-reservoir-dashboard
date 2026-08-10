@@ -1,6 +1,9 @@
 import { copyFile, cp, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defineConfig, type Plugin } from "vite";
+// From vitest/config rather than vite: it is the same defineConfig with the
+// `test` block added to the type. Vite's own does not know that key exists.
+import type { Plugin } from "vite";
+import { defineConfig } from "vitest/config";
 
 const root = process.cwd();
 const outDir = resolve(root, "dist");
