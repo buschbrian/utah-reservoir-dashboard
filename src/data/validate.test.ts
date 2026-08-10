@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateReservoirPayload } from "./validate";
 
@@ -114,5 +115,35 @@ describe("reservoir payload validation", () => {
     delete payload.source_counts;
 
     expect(() => validateReservoirPayload(payload)).toThrow("source metadata");
+  });
+});
+
+/*
+ * The validator is strict, and every fixture above is synthetic. That leaves
+ * the one case that actually ships untested: the payload the pipeline wrote
+ * this morning. Its only call site is `load.ts`, reached from `modern.html`,
+ * which the browser smoke test does not open -- so a pipeline field that the
+ * validator rejects would surface as a blank page for a reader rather than
+ * as a failed build.
+ *
+ * Reading the committed file closes that loop. It stays data-independent:
+ * it asserts shape and the envelope's own self-consistency, never a
+ * storage value, so tomorrow's refresh cannot turn it red.
+ */
+describe("the committed payload", () => {
+  const raw = JSON.parse(
+    readFileSync(new URL("../../reservoirs.json", import.meta.url), "utf8")
+  ) as unknown;
+
+  it("passes the validator that guards the fetch boundary", () => {
+    const payload = validateReservoirPayload(raw);
+    expect(payload.reservoirs.length).toBe(payload.reservoir_count);
+    expect(payload.reservoirs.length).toBeGreaterThan(0);
+  });
+
+  it("carries a drainage area for every reservoir", () => {
+    const payload = validateReservoirPayload(raw);
+    const missing = payload.reservoirs.filter((r) => !r.huc6).map((r) => r.name);
+    expect(missing).toEqual([]);
   });
 });
