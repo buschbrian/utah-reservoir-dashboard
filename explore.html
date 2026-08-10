@@ -41,6 +41,10 @@
       --neg: #a44840;
       --pos: #48735b;
       --warn: #9a682f;
+      /* One focus color for the whole project, matching the ring the shared
+         module draws on the two map pages. Dark enough to hold 3:1 against
+         every surface here, including the hover tint the rows take. */
+      --focus: #14527a;
       --radius: 12px;
       --shadow: 0 1px 2px rgba(36,49,47,.035), 0 4px 14px rgba(36,49,47,.035);
       --pad: 20px;
@@ -161,8 +165,11 @@
       padding: 6px 8px; border: 0; border-radius: 8px;
       background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
     }
-    .rank-row:hover, .rank-row:focus-visible { background: #e9efec; outline: none; }
-    .rank-row:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+    .rank-row:hover { background: #e9efec; }
+    /* An outline rather than the box-shadow this used to use: a shadow is
+       dropped entirely in forced-colors mode, which is exactly the setting a
+       reader who needs the ring is most likely to be running. */
+    .rank-row:focus-visible { background: #e9efec; outline: 3px solid var(--focus); outline-offset: -2px; }
     .rank-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-name small { display: block; color: var(--ink-2); font-size: 10.5px; font-weight: 400; }
     .rank-size { display: flex; align-items: center; justify-content: center; min-height: 36px; }
@@ -194,6 +201,17 @@
     .btn[aria-pressed="true"] { background: #344e54; color: #fff; border-color: #344e54; }
     .count { font-size: 12.5px; color: var(--ink-2); }
 
+    /* Written here as well as in the shared module. The module injects a
+       zero-specificity ring for all three pages, but this page has to stay
+       usable by keyboard even on the day shared/reservoir-viz.js fails to
+       load -- and a page with no visible focus is unusable, not degraded. */
+    nav.views a:focus-visible, .terms summary:focus-visible, .btn:focus-visible,
+    .chart-toolbar select:focus-visible, .icon-btn:focus-visible,
+    table.data th button:focus-visible, footer.page a:focus-visible,
+    .detail-body a:focus-visible, .detail-body summary:focus-visible {
+      outline: 3px solid var(--focus); outline-offset: 2px;
+    }
+
     /* --- Table ------------------------------------------------------- */
     .table-scroll { overflow-x: auto; }
     table.data { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -213,10 +231,18 @@
     table.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
     table.data tbody tr { cursor: pointer; }
     table.data tbody tr:hover { background: #f6f8fa; }
+    /* The rows are focusable and open the detail panel, so they need a ring
+       of their own. `border-collapse` hides an outline on a <tr> in some
+       browsers, so the cells carry a top and bottom edge as well. */
+    table.data tbody tr:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+    table.data tbody tr:focus-visible td { background: #e9efec; }
     table.data td .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; }
     td.neg { color: var(--neg); }
     td.pos { color: var(--pos); }
-    .sort-caret { font-size: 9px; color: var(--ink-3); }
+    /* --ink-3 measures 3.1:1 on this surface, which fails WCAG AA. The
+       caret is not decoration -- it is the only thing on screen that says
+       which way the column is sorted -- so it takes the readable gray. */
+    .sort-caret { font-size: 9px; color: var(--ink-2); }
 
     /* --- Small multiples --------------------------------------------- */
     .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
@@ -331,7 +357,10 @@
       </div>
       <div class="split">
         <div class="card">
-          <div class="chart-toolbar" aria-label="Chart controls">
+          <!-- role="group" because a bare <div> has no role, and a name on
+               a element with no role is dropped. The label was there; only
+               the role made it reach a screen reader. -->
+          <div class="chart-toolbar" role="group" aria-label="Chart controls">
             <label>Reservoir group
               <select id="trendScope">
                 <option value="utah">Utah without Lake Powell</option>
@@ -346,7 +375,12 @@
             </label>
             <span class="count" id="trendSummary"></span>
           </div>
-          <div id="stateChart" class="state-plot" aria-live="polite"></div>
+          <!-- Not a live region any more. It held one, which meant every
+               redraw -- including the one the window fires while you are
+               resizing -- read a whole SVG of tick labels aloud. The chart
+               now sends one short sentence to the shared polite region when
+               a control changes it. -->
+          <div id="stateChart" class="state-plot"></div>
           <p class="chart-key count">
             <span><i></i> Average storage for each month</span>
             <span><i class="normal"></i> Normal value for that month</span>
@@ -716,15 +750,20 @@
       el("rank").innerHTML = sorted.map((r) => {
         const pct = Math.max(0, Math.min(100, r.fill_pct ?? 0));
         const size = 10 + Math.sqrt((r.size_basis_af || 0) / largest) * 28;
-        const label = r.name + ". Capacity: " + RV.fmtAf(r.size_basis_af) +
-          " acre-feet. Current storage: " + RV.fmtPct(r.fill_pct) + " full.";
+        // "Full level", not "Capacity": this number is the reservoir's
+        // capacity only where we have one, and its highest recorded storage
+        // where we do not. The row's own small print, the table column and
+        // the map pages all say "full level", and one term for one thing is
+        // the rule the visible text already follows.
+        const label = r.name + ". " + RV.fmtPct(r.fill_pct) + " full. Full level: " +
+          RV.fmtAf(r.size_basis_af) + " acre-feet." + (r.is_stale ? " Data is late." : "");
         return "<button class='rank-row' data-name='" + RV.esc(r.name) +
           "' aria-label='" + RV.esc(label) + "'>" +
           "<span class='rank-name'>" + RV.esc(r.name) +
             (r.is_stale ? "<span class='rank-stale' title='Data is late'>&#9888;</span>" : "") +
             "<small>" + RV.fmtAf(r.size_basis_af) + " acre-feet at full level</small>" +
           "</span>" +
-          "<span class='rank-size' title='Capacity: " + RV.fmtAf(r.size_basis_af) +
+          "<span class='rank-size' title='Full level: " + RV.fmtAf(r.size_basis_af) +
             " acre-feet'><i style='--size:" + size.toFixed(1) + "px'></i></span>" +
           "<span class='rank-track'><span style='width:" + pct.toFixed(1) + "%;background:" +
             RV.colorFor(r.fill_pct) + "'></span></span>" +
@@ -798,9 +837,19 @@
 
     // --- Detail dialog ---------------------------------------------------
 
-    function openDetail(name) {
+    // What opened the dialog, so focus can go back to it. `showModal()`
+    // restores focus by itself, but the `setAttribute("open")` fallback
+    // below does not, and neither path restores focus to a row that was
+    // re-rendered while the dialog was open.
+    let detailOpener = null;
+
+    function openDetail(name, trigger) {
       const r = state.rows.find((x) => x.name === name);
       if (!r) return;
+      // The element that was clicked, not document.activeElement: a mouse
+      // click on a table row leaves focus on the body, and "return focus to
+      // the body" is the same as losing your place.
+      detailOpener = trigger || document.activeElement;
       el("detailTitle").textContent = r.name;
       // The same popup markup both maps render, at the width this page can
       // afford -- so a reservoir reads identically whether you got to it by
@@ -808,17 +857,48 @@
       el("detailBody").innerHTML = RV.popupHTML(r, { width: 560, height: 190 });
       const dlg = el("detail");
       if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+      // showModal puts focus on the first focusable child, which is the
+      // close button. The fallback puts it nowhere, so it is done by hand.
+      if (typeof dlg.showModal !== "function") el("detailClose").focus();
+      // The selection, said once and politely. The dialog's own contents
+      // are not announced -- a reader lands inside it and can read on.
+      RV.announce(RV.selectionMessage(r));
       // Shareable without being a navigation: the URL now names the
       // reservoir, and reloading it reopens this panel.
       history.replaceState(null, "", "?reservoir=" + encodeURIComponent(r.name));
     }
 
-    el("detailClose").addEventListener("click", () => el("detail").close());
-    el("detail").addEventListener("close", () => history.replaceState(null, "", location.pathname));
+    el("detailClose").addEventListener("click", () => closeDetail());
+    // The non-modal fallback gets no Escape handling from the browser, and
+    // a panel a keyboard cannot leave is worse than no panel.
+    el("detail").addEventListener("keydown", (event) => {
+      if (event.key === "Escape") { event.preventDefault(); closeDetail(); }
+    });
+    el("detail").addEventListener("close", () => {
+      history.replaceState(null, "", location.pathname);
+      returnFocusFromDetail();
+    });
+
+    function closeDetail() {
+      const dlg = el("detail");
+      if (typeof dlg.close === "function") dlg.close();
+      else { dlg.removeAttribute("open"); returnFocusFromDetail(); }
+    }
+
+    function returnFocusFromDetail() {
+      const back = detailOpener;
+      detailOpener = null;
+      // Only if it is still on the page: sorting or filtering while the
+      // dialog was open replaces the row that opened it, and focusing a
+      // detached node drops focus to the body instead.
+      if (back && typeof back.focus === "function" && document.contains(back)) {
+        back.focus();
+      }
+    }
 
     document.addEventListener("click", (e) => {
       const hit = e.target.closest("[data-name]");
-      if (hit) openDetail(hit.getAttribute("data-name"));
+      if (hit) openDetail(hit.getAttribute("data-name"), hit);
       const sort = e.target.closest("[data-sort]");
       if (sort) {
         const key = sort.getAttribute("data-sort");
@@ -835,7 +915,7 @@
       const row = e.target.closest("tr[data-name]");
       if (!row) return;
       e.preventDefault();
-      openDetail(row.getAttribute("data-name"));
+      openDetail(row.getAttribute("data-name"), row);
     });
 
     el("q").addEventListener("input", (e) => { state.q = e.target.value; renderList(); });
@@ -843,6 +923,11 @@
       state.staleOnly = !state.staleOnly;
       e.currentTarget.setAttribute("aria-pressed", String(state.staleOnly));
       renderList();
+      // The button says what it does but not what happened; the row count
+      // is the only thing on screen that reports the result, and it is at
+      // the far end of the toolbar. Announced here and not on the search
+      // box, which would speak once per keystroke.
+      RV.announce("Table updated. " + el("rowCount").textContent + ".");
     });
 
     // --- CSV -------------------------------------------------------------
@@ -924,8 +1009,18 @@
           RV.esc(err && err.message ? err.message : err) + "</span>";
       });
 
-    el("trendScope").addEventListener("change", renderStateChart);
-    el("trendMetric").addEventListener("change", renderStateChart);
+    // Announced on change only, never on the redraw a window resize fires:
+    // a live region that speaks while you drag a window edge is a live
+    // region people switch off.
+    function redrawChart(event) {
+      renderStateChart();
+      if (!event) return;
+      const chosen = (select) => select.options[select.selectedIndex].text;
+      RV.announce("Chart updated. " + chosen(el("trendScope")) + ". " +
+        chosen(el("trendMetric")) + ". " + el("trendSummary").textContent);
+    }
+    el("trendScope").addEventListener("change", redrawChart);
+    el("trendMetric").addEventListener("change", redrawChart);
     let resizeTimer;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimer);

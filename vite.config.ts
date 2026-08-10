@@ -32,6 +32,12 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
 
 export default defineConfig({
   base: "./",
+  // Agent worktrees are checkouts of this repository inside this repository,
+  // so an unqualified test glob collects every copy of every test file and
+  // reports five times the real count -- passing, and meaningless.
+  test: {
+    exclude: ["**/node_modules/**", "**/dist/**", ".claude/**"]
+  },
   build: {
     outDir,
     emptyOutDir: true,

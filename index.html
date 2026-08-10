@@ -32,6 +32,12 @@
       background: rgba(251,252,251,.96); padding: 10px 14px; border-radius: 6px;
       box-shadow: 0 2px 10px rgba(36,49,47,.16); font-family: sans-serif;
       max-width: 340px;
+      /* The card now carries the keyboard list of reservoirs, so it can
+         grow. The 240px reserved at the bottom is the legend's corner plus
+         the attribution bar: without it, a short desktop window lets the
+         open list run down into the legend. The list has a scroll cap of
+         its own, so this second one only engages on a short window. */
+      max-height: calc(100vh - 240px); overflow-y: auto;
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
@@ -44,12 +50,16 @@
       border: 1px solid #c6d1ce; border-radius: 4px; background: #fbfcfb; font: inherit;
     }
     .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
-    .map-links a { color: #0079c1; }
+    /* #0079c1 reaches only 3.9:1 on this panel, below WCAG AA for text.
+       Same blue family, dark enough to read: 6.6:1. */
+    .map-links a { color: #0b6198; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
-      font-size: 10.5px; color: #777; line-height: 1.4;
+      /* #777 at 10.5px measured 4.6:1 here, close enough to the line that a
+         slightly different panel opacity would drop it under. */
+      font-size: 10.5px; color: #5f6368; line-height: 1.4;
     }
-    #titleDiv .disclaimer a { color: #0079c1; }
+    #titleDiv .disclaimer a { color: #0b6198; }
     /* The popup is where the 12-month chart and table live, so it needs
        more room than the SDK's default. */
     .esri-popup__content { font-family: sans-serif; }
@@ -62,7 +72,10 @@
       /* The right gutter is the zoom control's lane: 32px of control plus
          the SDK's 15px corner margin, rounded up. Without it the card runs
          under the control, which is the phone overlap CI catches. */
-      #titleDiv { top: 8px; left: 8px; right: 56px; max-width: none; padding: 8px 10px; }
+      #titleDiv {
+        top: 8px; left: 8px; right: 56px; max-width: none; padding: 8px 10px;
+        max-height: calc(100vh - 16px);
+      }
       #titleDiv .disclaimer { display: none; }
       #titleDiv h1 { font-size: 15px; }
       .map-actions { margin-top: 5px; }
@@ -94,6 +107,13 @@
       <a href="explore.html#terms">Meaning of terms</a>
       <a href="maplibre/">MapLibre comparison</a>
     </nav>
+    <!-- The keyboard path to every reservoir. It lives inside the title
+         card rather than in a panel of its own because this card is the
+         one box on the page whose position is already solved at 1280, 390
+         and 360 pixels: it clears the zoom control's lane on the right and
+         the legend's corner at the bottom left, and it cannot widen the
+         page. A second floating panel would have to re-earn all of that. -->
+    <div id="reservoirList"></div>
     <p class="disclaimer">
       The data source can change these values later. Each reservoir shows its update schedule.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of Reclamation</a>
@@ -122,8 +142,12 @@
       "esri/views/MapView",
       "esri/Graphic",
       "esri/layers/FeatureLayer",
-      "esri/layers/GraphicsLayer"
-    ], function (EsriMap, MapView, Graphic, FeatureLayer, GraphicsLayer) {
+      "esri/layers/GraphicsLayer",
+      // reactiveUtils rather than the deprecated Accessor.watch, to follow
+      // the popup's own state instead of guessing when it opened.
+      "esri/core/reactiveUtils"
+    ], function (EsriMap, MapView, Graphic, FeatureLayer, GraphicsLayer,
+                 reactiveUtils) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "gray-vector" });
@@ -271,6 +295,15 @@
       // Full records by name, so the popup can reach the `monthly` array
       // and the other fields that don't fit the scalar layer schema.
       let byName = new Map();
+      // Assigned once the data arrives. The keyboard list needs to ask this
+      // layer for a feature by its object id, which is the only reliable
+      // way to hand the popup a graphic that carries the popup template --
+      // the Graphic instances handed to `source` are cloned by the layer.
+      let currentLayer = null;
+      // The control that opened the popup, so focus can go back to it when
+      // the popup closes. Null when the popup was opened by clicking the
+      // map itself, in which case there is nothing to go back to.
+      let popupOpener = null;
 
       const popupTemplate = {
         title: "{name}",
@@ -446,7 +479,7 @@
           });
 
           // --- Filled layer: current storage, drawn last (on top) ---
-          const currentLayer = new FeatureLayer({
+          currentLayer = new FeatureLayer({
             title: "Current storage",
             source: makeGraphics(reservoirs),
             fields: fields,
@@ -507,6 +540,23 @@
 
           map.addMany([maxLayer, staleLayer, currentLayer]);
 
+          // --- Keyboard list of reservoirs ---
+          //
+          // Built from the shared module so this page and the MapLibre page
+          // offer the same list in the same order. Closed on a phone,
+          // where the map is the page and 53 rows would bury it.
+          const listHost = document.getElementById("reservoirList");
+          listHost.innerHTML = ReservoirViz.reservoirListHTML(reservoirs, {
+            open: window.innerWidth > 640
+          });
+          // One listener on the container rather than 53 on the buttons.
+          // A <button> fires `click` for Enter and for Space as well as for
+          // the mouse, so this is the whole keyboard path.
+          listHost.addEventListener("click", (event) => {
+            const button = event.target.closest(".rv-list-btn");
+            if (button) selectReservoir(button.getAttribute("data-name"), button);
+          });
+
           // Readiness signal for the CI browser smoke test (tests/smoke.mjs).
           // Deliberately tiny and inert: the alternative is a smoke test that
           // can only assert "no exception was thrown", which is not the same
@@ -526,7 +576,10 @@
               // two assertions about one fact -- which is how the Utah mask
               // came to be deleted without a single test noticing.
               masked: map.layers.includes(maskLayer),
-              huc6: map.layers.includes(hucLayer)
+              huc6: map.layers.includes(hucLayer),
+              // Added, never replacing a field: the smoke test asserts on
+              // the ones above and a missing key reads as a crash.
+              listItems: listHost.querySelectorAll(".rv-list-btn").length
             };
           });
         })
@@ -549,6 +602,98 @@
         return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
       }
 
+      // --- Selecting a reservoir without a mouse ---------------------------
+      //
+      // One path for both the list and the map. Moving the view first and
+      // opening the popup afterwards matters: opening it at a point that is
+      // off screen leaves the popup anchored to nothing.
+      function selectReservoir(name, trigger) {
+        const record = byName.get(name);
+        if (!record || !currentLayer) return;
+        popupOpener = trigger || null;
+        announceSelection(name);
+        // goTo rejects with an abort error whenever a second navigation
+        // interrupts it -- pressing Enter on two reservoirs quickly is
+        // enough. That is not a failure worth stopping the popup for.
+        view.goTo({ center: [record.lon, record.lat], zoom: Math.max(view.zoom || 0, 8) })
+          .catch(() => {})
+          .then(() => currentLayer.queryFeatures({
+            objectIds: [record.__oid], returnGeometry: true, outFields: ["*"]
+          }))
+          .then((result) => {
+            const feature = result && result.features && result.features[0];
+            if (!feature) return;
+            // The queried graphic carries no template of its own, so the
+            // popup would open empty without this line.
+            feature.popupTemplate = popupTemplate;
+            const opened = { features: [feature], location: feature.geometry };
+            if (typeof view.openPopup === "function") view.openPopup(opened);
+            else view.popup.open(opened);
+          })
+          .catch((err) => console.error("Could not open the reservoir popup:", err));
+      }
+
+      // The same selection can arrive twice within one interaction -- once
+      // from the list button and once from the popup's own watcher -- and a
+      // live region that says everything twice is worse than one that says
+      // nothing. A repeat later is a real repeat and is announced again.
+      let announcedName = null;
+      let announceTimer = null;
+      function announceSelection(name) {
+        const record = byName.get(name);
+        if (!record || (announcedName === name && announceTimer)) return;
+        announcedName = name;
+        clearTimeout(announceTimer);
+        announceTimer = setTimeout(() => { announceTimer = null; announcedName = null; }, 400);
+        ReservoirViz.announce(ReservoirViz.selectionMessage(record));
+      }
+
+      // --- Popup focus ------------------------------------------------------
+      //
+      // The SDK renders the popup wherever it likes in the view's UI, so
+      // focus stays on whatever opened it and a keyboard reader is left
+      // outside a panel that just appeared. These two watchers put focus in
+      // when it opens and give it back when it closes.
+      function focusPopup(attempt) {
+        const node = document.querySelector(".esri-popup__main-container");
+        if (!node) {
+          // The popup DOM is created asynchronously; a couple of frames is
+          // enough, and giving up quietly is better than a focus steal that
+          // lands after the reader has moved on.
+          if ((attempt || 0) < 6) setTimeout(() => focusPopup((attempt || 0) + 1), 60);
+          return;
+        }
+        node.setAttribute("tabindex", "-1");
+        if (!node.dataset.rvEscape) {
+          node.dataset.rvEscape = "1";
+          node.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            event.stopPropagation();
+            if (typeof view.closePopup === "function") view.closePopup();
+            else view.popup.visible = false;
+          });
+        }
+        node.focus({ preventScroll: true });
+      }
+
+      // reactiveUtils rather than the Accessor's own `watch`: the latter is
+      // deprecated in 4.x and gone in 5.0, and this page is the one that
+      // tracks the SDK version.
+      reactiveUtils.watch(() => view.popup && view.popup.visible, (visible) => {
+        if (visible) { focusPopup(0); return; }
+        const trigger = popupOpener;
+        popupOpener = null;
+        // Only if the trigger is still on the page: re-rendering the list
+        // would leave this pointing at a detached button.
+        if (trigger && document.contains(trigger)) trigger.focus();
+      });
+      // Announces reservoirs reached by clicking the map as well as ones
+      // reached from the list.
+      reactiveUtils.watch(() => view.popup && view.popup.selectedFeature, (feature) => {
+        const name = feature && feature.attributes && feature.attributes.name;
+        if (name) announceSelection(name);
+      });
+
       // --- Legend ---
       //
       // Same reasoning as before: a plain always-visible panel rather than
@@ -557,6 +702,11 @@
       const legendDiv = document.createElement("div");
       legendDiv.id = "legendDiv";
       legendDiv.innerHTML = ReservoirViz.legendHTML();
+      // A named region, so the legend is something a screen reader can jump
+      // to rather than a nameless box you can only reach by reading the
+      // whole page in order. The name comes from the legend's own heading.
+      legendDiv.setAttribute("role", "region");
+      legendDiv.setAttribute("aria-labelledby", "rv-legend-head");
 
       view.ui.add(legendDiv, "bottom-left");
     });

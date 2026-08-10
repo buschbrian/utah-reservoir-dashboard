@@ -6,3 +6,8 @@ __pycache__/
 node_modules/
 dist/
 screenshots/
+
+# Agent worktrees. They are checkouts of this same repository living inside
+# it, so without this they get committed as embedded repositories and their
+# test files get collected by vitest as if they were ours.
+.claude/worktrees/

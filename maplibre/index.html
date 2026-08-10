@@ -31,6 +31,12 @@
       background: rgba(251,252,251,.96); padding: 10px 14px; border-radius: 6px;
       box-shadow: 0 2px 10px rgba(36,49,47,.16); font-family: sans-serif;
       max-width: 340px;
+      /* The card now carries the keyboard list of reservoirs, so it can
+         grow. The 240px reserved at the bottom is the legend's corner plus
+         the attribution bar: without it, a short desktop window lets the
+         open list run down into the legend. The list has a scroll cap of
+         its own, so this second one only engages on a short window. */
+      max-height: calc(100vh - 240px); overflow-y: auto;
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
@@ -43,12 +49,17 @@
       border: 1px solid #c6d1ce; border-radius: 4px; background: #fbfcfb; font: inherit;
     }
     .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
-    .map-links a { color: #0079c1; }
+    /* #0079c1 reaches only 3.9:1 on this panel, below WCAG AA for text.
+       Same blue family, dark enough to read: 6.6:1. Kept identical to the
+       ArcGIS page, like everything else the two share. */
+    .map-links a { color: #0b6198; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
-      font-size: 10.5px; color: #777; line-height: 1.4;
+      /* #777 at 10.5px measured 4.6:1 here, close enough to the line that a
+         slightly different panel opacity would drop it under. */
+      font-size: 10.5px; color: #5f6368; line-height: 1.4;
     }
-    #titleDiv .disclaimer a { color: #0079c1; }
+    #titleDiv .disclaimer a { color: #0b6198; }
     #legendDiv {
       position: absolute; bottom: 24px; left: 10px; z-index: 10;
       background: rgba(251,252,251,.96); padding: 10px 14px; border-radius: 6px;
@@ -61,7 +72,10 @@
        back on the way the ArcGIS SDK does. */
     .maplibregl-popup-content { max-height: 70vh; overflow-y: auto; }
     @media (max-width: 640px) {
-      #titleDiv { top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px; }
+      #titleDiv {
+        top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px;
+        max-height: calc(100vh - 16px);
+      }
       #titleDiv .disclaimer { display: none; }
       #titleDiv h1 { font-size: 15px; }
       .map-actions { margin-top: 5px; }
@@ -94,13 +108,19 @@
       <a href="../explore.html#terms">Meaning of terms</a>
       <a href="../">ArcGIS comparison</a>
     </nav>
+    <!-- The keyboard path to every reservoir, in the same place the ArcGIS
+         page keeps it: inside the title card, whose position is already
+         solved at 1280, 390 and 360 pixels and which cannot widen the
+         page. Same list, same order, same markup -- the two pages exist to
+         compare rendering engines, so a difference here would be noise. -->
+    <div id="reservoirList"></div>
     <p class="disclaimer">
       The data source can change these values later. Each reservoir shows its update schedule.
       <a href="https://data.usbr.gov/rise-api" target="_blank" rel="noreferrer">Bureau of Reclamation</a>
       &middot; <a href="https://wcc.sc.egov.usda.gov/awdbWebService/" target="_blank" rel="noreferrer">Natural Resources Conservation Service</a>
     </p>
   </div>
-  <div id="legendDiv"></div>
+  <div id="legendDiv" role="region" aria-labelledby="rv-legend-head"></div>
   <div id="map"></div>
 
   <script>
@@ -147,6 +167,56 @@
     // name -- the same pattern the ArcGIS version uses for the same
     // underlying reason (its FeatureLayer fields are scalar-only).
     let byName = new Map();
+
+    // --- Selecting a reservoir -------------------------------------------
+    //
+    // One path for the map click and the keyboard list, so a reservoir
+    // reads the same either way. Only one popup is open at a time: the
+    // original handler stacked a new popup on every click, which is
+    // tolerable with a mouse and impossible to escape from with a keyboard.
+    let activePopup = null;
+
+    function showReservoir(record, coordinates, trigger) {
+      ReservoirViz.announce(ReservoirViz.selectionMessage(record));
+      if (activePopup) {
+        // Clearing the old popup's return target first, so closing it does
+        // not pull focus backwards while the new one is opening.
+        activePopup.__rvTrigger = null;
+        activePopup.remove();
+      }
+      const popup = new maplibregl.Popup({ maxWidth: "330px" })
+        .setLngLat(coordinates)
+        .setHTML(ReservoirViz.popupHTML(record, { includeTitle: true, width: 300 }))
+        .addTo(map);
+      popup.__rvTrigger = trigger || null;
+      activePopup = popup;
+
+      popup.on("close", () => {
+        if (activePopup === popup) activePopup = null;
+        const back = popup.__rvTrigger;
+        // Only if the button is still on the page: focusing a detached
+        // node silently sends focus to the body instead.
+        if (back && document.contains(back)) back.focus();
+      });
+
+      const node = popup.getElement()
+        && popup.getElement().querySelector(".maplibregl-popup-content");
+      if (!node) return;
+      // MapLibre draws a plain box. Naming it as a dialog is what tells a
+      // screen reader that the page has a new panel and what it is about.
+      node.setAttribute("role", "dialog");
+      node.setAttribute("aria-label", record.name);
+      node.setAttribute("tabindex", "-1");
+      node.addEventListener("keydown", (event) => {
+        // MapLibre closes on Escape only while its own container has the
+        // key event. Focus is inside the popup here, so this is the one
+        // that actually fires.
+        if (event.key !== "Escape") return;
+        event.stopPropagation();
+        popup.remove();
+      });
+      node.focus({ preventScroll: true });
+    }
 
     /*
      * A dashed ring for stale reservoirs, as a generated sprite.
@@ -396,11 +466,36 @@
           map.on("click", "current-circle", (e) => {
             const record = byName.get(e.features[0].properties.name);
             if (!record) return;
-            new maplibregl.Popup({ maxWidth: "330px" })
-              .setLngLat(e.features[0].geometry.coordinates)
-              .setHTML(ReservoirViz.popupHTML(record, { includeTitle: true, width: 300 }))
-              .addTo(map);
+            showReservoir(record, e.features[0].geometry.coordinates, null);
           });
+
+          // --- Keyboard list of reservoirs ---
+          //
+          // The markers live on a WebGL canvas, which has no children to
+          // Tab to. These buttons are the only keyboard path to a
+          // reservoir on this page. Same shared markup and same order as
+          // the ArcGIS page. Closed on a phone, where the map is the page.
+          const listHost = document.getElementById("reservoirList");
+          listHost.innerHTML = ReservoirViz.reservoirListHTML(reservoirs, {
+            open: window.innerWidth > 640
+          });
+          // One listener on the container rather than 53 on the buttons.
+          // A <button> fires `click` for Enter and for Space as well as for
+          // the mouse, so this is the whole keyboard path.
+          listHost.addEventListener("click", (event) => {
+            const button = event.target.closest(".rv-list-btn");
+            if (!button) return;
+            const record = byName.get(button.getAttribute("data-name"));
+            if (!record) return;
+            // Move first, then open: a popup anchored to a point that is
+            // off screen has nothing to point at.
+            map.easeTo({
+              center: [record.lon, record.lat],
+              zoom: Math.max(map.getZoom(), 8)
+            });
+            showReservoir(record, [record.lon, record.lat], button);
+          });
+
           map.on("mouseenter", "current-circle", () => {
             map.getCanvas().style.cursor = "pointer";
           });
@@ -417,7 +512,10 @@
             layers: ["max-circle", "stale-ring", "current-circle"]
               .filter((id) => map.getLayer(id)).length,
             masked: !!map.getLayer("huc6-mask"),
-            huc6: !!map.getLayer("huc6-outline")
+            huc6: !!map.getLayer("huc6-outline"),
+            // Added, never replacing a field: the smoke test asserts on the
+            // ones above and a missing key reads as a crash.
+            listItems: listHost.querySelectorAll(".rv-list-btn").length
           };
         })
         .catch((err) => {

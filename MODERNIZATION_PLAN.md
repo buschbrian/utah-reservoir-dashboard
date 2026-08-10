@@ -407,6 +407,40 @@ that touch Utah reach into Colorado, Wyoming and New Mexico. Once those are
 published the extent should be computed from the sites and boundaries on the
 map, not written down.
 
+### Full review — 2026-08-09
+
+Findings from a pass over the live site and the whole tree, after the
+watershed work landed.
+
+- **The Utah mask had been deleted and everything still claimed it existed.**
+  The drainage-area layer replaced the scrim instead of joining it;
+  `utahMaskRings`, `utahMaskGeoJSON`, `MASK_FILL` and `MASK_LINE` stayed
+  exported and unused, and the README kept describing the mask at length.
+  The cause of it going unnoticed is the interesting part: `index.html`
+  reported `masked` and `huc6` from the *same expression*, so the browser
+  test made two assertions about one fact. **A test that cannot fail counts
+  as coverage without being coverage.** Restored, under the outlines, with
+  the two signals now genuinely separate. It matters more than it did — the
+  starting extent is a zoom level wider, so there is far more out-of-state
+  area on screen.
+- **`MAP_CENTER` is also dead**, left over from the pre-extent construction.
+- **The published watershed data has no reader yet.** Every record carries
+  `huc6`, `huc6_name` and `in_utah`, the envelope carries the summary, and
+  `rollupByHuc`/`monthlyRollupByHuc` are written and tested — and no page
+  displays or filters by any of it. Next on the overview.
+- **The map pages are barely interactive**: click-to-popup and a basemap
+  selector. No hover, no filtering, no deep links, no keyboard path. All of
+  the project's interaction lives in `explore.html`. Phases 3 and 5 are being
+  pulled forward onto the current pages rather than waiting for the shell,
+  because the shell is several phases away and these are the pages people
+  are using now.
+- **The CI screenshot artifact shows a blank map canvas** on both map pages,
+  at every width, while the live site renders correctly. Headless rendering,
+  not a defect — but it means the uploaded screenshots prove much less than
+  they appear to, and the smoke test's "every reservoir rendered" is a count
+  of graphics in a layer, not of anything painted. Worth closing with a pixel
+  or WebGL check rather than leaving the artifact looking authoritative.
+
 ### Noticed while testing, not fixed
 
 The live 4.34 page logs `Found 10 Visual Variable stops, but MapView only

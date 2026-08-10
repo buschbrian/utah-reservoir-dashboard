@@ -191,6 +191,15 @@ real context, and several monitored reservoirs cross or sit just beyond the
 state line. The state is six corners of surveyed latitude and longitude
 rather than a shapefile, which is why the mask is a dozen lines in
 [`shared/reservoir-viz.js`](shared/reservoir-viz.js) and not a data file.
+The drainage-area outlines draw on top of it: the mask says what the subject
+is, the outlines say how the water is organized.
+
+This paragraph was wrong for several commits, which is worth recording.
+Adding the drainage-area layer replaced the mask rather than joining it, and
+nothing caught it: both map pages reported `masked` and `huc6` in their
+readiness signal from the *same expression*, so the browser test made two
+assertions about one fact. A test that cannot fail is worse than no test,
+because it is counted as coverage. They are two signals now.
 
 The two engines disagreed about it, which is the sort of thing the parity
 page exists to surface: a mask ring spanning the full -180…180 renders
