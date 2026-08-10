@@ -49,6 +49,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         modern: resolve(root, "modern.html"),
+        overview: resolve(root, "overview.html"),
         explore: resolve(root, "explore.html")
       }
     }

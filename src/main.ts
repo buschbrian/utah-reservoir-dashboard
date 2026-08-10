@@ -5,6 +5,7 @@ import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { isLateForCadence, statewideRollup } from "./data/rollup";
+import { overviewScope } from "./overview-model";
 import { describeReservoir } from "./state/detail";
 import { createSelectionStore, findReservoir } from "./state/selection";
 import { supportsDashboard } from "./state/shell";
@@ -38,15 +39,6 @@ const root: HTMLElement = rootCandidate;
 
 const selection = createSelectionStore();
 
-/* The headline scope: waterbodies that touch Utah, without Lake Powell,
- * whose 25 million acre-feet otherwise dominate every statewide number
- * (ADR-013). The map draws exactly the reservoirs the summary counts, so a
- * reader cannot find a point the totals do not include. */
-function inScope(reservoirs: readonly Reservoir[]): Reservoir[] {
-  return reservoirs.filter((reservoir) =>
-    reservoir.intersects_utah && reservoir.name.trim().toLowerCase() !== "lake powell");
-}
-
 async function loadData(): Promise<Reservoir[] | null> {
   try {
     const data = await loadReservoirs();
@@ -65,7 +57,7 @@ async function loadData(): Promise<Reservoir[] | null> {
       updated: `Published ${formatDate(data.generated_at.slice(0, 10))}`
     });
     setDataState({ kind: "ready", count: data.reservoir_count });
-    return inScope(data.reservoirs);
+    return overviewScope(data.reservoirs);
   } catch (error) {
     console.error("Reservoir data failed validation or could not load:", error);
     setDataState({ kind: "error" });

@@ -163,6 +163,12 @@ for (const viewport of VIEWPORTS) {
     const credentialUi = await tab.evaluate(FIND_CREDENTIAL_UI);
     check(credentialUi.length === 0,
       `${label}: a credential prompt exists (${credentialUi.join(", ")})`);
+    const overviewLink = tab.locator("#overview-link");
+    check(await overviewLink.isVisible(), `${label}: the table and charts link is not visible`);
+    check(await overviewLink.getAttribute("href") === "./overview.html",
+      `${label}: the table and charts link has the wrong destination`);
+    check(await tab.locator(".map-stage > .map-alternative").count() === 0,
+      `${label}: the old table and charts overlay still covers the map`);
 
     if (viewport.name === "desktop") {
       const pointerName = await tab.locator("#start-panel .list-btn").first()
@@ -239,7 +245,7 @@ for (const viewport of VIEWPORTS) {
         // The map's own controls sit in the component's shadow root; the
         // alternative link and the navigation are the light-DOM surfaces
         // that have covered them before.
-        mapAlternative: rect("#map-alternative"),
+        overviewLink: rect("#overview-link"),
         navigation: rect("calcite-navigation"),
         home: rect("arcgis-home"),
         fullscreen: rect("arcgis-fullscreen")
@@ -247,10 +253,10 @@ for (const viewport of VIEWPORTS) {
     });
     check(layout.scroll <= layout.viewport + 1,
       `${label}: page overflows horizontally (${layout.scroll}px in ${layout.viewport}px)`);
-    check(layout.mapAlternative &&
-      layout.mapAlternative.left >= 0 &&
-      layout.mapAlternative.right <= layout.viewport + 1,
-      `${label}: the map alternative link extends outside the viewport`);
+    check(layout.overviewLink &&
+      layout.overviewLink.left >= 0 &&
+      layout.overviewLink.right <= layout.viewport + 1,
+      `${label}: the table and charts link extends outside the header`);
     check(layout.navigation && layout.navigation.right <= layout.viewport + 1,
       `${label}: the navigation is clipped`);
     for (const [control, box] of [["Home", layout.home], ["Fullscreen", layout.fullscreen]]) {
@@ -282,6 +288,50 @@ for (const viewport of VIEWPORTS) {
     console.log("  ERROR", err);
     failures.push(`${label}: ${err}`);
   }
+  await context.close();
+}
+
+for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
+  const context = await browser.newContext({ viewport });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (msg) => {
+    if (msg.type() === "error" && !/favicon/i.test(msg.text())) {
+      errors.push(`console: ${msg.text()}`);
+    }
+  });
+  const label = `Modern overview (${viewport.name})`;
+  console.log(`\n=== ${label}`);
+  try {
+    await tab.goto(`http://127.0.0.1:${PORT}/overview.html`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForSelector("#capacity-chart svg", { timeout: 30000 });
+    check(await tab.locator("#reservoir-rows tr").count() === expectedReservoirs,
+      `${label}: table does not match the map scope`);
+    check(await tab.locator("#capacity-chart svg").getAttribute("aria-label") !== null,
+      `${label}: chart has no accessible name`);
+    await tab.locator("#reservoir-search").fill("Jordan");
+    const filtered = await tab.locator("#reservoir-rows tr").count();
+    check(filtered > 0 && filtered < expectedReservoirs,
+      `${label}: drainage-area search did not filter the table`);
+    const layout = await tab.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+      nav: document.querySelector(".overview-nav")?.getBoundingClientRect().toJSON(),
+      chart: document.querySelector("#capacity-chart")?.getBoundingClientRect().toJSON()
+    }));
+    check(layout.scroll <= layout.viewport + 1,
+      `${label}: page overflows horizontally (${layout.scroll}px in ${layout.viewport}px)`);
+    check(layout.nav?.left >= 0 && layout.nav?.right <= layout.viewport + 1,
+      `${label}: navigation is clipped`);
+    check(layout.chart?.left >= 0 && layout.chart?.right <= layout.viewport + 1,
+      `${label}: chart card is clipped`);
+    await tab.screenshot({ path: `screenshots/overview-${viewport.name}.png`, fullPage: false });
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
   await context.close();
 }
 

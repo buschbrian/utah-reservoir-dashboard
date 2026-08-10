@@ -50,18 +50,23 @@ function detailContents(suffix: string): string {
         <p class="eyebrow">Reservoir details</p>
         <h2 id="detail-${suffix}">No reservoir selected</h2>
         <p>Choose a reservoir on the map, or in the list in the storage summary.</p>
-        <a href="./explore.html">Browse every reservoir in the current overview</a>
+        <a href="./overview.html">Browse every reservoir in the current overview</a>
       </div>
     </div>`;
 }
 
 export function renderShell(root: HTMLElement): void {
   root.innerHTML = `
-    <a class="skip-link" href="#map-alternative">Skip to the map alternative</a>
+    <a class="skip-link" href="#map-host">Skip to the reservoir map</a>
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
         <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
           description="Modern preview" heading-level="1" icon="water-drop"></calcite-navigation-logo>
+        <calcite-button id="overview-link" slot="content-end" href="./overview.html"
+          appearance="transparent" kind="neutral" icon-start="table"
+          label="Open reservoir table and charts">
+          <span class="overview-link-text">Table and charts</span>
+        </calcite-button>
         <calcite-action id="controls-toggle" slot="content-end" text="Storage summary"
           text-enabled icon="sliders-horizontal" active></calcite-action>
         <calcite-action id="detail-toggle" slot="content-end" text="Reservoir details"
@@ -85,9 +90,6 @@ export function renderShell(root: HTMLElement): void {
           </div>
         </div>
         <div id="map-hover" class="map-hover" aria-hidden="true" hidden></div>
-        <a id="map-alternative" class="map-alternative" href="./explore.html">
-          View the reservoir table and charts
-        </a>
       </section>
 
       <calcite-shell-panel id="detail-panel" slot="panel-end" width="m" collapsed>

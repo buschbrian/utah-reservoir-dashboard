@@ -1,20 +1,23 @@
 :root {
-  --app-accent: #176b87;
-  --app-border: #c7d3da;
-  --app-muted: #52636e;
-  --app-surface: #f7f9fa;
-  --app-surface-raised: #ffffff;
-  --app-text: #17212b;
+  --app-accent: #356b6f;
+  --app-border: #d4c5b2;
+  --app-muted: #655f55;
+  --app-surface: #f3eee6;
+  --app-surface-raised: #fffaf2;
+  --app-text: #2f342f;
+  --app-terracotta: #a65d43;
+  --calcite-color-brand: var(--app-accent);
   font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
 }
 
 :root[data-theme="dark"] {
-  --app-accent: #7fc7dd;
-  --app-border: #4b5962;
-  --app-muted: #bdc8ce;
-  --app-surface: #202a31;
-  --app-surface-raised: #28343c;
-  --app-text: #f2f5f6;
+  --app-accent: #86b9b5;
+  --app-border: #5f5a50;
+  --app-muted: #c9c0b2;
+  --app-surface: #242723;
+  --app-surface-raised: #30332e;
+  --app-text: #f5efe5;
+  --app-terracotta: #d38a6b;
 }
 
 * { box-sizing: border-box; }
@@ -51,7 +54,7 @@ calcite-shell-panel { --calcite-shell-panel-width: 21rem; }
 .map-stage,
 #map-host,
 arcgis-map { width: 100%; height: 100%; min-width: 0; }
-.map-stage { position: relative; overflow: hidden; background: #dfe8ec; }
+.map-stage { position: relative; overflow: hidden; background: #ded8cd; }
 
 .map-state {
   position: absolute;
@@ -69,20 +72,6 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .map-state strong { font-size: 1rem; }
 .map-state p { margin: .4rem 0 0; color: var(--app-muted); line-height: 1.45; }
 .map-state-error { border-inline-start: .25rem solid #b42318; }
-
-.map-alternative {
-  position: absolute;
-  z-index: 3;
-  inset-inline-end: .75rem;
-  inset-block-end: 2rem;
-  padding: .55rem .75rem;
-  color: #12333e;
-  background: rgb(255 255 255 / 92%);
-  border: 1px solid #9eafb8;
-  font-size: .875rem;
-  font-weight: 600;
-}
-.map-alternative:focus-visible { outline: .2rem solid #00619b; outline-offset: .15rem; }
 
 .map-hover {
   position: absolute;
@@ -250,12 +239,11 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   #start-sheet,
   #detail-sheet { display: block; --calcite-sheet-max-height: 70vh; }
   calcite-navigation-logo { max-width: 12rem; }
-  .map-alternative { inset-inline: .75rem auto; inset-block-end: 2.25rem; }
 }
 
 @media (max-width: 22.5rem) {
   calcite-navigation-logo { max-width: 9rem; }
-  .map-alternative { max-width: calc(100% - 4.5rem); font-size: .75rem; }
+  .overview-link-text { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
