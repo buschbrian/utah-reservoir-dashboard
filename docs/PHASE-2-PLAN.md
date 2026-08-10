@@ -109,6 +109,8 @@ no existing field changed. The browser smoke test that reads them is P2.4.
 
 ### P2.4 — Integration gates
 
+**Status:** Complete on 2026-08-10.
+
 **Work**
 
 - Add a `modern.html` browser smoke test at 1280, 390, and 360 pixels.
@@ -125,6 +127,14 @@ no existing field changed. The browser smoke test that reads them is P2.4.
 - Browser runs have no unexpected console errors.
 - The basemap fallback renders without a credential prompt.
 - The emitted SDK bundle stays within the recorded budget.
+
+**Implementation note:** The credential-prompt assertion found a real gap
+rather than confirming one. Refusing the preferred basemap's style with 401
+left `Basemap.load()` resolving happily, so the fallback never engaged and the
+page kept a background that could not draw. Candidates now carry an optional
+`verify` step — `loadAll()` for a basemap — and a refused style is an ordinary
+candidate failure. Removing the anonymous-auth policy makes the same test fail
+with a password field, which is what makes it worth having.
 
 ## Cutover is not part of Phase 2
 

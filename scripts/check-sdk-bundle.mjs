@@ -2,12 +2,28 @@ import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 import { build } from "vite";
 
-// Initial ceiling for the planned Phase 2 import surface. This deliberately
-// has headroom over the measured baseline so dependency patch releases do not
-// create noise. Phase 2 must switch the input to the real shell and re-baseline.
-const MAX_RAW_BYTES = 18 * 1024 * 1024;
+/*
+ * The budget is measured against the real shell entry (`modern.html`), not
+ * against a fixture listing the imports the shell was expected to make. A
+ * fixture answers "is the planned import surface affordable"; only the entry
+ * answers "is what we ship affordable", and the two drifted apart the moment
+ * the shell started importing layers and geometry the fixture never named.
+ *
+ * Baseline measured on 2026-08-10, with P2.3's reservoir layers in place:
+ *
+ *   15.33 MiB raw / 5.39 MiB gzip across 1444 files
+ *   2.07 MiB gzip on the static entry path
+ *
+ * The limits below sit above that deliberately. Two thirds of the raw total
+ * is lazily-loaded SDK the shell never requests, so the number that governs
+ * what a reader waits for is the last one: the chunks the entry pulls in
+ * statically. The headroom absorbs dependency patch releases; a change that
+ * pushes past it is a change worth reading, not a threshold worth raising
+ * without one.
+ */
+const MAX_RAW_BYTES = 17 * 1024 * 1024;
 const MAX_GZIP_BYTES = 6 * 1024 * 1024;
-const MAX_INITIAL_GZIP_BYTES = 2.5 * 1024 * 1024;
+const MAX_INITIAL_GZIP_BYTES = 2.3 * 1024 * 1024;
 
 const result = await build({
   configFile: false,
@@ -16,7 +32,7 @@ const result = await build({
     minify: true,
     write: false,
     rollupOptions: {
-      input: resolve("src/arcgis/sdk-bundle.fixture.ts")
+      input: resolve("modern.html")
     }
   }
 });

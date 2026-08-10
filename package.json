@@ -9,6 +9,8 @@
     "budget:sdk": "node scripts/check-sdk-bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "smoke": "node tests/smoke.mjs",
+    "smoke:modern": "node tests/smoke-modern.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

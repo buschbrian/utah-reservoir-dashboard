@@ -26,6 +26,8 @@ const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
 /** What the readiness signal reports about the map. Each field is one fact. */
 export interface MapStatus {
   basemap: boolean;
+  /** True when a preferred background failed and a later candidate served. */
+  basemapDegraded: boolean;
   masked: boolean;
   drainageAreas: number;
   reservoirsDrawn: number;
@@ -148,6 +150,7 @@ export async function loadMap(selection: SelectionStore): Promise<MapController 
 
   const status: MapStatus = {
     basemap: true,
+    basemapDegraded: resolution.degraded,
     masked: map.layers.includes(maskLayer),
     drainageAreas: 0,
     reservoirsDrawn: 0

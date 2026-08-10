@@ -26,6 +26,18 @@ export interface Candidate<T extends Loadable> {
   name: string;
   /** Deferred: a candidate must not be constructed until it is needed. */
   create(): T;
+  /**
+   * An optional second question, asked after `load()` resolves: is this
+   * resource actually usable?
+   *
+   * A basemap answers `load()` from its own item description and resolves
+   * happily while the vector tile style behind it is answering 401 -- which
+   * is the failure this chain exists for, and the one it silently passed
+   * through until a browser test refused a style and watched the preferred
+   * basemap "succeed" into a blank frame. A candidate that can be checked
+   * more deeply says so here, and its rejection is an ordinary failure.
+   */
+  verify?(resource: T): Promise<unknown>;
 }
 
 export interface Attempt {
@@ -74,6 +86,9 @@ export async function resolveFirstLoadable<T extends Loadable>(
       // A candidate whose load hangs is as unusable as one that rejects, and
       // an unbounded wait here is exactly the failure the auth prompt caused.
       await withTimeout(resource.load(), timeoutMs, candidate.name);
+      if (candidate.verify) {
+        await withTimeout(candidate.verify(resource), timeoutMs, candidate.name);
+      }
       return {
         resource,
         name: candidate.name,

@@ -45,15 +45,23 @@ function fromId(id: string): Basemap {
   return basemap;
 }
 
+/* `Basemap.load()` resolves from the item description alone. `loadAll()`
+ * loads the layers under it, which is where a key-gated or moved style
+ * actually fails -- so this is the question the chain has to ask before
+ * calling a candidate good. Without it the first choice "succeeds" onto a
+ * blank frame and no fallback is ever taken. */
+const verifyBasemap = (basemap: Basemap): Promise<unknown> => basemap.loadAll();
+
 export function basemapCandidates(): Candidate<Basemap>[] {
   return [
-    { name: "Topographic", create: () => fromId("topo-vector") },
-    { name: "Light gray canvas", create: () => fromId("gray-vector") },
+    { name: "Topographic", create: () => fromId("topo-vector"), verify: verifyBasemap },
+    { name: "Light gray canvas", create: () => fromId("gray-vector"), verify: verifyBasemap },
     {
       name: "Topographic (direct item)",
       create: () => new Basemap({
         baseLayers: [new VectorTileLayer({ portalItem: { id: TOPOGRAPHIC_ITEM_ID } })]
-      })
+      }),
+      verify: verifyBasemap
     }
   ];
 }

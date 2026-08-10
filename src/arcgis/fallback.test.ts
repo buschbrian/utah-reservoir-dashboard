@@ -14,7 +14,49 @@ function hangs(name: string): Candidate<Loadable> {
   return { name, create: () => ({ load: () => new Promise<never>(() => undefined) }) };
 }
 
+/* A candidate that loads happily and is unusable anyway -- a basemap whose
+ * own description serves while the style behind it answers 401. Until the
+ * chain asked this second question, the preferred basemap "succeeded" onto a
+ * blank frame and no fallback was ever taken. */
+function loadsButBroken(name: string): Candidate<Loadable> {
+  return {
+    name,
+    create: () => ({ load: () => Promise.resolve(name) }),
+    verify: () => Promise.reject(new SecuredResourceError("https://cdn.arcgis.com/style"))
+  };
+}
+
 describe("first-loadable fallback", () => {
+  it("rejects a candidate that loads but cannot be verified", async () => {
+    const result = await resolveFirstLoadable([loadsButBroken("topo-vector"), ok("gray-vector")]);
+    expect(result.name).toBe("gray-vector");
+    expect(result.degraded).toBe(true);
+    expect(result.failures[0]?.error).toBeInstanceOf(SecuredResourceError);
+  });
+
+  it("verifies only the candidate it is about to return", async () => {
+    const verify = vi.fn(() => Promise.resolve("checked"));
+    const result = await resolveFirstLoadable([
+      { name: "first", create: () => ({ load: () => Promise.resolve("first") }), verify },
+      { name: "second", create: () => ({ load: () => Promise.resolve("second") }), verify }
+    ]);
+    expect(result.name).toBe("first");
+    expect(verify).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up on a verification that hangs", async () => {
+    const result = await resolveFirstLoadable([
+      {
+        name: "stalled-style",
+        create: () => ({ load: () => Promise.resolve("loaded") }),
+        verify: () => new Promise<never>(() => undefined)
+      },
+      ok("gray-vector")
+    ], { timeoutMs: 20 });
+    expect(result.name).toBe("gray-vector");
+    expect(result.failures[0]?.error.message).toContain("did not load within 20ms");
+  });
+
   it("takes the first choice and reports no degradation", async () => {
     const result = await resolveFirstLoadable([ok("topo-vector"), ok("gray-vector")]);
     expect(result.name).toBe("topo-vector");

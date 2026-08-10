@@ -71,10 +71,15 @@ jobs:
           # remains exactly what npm ci installed from the lockfile.
           npm install --no-save --no-package-lock playwright
           npx playwright install --with-deps chromium
-      - name: Load both dashboards in a real browser
+      - name: Load the production dashboards in a real browser
         run: |
           mkdir -p screenshots
           node tests/smoke.mjs
+      # Separate step, and separate file: this one covers the Phase 2 shell,
+      # which is still changing. When it goes red the step name says the
+      # workbench broke, not the three pages people have bookmarked.
+      - name: Load the Phase 2 shell in a real browser
+        run: node tests/smoke-modern.mjs
       # Uploaded on failure *and* success: when a map breaks, the picture is
       # usually the fastest explanation, and when it doesn't, it is the only
       # visual record that the symbology still looks right.

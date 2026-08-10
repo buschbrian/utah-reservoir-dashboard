@@ -138,6 +138,7 @@ if (!supportsDashboard(browserCapabilities())) {
     drawn: map?.status.reservoirsDrawn ?? 0,
     late: reservoirs?.filter(isLateForCadence).length ?? 0,
     basemap: map?.status.basemap ?? false,
+    basemapDegraded: map?.status.basemapDegraded ?? false,
     masked: map?.status.masked ?? false,
     drainageAreas: map?.status.drainageAreas ?? 0,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,

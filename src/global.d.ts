@@ -12,6 +12,7 @@ interface DashboardReady {
   drawn: number;
   late: number;
   basemap: boolean;
+  basemapDegraded: boolean;
   masked: boolean;
   drainageAreas: number;
   listItems: number;

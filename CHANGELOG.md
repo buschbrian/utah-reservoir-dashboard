@@ -7,6 +7,10 @@ and is not listed here.
 
 ### Added
 
+- **A browser smoke test for the Phase 2 shell**, at 1280, 390 and 360 pixels,
+  asserting every reservoir drew, the details a selection produces, no
+  sideways scroll, and no retired vocabulary anywhere a reader can see it —
+  open shadow roots included.
 - **Reservoirs on the Phase 2 shell.** `modern.html` now draws every reservoir
   in the connected scope from the committed data, over the Utah mask and the
   drainage-area outlines, with the same class colours and the same size basis
@@ -61,6 +65,13 @@ and is not listed here.
 
 ### Fixed
 
+- **The basemap fallback now notices a refused background.** A basemap whose
+  style answers 401 still resolved its own `load()`, so the preferred
+  background "succeeded" onto a frame that could not draw and no fallback was
+  ever taken. Candidates carry a verification step now, and a refused style is
+  an ordinary candidate failure. Found by running the new smoke test with the
+  first basemap refused; with the anonymous-auth policy removed, that same run
+  puts a password field on the page.
 - **MapLibre hover no longer throws.** Its pointer handler referenced a
   reservoir lookup that the page never constructed; a regression test now
   keeps the lookup and handler together.

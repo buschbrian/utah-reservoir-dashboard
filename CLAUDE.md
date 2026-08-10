@@ -79,7 +79,8 @@ Do not regress these; they were each found by a failing test or a screenshot.
 npm run build             # typecheck, unit tests, SDK budget, production build
 python -m pytest tests/ -q
 mkdir -p screenshots
-node tests/smoke.mjs      # needs Playwright Chromium; runs against dist/
+node tests/smoke.mjs        # needs Playwright Chromium; runs against dist/
+node tests/smoke-modern.mjs # the Phase 2 shell, same requirements
 ```
 
 The smoke test is the one that catches what the others cannot: a page that
@@ -87,8 +88,8 @@ loads, paints a basemap and renders no reservoirs at all. It asserts every
 reservoir rendered, no retired vocabulary is visible, nothing overlaps the map
 controls, and there are no console errors.
 
-**A readiness signal field must report one fact.** Both map pages publish
-`window.__dashboardReady`. Two fields that read the same expression make two
+**A readiness signal field must report one fact.** Both map pages and the
+Phase 2 shell publish `window.__dashboardReady`. Two fields that read the same expression make two
 assertions about one fact, which is how a whole map layer was deleted without a
 test noticing. Add fields; never remove one.
 
