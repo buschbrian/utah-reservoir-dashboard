@@ -355,10 +355,18 @@
     return (names[idx] || parts[1]) + " " + parts[0];
   }
 
+  /* The apostrophe is escaped too, which it did not used to be. Every page
+   * here builds attributes with single quotes -- data-name='...',
+   * aria-label='...' -- and there is a reservoir called Ken's Lake, so the
+   * old version closed the attribute in the middle of the name and left
+   * `s Lake'` for the parser to invent attributes out of. It broke that one
+   * reservoir's row silently: the button still rendered, still counted, and
+   * did nothing when you pressed it. Accessible names have the same
+   * exposure and no visible symptom at all. */
   function esc(s) {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   function daysAgoPhrase(days) {
@@ -464,9 +472,16 @@
    * what turns a downward slope into an answer about whether the decline
    * is just summer drawdown or an actually bad year.
    *
-   * IMPROVEMENT: no accessible fallback beyond the aria-label and the
-   * table below it -- a real treemap of this data would need focusable
-   * bars with per-month tooltips.
+   * Each bar is its own tab stop. That closes the gap this comment used to
+   * describe: the chart carried one aria-label for the whole picture and a
+   * table underneath, so a keyboard reader could get the numbers but never
+   * the shape. Two details make it work. The <svg> is role="group", not
+   * role="img" -- an img subtree is presentational, so every child inside
+   * it is hidden from a screen reader no matter what it declares. And each
+   * bar carries its own aria-label rather than relying on the <title>
+   * child, because a <title> is a tooltip first and is read inconsistently.
+   * The table below stays: it is still the fastest way to compare two
+   * months that are not next to each other.
    */
   function trendChartSVG(r, opts) {
     opts = opts || {};
@@ -515,11 +530,15 @@
       if (m.mean_af === null || m.mean_af === undefined) return;
       var pct = r.record_max_af ? (m.mean_af / r.record_max_af) * 100 : null;
       var top = y(m.mean_af);
-      parts.push("<rect x='" + (x(i) - barW / 2).toFixed(1) + "' y='" + top.toFixed(1) +
+      var reading = fmtMonth(m.month) + ": " + fmtAf(m.mean_af) + " acre-feet" +
+        (pct === null ? "" : ". " + fmtPct(pct) + " of the highest recorded storage") +
+        (m.normal_af === null || m.normal_af === undefined ? ""
+          : ". Normal for this month: " + fmtAf(m.normal_af) + " acre-feet") + ".";
+      parts.push("<rect class='rv-bar' tabindex='0' role='img' aria-label='" + esc(reading) +
+        "' x='" + (x(i) - barW / 2).toFixed(1) + "' y='" + top.toFixed(1) +
         "' width='" + barW.toFixed(1) + "' height='" + Math.max(0, padT + plotH - top).toFixed(1) +
         "' fill='" + colorFor(pct) + "' rx='1'>" +
-        "<title>" + esc(fmtMonth(m.month) + ": " + fmtAf(m.mean_af) + " acre-feet" +
-          (pct === null ? "" : " (" + fmtPct(pct) + " of the highest recorded storage)")) + "</title></rect>");
+        "<title>" + esc(reading) + "</title></rect>");
     });
 
     // "normal" line (median of prior years for the same calendar month)
@@ -542,10 +561,11 @@
     });
 
     var label = "Storage history for " + r.name + " during the last 12 months. " +
-      "The bars show the average storage for each month. The line shows the normal value.";
+      "The bars show the average storage for each month. The line shows the normal value. " +
+      "Move to each month with the Tab key.";
 
     return "<svg class='rv-chart' viewBox='0 0 " + W + " " + H + "' width='100%' " +
-      "role='img' aria-label='" + esc(label) + "'>" + parts.join("") + "</svg>" +
+      "role='group' aria-label='" + esc(label) + "'>" + parts.join("") + "</svg>" +
       "<p class='rv-chart-key'><span class='rv-swatch-bar'></span> average storage for each month " +
       "<span class='rv-swatch-line'></span> normal value for that month</p>";
   }
@@ -654,14 +674,112 @@
     return html;
   }
 
+  // --- Keyboard list of reservoirs -------------------------------------
+
+  /*
+   * The map pages draw their reservoirs onto a WebGL canvas, and a canvas
+   * has no children: there is nothing to Tab to, nothing for a screen
+   * reader to read, and no way at all to reach a reservoir without a
+   * mouse. Both engines have the same hole for the same reason, so the
+   * repair lives here rather than twice in the pages.
+   *
+   * Real <button> elements, not a hidden list. A visible list is useful to
+   * everybody -- finding Rockport Reservoir among 53 dots is slow with a
+   * mouse too -- and a list only screen readers can reach is a list nobody
+   * maintains, because a bug in it is invisible to the person who broke it.
+   *
+   * Order is largest first, the same order the overview's ranking uses, so
+   * the three pages agree about what "first" means.
+   *
+   * A <details> rather than a plain list: on a phone the map is the page,
+   * and 53 rows would bury it. Closed, this costs one line. The pages
+   * decide the starting state from the viewport width.
+   */
+  function reservoirListHTML(reservoirs, opts) {
+    opts = opts || {};
+    var sorted = reservoirs.slice().sort(function (a, b) {
+      return (sizeBasis(b) || 0) - (sizeBasis(a) || 0);
+    });
+    var items = sorted.map(function (r) {
+      var pct = headlinePct(r);
+      var known = !(pct === null || pct === undefined || isNaN(pct));
+      // The accessible name repeats the visible name and percent in the
+      // same order they appear on screen, then adds what the row shows
+      // only as a color and a warning sign.
+      var label = r.name + ". " +
+        (known ? fmtPct(pct) + " full. " : "No current reading. ") +
+        "Full level: " + fmtAf(sizeBasis(r)) + " acre-feet." +
+        (r.is_stale ? " Data is late." : "");
+      return "<li><button type='button' class='rv-list-btn' data-name='" + esc(r.name) +
+        "' aria-label='" + esc(label) + "'>" +
+        "<span class='rv-list-dot' style='background:" + colorFor(pct) + "'></span>" +
+        "<span class='rv-list-name'>" + esc(r.name) +
+          (r.is_stale ? "<span class='rv-list-late' aria-hidden='true'>&#9888;</span>" : "") +
+        "</span>" +
+        "<span class='rv-list-pct'>" + esc(fmtPct(pct)) + "</span></button></li>";
+    }).join("");
+
+    return "<details class='rv-list' id='rv-list'" + (opts.open ? " open" : "") + ">" +
+      "<summary class='rv-list-summary'>Reservoir list (" + sorted.length + ")</summary>" +
+      "<p class='rv-list-hint'>Select a reservoir to move the map to it and open its " +
+      "details. The largest reservoirs are first.</p>" +
+      "<ul class='rv-list-items'>" + items + "</ul></details>";
+  }
+
+  // --- Announcements ---------------------------------------------------
+
+  /*
+   * One polite live region per page. "Polite" and only on selection: the
+   * maps fire a hover event for every pixel the pointer crosses, and an
+   * assertive region wired to that would talk over the reader continuously
+   * and never finish a sentence.
+   *
+   * The text is cleared and re-set on a later task on purpose. Assigning
+   * the same string twice is not a change, so a reader that announced
+   * "Lake Powell" stays silent when you select Lake Powell again -- which
+   * reads as a broken button rather than as a repeat.
+   */
+  function announce(message) {
+    var node = document.getElementById("rv-live");
+    if (!node) {
+      node = document.createElement("div");
+      node.id = "rv-live";
+      node.className = "rv-sr-only";
+      node.setAttribute("role", "status");
+      node.setAttribute("aria-live", "polite");
+      node.setAttribute("aria-atomic", "true");
+      document.body.appendChild(node);
+    }
+    node.textContent = "";
+    var later = global.setTimeout;
+    if (typeof later === "function") {
+      later(function () { node.textContent = message; }, 40);
+    } else {
+      node.textContent = message;
+    }
+  }
+
+  /* What a reader hears when a reservoir is selected: which one, then the
+   * two numbers the popup leads with. Deliberately short -- the popup
+   * itself carries the other ten rows, and a live region that reads the
+   * whole popup is a live region people turn off. */
+  function selectionMessage(r) {
+    return "Selected " + r.name + ". Current storage: " +
+      fmtAf(r.current_storage_af) + " acre-feet. " + statusLine(r);
+  }
+
   // --- Legend + header -----------------------------------------------
 
+  /* The heading is a real <h2> with an id rather than the <b> it used to
+   * be, so the legend panel can point `aria-labelledby` at it and become a
+   * named region a screen reader can jump to. A bold span named nothing;
+   * the panel was reachable only by reading the whole page in order. */
   function legendHTML() {
     var swatches = CLASSES.map(function (c) {
       return "<span class='rv-legend-row'><span class='rv-dot' style='background:" +
         c.color + "'></span>" + esc(c.label) + "</span>";
     }).join("");
-    return "<b>Percent of full level</b>" +
+    return "<h2 class='rv-legend-head' id='rv-legend-head'>Percent of full level</h2>" +
       "<div class='rv-legend-scale'>" + swatches + "</div>" +
       "<span class='rv-legend-row'><span class='rv-dot rv-dot-stale'></span>" +
       "Dashed circle: data is late</span>" +
@@ -709,6 +827,27 @@
   // Injected rather than duplicated in both pages' <style> blocks, for the
   // same reason the markup lives here: the two dashboards have to look
   // identical for the engine comparison to mean anything.
+  //
+  // Contrast pass, 2026-08. Every gray and every link in this file was
+  // measured against the surface it actually sits on -- white inside a
+  // popup, #fbfcfb inside the map pages' panels -- and four of them failed
+  // WCAG AA for text:
+  //   #888 (chart axis labels, the empty-state line, the source note)  3.5:1
+  //   #777 (the chart key)                                            4.7:1, at 10.5px
+  //   #0079c1 (the source links and the details summary)              3.9:1
+  // The two grays became #5f6368 (6.0:1) and the blue became #0b6198
+  // (6.6:1), which is still the same blue family the SDK uses for its own
+  // links. The five class colors are untouched: they are a data ramp with
+  // a unit test pinning them, and the two that fail as *text* -- #fdae61
+  // and #a6d96a -- are only ever drawn as fills behind no text at all.
+  var INK_MUTED = "#5f6368";
+  var LINK = "#0b6198";
+  // One focus color for all three pages. Dark enough to read as a ring on
+  // every surface here, including the amber warning panel and the color
+  // classes' own fills, so a focused chart bar is visible on green as well
+  // as on dark red.
+  var FOCUS = "#14527a";
+
   var CSS = [
     ".rv-title{font-size:15px;margin:0 0 6px;}",
     ".rv-status{font-weight:600;font-size:13px;margin:0 0 8px;line-height:1.35;}",
@@ -724,15 +863,26 @@
     ".rv-subhead{font-size:12px;text-transform:uppercase;letter-spacing:.04em;",
       "color:#666;margin:10px 0 4px;}",
     ".rv-chart{display:block;overflow:visible;}",
-    ".rv-axis{font-size:9px;fill:#888;font-family:sans-serif;}",
-    ".rv-chart-key{font-size:10.5px;color:#777;margin:2px 0 6px;line-height:1.4;}",
+    ".rv-axis{font-size:9px;fill:" + INK_MUTED + ";font-family:sans-serif;}",
+    // Both an outline and a stroke, because SVG focus rings are the least
+    // consistent part of this: `outline` on a <rect> is honored by current
+    // Chrome and Firefox and ignored by older WebKit, while a stroke is
+    // drawn everywhere but sits inside the shape and can be lost against a
+    // dark class color. Together one of them is always visible.
+    ".rv-bar{cursor:default;}",
+    ".rv-bar:focus{outline:3px solid " + FOCUS + ";outline-offset:1px;",
+      "stroke:" + FOCUS + ";stroke-width:2;}",
+    ".rv-bar:focus:not(:focus-visible){outline:none;stroke:none;}",
+    ".rv-bar:focus-visible{outline:3px solid " + FOCUS + ";outline-offset:1px;",
+      "stroke:" + FOCUS + ";stroke-width:2;}",
+    ".rv-chart-key{font-size:10.5px;color:" + INK_MUTED + ";margin:2px 0 6px;line-height:1.4;}",
     ".rv-swatch-bar{display:inline-block;width:9px;height:9px;background:#d73027;",
       "border-radius:1px;vertical-align:-1px;margin-right:2px;}",
     ".rv-swatch-line{display:inline-block;width:14px;border-top:1.6px dashed #31527a;",
       "vertical-align:4px;margin:0 2px 0 8px;}",
-    ".rv-empty{font-size:11.5px;color:#888;margin:4px 0 8px;}",
+    ".rv-empty{font-size:11.5px;color:" + INK_MUTED + ";margin:4px 0 8px;}",
     ".rv-details{margin:4px 0 8px;}",
-    ".rv-details summary{font-size:11.5px;color:#0079c1;cursor:pointer;}",
+    ".rv-details summary{font-size:11.5px;color:" + LINK + ";cursor:pointer;}",
     ".rv-table{border-collapse:collapse;font-size:11.5px;margin-top:6px;width:100%;}",
     ".rv-table th{text-align:left;color:#666;font-weight:600;border-bottom:1px solid #ddd;",
       "padding:2px 6px 2px 0;}",
@@ -740,15 +890,56 @@
     ".rv-num{text-align:right;}",
     ".rv-neg{color:#b3261e;}",
     ".rv-pos{color:#1a7f37;}",
-    ".rv-note{font-size:10.5px;color:#888;margin-top:8px;line-height:1.45;}",
-    ".rv-note a{color:#0079c1;}",
+    ".rv-note{font-size:10.5px;color:" + INK_MUTED + ";margin-top:8px;line-height:1.45;}",
+    ".rv-note a{color:" + LINK + ";}",
+    ".rv-legend-head{font-size:13px;font-weight:700;margin:0 0 2px;}",
     ".rv-legend-scale{display:flex;flex-direction:column;gap:1px;margin:4px 0;}",
     ".rv-legend-row{display:flex;align-items:center;gap:6px;font-size:12px;}",
     ".rv-dot{width:11px;height:11px;border-radius:50%;display:inline-block;",
       "border:1px solid rgba(0,0,0,.25);}",
     ".rv-dot-stale{background:transparent;border:1.5px dashed " + STALE_ACCENT + ";}",
     ".rv-legend-note{font-size:11px;color:#666;margin:6px 0 0;line-height:1.4;}",
-    ".rv-fresh-warn{color:" + STALE_ACCENT + ";font-weight:600;}"
+    ".rv-fresh-warn{color:" + STALE_ACCENT + ";font-weight:600;}",
+
+    // Off screen but still rendered: `display:none` and `visibility:hidden`
+    // both remove the node from the accessibility tree, which is exactly
+    // the thing a live region must not be.
+    ".rv-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;",
+      "overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}",
+
+    // --- Keyboard list of reservoirs (map pages) ---
+    ".rv-list{margin-top:8px;border-top:1px solid #dde4e2;padding-top:7px;}",
+    ".rv-list-summary{font-size:12px;font-weight:600;color:#31465a;cursor:pointer;}",
+    ".rv-list-hint{font-size:10.5px;color:" + INK_MUTED + ";margin:5px 0 5px;line-height:1.4;}",
+    // The scroll cap keeps the panel a panel: 53 rows unrolled would run
+    // past the bottom of the window and cover the legend.
+    ".rv-list-items{list-style:none;margin:0;padding:0;max-height:34vh;overflow-y:auto;}",
+    // minmax(0,1fr) on the name column, so a long reservoir name truncates
+    // instead of widening the panel and scrolling the whole page sideways.
+    ".rv-list-btn{display:grid;grid-template-columns:11px minmax(0,1fr) auto;",
+      "align-items:center;gap:7px;width:100%;padding:4px 6px;border:0;border-radius:5px;",
+      "background:none;font:inherit;font-size:12px;color:inherit;text-align:left;cursor:pointer;}",
+    ".rv-list-btn:hover{background:#e4ebe8;}",
+    ".rv-list-btn:focus-visible{outline:3px solid " + FOCUS + ";outline-offset:-1px;",
+      "background:#e4ebe8;}",
+    ".rv-list-dot{width:11px;height:11px;border-radius:50%;",
+      "border:1px solid rgba(0,0,0,.25);}",
+    ".rv-list-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+    ".rv-list-pct{font-variant-numeric:tabular-nums;font-weight:600;}",
+    ".rv-list-late{color:" + STALE_ACCENT + ";margin-left:4px;}",
+
+    // A visible focus ring on everything the three pages can focus,
+    // written with :where() so it has zero specificity -- the overview's
+    // own focus styles, which are tuned to their surfaces, still win, and
+    // this only fills the gaps.
+    ":where(a,button,select,summary,input,textarea,[tabindex]):focus-visible{",
+      "outline:3px solid " + FOCUS + ";outline-offset:2px;}",
+    // The SDK controls need real specificity: both map libraries ship
+    // their own button rules, and a zero-specificity ring loses to them.
+    ".esri-widget button:focus-visible,.esri-popup button:focus-visible,",
+      ".maplibregl-ctrl button:focus-visible,.maplibregl-popup-close-button:focus-visible{",
+      "outline:3px solid " + FOCUS + ";outline-offset:-3px;}",
+    "@media (max-width:640px){.rv-list-items{max-height:40vh;}}"
   ].join("");
 
   function injectStyles() {
@@ -789,7 +980,12 @@
     trendChartSVG: trendChartSVG,
     monthlyTableHTML: monthlyTableHTML,
     legendHTML: legendHTML,
+    reservoirListHTML: reservoirListHTML,
+    announce: announce,
+    selectionMessage: selectionMessage,
     freshnessHTML: freshnessHTML,
+    FOCUS_COLOR: FOCUS,
+    LINK_COLOR: LINK,
     injectStyles: injectStyles,
     fmtAf: fmtAf,
     fmtCompact: fmtCompact,
