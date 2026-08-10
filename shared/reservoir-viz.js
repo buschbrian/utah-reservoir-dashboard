@@ -193,6 +193,271 @@
     };
   }
 
+  // --- Shared selection state ------------------------------------------
+  //
+  // The three pages already agree about what a reservoir looks like. They
+  // now have to agree about what is *selected*, because the selection is
+  // the only part of a view a reader can hand to somebody else: a link.
+  // ../explore.html got there first with `?reservoir=Deer+Creek`, so the
+  // two map pages copy its parameter name and its encoding exactly -- a
+  // link that opens Deer Creek on one page has to open Deer Creek on all
+  // three, or the "share this" promise is a lie on two pages out of three.
+  //
+  // Written as a tiny store rather than a variable per page for the reason
+  // the popup markup lives here: the pages are supposed to differ only by
+  // rendering engine. It is also the seed of the shared state the project
+  // is heading toward (Phase 1.5 in MODERNIZATION_PLAN.md), where one
+  // object drives the map, the table and the charts together. That is why
+  // the store is built from a *list* of fields and the URL mapping is a
+  // table: a filter or a selected drainage area joins by adding one line to
+  // SELECTION_PARAMS, not by rewriting the plumbing.
+  //
+  // Deliberately without any browser API in the parsing half. The URL
+  // reading and writing are the parts most likely to be wrong about a name
+  // with a space or an apostrophe in it ("Ken's Lake", "Smith and
+  // Morehouse"), and they are only testable at all if they take a string
+  // and return a value. The DOM half is one function, connectSelectionToUrl.
+
+  // Field name in the store -> query parameter name in the URL. One entry
+  // today; the mapping exists so the second one is a line rather than a
+  // refactor.
+  var SELECTION_PARAMS = { reservoir: "reservoir" };
+  var SELECTION_FIELDS = Object.keys(SELECTION_PARAMS);
+
+  /* Empty, blank and missing all mean "nothing selected". Without this a
+   * hand-edited `?reservoir=` would count as a selection of the reservoir
+   * whose name is the empty string, and every page would then hunt for it. */
+  function normalizeSelectionValue(value) {
+    if (value === null || value === undefined) return null;
+    var text = String(value).trim();
+    return text === "" ? null : text;
+  }
+
+  /* Hand-rolled instead of URLSearchParams for two reasons: this file is
+   * also evaluated in a bare sandbox by the unit tests (see
+   * src/data/legacy-harness.ts), which has the JavaScript built-ins and
+   * nothing else; and URLSearchParams writes spaces as "+" while
+   * ../explore.html writes them as "%20" through encodeURIComponent, so
+   * round-tripping through it would quietly change the shape of every link
+   * the overview page produces. Reading accepts both spellings -- "+" is
+   * still a legal space in a query string, and a link typed by hand is
+   * likely to use it. */
+  function decodeQueryPart(text) {
+    try {
+      return decodeURIComponent(String(text).replace(/\+/g, "%20"));
+    } catch (e) {
+      // A truncated percent escape ("%E0%A4") throws rather than returning
+      // something wrong. A broken link should read as "no selection", not
+      // take the page down.
+      return null;
+    }
+  }
+
+  function parseQuery(search) {
+    var pairs = [];
+    String(search === null || search === undefined ? "" : search)
+      .replace(/^[?]/, "")
+      .split("&")
+      .forEach(function (chunk) {
+        if (!chunk) return;
+        var eq = chunk.indexOf("=");
+        var key = decodeQueryPart(eq < 0 ? chunk : chunk.slice(0, eq));
+        var value = eq < 0 ? "" : decodeQueryPart(chunk.slice(eq + 1));
+        if (key === null || value === null) return;
+        pairs.push([key, value]);
+      });
+    return pairs;
+  }
+
+  /* A query string -> the selection it describes. Unknown parameters are
+   * ignored rather than dropped: ../maplibre/index.html carries its own
+   * `basemap` parameter, and a selection must not throw it away. */
+  function selectionFromSearch(search) {
+    var out = {};
+    SELECTION_FIELDS.forEach(function (field) { out[field] = null; });
+    parseQuery(search).forEach(function (pair) {
+      SELECTION_FIELDS.forEach(function (field) {
+        if (pair[0] === SELECTION_PARAMS[field]) {
+          out[field] = normalizeSelectionValue(pair[1]);
+        }
+      });
+    });
+    return out;
+  }
+
+  /* The selection -> a query string, keeping every other parameter that was
+   * already there and putting the selection first so the interesting part
+   * of a shared link is the readable part. encodeURIComponent, character
+   * for character the same call ../explore.html makes, which is what makes
+   * the links interchangeable between the three pages. */
+  function searchWithSelection(state, currentSearch) {
+    var parts = [];
+    SELECTION_FIELDS.forEach(function (field) {
+      var value = normalizeSelectionValue(state ? state[field] : null);
+      if (value !== null) {
+        parts.push(SELECTION_PARAMS[field] + "=" + encodeURIComponent(value));
+      }
+    });
+    parseQuery(currentSearch).forEach(function (pair) {
+      var owned = SELECTION_FIELDS.some(function (field) {
+        return pair[0] === SELECTION_PARAMS[field];
+      });
+      if (owned) return;
+      parts.push(encodeURIComponent(pair[0]) + "=" + encodeURIComponent(pair[1]));
+    });
+    return parts.length ? "?" + parts.join("&") : "";
+  }
+
+  /* The one place that decides whether a name in a link names a reservoir.
+   * Case-insensitive and trimmed, the same rule ../explore.html uses, so
+   * "?reservoir=deer creek" from somebody's address bar still works. */
+  function findReservoir(reservoirs, name) {
+    var wanted = normalizeSelectionValue(name);
+    if (wanted === null || !reservoirs) return null;
+    wanted = wanted.toLowerCase();
+    for (var i = 0; i < reservoirs.length; i++) {
+      var candidate = normalizeSelectionValue(reservoirs[i] && reservoirs[i].name);
+      if (candidate !== null && candidate.toLowerCase() === wanted) return reservoirs[i];
+    }
+    return null;
+  }
+
+  /* The store itself. Subscribers are called only when a value actually
+   * changed, which is what lets the pages be careless about re-selecting
+   * the reservoir that is already open: clicking the same dot twice, or
+   * the URL writer echoing back the value the map just set, both end here
+   * as a no-op instead of an infinite round trip. */
+  function createSelectionStore(fields) {
+    var keys = (fields && fields.length ? fields : SELECTION_FIELDS).slice();
+    var state = {};
+    keys.forEach(function (key) { state[key] = null; });
+    var listeners = [];
+
+    function get() {
+      var copy = {};
+      keys.forEach(function (key) { copy[key] = state[key]; });
+      return copy;
+    }
+
+    function subscribe(listener) {
+      listeners.push(listener);
+      return function () {
+        var at = listeners.indexOf(listener);
+        if (at >= 0) listeners.splice(at, 1);
+      };
+    }
+
+    function set(patch, meta) {
+      var changed = [];
+      keys.forEach(function (key) {
+        if (!patch || !Object.prototype.hasOwnProperty.call(patch, key)) return;
+        var value = normalizeSelectionValue(patch[key]);
+        if (state[key] !== value) {
+          state[key] = value;
+          changed.push(key);
+        }
+      });
+      if (!changed.length) return false;
+      var snapshot = get();
+      // `source` says who moved the state: "map" for a click on a dot,
+      // "url" for the first read of the address bar, "popstate" for the
+      // back and forward buttons. The pages use it to decide whether to
+      // move the map, which should follow a link but must not yank the
+      // view out from under the finger that just tapped a dot.
+      var info = { changed: changed, source: (meta && meta.source) || "code" };
+      // A copy of the list, so a listener that unsubscribes itself while
+      // being called cannot make the loop skip the next one.
+      listeners.slice().forEach(function (listener) {
+        try {
+          listener(snapshot, info);
+        } catch (err) {
+          // One page component failing must not stop the others: the map
+          // and the URL writer are both subscribers here, and losing the
+          // shareable URL because a layer was not ready is a worse bug
+          // than the one that caused it.
+          if (global.console) global.console.error("Selection listener failed:", err);
+        }
+      });
+      return true;
+    }
+
+    function clear(meta) {
+      var patch = {};
+      keys.forEach(function (key) { patch[key] = null; });
+      return set(patch, meta);
+    }
+
+    return { fields: keys, get: get, set: set, clear: clear, subscribe: subscribe };
+  }
+
+  // One store per page. The pages drive this; nothing else should make its
+  // own, except the tests.
+  var selection = createSelectionStore(SELECTION_FIELDS);
+
+  /* The only part of the selection that touches the browser: read the URL
+   * into the store now, write the store back to the URL on every change,
+   * and follow the back and forward buttons.
+   *
+   * history.replaceState, never pushState. A reader comparing five
+   * reservoirs clicks five dots; with pushState the back button then walks
+   * back through all five instead of leaving the map, which is the
+   * behaviour everybody complains about and nobody wants. The cost is that
+   * only the entry the reader arrived on is in the history -- which is
+   * exactly what makes the back button work for a shared link, the case
+   * requirement 4 is about.
+   *
+   * Subscribe your own listeners *before* calling this: the first read of
+   * the URL happens inside it, and that read is what opens the popup for a
+   * link somebody sent you. */
+  function connectSelectionToUrl(store, options) {
+    options = options || {};
+    var win = options.window || global;
+    var loc = win.location;
+    var hist = win.history;
+    if (!loc) return function () {};
+
+    // Set while the store is being filled *from* the URL, so the writer
+    // below does not write the address bar back onto itself. Harmless if
+    // it did (replaceState with the same string is a no-op), but a
+    // popstate that got rewritten would be a real bug the day a second
+    // field joins the store.
+    var applying = false;
+
+    function readUrl(source) {
+      applying = true;
+      try {
+        store.set(selectionFromSearch(loc.search), { source: source });
+      } finally {
+        applying = false;
+      }
+    }
+
+    var unsubscribe = store.subscribe(function (state) {
+      if (applying) return;
+      if (!hist || typeof hist.replaceState !== "function") return;
+      hist.replaceState(null, "",
+        (loc.pathname || "") + searchWithSelection(state, loc.search) + (loc.hash || ""));
+    });
+
+    function onPopState() { readUrl("popstate"); }
+    if (win.addEventListener) win.addEventListener("popstate", onPopState);
+
+    readUrl("url");
+
+    return function () {
+      unsubscribe();
+      if (win.removeEventListener) win.removeEventListener("popstate", onPopState);
+    };
+  }
+
+  /* The wording for a link that names something this dashboard does not
+   * have. Quiet on purpose: the map is fine, the link is not, and the
+   * reader who followed it can do nothing about it except read the map. */
+  function unknownReservoirMessage(name) {
+    return "This dashboard does not have a reservoir with the name \"" +
+      normalizeSelectionValue(name) + "\". The map shows all reservoirs.";
+  }
+
   // --- Statewide rollup ------------------------------------------------
   //
   // The maps answer "how is this reservoir doing"; these answer "how is the
@@ -776,6 +1041,15 @@
     utahMaskRings: utahMaskRings,
     utahMaskGeoJSON: utahMaskGeoJSON,
     utahOutlineGeoJSON: utahOutlineGeoJSON,
+    SELECTION_PARAMS: SELECTION_PARAMS,
+    SELECTION_FIELDS: SELECTION_FIELDS,
+    selection: selection,
+    createSelectionStore: createSelectionStore,
+    selectionFromSearch: selectionFromSearch,
+    searchWithSelection: searchWithSelection,
+    findReservoir: findReservoir,
+    connectSelectionToUrl: connectSelectionToUrl,
+    unknownReservoirMessage: unknownReservoirMessage,
     statewideSummary: statewideSummary,
     statewideMonthly: statewideMonthly,
     sizeBasis: sizeBasis,

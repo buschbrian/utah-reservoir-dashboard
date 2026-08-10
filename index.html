@@ -37,6 +37,14 @@
     #titleDiv p { font-size: 12px; margin: 4px 0 0; color: #555; }
     #freshness { font-size: 11px; margin-top: 6px; color: #555; }
     #statewideTotal { font-size: 12px; margin-top: 5px; color: #263746; font-weight: 600; }
+    /* The note a link with an unknown reservoir name lands in. `break-word`
+       because the name comes from the address bar and can be one long
+       unbreakable string, which is a sideways scrollbar on a 360px phone. */
+    #selectNote {
+      font-size: 11px; margin-top: 5px; color: #7c2d12;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    #selectNote[hidden] { display: none; }
     .map-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     .map-actions label { font-size: 11px; color: #555; }
     .map-actions select {
@@ -79,6 +87,7 @@
     <p>Current storage as a percent of the full level</p>
     <p id="freshness">Loading data&hellip;</p>
     <p id="statewideTotal">Calculating the total without Lake Powell&hellip;</p>
+    <p id="selectNote" role="status" hidden></p>
     <div class="map-actions">
       <label for="basemapSelect">Map background
         <select id="basemapSelect">
@@ -121,8 +130,14 @@
       "esri/Map",
       "esri/views/MapView",
       "esri/Graphic",
-      "esri/layers/FeatureLayer"
-    ], function (EsriMap, MapView, Graphic, FeatureLayer) {
+      "esri/layers/FeatureLayer",
+      // Part of the same CDN bundle already loaded above, so this adds no
+      // dependency. It is how 4.x reports popup state: the popup can open
+      // and close from a dot click, the popup's own close button, or the
+      // Escape key, and watching the property catches all three where
+      // three separate event handlers would catch two of them.
+      "esri/core/reactiveUtils"
+    ], function (EsriMap, MapView, Graphic, FeatureLayer, reactiveUtils) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "gray-vector" });
@@ -406,9 +421,21 @@
           });
 
           // --- Filled layer: current storage, drawn last (on top) ---
+          //
+          // These graphics are kept in a variable rather than built inline
+          // like the two layers above, because a deep link has to open a
+          // popup for a reservoir nobody clicked. The SDK opens a popup
+          // around a feature instance, and it has to be *this* layer's
+          // instance: a freshly built Graphic has no `layer`, so the SDK
+          // has no popupTemplate to render it with and the popup comes up
+          // empty.
+          const currentGraphics = makeGraphics(reservoirs);
+          const graphicByName = new Map(
+            currentGraphics.map((g) => [g.attributes.name, g]));
+
           const currentLayer = new FeatureLayer({
             title: "Current storage",
-            source: makeGraphics(reservoirs),
+            source: currentGraphics,
             fields: fields,
             objectIdField: "ObjectID",
             geometryType: "point",
@@ -472,10 +499,121 @@
           // can only assert "no exception was thrown", which is not the same
           // as "the reservoirs actually rendered".
           return view.when().then(() => {
+            // --- Shared selection <-> popup <-> URL ---
+            //
+            // The store in shared/reservoir-viz.js is the only thing that
+            // knows what is selected. This page's whole job is to keep the
+            // popup and the store saying the same thing in both
+            // directions, so a click, a link and the back button all end
+            // at one place instead of three.
+            const selection = ReservoirViz.selection;
+            const note = document.getElementById("selectNote");
+
+            const openPopupFor = (graphic) => {
+              const options = { features: [graphic], location: graphic.geometry };
+              // 4.34 still answers to view.openPopup(); view.popup.open() is
+              // where it is going. Trying both means a CDN version bump
+              // does not silently stop deep links from opening anything.
+              if (typeof view.openPopup === "function") view.openPopup(options);
+              else if (view.popup) view.popup.open(options);
+            };
+            const closePopup = () => {
+              if (typeof view.closePopup === "function") view.closePopup();
+              else if (view.popup) view.popup.close();
+            };
+
+            // Popup -> store. Watching the property rather than listening
+            // for clicks catches every way a popup can open or close: a dot
+            // click, the popup's close button, and the Escape key.
+            //
+            // The two guards below are both the same lesson, learned from
+            // watching the address bar rewrite itself twice on every deep
+            // link. Opening a popup is not one state change, it is a short
+            // sequence of them: the SDK reports the popup closed, then
+            // visible with no feature yet, then visible with the feature.
+            // Read literally, that sequence says "nothing is selected"
+            // twice before it says the truth, and the URL writer publishes
+            // every word of it.
+            let closeCheck = null;
+            reactiveUtils.watch(
+              () => [
+                view.popup && view.popup.visible,
+                view.popup && view.popup.selectedFeature
+              ],
+              ([visible, feature]) => {
+                if (!visible) {
+                  // A close is only a deselection if it is still closed a
+                  // moment later. This is what tells a reader dismissing
+                  // the popup apart from the SDK swapping one popup for
+                  // another, and it costs an invisible delay before the
+                  // URL loses its parameter.
+                  clearTimeout(closeCheck);
+                  closeCheck = setTimeout(() => {
+                    if (!view.popup || !view.popup.visible) {
+                      selection.set({ reservoir: null }, { source: "map" });
+                    }
+                  }, 60);
+                  return;
+                }
+                clearTimeout(closeCheck);
+                const name = feature && feature.attributes
+                  ? feature.attributes.name : null;
+                // "Visible, but no feature yet" is a state on the way in,
+                // not a selection of nothing.
+                if (name) selection.set({ reservoir: name }, { source: "map" });
+              }
+            );
+
+            // Store -> popup and view. `source` is what keeps this from
+            // fighting the reader: a link or the back button moves the map,
+            // a click on a dot does not, because the dot is already under
+            // the finger that clicked it.
+            selection.subscribe((state, info) => {
+              const fromMap = info.source === "map";
+              if (!state.reservoir) {
+                note.hidden = true;
+                note.textContent = "";
+                if (!fromMap) closePopup();
+                return;
+              }
+              const record = ReservoirViz.findReservoir(reservoirs, state.reservoir);
+              if (!record) {
+                // A link naming a reservoir this dashboard does not carry.
+                // The map stays exactly where it started and says so in one
+                // line -- the alternative, doing nothing at all, reads as a
+                // page that ignored the link.
+                note.textContent = ReservoirViz.unknownReservoirMessage(state.reservoir);
+                note.hidden = false;
+                return;
+              }
+              note.hidden = true;
+              note.textContent = "";
+              const graphic = graphicByName.get(record.name);
+              if (!graphic || fromMap) return;
+              openPopupFor(graphic);
+              // Never zooms out: somebody who followed a link and then
+              // panned around should not be thrown back to the state view
+              // by the next step of their own history.
+              view.goTo({
+                target: graphic.geometry,
+                scale: Math.min(view.scale, 1500000)
+              }).catch(() => {});
+            });
+
+            // Reads the address bar (which is what opens the popup for a
+            // shared link), writes it back with history.replaceState on
+            // every change, and follows the back and forward buttons.
+            // Subscribed listeners first, on purpose: the first read
+            // happens inside this call.
+            ReservoirViz.connectSelectionToUrl(selection);
+
             window.__dashboardReady = {
               engine: "arcgis",
               reservoirs: reservoirs.length,
               stale: staleRecords.length,
+              // Added for the deep-link tests. Never removed a field:
+              // tests/smoke.mjs asserts on the ones below.
+              selected: selection.get().reservoir,
               // The three reservoir layers, counted by name rather than as
               // map.layers.length, so adding a decoration like the mask
               // can't quietly satisfy a test that meant "the data drew".
