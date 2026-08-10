@@ -566,11 +566,16 @@ def attach_watersheds(records: list[dict]) -> dict:
     has not moved, and leaving it without a basin would drop it out of every
     watershed total on the day it most needs to be visible as late data.
 
-    A missing or unreadable boundary file is not fatal. The fields are
-    optional in the published schema and the dashboards work without them;
-    losing the whole daily refresh over a watershed lookup would be a much
-    worse failure than shipping a day without one.
+    A missing or unreadable boundary file is not fatal. Point and waterbody
+    location remain available without it; only HUC assignment is omitted.
+    Losing the whole daily refresh over a watershed lookup would be a much
+    worse failure than shipping a day without HUC context.
     """
+    for record in records:
+        lat, lon = record.get("lat"), record.get("lon")
+        if lat is not None and lon is not None:
+            record.update(huc.location_fields(record["name"], lat, lon))
+
     try:
         units = huc.load_units()
     except (OSError, ValueError, KeyError) as exc:
@@ -587,22 +592,23 @@ def attach_watersheds(records: list[dict]) -> dict:
             continue
         # The dam point where we have one, the published lake point where
         # we do not, and the record says which it used. Measured across
-        # all 53 reservoirs, switching to dam points moves no assignment
-        # -- so this is a provenance improvement, not a correction, and a
-        # reader can tell the two apart without having to know that.
+        # the 53 reservoirs in the original measurement, switching to dam
+        # points moved no assignment -- so this is a provenance improvement,
+        # not a correction, and a reader can tell the two apart.
         dam = dams.get(record["name"])
         record.update(huc.describe(
-            lat, lon, units,
+            lat, lon, units, name=record["name"],
             assignment_point=dam,
             source="nid_dam_point" if dam else "published_point"))
         if record["huc6"] is None:
             unassigned.append(record["name"])
 
-    in_utah = sum(1 for r in records if r.get("in_utah"))
+    intersects_utah = sum(1 for r in records if r.get("intersects_utah"))
     by_dam = sum(1 for r in records
                  if r.get("huc_assignment_source") == "nid_dam_point")
     print(f"\nWatersheds: {len(records) - len(unassigned)}/{len(records)} reservoirs "
-          f"assigned across {len(units)} drainage areas; {in_utah} in Utah; "
+          f"assigned across {len(units)} drainage areas; "
+          f"{intersects_utah} waterbodies intersect Utah; "
           f"{by_dam} assigned by their dam")
     if unassigned:
         # Not a failure. A reservoir outside every unit that touches Utah is
@@ -849,6 +855,8 @@ def main() -> int:
             "assignment_rule": "the dam or outlet point, not the middle of the water",
             **watersheds,
             "in_utah": sum(1 for r in records if r.get("in_utah")),
+            "intersects_utah": sum(1 for r in records
+                                    if r.get("intersects_utah")),
         },
         "reservoirs": records,
     }

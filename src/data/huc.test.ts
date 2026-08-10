@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MonthlyRecord } from "../types";
+import { loadLegacyApi } from "./legacy-harness";
 import {
   assignHuc, coverageReport, monthlyRollupByHuc, rollupByHuc,
   type HucMember, type HucUnit
@@ -63,6 +64,12 @@ describe("assignHuc", () => {
   it("assigns a cross-border reservoir by its outlet, not its extent", () => {
     const outletInSecondUnit = 1.01;
     expect(assignHuc([outletInSecondUnit, 0.5], units)?.name).toBe("Great Salt Lake");
+  });
+});
+
+describe("published HUC6 scope", () => {
+  it("excludes the Pacific Northwest region from legacy live-service queries", () => {
+    expect(loadLegacyApi().HUC6_WHERE).toContain("huc6 NOT LIKE '17%'");
   });
 });
 

@@ -132,8 +132,8 @@ describe("rollup rules independent of today's data", () => {
     expect(example).toBeDefined();
     if (!example) return;
     const reservoirs = [
-      { ...example, name: "Utah example", in_utah: true },
-      { ...example, name: "Connected example", in_utah: false }
+      { ...example, name: "Cross-border example", in_utah: false, intersects_utah: true },
+      { ...example, name: "Connected example", in_utah: false, intersects_utah: false }
     ];
 
     const utah = statewideRollup(reservoirs, {
@@ -153,11 +153,16 @@ describe("rollup rules independent of today's data", () => {
     const example = payload.reservoirs[0];
     expect(example).toBeDefined();
     if (!example) return;
-    const lakePowell = { ...example, name: "Lake Powell", in_utah: true };
+    const lakePowell = {
+      ...example,
+      name: "Lake Powell",
+      in_utah: false,
+      intersects_utah: true
+    };
     const reservoirs = [
       lakePowell,
-      { ...example, name: "Utah example", in_utah: true },
-      { ...example, name: "Connected example", in_utah: false }
+      { ...example, name: "Utah example", in_utah: true, intersects_utah: true },
+      { ...example, name: "Connected example", in_utah: false, intersects_utah: false }
     ];
 
     for (const geography of ["utah", "connected"] as const) {
@@ -180,6 +185,20 @@ describe("rollup rules independent of today's data", () => {
         6
       );
     }
+  });
+
+  it("keeps the production overview's Utah scope aligned with the typed rollup", () => {
+    const example = payload.reservoirs[0];
+    expect(example).toBeDefined();
+    if (!example) return;
+    const reservoirs = [
+      { ...example, name: "Lake Powell", intersects_utah: true },
+      { ...example, name: "Cross-border", in_utah: false, intersects_utah: true },
+      { ...example, name: "Connected", in_utah: false, intersects_utah: false }
+    ];
+
+    expect(legacy.utahReservoirs(reservoirs, true).map((reservoir) => reservoir.name))
+      .toEqual(["Cross-border"]);
   });
 
   it("uses capacity and falls back to record max", () => {

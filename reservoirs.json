@@ -36,7 +36,8 @@
     "assigned": 54,
     "unassigned": 0,
     "assigned_by_dam": 29,
-    "in_utah": 50
+    "in_utah": 50,
+    "intersects_utah": 52
   },
   "reservoirs": [
     {
@@ -188,6 +189,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140700",
       "huc6_name": "Upper Colorado-Dirty Devil",
       "huc_assignment_point": [
@@ -345,6 +347,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
@@ -502,6 +505,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": false,
+      "intersects_utah": true,
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
@@ -659,6 +663,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -816,6 +821,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -973,6 +979,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -1130,6 +1137,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": false,
+      "intersects_utah": false,
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
@@ -1287,6 +1295,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -1444,6 +1453,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -1601,6 +1611,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -1758,6 +1769,7 @@
       "n_obs": 4228,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -1915,6 +1927,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -2072,6 +2085,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -2229,6 +2243,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -2386,6 +2401,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -2543,6 +2559,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -2700,6 +2717,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -2857,6 +2875,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": false,
+      "intersects_utah": false,
       "huc6": "160101",
       "huc6_name": "Upper Bear",
       "huc_assignment_point": [
@@ -3014,6 +3033,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -3171,6 +3191,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -3328,6 +3349,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "150100",
       "huc6_name": "Lower Colorado-Lake Mead",
       "huc_assignment_point": [
@@ -3485,6 +3507,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -3642,6 +3665,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "150100",
       "huc6_name": "Lower Colorado-Lake Mead",
       "huc_assignment_point": [
@@ -3799,6 +3823,7 @@
       "n_obs": 4228,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -3956,6 +3981,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -4113,6 +4139,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": false,
+      "intersects_utah": true,
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
@@ -4270,6 +4297,7 @@
       "n_obs": 4228,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -4427,6 +4455,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -4584,6 +4613,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -4741,6 +4771,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -4898,6 +4929,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -5055,6 +5087,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -5212,6 +5245,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
@@ -5369,6 +5403,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -5526,6 +5561,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -5683,6 +5719,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "huc_assignment_point": [
@@ -5840,6 +5877,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
@@ -5997,6 +6035,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "150100",
       "huc6_name": "Lower Colorado-Lake Mead",
       "huc_assignment_point": [
@@ -6154,6 +6193,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -6311,6 +6351,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -6468,6 +6509,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160201",
       "huc6_name": "Weber",
       "huc_assignment_point": [
@@ -6625,6 +6667,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160102",
       "huc6_name": "Lower Bear",
       "huc_assignment_point": [
@@ -6782,6 +6825,7 @@
       "n_obs": 4239,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -6939,6 +6983,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -7096,6 +7141,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140600",
       "huc6_name": "Lower Green",
       "huc_assignment_point": [
@@ -7253,6 +7299,7 @@
       "n_obs": 108,
       "years_of_record": 8.9,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "150100",
       "huc6_name": "Lower Colorado-Lake Mead",
       "huc_assignment_point": [
@@ -7410,6 +7457,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160101",
       "huc6_name": "Upper Bear",
       "huc_assignment_point": [
@@ -7567,6 +7615,7 @@
       "n_obs": 138,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160203",
       "huc6_name": "Great Salt Lake",
       "huc_assignment_point": [
@@ -7724,6 +7773,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -7881,6 +7931,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160300",
       "huc6_name": "Escalante Desert-Sevier Lake",
       "huc_assignment_point": [
@@ -8038,6 +8089,7 @@
       "n_obs": 139,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "140300",
       "huc6_name": "Upper Colorado-Dolores",
       "huc_assignment_point": [
@@ -8195,6 +8247,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -8352,6 +8405,7 @@
       "n_obs": 4238,
       "years_of_record": 11.6,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160202",
       "huc6_name": "Jordan",
       "huc_assignment_point": [
@@ -8509,6 +8563,7 @@
       "n_obs": 138,
       "years_of_record": 11.5,
       "in_utah": true,
+      "intersects_utah": true,
       "huc6": "160203",
       "huc6_name": "Great Salt Lake",
       "huc_assignment_point": [

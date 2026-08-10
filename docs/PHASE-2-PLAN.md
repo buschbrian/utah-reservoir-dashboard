@@ -25,7 +25,7 @@ rankings, tables, CSV export, and final production consolidation.
 
 ### P2.1 — Scope contract and workbench copy
 
-**Status:** Complete on 2026-08-10.
+**Status:** Complete on 2026-08-10; corrected by ADR-013 on the same date.
 
 **Work**
 
@@ -36,7 +36,7 @@ rankings, tables, CSV export, and final production consolidation.
 
 **Acceptance**
 
-- Utah totals contain only records with `in_utah: true`.
+- Utah totals contain records whose waterbody has `intersects_utah: true`.
 - Lake Powell inclusion changes only the Lake Powell record.
 - Every rollup call site supplies both dimensions.
 - Focused tests, the full Vitest suite, and TypeScript checks pass.

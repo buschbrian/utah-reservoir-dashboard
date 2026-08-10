@@ -244,7 +244,8 @@ key-gated `arcgis/*` styles this hardening deliberately excludes.
 The dashboard needs two separate geographic groups. Do not merge them into one
 number:
 
-1. **Utah sites** contains measurement sites in Utah. This remains the default.
+1. **Utah waterbodies** contains reservoirs whose stored-water surface
+   intersects Utah. This remains the default and includes cross-border lakes.
 2. **Sites in drainage areas that touch Utah** also contains sites outside the
    state when their six-digit hydrologic unit intersects Utah. This includes the
    Colorado Headwaters and the connected Green, Gunnison, Dolores, and San Juan
@@ -252,11 +253,12 @@ number:
 
 The U.S. Geological Survey Watershed Boundary Dataset is the boundary source.
 It defines hydrologic units without regard to state borders. Keep the current
-six-digit level because its 15 Utah-intersecting units are large enough for a
+six-digit level because its 14 qualifying units are large enough for a
 readable comparison chart. Add these fields to each published reservoir:
 
 ```text
-in_utah                  true or false
+in_utah                  whether the provider point is in Utah
+intersects_utah           whether the waterbody intersects Utah
 huc6                     six-digit code
 huc6_name                display name
 huc_assignment_point     dam or outlet coordinates
@@ -361,6 +363,15 @@ Three decisions worth keeping:
   from the assignment would drop the largest reservoir on the dashboard out
   of its own default view. The two points are now separate arguments and a
   test pins the Lake Powell case.
+
+**Waterbody correction — 2026-08-10.** ADR-013 supersedes the use of
+`in_utah` for the default rollup. Official USGS NHDPlus HR waterbody polygons
+show that Bear Lake and Meeks Cabin Reservoir cross into Utah even though
+their provider points are outside it. Every record now also carries
+`intersects_utah`; the Utah rollup uses that field. The current Utah count is
+52, or 51 when Lake Powell is excluded. HUC assignment still uses the dam or
+outlet, and Upper Snake remains excluded from both committed boundaries and
+the legacy pages' live WBD query.
 
 **The overview reads it — 2026-08-10.** `explore.html` now imports
 `rollupByHuc` from `src/data/huc.ts` (its first consumer, so the tested module

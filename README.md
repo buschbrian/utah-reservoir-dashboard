@@ -143,10 +143,16 @@ water polygon. A drainage area is in scope when it intersects Utah and belongs
 to the Colorado River or Great Basin systems: hydrologic regions 14, 15, and
 16. Region 17 is excluded because it drains to the Columbia River system.
 
-This rule admits connected sites outside Utah, including Fontenelle and
-Flaming Gorge, while excluding reservoirs in basins that never intersect the
-state. `in_utah` remains a separate field so readers can distinguish location
-from hydrologic connection. See [ADR-010](docs/decisions/ADR-010-colorado-and-great-basin-systems-only.md).
+This rule admits connected sites outside Utah, including Fontenelle, while
+excluding reservoirs in basins that never affect the state. Upper Snake is
+excluded because it drains to the Columbia River system.
+
+Reservoir location and drainage assignment are separate facts.
+`intersects_utah` says whether the stored-water surface reaches Utah, including
+cross-border Bear Lake and Meeks Cabin Reservoir. `in_utah` describes the
+provider's published point. `huc6` is assigned by the dam or outlet. See
+[ADR-010](docs/decisions/ADR-010-colorado-and-great-basin-systems-only.md) and
+[ADR-013](docs/decisions/ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md).
 
 ## Architecture
 

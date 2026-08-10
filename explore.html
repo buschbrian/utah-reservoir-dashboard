@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Utah Reservoirs — Utah Overview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Current storage and 12-month history for 53 reservoirs in Utah." />
+  <meta name="description" content="Current storage and 12-month history for reservoirs connected to Utah watersheds." />
 
   <!--
     The third page, and the first one that isn't a map.
@@ -504,7 +504,7 @@
       <p>Capacity data comes from the <a href="https://nid.sec.usace.army.mil/" target="_blank"
         rel="noreferrer">U.S. Army Corps of Engineers National Inventory of Dams</a> or the USDA
         Natural Resources Conservation Service.</p>
-      <p>This dashboard contains 53 reservoirs. The two storage sources provide the data for this list.</p>
+      <p>This dashboard currently contains 54 reservoirs. The two storage sources provide the data for this list.</p>
     </footer>
   </main>
 
@@ -1125,8 +1125,7 @@
             ". These values are for the stated dates. They are not values for today.";
         }
 
-        const statewideRows = state.rows.filter((r) =>
-          String(r.name || "").trim().toLowerCase() !== "lake powell");
+        const statewideRows = RV.utahReservoirs(state.rows, true);
         const summary = RV.statewideSummary(statewideRows);
         const allSummary = RV.statewideSummary(state.rows);
         state.trend = { utahRows: statewideRows, utahSummary: summary, allSummary };

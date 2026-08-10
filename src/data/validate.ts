@@ -84,6 +84,7 @@ function isReservoir(value: unknown): value is Reservoir {
     hasNumber(value.n_obs) &&
     hasNumber(value.years_of_record) &&
     typeof value.in_utah === "boolean" &&
+    typeof value.intersects_utah === "boolean" &&
     (value.huc6 === undefined || hasNullableString(value.huc6)) &&
     (value.huc6_name === undefined || hasNullableString(value.huc6_name)) &&
     isOptionalPoint(value.huc_assignment_point) &&

@@ -65,6 +65,8 @@ export interface LegacySelectionStore {
 
 export interface LegacyApi {
   CLASSES: readonly { min: number; label: string; color: string }[];
+  HUC6_WHERE: string;
+  utahReservoirs<T>(reservoirs: readonly T[], excludeLakePowell: boolean): T[];
   headlinePct(reservoir: unknown): number | null;
   sizeBasis(reservoir: unknown): number;
   colorFor(percent: number | null): string;

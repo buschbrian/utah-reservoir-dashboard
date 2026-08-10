@@ -48,6 +48,13 @@ and is not listed here.
 
 ### Fixed
 
+- **Cross-border reservoirs now count as Utah waterbodies.** Bear Lake and
+  Meeks Cabin Reservoir extend into Utah even though their published points
+  are in Idaho and Wyoming. The Utah total now uses reviewed USGS waterbody
+  footprints instead of point location alone.
+- **Upper Snake is removed from the live map query.** The committed boundary
+  file already excluded region 17, but the two legacy maps still asked the
+  live service for every area that touched Utah and could draw Upper Snake.
 - **`Ken's Lake` was unclickable.** The shared HTML escaper never escaped
   apostrophes, so the name broke out of its own `data-name='…'` attribute and
   shattered into junk attributes. Its ranking row, table row and sparkline card

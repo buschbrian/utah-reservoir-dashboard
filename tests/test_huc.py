@@ -178,22 +178,38 @@ def test_in_utah_describes_the_reservoir_and_not_its_outlet(units):
                   if r["name"] == "Lake Powell")
     glen_canyon_dam = (-111.483, 36.937)
     fields = describe(powell["lat"], powell["lon"], units,
+                      name="Lake Powell",
                       assignment_point=glen_canyon_dam, source="nid_dam_point")
     assert fields["in_utah"] is True
     assert fields["huc_assignment_point"] == [-111.483, 36.937]
     assert fields["huc_assignment_source"] == "nid_dam_point"
     # And the dam point still lands in the same drainage area as the lake.
-    assert fields["huc6"] == describe(powell["lat"], powell["lon"], units)["huc6"]
+    assert fields["huc6"] == describe(
+        powell["lat"], powell["lon"], units, name="Lake Powell")["huc6"]
+
+
+@pytest.mark.parametrize("name,lat,lon,expected", [
+    ("Bear Lake", 42.11667, -111.30000, True),
+    ("Meeks Cabin", 41.01664, -110.58344, True),
+    ("Woodruff Narrows", 41.50273, -111.01602, False),
+    ("Fontenelle", 42.05781, -110.09665, False),
+])
+def test_cross_border_waterbody_review_is_separate_from_point_location(
+        units, name, lat, lon, expected):
+    fields = describe(lat, lon, units, name=name)
+    assert fields["in_utah"] is False
+    assert fields["intersects_utah"] is expected
 
 
 def test_an_unassigned_point_reports_no_source(units):
     """A point outside every unit gets no basin and no provenance for one.
     Naming the source anyway would claim an assignment that did not happen."""
-    fields = describe(35.0, -95.0, units)  # Oklahoma
+    fields = describe(35.0, -95.0, units, name="Nowhere")  # Oklahoma
     assert fields["huc6"] is None
     assert fields["huc6_name"] is None
     assert fields["huc_assignment_source"] is None
     assert fields["in_utah"] is False
+    assert fields["intersects_utah"] is False
 
 
 def test_boundary_distance_is_zero_on_the_edge_and_grows_inward():

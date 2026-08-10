@@ -360,9 +360,9 @@
 
       // --- HUC6 watershed basins ---
       //
-      // The USGS WBD query returns the 15 HUC6 basins that intersect Utah
-      // as GeoJSON. A light fill and labeled boundary make the watershed
-      // geography readable without hiding cross-border reservoirs.
+      // The USGS WBD query returns the 14 Colorado River and Great Basin
+      // HUC6 areas that touch Utah. A light fill and labeled boundary make
+      // the watershed geography readable without hiding cross-border reservoirs.
       map.addSource("huc6", { type: "geojson", data: ReservoirViz.HUC6_GEOJSON_URL });
 
       map.addLayer({

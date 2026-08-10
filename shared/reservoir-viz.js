@@ -153,15 +153,13 @@
   var MASK_FILL = "rgba(226,232,239,0.62)";
   var MASK_LINE = "#8fa3b8";
 
-  /* Both engines use the authoritative WBD service whose 2-to-16-digit layer
-   * structure matches the RISE Experience Builder release notes. Layer 3 is
-   * the six-digit basin level. Filtering
-   * on the service's `states` field keeps the 15 basins that intersect Utah;
-   * unlike a state clip, those polygons preserve the cross-border watersheds
-   * that matter to Lake Powell, the Bear River and the Green River system. */
+  /* Both engines use the authoritative WBD service. Layer 3 is the six-digit
+   * basin level. The state filter finds touching basins; the region filter
+   * removes Upper Snake, which clips Utah but drains to the Columbia rather
+   * than the Colorado River or Great Basin systems (ADR-010). */
   var HUC6_SERVICE_URL =
     "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3";
-  var HUC6_WHERE = "states LIKE '%UT%'";
+  var HUC6_WHERE = "states LIKE '%UT%' AND huc6 NOT LIKE '17%'";
   var HUC6_GEOJSON_URL = HUC6_SERVICE_URL + "/query?where=" +
     encodeURIComponent(HUC6_WHERE) +
     "&outFields=huc6%2Cname%2Cstates&returnGeometry=true&outSR=4326" +
@@ -485,6 +483,14 @@
   function sizeBasis(r) {
     return (r.capacity_af === null || r.capacity_af === undefined)
       ? r.record_max_af : r.capacity_af;
+  }
+
+  function utahReservoirs(reservoirs, excludeLakePowell) {
+    return (reservoirs || []).filter(function (reservoir) {
+      if (reservoir.intersects_utah !== true) return false;
+      return !excludeLakePowell ||
+        String(reservoir.name || "").trim().toLowerCase() !== "lake powell";
+    });
   }
 
   function statewideSummary(reservoirs) {
@@ -1818,6 +1824,7 @@
     connectSelectionToUrl: connectSelectionToUrl,
     unknownReservoirMessage: unknownReservoirMessage,
     statewideSummary: statewideSummary,
+    utahReservoirs: utahReservoirs,
     statewideMonthly: statewideMonthly,
     monthKeys: monthKeys,
     monthEntry: monthEntry,

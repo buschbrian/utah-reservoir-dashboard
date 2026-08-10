@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted.
+Superseded by
+[ADR-013](ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md).
 
 ## Date
 

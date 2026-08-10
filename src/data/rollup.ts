@@ -52,7 +52,7 @@ export function statewideRollup(
   options: StatewideRollupOptions
 ): StatewideRollup {
   const reservoirs = allReservoirs.filter((reservoir) => {
-    if (options.geography === "utah" && reservoir.in_utah !== true) return false;
+    if (options.geography === "utah" && !reservoir.intersects_utah) return false;
     return options.lakePowell === "include"
       || reservoir.name.trim().toLowerCase() !== "lake powell";
   });

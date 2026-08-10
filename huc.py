@@ -1,8 +1,9 @@
 """Watershed membership for each reservoir.
 
-Two facts get attached to every published record: which six-digit hydrologic
-unit its water drains through, and whether the reservoir is in Utah. They are
-separate on purpose. A drainage area does not stop at a state line -- Lake
+Three facts get attached to every published record: which six-digit hydrologic
+unit its water drains through, whether its provider point is in Utah, and
+whether its waterbody intersects Utah. They are separate on purpose. A
+drainage area does not stop at a state line -- Lake
 Powell's water comes down the Green from Wyoming and the Colorado from
 Colorado -- so "reservoirs in Utah" and "reservoirs in drainage areas that
 touch Utah" are two different questions and the dashboard has to be able to
@@ -26,6 +27,17 @@ import math
 from pathlib import Path
 
 BOUNDARY_PATH = Path(__file__).resolve().parent / "huc6.geojson"
+
+# Provider points outside Utah do not settle whether the stored water crosses
+# the state line. These two waterbodies were reviewed against the official
+# USGS NHDPlus HR NHDWaterbody layer. The permanent identifiers make the
+# evidence reproducible without adding a remote geometry dependency to the
+# daily refresh. See ADR-013.
+# Source: https://hydro.nationalmap.gov/arcgis/rest/services/NHDPlus_HR/MapServer/9
+CROSS_BORDER_UTAH_WATERBODIES = {
+    "Bear Lake": "120026431",
+    "Meeks Cabin": "120025290",
+}
 
 # Utah's borders are surveyed lines of latitude and longitude, which is why
 # this is six corners rather than a shapefile: 42°N to 37°N, 114°03'W to
@@ -76,6 +88,24 @@ def in_utah(point: Point) -> bool:
     return in_ring(point, UTAH_RING)
 
 
+def waterbody_intersects_utah(name: str, point: Point) -> bool:
+    """Whether the reservoir surface intersects Utah.
+
+    A point inside Utah proves intersection. A point outside the state needs
+    a reviewed polygon; the current exceptions are versioned above.
+    """
+    return in_utah(point) or name in CROSS_BORDER_UTAH_WATERBODIES
+
+
+def location_fields(name: str, lat: float, lon: float) -> dict:
+    """Stable location facts that do not depend on watershed boundaries."""
+    site = (lon, lat)
+    return {
+        "in_utah": in_utah(site),
+        "intersects_utah": waterbody_intersects_utah(name, site),
+    }
+
+
 def load_units(path: Path | None = None) -> list[dict]:
     """The committed hydrologic units, normalized to one polygon list each."""
     payload = json.loads((path or BOUNDARY_PATH).read_text())
@@ -112,8 +142,9 @@ def distance_to_boundary_km(point: Point, unit: dict) -> float:
     This is the number that says how much boundary precision the assignment
     needs. A reservoir 200 m from a boundary could be moved into the next
     unit by a generalized polygon or a slightly different dam coordinate; one
-    20 km inside cannot. Measured across all 53 reservoirs, the closest is
-    2.72 km, which is what justifies the 500 m generalization in
+    20 km inside cannot. Measured across the 53 reservoirs published at the
+    time of the boundary study, the closest is 2.72 km, which is what
+    justifies the 500 m generalization in
     scripts/fetch-huc6.mjs.
 
     Computed on a local equirectangular projection about the point. Over the
@@ -150,35 +181,38 @@ def haversine_km(a: Point, b: Point) -> float:
     return 2 * 6371.0088 * math.asin(math.sqrt(h))
 
 
-def describe(lat: float, lon: float, units, *,
+def describe(lat: float, lon: float, units, *, name: str,
              assignment_point: Point | None = None,
              source: str = "published_point") -> dict:
     """The watershed fields for one reservoir record.
 
     Two points, and they must not be collapsed into one:
 
-    - The **reservoir's** point decides `in_utah`. That asks where the
-      reservoir is, and it is what the default "Utah sites" view filters on.
+    - The **reservoir's** point decides `in_utah`. That preserves the provider
+      point-location fact.
+    - The reservoir point plus reviewed waterbody polygons decide
+      `intersects_utah`. That owns the default Utah scope.
     - The **assignment** point decides the drainage area. That asks where the
       stored water leaves, which is the dam or outlet.
 
-    They are the same today and will not stay that way. Glen Canyon Dam is in
-    Arizona while Lake Powell reaches well into Utah, so the moment the dam
-    points land, computing `in_utah` from the assignment point would drop the
-    single largest reservoir on this dashboard out of its own default view.
+    They were the same in the original assignment study and will not stay
+    that way. Glen Canyon Dam is in Arizona while Lake Powell reaches well
+    into Utah, so the moment the dam points land, computing `in_utah` from the
+    assignment point would drop the single largest reservoir on this
+    dashboard out of its own default view.
 
     `source` records what kind of point produced the assignment, because the
     answer is going to improve. The published coordinates are lake points, a
-    median of 1.08 km from the dam. Measured across all 53 reservoirs, using
-    the dam point instead moves none of them, so the upgrade is a correctness
-    improvement rather than a correction -- but a reader should still be able
-    to tell which one produced a given row.
+    median of 1.08 km from the dam. Across the 53 reservoirs published when
+    that study was run, using the dam point instead moved none of them, so the
+    upgrade was a correctness improvement rather than a correction -- but a
+    reader should still be able to tell which one produced a given row.
     """
     site = (lon, lat)
     point = tuple(assignment_point) if assignment_point else site
     unit = assign_huc(point, units)
     return {
-        "in_utah": in_utah(site),
+        **location_fields(name, lat, lon),
         "huc6": unit["huc6"] if unit else None,
         "huc6_name": unit["name"] if unit else None,
         "huc_assignment_point": [round(point[0], 5), round(point[1], 5)],
