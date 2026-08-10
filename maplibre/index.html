@@ -22,7 +22,7 @@
   <!-- Colors, popup markup, the 12-month trend chart and the legend come
        from the same module the ArcGIS version uses, so any difference you
        see between the two pages is the rendering engine and nothing else. -->
-  <script src="../shared/reservoir-viz.js?v=20260809-2"></script>
+  <script src="../shared/reservoir-viz.js?v=20260809-3"></script>
 
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -89,6 +89,9 @@
         </select>
       </label>
     </div>
+    <!-- Same placeholder as the ArcGIS page: the controls carry a live match
+         count, so they arrive with the data. -->
+    <div class="rv-filters" id="filterControls"></div>
     <nav class="map-links" aria-label="Other dashboard views">
       <a href="../explore.html"><b>Utah overview</b></a>
       <a href="../explore.html#terms">Meaning of terms</a>
@@ -256,7 +259,36 @@
             }))
           };
 
-          map.addSource("reservoirs", { type: "geojson", data: geojson });
+          // promoteId makes the reservoir's name the feature id, which is
+          // what setFeatureState needs to address a feature. The alternative
+          // (generateId) hands out ordinal ids that change whenever the file
+          // is regenerated in a different order, so the hover and dim states
+          // below would follow positions rather than reservoirs.
+          map.addSource("reservoirs", {
+            type: "geojson", data: geojson, promoteId: "name"
+          });
+
+          // Feature-state reads, shared by the paint properties below.
+          // MapLibre returns null for a state that was never set, so each
+          // one is wrapped with an explicit false default -- an untouched
+          // feature is neither hovered nor dimmed.
+          const hovered = ["boolean", ["feature-state", "hover"], false];
+          const dimmed = ["boolean", ["feature-state", "dim"], false];
+
+          // The ArcGIS page dims with one CSS filter string on a
+          // featureEffect. MapLibre has no filter primitive, so the same
+          // result has to be assembled from parts: the class colors
+          // converted to their grayscale equivalents (shared, so both maps
+          // land on the same gray) plus a matching opacity drop.
+          //
+          // `shade` is not called `map` for the reason recorded at length in
+          // the ArcGIS page: a local named `map` shadows this file's map
+          // instance for the whole function body.
+          const classColors = (shade) => ReservoirViz.CLASSES.reduce(
+            (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, shade(cls.color)]),
+            ["step", ["get", "fill_pct"], shade(ReservoirViz.CLASSES[0].color)]
+          );
+          const DIM_OPACITY = 0.3;
 
           // The ring is sized by absolute capacity, sqrt-scaled to
           // compress Lake Powell down to the smallest reservoirs into a
@@ -293,7 +325,12 @@
               "circle-radius": ringRadiusExpr,
               "circle-color": "rgba(0,0,0,0)",
               "circle-stroke-color": "rgba(90,90,90,0.85)",
-              "circle-stroke-width": 1.25
+              "circle-stroke-width": 1.25,
+              // The capacity ring recedes with its own fill. Dimming only
+              // the fill would leave a filtered-out reservoir drawn as a
+              // bright empty ring -- more attention-grabbing than before,
+              // not less.
+              "circle-stroke-opacity": ["case", dimmed, DIM_OPACITY, 1]
             }
           });
 
@@ -319,6 +356,9 @@
                 ["*", 2, ["+", ringRadiusExpr, 7]],
                 RING_SPRITE_PX / 2
               ]
+            },
+            paint: {
+              "icon-opacity": ["case", dimmed, DIM_OPACITY, 1]
             }
           });
 
@@ -347,13 +387,23 @@
               // Built from the shared class table rather than hand-written
               // step stops, so this can't drift from the ArcGIS renderer,
               // the legend, or the chart bars the way three hand-kept
-              // copies of the thresholds did.
-              "circle-color": ReservoirViz.CLASSES.reduce(
-                (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, cls.color]),
-                ["step", ["get", "fill_pct"], ReservoirViz.CLASSES[0].color]
-              ),
-              "circle-stroke-color": "rgba(0,0,0,0.4)",
-              "circle-stroke-width": 0.75
+              // copies of the thresholds did. Filtered-out reservoirs get
+              // the same table run through the grayscale conversion, which
+              // is what the ArcGIS page's excludedEffect does to them.
+              "circle-color": [
+                "case",
+                dimmed, classColors(ReservoirViz.grayscaleHex),
+                classColors((color) => color)
+              ],
+              "circle-opacity": ["case", dimmed, DIM_OPACITY, 1],
+              // Hover wins over dim: a reservoir the pointer is on is worth
+              // outlining even when the current filter excludes it, because
+              // "why is this one gray" is a question the card answers.
+              "circle-stroke-color": ["case", hovered, "#1b2733", "rgba(0,0,0,0.4)"],
+              "circle-stroke-width": ["case", hovered, 2.5, 0.75],
+              "circle-stroke-opacity": [
+                "case", hovered, 1, dimmed, DIM_OPACITY, 1
+              ]
             }
           });
 
@@ -370,12 +420,85 @@
               .setHTML(ReservoirViz.popupHTML(record, { includeTitle: true, width: 300 }))
               .addTo(map);
           });
-          map.on("mouseenter", "current-circle", () => {
-            map.getCanvas().style.cursor = "pointer";
-          });
-          map.on("mouseleave", "current-circle", () => {
+
+          // --- Hover ---
+          //
+          // The engine difference worth recording: the ArcGIS page has to
+          // run a throttled hitTest on every pointer move and then ask the
+          // view to highlight the graphic it found. MapLibre does the
+          // hit-testing itself -- a mousemove bound to a layer id only fires
+          // when the pointer is over that layer, and already carries the
+          // feature -- so the whole throttle disappears and the highlight is
+          // a paint expression reacting to a feature state. Two moving parts
+          // against six, for the same behavior.
+          const hoverCard = ReservoirViz.createHoverCard();
+          let hoveredName = null;
+
+          const setHoverState = (name, on) => {
+            if (name === null) return;
+            map.setFeatureState({ source: "reservoirs", id: name }, { hover: on });
+          };
+
+          const clearHover = () => {
+            setHoverState(hoveredName, false);
+            hoveredName = null;
+            hoverCard.hide();
             map.getCanvas().style.cursor = "";
+          };
+
+          map.on("mousemove", "current-circle", (e) => {
+            if (!e.features.length || !ReservoirViz.pointerCanHover()) return;
+            const name = e.features[0].properties.name;
+            if (name !== hoveredName) {
+              setHoverState(hoveredName, false);
+              hoveredName = name;
+              setHoverState(name, true);
+            }
+            map.getCanvas().style.cursor = "pointer";
+            // Viewport coordinates, matching the ArcGIS page: the card is
+            // position:fixed, so the map container's own offset is not part
+            // of the answer.
+            hoverCard.show(byName.get(name),
+              e.originalEvent.clientX, e.originalEvent.clientY);
           });
+
+          map.on("mouseleave", "current-circle", clearHover);
+
+          // --- Filter dimming ---
+          //
+          // The paint expressions above already know how to draw a dimmed
+          // reservoir; this only has to say which ones. Feature state rather
+          // than a filter expression because the state is per feature and
+          // survives a style change, while a name-list `match` expression
+          // would have to be rebuilt and re-set on three layers every time
+          // the reader touches a control.
+          ReservoirViz.attachFilterControls(
+            document.getElementById("filterControls"), reservoirs,
+            (state, matching) => {
+              const active = ReservoirViz.filterIsActive(state);
+              reservoirs.forEach((r) => {
+                map.setFeatureState({ source: "reservoirs", id: r.name },
+                  { dim: active && !matching.has(r.name) });
+              });
+            });
+
+          // The phone stylesheet pushes the zoom control down to a fixed
+          // 150px so it clears the title card, which was already a guess and
+          // is now wrong: the filter controls make the card taller, and the
+          // freshness line grows by a line for every reservoir with late
+          // data. Measuring the card is the only version of this that stays
+          // true. Above the breakpoint the card is narrow and the control
+          // sits in the corner, so the inline value is removed and the
+          // stylesheet takes it back.
+          const controlCorner = document.querySelector(".maplibregl-ctrl-top-right");
+          const positionControls = () => {
+            if (!controlCorner) return;
+            if (window.innerWidth > 640) { controlCorner.style.top = ""; return; }
+            const card = document.getElementById("titleDiv").getBoundingClientRect();
+            controlCorner.style.top = Math.round(card.bottom + 8) + "px";
+          };
+          positionControls();
+          window.addEventListener("resize", positionControls);
 
           // Readiness signal for the CI browser smoke test (tests/smoke.mjs),
           // matching the ArcGIS version's so one test can check both engines.
@@ -386,7 +509,10 @@
             layers: ["max-circle", "stale-ring", "current-circle"]
               .filter((id) => map.getLayer(id)).length,
             masked: !!map.getLayer("huc6-mask"),
-            huc6: !!map.getLayer("huc6-outline")
+            huc6: !!map.getLayer("huc6-outline"),
+            // Additive, matching the ArcGIS page's signal field for field.
+            hover: true,
+            filters: !!document.getElementById("classFilter")
           };
         })
         .catch((err) => {
