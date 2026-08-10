@@ -150,6 +150,8 @@ for (const viewport of VIEWPORTS) {
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
     check(ready.masked === true, `${label}: the Utah mask is missing`);
+    check(ready.boundaryPoints > 100,
+      `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     check(ready.drainageAreas === expectedAreas,
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
 

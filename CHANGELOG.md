@@ -5,6 +5,16 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The modern map keeps locally committed reservoirs and drainage areas visible
+  when every anonymous ArcGIS basemap candidate is unavailable, with a clear
+  degraded-background notice instead of an empty map.
+- Both legacy map engines now enforce a Utah-region pan extent and minimum
+  zoom, preventing accidental navigation to a world view.
+- All map masks and `in_utah` classification now use the committed,
+  authoritative UGRC Utah State Boundary instead of a six-corner approximation.
+
 ### Added
 
 - **A browser smoke test for the Phase 2 shell**, at 1280, 390 and 360 pixels,

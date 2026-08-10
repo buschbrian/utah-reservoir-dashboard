@@ -61,8 +61,9 @@ jobs:
           missing=0
           for path in index.html explore.html maplibre/index.html \
                       shared/reservoir-viz.js reservoirs.json capacities.json \
-                      huc6.geojson data/reservoirs.json data/capacities.json \
-                      data/huc6.geojson modern.html; do
+                      huc6.geojson utah-boundary.geojson data/reservoirs.json \
+                      data/capacities.json data/huc6.geojson \
+                      data/utah-boundary.geojson modern.html; do
             if [ ! -s "dist/$path" ]; then
               echo "::error title=Missing from dist::$path"
               missing=1

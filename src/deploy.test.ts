@@ -17,7 +17,9 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
-const RUNTIME_DATA = ["reservoirs.json", "capacities.json", "huc6.geojson"];
+const RUNTIME_DATA = [
+  "reservoirs.json", "capacities.json", "huc6.geojson", "utah-boundary.geojson"
+];
 
 describe("a data-only commit deploys on its own", () => {
   it("deploys every push to main, with no path filter to skip data commits", async () => {
@@ -73,7 +75,7 @@ describe("a data-only commit deploys on its own", () => {
   it("still checks the published output for every current URL, the shell included", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     for (const path of ["index.html", "explore.html", "maplibre/index.html", "modern.html",
-      "data/reservoirs.json", "data/huc6.geojson"]) {
+      "data/reservoirs.json", "data/huc6.geojson", "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }
     // The rule that makes a data-only deploy meaningful, checked in CI as

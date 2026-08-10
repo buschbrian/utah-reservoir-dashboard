@@ -17,6 +17,10 @@ export interface LegacyClassCount {
   count: number;
 }
 
+type LegacyPoint = readonly [number, number];
+type LegacyRing = readonly LegacyPoint[];
+type LegacyBoundary = readonly (readonly LegacyRing[])[];
+
 export interface LegacySummary {
   count: number;
   storage_af: number;
@@ -70,8 +74,8 @@ export interface LegacyApi {
   MASK_LINE: string;
   HUC_FILL: string;
   HUC_LINE: string;
-  UTAH_RING: readonly (readonly [number, number])[];
-  utahMaskRings(): (readonly (readonly [number, number])[])[];
+  UTAH_RING: LegacyRing;
+  utahMaskRings(boundary?: LegacyBoundary): LegacyRing[];
   utahReservoirs<T>(reservoirs: readonly T[], excludeLakePowell: boolean): T[];
   headlinePct(reservoir: unknown): number | null;
   sizeBasis(reservoir: unknown): number;

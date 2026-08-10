@@ -5,16 +5,35 @@ import {
   MASK_FILL,
   MASK_LINE,
   parseDrainageAreas,
+  parseUtahBoundary,
   utahMaskRings
 } from "./boundaries";
 import { loadLegacyApi } from "./legacy-harness";
-import { readDrainageGeoJson, readPayload } from "./payload-fixture";
+import {
+  readDrainageGeoJson,
+  readPayload,
+  readUtahBoundaryGeoJson
+} from "./payload-fixture";
 
 const legacy = loadLegacyApi();
 
 describe("the Utah mask", () => {
+  const boundary = parseUtahBoundary(readUtahBoundaryGeoJson());
+
+  it("reads the authoritative UGRC boundary rather than a corner approximation", () => {
+    expect(boundary).not.toBeNull();
+    expect(boundary?.[0]?.[0]?.length).toBeGreaterThan(100);
+    const outer = boundary?.[0]?.[0] ?? [];
+    const signedArea = outer.slice(0, -1).reduce((area, [x, y], index) => {
+      const next = outer[index + 1] ?? outer[0];
+      return area + x * next[1] - next[0] * y;
+    }, 0) / 2;
+    expect(signedArea).toBeGreaterThan(0);
+  });
+
   it("keeps the rings and colours the production maps draw", () => {
-    expect(utahMaskRings()).toEqual(legacy.utahMaskRings());
+    expect(utahMaskRings(boundary ?? [])).toEqual(
+      legacy.utahMaskRings(boundary ?? undefined));
     expect(MASK_FILL).toBe(legacy.MASK_FILL);
     expect(MASK_LINE).toBe(legacy.MASK_LINE);
     expect(DRAINAGE_FILL).toBe(legacy.HUC_FILL);
@@ -22,8 +41,8 @@ describe("the Utah mask", () => {
   });
 
   it("puts the state inside a far larger surround, so it reads as a hole", () => {
-    const [surround, hole] = utahMaskRings();
-    expect(hole).toEqual(legacy.UTAH_RING);
+    const [surround, hole] = utahMaskRings(boundary ?? []);
+    expect(hole?.length).toBeGreaterThan(100);
     const longitudes = (surround ?? []).map(([lon]) => lon);
     expect(Math.min(...longitudes)).toBeLessThan(-114.052);
     expect(Math.max(...longitudes)).toBeGreaterThan(-109.041);

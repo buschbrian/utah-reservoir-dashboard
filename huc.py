@@ -27,6 +27,7 @@ import math
 from pathlib import Path
 
 BOUNDARY_PATH = Path(__file__).resolve().parent / "huc6.geojson"
+UTAH_BOUNDARY_PATH = Path(__file__).resolve().parent / "utah-boundary.geojson"
 
 # Provider points outside Utah do not settle whether the stored water crosses
 # the state line. These two waterbodies were reviewed against the official
@@ -39,21 +40,21 @@ CROSS_BORDER_UTAH_WATERBODIES = {
     "Meeks Cabin": "120025290",
 }
 
-# Utah's borders are surveyed lines of latitude and longitude, which is why
-# this is six corners rather than a shapefile: 42°N to 37°N, 114°03'W to
-# 109°03'W, with the northeast notch (north of 41°N, east of 111°03'W)
-# belonging to Wyoming. These values are the same ones shared/reservoir-viz.js
-# draws the state mask from; tests/test_huc.py reads them out of that file and
-# fails if the two drift apart.
-UTAH_W, UTAH_E = -114.052, -109.041
-UTAH_S, UTAH_N = 37.0, 42.0
-NOTCH_W, NOTCH_S = -111.047, 41.0
+def _load_utah_polygons(path: Path = UTAH_BOUNDARY_PATH):
+    """Read the committed UGRC polygon in the same normalized shape as WBD."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    geometry = payload["features"][0]["geometry"]
+    if geometry["type"] == "Polygon":
+        return [geometry["coordinates"]]
+    if geometry["type"] == "MultiPolygon":
+        return geometry["coordinates"]
+    raise ValueError(f"Unsupported Utah boundary geometry: {geometry['type']}")
 
-UTAH_RING = [
-    (UTAH_W, UTAH_N), (UTAH_W, UTAH_S), (UTAH_E, UTAH_S),
-    (UTAH_E, NOTCH_S), (NOTCH_W, NOTCH_S), (NOTCH_W, UTAH_N),
-    (UTAH_W, UTAH_N),
-]
+
+UTAH_POLYGONS = _load_utah_polygons()
+# Compatibility for callers that need the principal outline. Classification
+# uses every polygon and its holes below.
+UTAH_RING = UTAH_POLYGONS[0][0]
 
 Point = tuple[float, float]
 
@@ -85,7 +86,7 @@ def in_polygon(point: Point, rings) -> bool:
 
 
 def in_utah(point: Point) -> bool:
-    return in_ring(point, UTAH_RING)
+    return any(in_polygon(point, polygon) for polygon in UTAH_POLYGONS)
 
 
 def waterbody_intersects_utah(name: str, point: Point) -> bool:

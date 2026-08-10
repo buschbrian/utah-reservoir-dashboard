@@ -67,6 +67,7 @@ for their SDKs and basemap tiles; the overview does not load a map SDK.
 | `node tests/smoke.mjs` | Test the built production pages in Chromium. |
 | `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
 | `node scripts/fetch-huc6.mjs --dry-run` | Rebuild drainage-area boundaries without writing. |
+| `npm run boundary:utah -- --dry-run` | Check the authoritative Utah boundary without writing. |
 
 The browser smoke test expects a current `dist/` directory and an existing
 `screenshots/` directory:
@@ -106,6 +107,10 @@ The version ranges match CI and the scheduled refresh workflow.
   metadata.
 - Six-digit drainage areas come from the U.S. Geological Survey Watershed
   Boundary Dataset and are committed in [`huc6.geojson`](huc6.geojson).
+- The state outline comes from the Utah Geospatial Resource Center's
+  maintained Utah State Boundary and is committed in
+  [`utah-boundary.geojson`](utah-boundary.geojson). It drives both the map
+  mask and point-in-state classification; see [ADR-014](docs/decisions/ADR-014-use-the-ugrc-utah-state-boundary.md).
 
 Every reservoir record includes the provider, station or item identifier,
 data frequency, data date, capacity source, and drainage-area assignment point.
@@ -197,8 +202,8 @@ refuses to publish a broadly failed refresh, and maintains the `stale-feed`
 issue. A changed `reservoirs.json` is committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
-`dist/`. Vite copies `reservoirs.json`, `capacities.json`, `huc6.geojson`, the
-shared module, and the legacy pages into the artifact. The workflow checks
+`dist/`. Vite copies `reservoirs.json`, `capacities.json`, `huc6.geojson`,
+`utah-boundary.geojson`, the shared module, and the legacy pages into the artifact. The workflow checks
 that every public URL exists and that the data payload did not leak into a
 JavaScript bundle.
 

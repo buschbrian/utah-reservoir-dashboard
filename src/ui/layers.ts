@@ -18,7 +18,8 @@ import {
   MASK_FILL,
   MASK_LINE,
   utahMaskRings,
-  type DrainageArea
+  type DrainageArea,
+  type UtahBoundary
 } from "../data/boundaries";
 import type { Ring } from "../data/huc";
 import type { Reservoir } from "../types";
@@ -47,10 +48,10 @@ function mutableRings(rings: readonly Ring[]): number[][][] {
   return rings.map((ring) => ring.map(([lon, lat]) => [lon, lat]));
 }
 
-export function createMaskLayer(): GraphicsLayer {
+export function createMaskLayer(boundary?: UtahBoundary): GraphicsLayer {
   const layer = new GraphicsLayer({ id: "utah-mask", listMode: "hide" });
   layer.add(new Graphic({
-    geometry: new Polygon({ rings: mutableRings(utahMaskRings()), spatialReference: WGS84 }),
+    geometry: new Polygon({ rings: mutableRings(utahMaskRings(boundary)), spatialReference: WGS84 }),
     symbol: areaSymbol(MASK_FILL, MASK_LINE)
   }));
   return layer;

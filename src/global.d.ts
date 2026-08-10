@@ -14,6 +14,7 @@ interface DashboardReady {
   basemap: boolean;
   basemapDegraded: boolean;
   masked: boolean;
+  boundaryPoints: number;
   drainageAreas: number;
   listItems: number;
   selected: string | null;

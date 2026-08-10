@@ -2,7 +2,7 @@ import "@esri/calcite-components/main.css";
 import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageAreas } from "./data/boundaries";
+import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { isLateForCadence, statewideRollup } from "./data/rollup";
 import { describeReservoir } from "./state/detail";
@@ -120,7 +120,11 @@ if (!supportsDashboard(browserCapabilities())) {
   wirePanels();
   wireTheme();
 
-  const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection)]);
+  const boundary = loadUtahBoundary().catch((error: unknown) => {
+    console.warn("The authoritative Utah boundary is unavailable; using the fallback mask:", error);
+    return null;
+  });
+  const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection, boundary)]);
   if (reservoirs) {
     wireSelection(reservoirs);
     map.drawReservoirs(reservoirs);
@@ -139,6 +143,7 @@ if (!supportsDashboard(browserCapabilities())) {
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,
     masked: map.status.masked,
+    boundaryPoints: map.status.boundaryPoints,
     drainageAreas: map.status.drainageAreas,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     selected: selection.get()

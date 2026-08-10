@@ -21,10 +21,9 @@ export const MASK_LINE = "#8fa3b8";
 export const DRAINAGE_FILL = "rgba(226,232,239,0.22)";
 export const DRAINAGE_LINE = "#6f8498";
 
-/* Utah's borders are surveyed lines of latitude and longitude, which is why
- * this is six corners and not a shapefile: 42°N to 37°N, 114°03'W to
- * 109°03'W, with the northeast notch belonging to Wyoming. Ported from
- * `shared/reservoir-viz.js`, value for value, and asserted against it. */
+/* Last-resort approximation only. Production loads `utah-boundary.geojson`,
+ * the maintained UGRC polygon; retaining a tiny fallback means a
+ * damaged context file cannot take the reservoir map down with it. */
 const UTAH_W = -114.052;
 const UTAH_E = -109.041;
 const UTAH_S = 37.0;
@@ -46,10 +45,7 @@ const SURROUND_RING: readonly Point[] = [
   [-160, 72], [-45, 72], [-45, 8], [-160, 8], [-160, 72]
 ];
 
-/** ArcGIS polygon rings: outer clockwise first, then the hole. */
-export function utahMaskRings(): Ring[] {
-  return [SURROUND_RING.slice(), UTAH_RING.slice()];
-}
+export type UtahBoundary = Ring[][];
 
 export interface DrainageArea {
   huc6: string;
@@ -96,6 +92,31 @@ function toPolygons(geometry: unknown): Ring[][] | null {
     if (rings.length > 0) polygons.push(rings);
   }
   return polygons.length > 0 ? polygons : null;
+}
+
+export function parseUtahBoundary(value: unknown): UtahBoundary | null {
+  if (!isObject(value) || !Array.isArray(value.features) || value.features.length !== 1) {
+    return null;
+  }
+  const feature = value.features[0];
+  if (!isObject(feature)) return null;
+  return toPolygons(feature.geometry);
+}
+
+/** ArcGIS polygon rings: outer clockwise first, then one state-shaped hole. */
+export function utahMaskRings(boundary: UtahBoundary = [[UTAH_RING.slice()]]): Ring[] {
+  const stateOuters = boundary.map((polygon) => polygon[0]).filter(Boolean) as Ring[];
+  return [SURROUND_RING.slice(), ...stateOuters.map((ring) => ring.slice())];
+}
+
+export async function loadUtahBoundary(
+  url = import.meta.env.DEV ? "./utah-boundary.geojson" : "./data/utah-boundary.geojson"
+): Promise<UtahBoundary> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+  const boundary = parseUtahBoundary(await response.json() as unknown);
+  if (!boundary) throw new Error(`Malformed Utah boundary in ${url}`);
+  return boundary;
 }
 
 /**

@@ -324,6 +324,11 @@
     }
 
     const RING_SPRITE_PX = 128; // drawn at 2x, declared with pixelRatio 2
+    const boundaryReady = ReservoirViz.loadUtahBoundary("../utah-boundary.geojson")
+      .catch((error) => {
+        console.warn("Authoritative Utah boundary unavailable; using fallback mask:", error);
+        return null;
+      });
 
     map.on("load", () => {
       map.addImage("stale-ring", makeDashedRing(RING_SPRITE_PX, ReservoirViz.STALE_ACCENT),
@@ -401,8 +406,14 @@
         }
       });
 
-      ReservoirViz.load("../reservoirs.json")
-        .then((data) => {
+      Promise.all([ReservoirViz.load("../reservoirs.json"), boundaryReady])
+        .then(([data, boundary]) => {
+          if (boundary) {
+            map.getSource("utah-mask").setData(ReservoirViz.utahMaskGeoJSON(boundary));
+            map.getSource("utah-outline").setData(ReservoirViz.utahOutlineGeoJSON(boundary));
+          }
+          const utahBoundaryPoints = (boundary || [[ReservoirViz.UTAH_RING]])
+            .reduce((sum, polygon) => sum + polygon[0].length, 0);
           const reservoirs = data.reservoirs;
           // Hover events carry only the GeoJSON properties. Keep the complete
           // validated record lookup beside the array that owns it so the hover
@@ -851,6 +862,7 @@
             filters: !!document.getElementById("classFilter"),
             minZoom: map.getMinZoom(),
             navigationBounds: map.getMaxBounds() !== null,
+            boundaryPoints: utahBoundaryPoints,
             // The month slider, for a test that wants to prove it moves:
             // `months` is how many positions it offers besides today, and
             // `month` is the one on screen -- null while the map shows the

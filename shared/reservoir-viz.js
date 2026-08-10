@@ -95,9 +95,9 @@
 
   // --- Shared geographic context ---------------------------------------
   //
-  // The state-ring helpers immediately below are retained as a lightweight
-  // fallback for older forks. The current map pages render the HUC6 source
-  // declared after them instead.
+  // The six-corner ring immediately below is only a lightweight fallback.
+  // Production loads `utah-boundary.geojson`, a maintained UGRC boundary;
+  // the fallback keeps reservoir points usable if that context file fails.
   // Both maps are about Utah but neither basemap knows that: Nevada,
   // Wyoming and the Colorado Plateau render at exactly the same weight as
   // the state the dashboard is for, and the eye has to do the cropping.
@@ -109,11 +109,8 @@
   // Arizona, and Meeks Cabin is in the Wyoming notch -- so a hard clip
   // would drop them into a gray void.
   //
-  // Utah's borders are surveyed lines of latitude and longitude, which is
-  // why this is six corners rather than a shapefile: 42°N to 37°N, 114°03'W
-  // to 109°03'W, with the northeast notch (north of 41°N, east of 111°03'W)
-  // belonging to Wyoming. Accurate to the fraction of a degree the real
-  // survey wanders, which is far finer than a dimming overlay needs.
+  // This approximation captures Utah's nominal surveyed lines and northeast
+  // notch, but not the small, visible survey variations along those lines.
   var UTAH_W = -114.052, UTAH_E = -109.041;
   var UTAH_S = 37.0, UTAH_N = 42.0;
   var NOTCH_W = -111.047, NOTCH_S = 41.0;
@@ -186,27 +183,66 @@
 
   function reversed(ring) { return ring.slice().reverse(); }
 
+  function parseUtahBoundary(value) {
+    if (!value || !Array.isArray(value.features) || value.features.length !== 1) return null;
+    var geometry = value.features[0] && value.features[0].geometry;
+    if (!geometry || !Array.isArray(geometry.coordinates)) return null;
+    var polygons = geometry.type === "MultiPolygon"
+      ? geometry.coordinates
+      : geometry.type === "Polygon" ? [geometry.coordinates] : null;
+    if (!polygons || !polygons.length) return null;
+    for (var i = 0; i < polygons.length; i++) {
+      if (!Array.isArray(polygons[i]) || !Array.isArray(polygons[i][0]) ||
+          polygons[i][0].length < 4) return null;
+    }
+    return polygons;
+  }
+
+  function loadUtahBoundary(url) {
+    return fetch(url, { cache: "no-cache" }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status + " loading " + url);
+      return response.json();
+    }).then(function (value) {
+      var boundary = parseUtahBoundary(value);
+      if (!boundary) throw new Error("Malformed Utah boundary in " + url);
+      return boundary;
+    });
+  }
+
+  function stateOuterRings(boundary) {
+    var polygons = boundary || [[UTAH_RING]];
+    return polygons.map(function (polygon) { return polygon[0]; });
+  }
+
   /* ArcGIS Polygon rings: outer clockwise, holes counterclockwise. */
-  function utahMaskRings() { return [SURROUND_RING.slice(), UTAH_RING.slice()]; }
+  function utahMaskRings(boundary) {
+    return [SURROUND_RING.slice()].concat(stateOuterRings(boundary).map(function (ring) {
+      return ring.slice();
+    }));
+  }
 
   /* GeoJSON winds the other way (RFC 7946: outer counterclockwise, holes
    * clockwise), so the same two rings get flipped. */
-  function utahMaskGeoJSON() {
+  function utahMaskGeoJSON(boundary) {
     return {
       type: "Feature",
       properties: {},
       geometry: {
         type: "Polygon",
-        coordinates: [reversed(SURROUND_RING), reversed(UTAH_RING)]
+        coordinates: [reversed(SURROUND_RING)].concat(
+          stateOuterRings(boundary).map(reversed))
       }
     };
   }
 
-  function utahOutlineGeoJSON() {
+  function utahOutlineGeoJSON(boundary) {
     return {
       type: "Feature",
       properties: {},
-      geometry: { type: "LineString", coordinates: UTAH_RING.slice() }
+      geometry: {
+        type: "MultiLineString",
+        coordinates: stateOuterRings(boundary).map(function (ring) { return ring.slice(); })
+      }
     };
   }
 
@@ -1815,6 +1851,8 @@
     MAP_MIN_ZOOM: MAP_MIN_ZOOM,
     MAP_CENTER: MAP_CENTER,
     UTAH_RING: UTAH_RING,
+    parseUtahBoundary: parseUtahBoundary,
+    loadUtahBoundary: loadUtahBoundary,
     utahMaskRings: utahMaskRings,
     utahMaskGeoJSON: utahMaskGeoJSON,
     utahOutlineGeoJSON: utahOutlineGeoJSON,

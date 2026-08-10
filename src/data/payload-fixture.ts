@@ -16,3 +16,8 @@ export function readDrainageGeoJson(): unknown {
   const source = readFileSync(new URL("../../huc6.geojson", import.meta.url), "utf8");
   return JSON.parse(source) as unknown;
 }
+
+export function readUtahBoundaryGeoJson(): unknown {
+  const source = readFileSync(new URL("../../utah-boundary.geojson", import.meta.url), "utf8");
+  return JSON.parse(source) as unknown;
+}

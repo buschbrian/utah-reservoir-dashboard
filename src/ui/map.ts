@@ -8,7 +8,7 @@ import ArcGISMap from "@arcgis/core/Map";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
-import type { DrainageArea } from "../data/boundaries";
+import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { Reservoir } from "../types";
 import { elementById } from "./dom";
@@ -29,6 +29,7 @@ export interface MapStatus {
   /** True when a preferred background failed and a later candidate served. */
   basemapDegraded: boolean;
   masked: boolean;
+  boundaryPoints: number;
   drainageAreas: number;
   reservoirsDrawn: number;
 }
@@ -116,8 +117,11 @@ function wirePointerSelection(element: MapElement, selection: SelectionStore): v
   });
 }
 
-export async function loadMap(selection: SelectionStore): Promise<MapController> {
-  const resolution = await resolveBasemap();
+export async function loadMap(
+  selection: SelectionStore,
+  boundary: Promise<UtahBoundary | null> = Promise.resolve(null)
+): Promise<MapController> {
+  const [resolution, utahBoundary] = await Promise.all([resolveBasemap(), boundary]);
 
   /* The SDK's `basemap` property is typed as basemap *properties*, and an
    * already-constructed Basemap does not satisfy that shape under
@@ -129,7 +133,7 @@ export async function loadMap(selection: SelectionStore): Promise<MapController>
   if (resolution.resource) {
     (map as { basemap: unknown }).basemap = resolution.resource;
   }
-  const maskLayer = createMaskLayer();
+  const maskLayer = createMaskLayer(utahBoundary ?? undefined);
   const highlightLayer = createHighlightLayer();
   map.add(maskLayer);
 
@@ -162,6 +166,8 @@ export async function loadMap(selection: SelectionStore): Promise<MapController>
     basemap: resolution.resource !== null,
     basemapDegraded: resolution.degraded,
     masked: map.layers.includes(maskLayer),
+    boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
+      sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
     reservoirsDrawn: 0
   };

@@ -15,7 +15,6 @@ Run with `pytest tests/` or directly with `python tests/test_huc.py`.
 
 import json
 import math
-import re
 import sys
 from pathlib import Path
 
@@ -24,13 +23,14 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import (  # noqa: E402
-    UTAH_RING, assign_huc, describe, distance_to_boundary_km, in_polygon,
+    UTAH_POLYGONS, UTAH_RING, assign_huc, describe, distance_to_boundary_km, in_polygon,
     in_utah, load_units,
 )
 
 BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
+UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 
 # Every hydrologic unit in scope: touching Utah, and in the Colorado River or
 # Great Basin systems. Upper Snake (170402) touches the state and is excluded
@@ -137,23 +137,20 @@ def test_ray_casting_agrees_with_the_typescript_port():
     assert in_polygon((9, 9), donut) is False
 
 
-def test_the_utah_ring_matches_the_one_the_maps_draw():
-    """Two copies of the state outline exist: this module's, and the mask in
-    shared/reservoir-viz.js. They are six surveyed corners, so keeping them
-    in step by hand is reasonable -- but only if a drift is a failed test."""
-    source = SHARED_VIZ.read_text(encoding="utf-8")
-    numbers = {}
-    for key in ("UTAH_W", "UTAH_E", "UTAH_S", "UTAH_N", "NOTCH_W", "NOTCH_S"):
-        match = re.search(rf"\b{key}\s*=\s*(-?\d+(?:\.\d+)?)", source)
-        assert match, f"{key} is no longer declared in shared/reservoir-viz.js"
-        numbers[key] = float(match.group(1))
-    expected = [
-        (numbers["UTAH_W"], numbers["UTAH_N"]), (numbers["UTAH_W"], numbers["UTAH_S"]),
-        (numbers["UTAH_E"], numbers["UTAH_S"]), (numbers["UTAH_E"], numbers["NOTCH_S"]),
-        (numbers["NOTCH_W"], numbers["NOTCH_S"]), (numbers["NOTCH_W"], numbers["UTAH_N"]),
-        (numbers["UTAH_W"], numbers["UTAH_N"]),
-    ]
-    assert UTAH_RING == expected
+def test_the_state_classification_uses_the_authoritative_map_boundary():
+    payload = json.loads(UTAH_BOUNDARY.read_text(encoding="utf-8"))
+    geometry = payload["features"][0]["geometry"]
+    expected = (geometry["coordinates"] if geometry["type"] == "MultiPolygon"
+                else [geometry["coordinates"]])
+    assert UTAH_POLYGONS == expected
+    assert UTAH_RING == expected[0][0]
+    assert len(UTAH_RING) > 100
+    signed_area = sum(
+        x0 * y1 - x1 * y0
+        for (x0, y0), (x1, y1) in zip(UTAH_RING, UTAH_RING[1:])
+    ) / 2
+    assert signed_area > 0, "GeoJSON outer ring must use counterclockwise winding"
+    assert "UtahStateBoundary" in payload["source"]
 
 
 @pytest.mark.parametrize("name,lon,lat,expected", [

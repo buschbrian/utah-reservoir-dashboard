@@ -11,6 +11,7 @@
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
     "smoke:modern": "node tests/smoke-modern.mjs",
+    "boundary:utah": "node scripts/fetch-utah-boundary.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -198,25 +198,40 @@
       // one static shape with no attributes, no popup and nothing to
       // symbolize by.
       const maskLayer = new GraphicsLayer({ title: "Outside Utah", listMode: "hide" });
-      maskLayer.add(new Graphic({
-        geometry: { type: "polygon", rings: ReservoirViz.utahMaskRings(),
-                    spatialReference: { wkid: 4326 } },
-        symbol: {
-          type: "simple-fill",
-          color: ReservoirViz.MASK_FILL,
-          outline: { color: [0, 0, 0, 0], width: 0 }
-        }
-      }));
-      maskLayer.add(new Graphic({
-        geometry: { type: "polyline", paths: [ReservoirViz.UTAH_RING],
-                    spatialReference: { wkid: 4326 } },
-        symbol: {
-          type: "simple-line",
-          color: ReservoirViz.MASK_LINE,
-          width: 1.2
-        }
-      }));
+      let utahBoundaryPoints = ReservoirViz.UTAH_RING.length;
+      const drawUtahMask = (boundary) => {
+        const outlines = (boundary || [[ReservoirViz.UTAH_RING]])
+          .map((polygon) => polygon[0]);
+        maskLayer.removeAll();
+        maskLayer.add(new Graphic({
+          geometry: { type: "polygon", rings: ReservoirViz.utahMaskRings(boundary),
+                      spatialReference: { wkid: 4326 } },
+          symbol: {
+            type: "simple-fill",
+            color: ReservoirViz.MASK_FILL,
+            outline: { color: [0, 0, 0, 0], width: 0 }
+          }
+        }));
+        maskLayer.add(new Graphic({
+          geometry: { type: "polyline", paths: outlines,
+                      spatialReference: { wkid: 4326 } },
+          symbol: {
+            type: "simple-line",
+            color: ReservoirViz.MASK_LINE,
+            width: 1.2
+          }
+        }));
+        utahBoundaryPoints = outlines.reduce((sum, ring) => sum + ring.length, 0);
+      };
+      drawUtahMask(null);
       map.add(maskLayer);
+
+      const boundaryReady = ReservoirViz.loadUtahBoundary("utah-boundary.geojson")
+        .then((boundary) => { drawUtahMask(boundary); return boundary; })
+        .catch((error) => {
+          console.warn("Authoritative Utah boundary unavailable; using fallback mask:", error);
+          return null;
+        });
 
       // --- HUC6 watershed basins ---
       //
@@ -389,8 +404,8 @@
         }
       };
 
-      ReservoirViz.load("reservoirs.json")
-        .then((data) => {
+      Promise.all([ReservoirViz.load("reservoirs.json"), boundaryReady])
+        .then(([data]) => {
           const reservoirs = data.reservoirs;
           byName = new Map(reservoirs.map((r) => [r.name, r]));
 
@@ -1069,6 +1084,7 @@
               filters: !!document.getElementById("classFilter"),
               minZoom: view.constraints.effectiveMinZoom,
               navigationBounds: view.constraints.geometry !== null,
+              boundaryPoints: utahBoundaryPoints,
               // The month slider, for a test that wants to prove it moves:
               // `months` is how many positions it offers besides today, and
               // `month` is the one on screen -- null while the map shows the

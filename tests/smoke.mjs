@@ -119,6 +119,8 @@ for (const page of PAGES) {
         `${label}: users can zoom out to a world view (minimum ${ready.minZoom})`);
       check(ready.navigationBounds === true,
         `${label}: lateral navigation is not constrained to the Utah region`);
+      check(ready.boundaryPoints > 100,
+        `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     } else {
       check(ready.rows === expectedReservoirs,
         `${label}: table has ${ready.rows} rows, expected ${expectedReservoirs}`);
