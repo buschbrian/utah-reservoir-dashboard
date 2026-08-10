@@ -23,7 +23,7 @@
   <!-- Colors, popup markup, the 12-month trend chart and the legend are
        shared with the MapLibre version so the two stay identical; only
        engine-specific code lives in this file. -->
-  <script src="shared/reservoir-viz.js?v=20260809-2"></script>
+  <script src="shared/reservoir-viz.js?v=20260809-3"></script>
 
   <style>
     html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -111,6 +111,10 @@
         </select>
       </label>
     </div>
+    <!-- Filled in after the data loads, because the match count in it is a
+         count of real reservoirs. Empty until then rather than showing
+         controls that cannot do anything yet. -->
+    <div class="rv-filters" id="filterControls"></div>
     <nav class="map-links" aria-label="Other dashboard views">
       <a href="explore.html"><b>Utah overview</b></a>
       <a href="explore.html#terms">Meaning of terms</a>
@@ -298,6 +302,13 @@
         { name: "fill_pct", alias: "% Full", type: "double" },
         { name: "seasonal_percentile", alias: "History rank", type: "double" },
         { name: "days_stale", alias: "Days Since Last Reading", type: "double" },
+        // A number rather than the record's own boolean `is_stale`, and
+        // under a different name so the attribute loop below leaves it null
+        // and the derived value wins. featureEffect filters are SQL where
+        // clauses, and a client-side FeatureLayer has no boolean field type
+        // to compare against -- `is_late = 1` works, `is_stale = true` does
+        // not parse.
+        { name: "is_late", alias: "Late data", type: "small-integer" },
         { name: "as_of", alias: "As Of", type: "string" }
       ];
       const attributeNames = fields
@@ -367,6 +378,7 @@
             });
             attributes.size_basis_af = r.capacity_af || r.record_max_af;
             attributes.fill_pct = ReservoirViz.headlinePct(r);
+            attributes.is_late = r.is_stale ? 1 : 0;
             return new Graphic({
               geometry: { type: "point", longitude: r.lon, latitude: r.lat },
               attributes: attributes
@@ -585,6 +597,146 @@
             if (button) selectReservoir(button.getAttribute("data-name"), button);
           });
 
+          // --- Filter dimming ---
+          //
+          // featureEffect rather than definitionExpression on purpose. A
+          // definition expression answers "show me the reservoirs under a
+          // quarter full" by deleting the other 40, which also deletes the
+          // only thing that makes the answer mean anything -- you can no
+          // longer see that the empty ones are the southern half of the
+          // state. featureEffect keeps every dot where it is and pushes the
+          // non-matching ones back with the same CSS filter the browser
+          // uses, so the map stays a map.
+          //
+          // Applied to all three layers together: dimming the fill but
+          // leaving its capacity ring and its late-data ring at full
+          // strength would make a filtered-out reservoir *more* prominent,
+          // not less.
+          const dimEffect = "grayscale(100%) opacity(30%)";
+          const effectLayers = [maxLayer, staleLayer, currentLayer];
+
+          // The shared predicate expressed as SQL. The class boundaries come
+          // from ReservoirViz.classRange rather than being written out here,
+          // for the same reason the renderer's color stops do: three
+          // hand-kept copies of the same thresholds is how they drift.
+          // Reservoirs with no reading have a null fill_pct and fail every
+          // comparison, which is the behavior the shared predicate has too.
+          const whereFor = (state) => {
+            const clauses = [];
+            if (state.lateOnly) clauses.push("is_late = 1");
+            if (state.classIndex !== null && state.classIndex !== undefined) {
+              const range = ReservoirViz.classRange(state.classIndex);
+              clauses.push("fill_pct >= " + range.min);
+              if (range.max !== Infinity) clauses.push("fill_pct < " + range.max);
+            }
+            return clauses.join(" AND ");
+          };
+
+          ReservoirViz.attachFilterControls(
+            document.getElementById("filterControls"), reservoirs, (state) => {
+              const where = whereFor(state);
+              effectLayers.forEach((layer) => {
+                layer.featureEffect = where
+                  ? { filter: { where: where }, excludedEffect: dimEffect }
+                  : null;
+              });
+            });
+
+          // --- Hover ---
+          //
+          // hitTest is a real query against the layer view, not a cheap
+          // lookup, and pointer-move fires far more often than the display
+          // refreshes -- dragging across the state queues dozens per second,
+          // each resolving after the pointer has already moved on. Only the
+          // most recent pointer position is ever tested, and never more than
+          // once per animation frame, which is the most a reader can
+          // perceive anyway.
+          //
+          // A timer would work equally well and was tried. It buys nothing:
+          // the case it was meant to cover is a page that is not being
+          // painted, and in that state hitTest never settles either -- it is
+          // resolved by the same view render loop that requestAnimationFrame
+          // waits on. So the frame callback is the honest place for it.
+          //
+          // The token guards the rest: hitTest is async, so a slow response
+          // from an earlier frame must not overwrite the card a later one
+          // already filled in.
+          const hoverCard = ReservoirViz.createHoverCard();
+          let hoveredName = null;
+          let highlightHandle = null;
+          let pendingPointer = null;
+          let hoverFrame = 0;
+          let hitToken = 0;
+
+          // view.highlight() is the current API; older 4.x builds only have
+          // it on the layer view. The CDN version is pinned in two places in
+          // this file with no fallback, so a bump that lands on a build
+          // without it should degrade to a map with no highlight, not a map
+          // that throws on every mouse move.
+          let currentLayerView = null;
+          view.whenLayerView(currentLayer).then((layerView) => {
+            currentLayerView = layerView;
+          });
+
+          const dropHighlight = () => {
+            if (highlightHandle) highlightHandle.remove();
+            highlightHandle = null;
+            hoveredName = null;
+          };
+
+          const clearHover = () => {
+            dropHighlight();
+            hoverCard.hide();
+          };
+
+          const showHover = (graphic, clientX, clientY) => {
+            const name = graphic.attributes.name;
+            // Re-highlighting the same graphic on every frame would rebuild
+            // the highlight for no visible change; only the card moves.
+            if (name !== hoveredName) {
+              dropHighlight();
+              hoveredName = name;
+              if (typeof view.highlight === "function") {
+                highlightHandle = view.highlight(graphic);
+              } else if (currentLayerView) {
+                highlightHandle = currentLayerView.highlight(graphic);
+              }
+            }
+            hoverCard.show(byName.get(name), clientX, clientY);
+          };
+
+          view.on("pointer-move", (event) => {
+            // Nothing here helps a finger: the tap that would show the card
+            // is the tap that opens the popup, and the card would land on
+            // top of it.
+            if (!ReservoirViz.pointerCanHover()) return;
+            pendingPointer = event;
+            if (hoverFrame) return;
+            hoverFrame = requestAnimationFrame(() => {
+              hoverFrame = 0;
+              const moved = pendingPointer;
+              pendingPointer = null;
+              if (!moved) return;
+              const token = ++hitToken;
+              // Only the filled layer is tested. The capacity ring encloses
+              // it at the same point, so including it would report a hit
+              // whenever the pointer is anywhere inside a reservoir's ring
+              // -- which for Lake Powell is most of southern Utah.
+              view.hitTest(moved, { include: currentLayer }).then((response) => {
+                if (token !== hitToken) return;
+                const hit = response.results.find((result) => result.graphic);
+                if (!hit) { clearHover(); return; }
+                const native = moved.native;
+                showHover(hit.graphic,
+                  native ? native.clientX : moved.x,
+                  native ? native.clientY : moved.y);
+              }).catch(() => { /* a hit test on a view being torn down */ });
+            });
+          });
+
+          // Leaving the map entirely never produces a "no hit" pointer-move,
+          // so without this the card stays pinned wherever it was last drawn.
+          view.on("pointer-leave", clearHover);
           // Readiness signal for the CI browser smoke test (tests/smoke.mjs).
           // Deliberately tiny and inert: the alternative is a smoke test that
           // can only assert "no exception was thrown", which is not the same
@@ -718,8 +870,13 @@
               huc6: map.layers.includes(hucLayer),
               // Added, never replacing a field: the smoke test asserts on
               // the ones above and a missing key reads as a crash.
-              listItems: listHost.querySelectorAll(".rv-list-btn").length
-            };
+              listItems: listHost.querySelectorAll(".rv-list-btn").length,
+              // Added, never replacing anything above: the hover read and
+              // the filter dimming are both invisible to a screenshot of a
+              // page at rest, so the smoke test needs a way to see that they
+              // were wired up at all.
+              hover: true,
+              filters: !!document.getElementById("classFilter")            };
           });
         })
         .catch((err) => {

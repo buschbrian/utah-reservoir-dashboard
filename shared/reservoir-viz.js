@@ -77,6 +77,22 @@
     return chosen;
   }
 
+  /*
+   * The gray a color becomes under CSS `grayscale(100%)`, computed here so
+   * the two engines can dim a reservoir the same way. The ArcGIS SDK takes
+   * that filter string directly on a featureEffect; MapLibre has no filter
+   * primitive at all, so its dimmed paint has to be handed the already-gray
+   * color. Rec. 601 luma, which is what the CSS filter specification uses --
+   * a plain channel average would wash the red classes out further than the
+   * green ones and the two maps would stop matching.
+   */
+  function grayscaleHex(hex) {
+    var n = parseInt(String(hex).slice(1), 16);
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    var y = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+    return "#" + ((1 << 24) + (y << 16) + (y << 8) + y).toString(16).slice(1);
+  }
+
   // --- Shared geographic context ---------------------------------------
   //
   // The state-ring helpers immediately below are retained as a lightweight
@@ -1033,6 +1049,203 @@
       fmtAf(r.current_storage_af) + " acre-feet. " + statusLine(r);
   }
 
+  // --- Hover card ----------------------------------------------------
+  //
+  // The popup answers "tell me everything about this reservoir" and costs a
+  // click plus a panel that covers a quarter of the map. Most of the time
+  // the reader is scanning: which dot is this, and is it in trouble. That
+  // question deserves an answer with no click at all, so both maps show a
+  // three-line card that follows the pointer.
+  //
+  // Built here rather than in the pages for the usual reason -- the two
+  // engines exist to be compared, and a card whose wording or ordering
+  // differs between them makes the comparison about copy again. The engines
+  // still differ in how they *find* the reservoir under the pointer (a
+  // throttled hitTest against a FeatureLayer, versus a layer-scoped
+  // mousemove), which is exactly the difference worth seeing.
+
+  /* A hover card on a touch screen is worse than nothing: there is no
+   * pointer to follow, the first tap both shows and dismisses it, and it
+   * lands on top of the popup the tap was meant to open. Everything below
+   * checks this first and does nothing when the pointer is coarse. The CSS
+   * hides the card under 640px as well, so a narrow desktop window that
+   * still reports a fine pointer cannot push the layout sideways. */
+  function pointerCanHover() {
+    if (!global.matchMedia) return true;
+    return global.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  }
+
+  function hoverCardHTML(r) {
+    var pct = headlinePct(r);
+    return "<span class='rv-hover-name'>" + esc(r.name) + "</span>" +
+      "<span class='rv-hover-pct'><span class='rv-dot' style='background:" +
+        colorFor(pct) + "'></span>" + esc(fmtPct(pct)) + " of " +
+        esc(headlineBasis(r)) + "</span>" +
+      "<span class='rv-hover-date'>Data date: " + esc(r.as_of || "unknown") +
+        (r.is_stale ? " &middot; late data" : "") + "</span>";
+  }
+
+  /*
+   * One card element per page, reused. `show` takes viewport coordinates
+   * (clientX/clientY), because that is the one coordinate space both SDKs
+   * hand back from the underlying pointer event -- the ArcGIS view reports
+   * its own container-relative x/y as well, and using those would put the
+   * card in the wrong place on the MapLibre page.
+   */
+  function createHoverCard() {
+    var el = null;
+    var gap = 14;   // clear of the cursor itself
+    var margin = 8; // never closer than this to a viewport edge
+
+    function ensure() {
+      if (el) return el;
+      el = document.createElement("div");
+      el.className = "rv-hover-card";
+      // Not aria-live: the card repeats what the map already conveys, and a
+      // pointer user is looking at it. Announcing every dot the mouse
+      // crosses would make the page unusable with a screen reader running.
+      el.setAttribute("aria-hidden", "true");
+      el.hidden = true;
+      document.body.appendChild(el);
+      return el;
+    }
+
+    return {
+      show: function (record, clientX, clientY) {
+        if (!record || !pointerCanHover()) return;
+        var node = ensure();
+        node.innerHTML = hoverCardHTML(record);
+        node.hidden = false;
+        // Measured after the content is in, so a long reservoir name flips
+        // the card to the other side of the cursor instead of running off
+        // the right edge and widening the document.
+        var w = node.offsetWidth, h = node.offsetHeight;
+        var left = clientX + gap;
+        var top = clientY + gap;
+        if (left + w > global.innerWidth - margin) left = clientX - gap - w;
+        if (left < margin) left = margin;
+        if (top + h > global.innerHeight - margin) top = clientY - gap - h;
+        if (top < margin) top = margin;
+        node.style.left = Math.round(left) + "px";
+        node.style.top = Math.round(top) + "px";
+      },
+      hide: function () {
+        if (el) el.hidden = true;
+      }
+    };
+  }
+
+  // --- Filter state --------------------------------------------------
+  //
+  // Filtering a map of 53 reservoirs by hiding 40 of them answers the
+  // question and destroys the context: "which reservoirs are under a
+  // quarter full" is only meaningful next to the ones that are not. So
+  // nothing is removed. Matching reservoirs stay as they were and the rest
+  // go gray and faint -- the ArcGIS SDK does this with featureEffect, and
+  // MapLibre with paint expressions on a feature state. The predicate and
+  // the counts live here so the two maps can never disagree about which
+  // reservoirs matched.
+
+  function defaultFilterState() {
+    return { classIndex: null, lateOnly: false };
+  }
+
+  function filterIsActive(state) {
+    return !!state && (state.lateOnly === true ||
+      (state.classIndex !== null && state.classIndex !== undefined));
+  }
+
+  /* The upper bound of a class is the next class's lower bound, so the
+   * boundaries can only ever come from CLASSES itself. Same rule the map
+   * colors, the legend and the statewide counts use. */
+  function classRange(index) {
+    var cls = CLASSES[index];
+    if (!cls) return null;
+    return {
+      min: cls.min,
+      max: index === CLASSES.length - 1 ? Infinity : CLASSES[index + 1].min
+    };
+  }
+
+  function matchesFilter(r, state) {
+    if (!filterIsActive(state)) return true;
+    if (state.lateOnly && !r.is_stale) return false;
+    if (state.classIndex === null || state.classIndex === undefined) return true;
+    var range = classRange(state.classIndex);
+    if (!range) return true;
+    var pct = headlinePct(r);
+    // A reservoir with no reading at all belongs to no class, so a class
+    // filter dims it rather than quietly counting it as a match.
+    if (pct === null || pct === undefined || isNaN(pct)) return false;
+    return pct >= range.min && pct < range.max;
+  }
+
+  function filterCountText(matching, total, active) {
+    if (!active) return "The map shows all " + total + " reservoirs.";
+    return matching + " of " + total + " reservoirs match. " +
+      "The map shows the other reservoirs in gray.";
+  }
+
+  function filterControlsHTML() {
+    var options = ["<option value='all'>All reservoirs</option>"].concat(
+      CLASSES.map(function (c, i) {
+        return "<option value='" + i + "'>" + esc(c.label) + "</option>";
+      })
+    ).join("");
+    return "<label for='classFilter'>Percent full" +
+      "<select id='classFilter'>" + options + "</select></label>" +
+      "<button type='button' class='rv-toggle' id='lateFilter' aria-pressed='false'>" +
+      "Show only late data</button>" +
+      "<button type='button' class='rv-clear' id='clearFilter' hidden>Clear the filter</button>" +
+      // role=status, unlike the hover card: this changes only when the
+      // reader operates a control, and the count is the only feedback that
+      // the map dimmed anything at all.
+      "<span class='rv-filter-count' id='filterCount' role='status'></span>";
+  }
+
+  /*
+   * Builds the controls into `container` and calls `onChange(state, names)`
+   * whenever the reader changes them -- and once immediately, so a page
+   * never has to duplicate the "apply the empty filter" path. `names` is a
+   * Set of the matching reservoir names, which is the form both maps need:
+   * ArcGIS turns it into a count and a where-clause, MapLibre into feature
+   * states.
+   */
+  function attachFilterControls(container, reservoirs, onChange) {
+    container.innerHTML = filterControlsHTML();
+    var select = container.querySelector("#classFilter");
+    var lateButton = container.querySelector("#lateFilter");
+    var clearButton = container.querySelector("#clearFilter");
+    var count = container.querySelector("#filterCount");
+    var state = defaultFilterState();
+
+    function apply() {
+      var matching = reservoirs.filter(function (r) { return matchesFilter(r, state); });
+      var active = filterIsActive(state);
+      select.value = state.classIndex === null ? "all" : String(state.classIndex);
+      lateButton.setAttribute("aria-pressed", state.lateOnly ? "true" : "false");
+      clearButton.hidden = !active;
+      count.textContent = filterCountText(matching.length, reservoirs.length, active);
+      onChange(state, new Set(matching.map(function (r) { return r.name; })));
+    }
+
+    select.addEventListener("change", function () {
+      state.classIndex = select.value === "all" ? null : Number(select.value);
+      apply();
+    });
+    lateButton.addEventListener("click", function () {
+      state.lateOnly = !state.lateOnly;
+      apply();
+    });
+    clearButton.addEventListener("click", function () {
+      state = defaultFilterState();
+      apply();
+    });
+
+    apply();
+    return { apply: apply, state: function () { return state; } };
+  }
+
   // --- Legend + header -----------------------------------------------
 
   /* The heading is a real <h2> with an id rather than the <b> it used to
@@ -1051,7 +1264,8 @@
       "<p class='rv-legend-note'>The filled circle shows current storage. The gray circle shows " +
       "the full level. A large gap means that more water is missing. Where capacity data is not " +
       "available, the gray circle shows the highest recorded storage. Select a reservoir to see " +
-      "its storage during the last 12 months.</p>" +
+      "its storage during the last 12 months. Move the pointer to a reservoir to see a short " +
+      "summary.</p>" +
       "<p class='rv-legend-note'>The shaded lines show large drainage areas from the U.S. Geological Survey.</p>";
   }
 
@@ -1204,7 +1418,50 @@
     ".esri-widget button:focus-visible,.esri-popup button:focus-visible,",
       ".maplibregl-ctrl button:focus-visible,.maplibregl-popup-close-button:focus-visible{",
       "outline:3px solid " + FOCUS + ";outline-offset:-3px;}",
-    "@media (max-width:640px){.rv-list-items{max-height:40vh;}}"
+    "@media (max-width:640px){.rv-list-items{max-height:40vh;}}",
+    // Filter controls. `flex-wrap` and `min-width:0` are the whole mobile
+    // story: the title card is 296px wide on a 360px phone (8px margin,
+    // 56px zoom-control gutter, 20px padding), so these three controls have
+    // to be allowed to stack instead of forcing the card wider than the
+    // viewport -- the horizontal-overflow failure CI checks at 360px.
+    ".rv-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;}",
+    ".rv-filters label{display:flex;align-items:center;gap:4px;font-size:11px;color:#555;",
+      "min-width:0;}",
+    ".rv-filters select{max-width:140px;min-width:0;padding:3px 6px;border:1px solid #c6d1ce;",
+      "border-radius:4px;background:#fbfcfb;font:inherit;font-size:11px;}",
+    ".rv-toggle,.rv-clear{font:inherit;font-size:11px;padding:3px 8px;border:1px solid #c6d1ce;",
+      "border-radius:4px;background:#fbfcfb;color:#344e54;cursor:pointer;}",
+    // Same pressed treatment as the overview page's buttons, so a reader who
+    // moves between the three pages sees one control, not three.
+    ".rv-toggle[aria-pressed='true']{background:#344e54;border-color:#344e54;color:#fff;}",
+    ".rv-clear[hidden]{display:none;}",
+    // Its own line: the count changes length as the reader filters, and
+    // letting it share a row makes the buttons above it jump around.
+    ".rv-filter-count{flex-basis:100%;font-size:11px;color:#555;line-height:1.35;}",
+    // The hover card is fixed to the viewport and never accepts pointer
+    // events -- it sits under the cursor by design, so any hit of its own
+    // would make the map stutter as the card chased the pointer it stole.
+    ".rv-hover-card{position:fixed;z-index:40;pointer-events:none;max-width:230px;",
+      "display:flex;flex-direction:column;gap:2px;padding:7px 9px;border-radius:6px;",
+      "background:rgba(251,252,251,.98);box-shadow:0 2px 10px rgba(36,49,47,.28);",
+      "font-family:sans-serif;}",
+    ".rv-hover-card[hidden]{display:none;}",
+    ".rv-hover-name{font-size:12.5px;font-weight:600;line-height:1.25;}",
+    ".rv-hover-pct{display:flex;align-items:center;gap:5px;font-size:12px;}",
+    ".rv-hover-date{font-size:10.5px;color:#777;}",
+    // Motion is opt-in, not opt-out: the default rule set has no transition
+    // at all, and only a reader who has not asked for reduced motion gets
+    // one. Written this way round so a new transition cannot be added to a
+    // base rule and quietly escape the preference.
+    "@media (prefers-reduced-motion: no-preference){",
+      ".rv-toggle,.rv-clear{transition:background-color .12s ease,color .12s ease;}",
+      ".rv-hover-card{transition:opacity .1s ease;}",
+    "}",
+    // Below the phone breakpoint the pointer is almost certainly a finger,
+    // and a 230px card next to a 360px viewport is a layout risk for no
+    // benefit. pointerCanHover() already covers real touch screens; this
+    // covers a narrow window that still reports a mouse.
+    "@media (max-width:640px){.rv-hover-card{display:none;}}"
   ].join("");
 
   function injectStyles() {
@@ -1245,6 +1502,7 @@
     statewideMonthly: statewideMonthly,
     sizeBasis: sizeBasis,
     colorFor: colorFor,
+    grayscaleHex: grayscaleHex,
     headlinePct: headlinePct,
     headlineBasis: headlineBasis,
     load: load,
@@ -1260,6 +1518,16 @@
     freshnessHTML: freshnessHTML,
     FOCUS_COLOR: FOCUS,
     LINK_COLOR: LINK,
+    hoverCardHTML: hoverCardHTML,
+    createHoverCard: createHoverCard,
+    pointerCanHover: pointerCanHover,
+    attachFilterControls: attachFilterControls,
+    filterControlsHTML: filterControlsHTML,
+    filterCountText: filterCountText,
+    defaultFilterState: defaultFilterState,
+    filterIsActive: filterIsActive,
+    matchesFilter: matchesFilter,
+    classRange: classRange,
     injectStyles: injectStyles,
     fmtAf: fmtAf,
     fmtCompact: fmtCompact,
