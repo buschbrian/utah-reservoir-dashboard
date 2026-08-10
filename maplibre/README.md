@@ -1,104 +1,97 @@
-# Utah Reservoir Drought Dashboard — MapLibre GL JS + CARTO
+# MapLibre parity view
 
-Same dashboard as [`../index.html`](../index.html), rebuilt with
-[MapLibre GL JS](https://maplibre.org/) and [CARTO's](https://carto.com/basemaps)
-free, no-signup "Positron" vector style, instead of the ArcGIS Maps SDK for
-JavaScript.
+[`maplibre/index.html`](index.html) presents the same reservoir data and
+interactions as the production [ArcGIS map](../index.html), using
+[MapLibre GL JS](https://maplibre.org/) with CARTO vector basemaps.
 
-This replaces an earlier Leaflet + OpenTopoMap comparison. Leaflet renders
-tiles as raster images in the DOM; the ArcGIS Maps SDK for JS renders vector
-data on WebGL. Comparing the two wasn't really testing the same class of
-technology. MapLibre GL JS — the open-source continuation of Mapbox GL JS —
-is also a WebGL vector renderer, so it's the fairer baseline for this
-comparison.
+This is a deliberate second rendering engine, not a fallback implementation
+waiting to be removed. Both maps render vector data with WebGL, so differences
+between them expose real SDK tradeoffs rather than a raster-versus-vector
+comparison. [ADR-007](../docs/decisions/ADR-007-two-rendering-engines.md)
+records why both engines remain in the project.
 
-Identical data (`reservoirs.json`, fetched from the parent folder, not
-copied), identical color/size logic, identical popup content and wording.
-Loaded straight from unpkg's CDN, no npm/build step, same "zero tooling"
-constraint as every other phase.
+## Parity contract
 
-The "identical" part is now enforced rather than maintained by hand: class
-breaks, status wording, popup markup, the 12-month trend chart and the
-legend all come from [`../shared/reservoir-viz.js`](../shared/reservoir-viz.js),
-which both pages load. They had been two hand-kept copies and had already
-diverged, which quietly turned part of this comparison into a measurement of
-copy drift. Only engine-specific code — layers, paint properties, Arcade vs.
-MapLibre expressions — lives in the pages now.
+Both maps use the same runtime files:
 
-## The dual-circle symbology
+- `reservoirs.json` for observations, metrics, and reservoir points;
+- `huc6.geojson` for drainage-area boundaries; and
+- `shared/reservoir-viz.js` for class breaks, formatting, popup markup,
+  charts, freshness text, filters, selection state, and keyboard lists.
 
-Both versions render two circles per reservoir: a gray outline ring sized by
-the reservoir's period-of-record max storage, and a colored filled circle on
-top sized by current storage — the gap between the two is a visual read of
-how depleted a reservoir is, not just its color.
+Only engine-specific work remains in each page: constructing layers, applying
+paint or renderer expressions, hit testing, popup lifecycle, and basemap
+selection. The browser smoke test reads its expected count from the current
+payload and checks both engines at desktop and phone widths.
 
-- **ArcGIS Maps SDK for JS:** two `FeatureLayer`s, each with a `SimpleRenderer`
-  and `visualVariables` driven by Arcade `valueExpression`s (`Sqrt($feature.record_max_af)`,
-  `Sqrt($feature.current_storage_af)`), sharing one size domain so the rings
-  never render smaller than their own fill.
-- **MapLibre GL JS:** one GeoJSON source, two `circle` layers, each with a
-  `circle-radius` paint property using an `interpolate` + `["sqrt", ["get", ...]]`
-  expression — MapLibre's own expression language standing in for Arcade,
-  same sqrt-scaling logic, same shared domain.
+## Shared symbology
 
-Both engines hit the identical "clicking either layer at the same point
-produces a duplicate popup" trap, since the fill circle always sits inside
-the outline circle. Fixed identically in both: only the front-most
-(current-storage) layer/renderer gets an active popup.
+Each reservoir uses the same visual model in both engines:
 
-## Findings vs. the ArcGIS Maps SDK for JS version
+1. An outline ring is sized by the reservoir's full level.
+2. A colored fill is sized by current storage on the same square-root scale.
+3. A dashed amber ring marks late data.
 
-| | ArcGIS Maps SDK for JS | MapLibre GL JS |
+The gap between outline and fill therefore represents missing storage, not a
+second arbitrary scale. Real capacity is the preferred full level; highest
+observed storage since 2015 is the fallback. Color always comes from the one
+shared percent-full class table.
+
+| Concern | ArcGIS Maps SDK | MapLibre GL JS |
 |---|---|---|
-| Rendering | WebGL vector | WebGL vector |
-| Basemap | Selectable Esri topographic, gray, streets or imagery | Selectable CARTO Voyager, Positron or Dark Matter |
-| Data-driven styling | Arcade `valueExpression`s inside `visualVariables` | Native expressions (`interpolate`, `step`, `sqrt`) inside paint properties |
-| Popups | Declarative `PopupTemplate` + `expressionInfos`, `{field}`/`{expression/name}` substitution | Manual HTML string built in JS, `Popup().setHTML()` |
-| Multi-layer setup | Two separate `FeatureLayer`s, each rebuilding the same `Graphic` array from JSON | One shared GeoJSON source, two `circle` layers reading from it |
-| Bundle | Full SDK incl. 3D/scene/widget framework | MapLibre GL JS core only, no plugins |
-| Dashed circle stroke | `outline: { style: "short-dash" }` on a `simple-marker` | Not supported on `circle` layers — requires drawing the ring to a canvas, `map.addImage()`, and a `symbol` layer scaled with `icon-size` |
-| Nested feature attributes | `FeatureLayer` fields are scalar-typed; arrays need a side lookup | GeoJSON properties survive as JSON *strings* through the tile pipeline; arrays need a side lookup |
-| Rich popup content | `content` accepts a function returning a DOM node | `setHTML()` on plain markup |
+| Reservoir data | Graphics in `FeatureLayer` instances | One GeoJSON source shared by circle and symbol layers |
+| Size expressions | Arcade expressions | Native `interpolate` and `sqrt` expressions |
+| Color classes | `UniqueValueRenderer` generated from the shared table | `step` expression generated from the shared table |
+| Popups | SDK-owned popup with shared HTML content | Page-owned `Popup` with the same shared HTML content |
+| Hover | Coalesced `hitTest` on pointer movement | Layer-scoped `mousemove` event |
+| Late-data ring | Dashed simple-marker outline | Canvas sprite registered with `addImage()` and drawn in a symbol layer |
+| Basemaps | Esri topographic, gray, streets, and imagery | CARTO Voyager, Positron, and Dark Matter |
 
-Two findings from adding the staleness ring and the 12-month trend chart:
+## Findings
 
-- **Dashed strokes are a real gap.** Marking stale reservoirs with a dashed
-  amber ring is one property on an Esri `simple-marker`
-  (`outline.style = "short-dash"`). MapLibre's `circle` layer has no
-  stroke-dash equivalent, so parity took a canvas-drawn sprite registered
-  via `map.addImage()`, a `symbol` layer, and an `icon-size` expression
-  converting the desired radius into a multiple of the sprite's own size —
-  three moving parts against Esri's one.
-- **Neither engine will carry a nested array on a feature.** The JSON now
-  holds twelve monthly records per reservoir. Esri's `FeatureLayer` fields
-  are scalar-typed and reject it outright; MapLibre accepts it and hands it
-  back from `e.features[0].properties` as a JSON string. Both pages ended up
-  at the same answer independently: put only the scalars the paint
-  expressions read on the feature, and keep the full record in a
-  `Map` keyed by name for the popup.
+### One GeoJSON source is simpler for layered marks
 
-Bottom line: with both engines actually rendering vector data on WebGL, the
-proportional dual-circle symbology and Arcade-equivalent expressions came out
-functionally identical — same math, same visual result, verified pixel-for-
-pixel against the same `reservoirs.json` (Flaming Gorge: 2,669,060 af current,
-3,557,090 af record max, both dashboards agree exactly). The real difference
-is tooling depth, same conclusion as the Leaflet pass it replaces: Esri's
-`PopupTemplate` is declarative and free once you know Arcade; MapLibre's
-popups are plain HTML you build yourself. MapLibre's single-source/multi-layer
-model is arguably simpler to reason about than Esri's two-full-FeatureLayer
-approach for this specific use case, since both layers already share one
-authoritative feature set.
+MapLibre's fill, outline, and late-data layers all read one source. The ArcGIS
+page uses separate feature layers for the marks. The shared-source model is
+easier to inspect for this particular visualization, while ArcGIS provides
+more declarative popup and symbol APIs.
 
-Verified via local server + Playwright: zero console errors, dual circles
-render correctly across all 53 reservoirs, popup content confirmed identical
-to the ArcGIS version by clicking the same reservoir (Flaming Gorge) in both.
+### Dashed circle strokes require a workaround
 
-**Not yet re-verified in a browser** as of the shared-module / trend-chart
-change: that work was done in an environment whose network policy blocks
-`js.arcgis.com`, `unpkg.com` and `basemaps.cartocdn.com`, so neither map
-could be loaded. What *was* verified there: `shared/reservoir-viz.js`
-rendered in headless Chromium against a synthetic 53-reservoir fixture
-(popup, trend chart, 12-month table, legend, staleness banner — zero
-console errors), plus a syntax check of both pages' inline scripts. The
-map layers themselves — the stale-ring sprite, the generated class stops,
-the Arcade size expressions — still need a real browser pass.
+ArcGIS supports a dashed marker outline directly. MapLibre circle layers do
+not, so the parity view draws a reusable dashed-ring image to a canvas and
+scales it as a symbol. That is more machinery, but it stays isolated in the
+MapLibre page and is covered by the readiness and browser checks.
+
+### Monthly arrays stay outside map features
+
+Each reservoir contains 12 monthly records. ArcGIS feature fields are scalar,
+and legacy MapLibre versions returned nested GeoJSON properties through the
+feature path in an inconvenient serialized form. Both pages therefore keep a
+full-record lookup keyed by reservoir name and put only rendering scalars on
+map features. MapLibre 6 can preserve nested properties, but the side lookup
+remains the common contract until the Phase 6 parity rewrite is measured.
+
+### Different engines catch different failures
+
+The comparison exposed an ArcGIS antimeridian polygon inversion that did not
+occur in MapLibre, while the shared module prevents ordinary wording and class
+break drift from being mistaken for engine differences. A parity page is only
+useful when common behavior is truly common.
+
+## Verification
+
+Run the production build before the browser contract:
+
+```bash
+npm run build
+mkdir -p screenshots
+node tests/smoke.mjs
+```
+
+The test checks that both maps render every published reservoir, create all
+three reservoir layers, draw the Utah mask and drainage-area boundaries, show
+the shared legend and totals, avoid console errors, and fit 1280-, 390-, and
+360-pixel viewports. The screenshots are supporting evidence; runtime readiness
+signals are authoritative because ArcGIS map pixels can be blank in headless
+Chromium even when its layers are ready.
