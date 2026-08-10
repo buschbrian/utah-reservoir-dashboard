@@ -2,14 +2,14 @@
 
 **Live: <https://buschbrian.github.io/utah-reservoir-dashboard/>**
 
-Current storage levels across 53 reservoirs in and serving Utah, combining
+Current storage levels across 54 reservoirs in and serving Utah, combining
 Reclamation RISE with the wider NRCS AWDB inventory in three views:
 
 | | |
 |---|---|
 | [`index.html`](index.html) | The map, built with the [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/). Each reservoir colored by how full it is and sized by its capacity. |
 | [`maplibre/`](maplibre/) | The same map rebuilt on [MapLibre GL JS](https://maplibre.org/) + CARTO, as an open-source parity comparison. |
-| [`explore.html`](explore.html) | **Statewide overview** — totals excluding Lake Powell, a size-first ranking, a sortable table of every metric with CSV export, and 53 twelve-month sparklines. No map SDK. |
+| [`explore.html`](explore.html) | **Statewide overview** — totals excluding Lake Powell, a size-first ranking, a sortable table of every metric with CSV export, and 54 twelve-month sparklines. No map SDK. |
 
 Storage comes from the [Bureau of Reclamation RISE
 API](https://data.usbr.gov/) and [USDA NRCS

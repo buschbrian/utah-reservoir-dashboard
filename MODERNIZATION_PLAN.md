@@ -472,6 +472,63 @@ the interesting part: a full reservoir in a D3 basin is a story.
   processed the same way the watershed boundaries are: fetched by a tool,
   committed, and versioned.
 
+### 1.6c results — the AWDB pass, run 2026-08-10
+
+**Fontenelle is in.** RISE item 347, 4,239 daily observations back to 2015,
+currently 291,378 acre-feet — 87% of a 334,411 acre-foot capacity from NID
+WY01389. Assigned to 140401 Upper Green by its dam, and `in_utah: false`,
+which is the honest reading for a Wyoming reservoir on a Utah dashboard. 54
+reservoirs now, 29 by RISE.
+
+**One anomaly, recorded rather than smoothed.** Fontenelle's observed maximum
+since 2015 is 344,308 acre-feet against a NID capacity of 334,411 — the
+reservoir has been held about 3% above its listed maximum pool.
+`build_capacity_table.py` treats capacity below observed storage as evidence
+that the *wrong dam* was matched, and would reject this row. Here the dam is
+confirmed by NID id, name and coordinates, so the check's purpose is
+satisfied and the figure is kept. The consequence is that Fontenelle can read
+slightly over 100% full, which the class ramp already handles because its top
+class is open-ended (ADR-008). NID's `nid_storage` of 405,160 would remove the
+anomaly and is deliberately not used: it is the flood-surcharge figure ADR-003
+rejects.
+
+**The pass itself, over 347 active storage stations:** 52 already tracked, 248
+outside our drainage areas, **47 candidates** — Colorado 17, Idaho 13, Utah 10,
+Wyoming 6, Arizona 1.
+
+| Drainage area | Tracked | Candidates |
+|---|---|---|
+| 140100 Colorado Headwaters | 0 | **10** |
+| 140300 Upper Colorado-Dolores | 1 | 3 |
+| 140401 Upper Green | 4 | 4 |
+| 140500 White-Yampa | 0 | **4** |
+| 140600 Lower Green | 14 | 3 |
+| 140802 Lower San Juan | 0 | **1** |
+| 150100 Lower Colorado-Lake Mead | 4 | 3 |
+| 160300 Escalante Desert-Sevier Lake | 8 | 3 |
+| 170402 Upper Snake | 0 | **13** |
+| Weber, Jordan, Upper Colorado-Dirty Devil | 8 / 6 / 1 | 0 |
+
+**This answers why the four areas are empty: they are not.** Colorado
+Headwaters has ten storage stations, White-Yampa four, Lower San Juan one and
+Upper Snake thirteen. We had never looked outside Utah's own inventory. Weber
+and Jordan return zero candidates, which is the reassuring half — those are
+fully covered, and it is what tells us the matching is working rather than
+just permissive.
+
+**Two decisions this forces, neither taken yet:**
+
+1. **Upper Snake is thirteen Idaho reservoirs.** The unit qualifies under
+   ADR-009 — it touches Utah — but American Falls and Island Park are Snake
+   River sites with no bearing on Utah's water supply, and adding them would
+   make "Utah Reservoir Drought Dashboard" a harder claim to defend. The rule
+   is right in the Colorado basin and awkward here. Worth an exception, or a
+   second rule about the Great Basin and Colorado systems.
+2. **Capacity is still the bottleneck.** AWDB publishes none, so each of the
+   47 needs an NID match that survives the observed-storage check — the same
+   check Fontenelle only just passed. Expect attrition, and expect it to be
+   worst for the small Colorado sites.
+
 ### 1.6c The Colorado and Wyoming inventory
 
 ADR-009 keeps the intersect-Utah rule, so this is not "add Colorado". It is:

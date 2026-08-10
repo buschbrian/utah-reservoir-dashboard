@@ -99,6 +99,13 @@ RESERVOIRS = {
     "Upper Stillwater": (826, 40.56565, -110.70044),
     "Washington Lake": (4530, 40.6765, -110.964),
     "Lost Lake": (4523, 40.6741, -110.9413),
+    # Wyoming, on the Green above Flaming Gorge. Admitted under the
+    # intersect-Utah rule (ADR-009): its dam sits in 140401 Upper Green,
+    # one of the fifteen drainage areas that touch the state. It is the
+    # only one of Reclamation's five Upper Colorado candidates that
+    # qualifies -- the other four drain through basins that never enter
+    # Utah. See tools/audit_connected_reservoirs.py.
+    "Fontenelle": (347, 42.05781, -110.09665),
 }
 
 # Additional reservoirs in the Utah Division of Water Resources' statewide

@@ -313,11 +313,22 @@
       "nid_dam_name": "Lost Lake Dam",
       "dam_lon": -110.94151,
       "dam_lat": 40.67411
+    },
+    "Fontenelle": {
+      "capacity_af": 334411.0,
+      "capacity_basis": "max_storage",
+      "normal_storage_af": null,
+      "max_storage_af": 334411.0,
+      "nid_storage_af": 405160.0,
+      "nid_id": "WY01389",
+      "nid_dam_name": "Fontenelle Dam",
+      "dam_lon": -110.05971,
+      "dam_lat": 42.02861
     }
   },
   "dam_points": {
     "source": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0",
     "note": "Dam coordinates, queried by NID id. Used as the watershed assignment point: the drainage area is where the stored water leaves, not where the middle of the lake is.",
-    "count": 28
+    "count": 29
   }
 }

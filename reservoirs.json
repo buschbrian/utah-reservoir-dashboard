@@ -22,20 +22,20 @@
     }
   ],
   "source_counts": {
-    "rise": 28,
+    "rise": 29,
     "awdb": 25
   },
-  "reservoir_count": 53,
+  "reservoir_count": 54,
   "stale_count": 3,
-  "capacity_count": 53,
+  "capacity_count": 54,
   "watersheds": {
     "source": "USGS Watershed Boundary Dataset, six-digit units",
     "boundaries": "huc6.geojson",
     "assignment_rule": "the dam or outlet point, not the middle of the water",
     "unit_count": 15,
-    "assigned": 53,
+    "assigned": 54,
     "unassigned": 0,
-    "assigned_by_dam": 28,
+    "assigned_by_dam": 29,
     "in_utah": 50
   },
   "reservoirs": [
@@ -978,6 +978,163 @@
       "huc_assignment_point": [
         -111.42461,
         40.59781
+      ],
+      "huc_assignment_source": "nid_dam_point"
+    },
+    {
+      "name": "Fontenelle",
+      "rise_item_id": 347,
+      "source_key": "rise",
+      "source_label": "Bureau of Reclamation RISE",
+      "source_url": "https://data.usbr.gov/rise-api",
+      "source_station_id": "347",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 42.05781,
+      "lon": -110.09665,
+      "as_of": "2026-08-09",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 291378.0,
+      "record_max_af": 344308.0,
+      "record_min_af": 94594.0,
+      "pct_of_record_max": 84.6,
+      "capacity_af": 334411.0,
+      "capacity_basis": "max_storage",
+      "pct_of_capacity": 87.1,
+      "seasonal_percentile": 31.5,
+      "seasonal_normal_af": 307856.0,
+      "pct_of_seasonal_normal": 94.6,
+      "seasonal_sample_years": 11,
+      "change_7d_af": 1257.0,
+      "change_7d_pct": 0.4,
+      "change_30d_af": 26110.0,
+      "change_30d_pct": 9.8,
+      "change_365d_af": 9794.0,
+      "change_365d_pct": 3.5,
+      "peak_this_year_af": 291452.0,
+      "peak_this_year_date": "2026-08-08",
+      "pct_of_peak_this_year": 100.0,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 245932.47,
+          "min_af": 232500.0,
+          "max_af": 259993.0,
+          "end_af": 232500.0,
+          "days": 30,
+          "normal_af": 270031.07
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 222500.1,
+          "min_af": 214875.0,
+          "max_af": 231757.0,
+          "end_af": 214875.0,
+          "days": 31,
+          "normal_af": 247482.52
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 206716.47,
+          "min_af": 200825.0,
+          "max_af": 214288.0,
+          "end_af": 200825.0,
+          "days": 30,
+          "normal_af": 232183.28
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 193494.94,
+          "min_af": 188073.0,
+          "max_af": 200133.0,
+          "end_af": 188073.0,
+          "days": 31,
+          "normal_af": 212018.05
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 180452.94,
+          "min_af": 169008.0,
+          "max_af": 187712.0,
+          "end_af": 169008.0,
+          "days": 31,
+          "normal_af": 183780.71
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 160802.29,
+          "min_af": 153928.0,
+          "max_af": 168341.0,
+          "end_af": 153928.0,
+          "days": 28,
+          "normal_af": 152339.29
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 153834.81,
+          "min_af": 151217.0,
+          "max_af": 159897.0,
+          "end_af": 159897.0,
+          "days": 31,
+          "normal_af": 126398.45
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 161383.53,
+          "min_af": 157203.0,
+          "max_af": 163831.0,
+          "end_af": 157203.0,
+          "days": 30,
+          "normal_af": 137118.0
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 158918.48,
+          "min_af": 150457.0,
+          "max_af": 173109.0,
+          "end_af": 173109.0,
+          "days": 31,
+          "normal_af": 165841.65
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 219488.27,
+          "min_af": 178262.0,
+          "max_af": 252730.0,
+          "end_af": 252730.0,
+          "days": 30,
+          "normal_af": 265678.9
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 272278.52,
+          "min_af": 255117.0,
+          "max_af": 289087.0,
+          "end_af": 289087.0,
+          "days": 31,
+          "normal_af": 305528.81
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 290844.0,
+          "min_af": 289752.0,
+          "max_af": 291452.0,
+          "end_af": 291378.0,
+          "days": 9,
+          "normal_af": 295108.16
+        }
+      ],
+      "first_obs": "2015-01-01",
+      "n_obs": 4239,
+      "years_of_record": 11.6,
+      "in_utah": false,
+      "huc6": "140401",
+      "huc6_name": "Upper Green",
+      "huc_assignment_point": [
+        -110.05971,
+        42.02861
       ],
       "huc_assignment_source": "nid_dam_point"
     },

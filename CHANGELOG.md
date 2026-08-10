@@ -29,6 +29,13 @@ and is not listed here.
   unit, with the reservoir count and combined full level beside each one.
   Selecting an area filters the ranking, table and cards together and is
   shareable as `?area=160201`.
+- **Fontenelle Reservoir**, in Wyoming on the Green above Flaming Gorge. The
+  54th reservoir, and the only one of Reclamation's five Upper Colorado
+  candidates whose drainage area touches Utah.
+- **Watershed assignment now uses each dam's own coordinates** where the
+  National Inventory of Dams has them (29 of 54), instead of a point out on
+  the lake. No reservoir changed drainage area; each record says which kind
+  of point was used.
 - **Watershed membership.** Every reservoir carries the six-digit hydrologic
   unit its water drains through, whether it is in Utah, and the point the
   assignment used. Boundaries ship as a committed `huc6.geojson`.
