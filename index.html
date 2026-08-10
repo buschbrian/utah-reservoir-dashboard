@@ -37,6 +37,8 @@
          the attribution bar: without it, a short desktop window lets the
          open list run down into the legend. The list has a scroll cap of
          its own, so this second one only engages on a short window. */
+      /* A starting value only; fitCardAboveLegend measures the real one
+         against the legend once both are on the page. */
       max-height: calc(100vh - 240px); overflow-y: auto;
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
@@ -1202,6 +1204,12 @@
       legendDiv.setAttribute("aria-labelledby", "rv-legend-head");
 
       view.ui.add(legendDiv, "bottom-left");
+
+      // The card holds a filter row, a month slider and 53 list rows now,
+      // and the legend has grown too. Measured rather than capped at a
+      // constant -- see fitCardAboveLegend.
+      ReservoirViz.fitCardAboveLegend(
+        document.getElementById("titleDiv"), legendDiv);
     });
   </script>
 </body>

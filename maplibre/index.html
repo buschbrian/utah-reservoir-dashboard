@@ -36,6 +36,8 @@
          the attribution bar: without it, a short desktop window lets the
          open list run down into the legend. The list has a scroll cap of
          its own, so this second one only engages on a short window. */
+      /* A starting value only; fitCardAboveLegend measures the real one
+         against the legend once both are on the page. */
       max-height: calc(100vh - 240px); overflow-y: auto;
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
@@ -150,6 +152,10 @@
   <script>
     ReservoirViz.injectStyles();
     document.getElementById("legendDiv").innerHTML = ReservoirViz.legendHTML();
+    // Same measured cap as the ArcGIS page: the card must stop above the
+    // legend, and both of them change height with the data.
+    ReservoirViz.fitCardAboveLegend(
+      document.getElementById("titleDiv"), document.getElementById("legendDiv"));
 
     // CARTO's free vector styles -- no API key, no signup,
     // same "zero tooling / zero account" constraint the rest of this

@@ -1261,6 +1261,52 @@
       "<ul class='rv-list-items'>" + items + "</ul></details>";
   }
 
+  /* Keeps the title card from running underneath the legend.
+
+     Both pages used to cap the card at `calc(100vh - 240px)`, a number that
+     was a fair guess when the legend was five color swatches. It is now
+     wrong: the legend has grown a no-data row and two sentences about the
+     month slider, and the card has grown a filter row, a slider and a list
+     of 53 reservoirs. Two guessed constants, both moving.
+
+     So measure instead. The card may reach down to the legend's top edge
+     and no further, recomputed on resize. Below the phone breakpoint the
+     legend is small and out of the way and the card gets the viewport.
+  */
+  function fitCardAboveLegend(card, legend) {
+    if (!card) return function () {};
+    function apply() {
+      if (!legend || global.innerWidth <= 640) {
+        card.style.maxHeight = "";
+        return;
+      }
+      var top = card.getBoundingClientRect().top;
+      var floor = legend.getBoundingClientRect().top;
+      // A legend that has not been laid out yet reports 0; leave the
+      // stylesheet's value alone rather than collapsing the card to nothing.
+      if (!floor || floor <= top) { card.style.maxHeight = ""; return; }
+      // border-box, or the cap would exclude the card's own padding and
+      // border and the card would still finish below the legend by exactly
+      // that much -- which is what the first version of this did.
+      card.style.boxSizing = "border-box";
+      card.style.maxHeight = Math.max(120, Math.round(floor - top - 12)) + "px";
+      card.style.overflowY = "auto";
+    }
+    apply();
+    global.addEventListener("resize", apply);
+    // The legend is not its final size when this first runs. The ArcGIS SDK
+    // lays out anything added to view.ui on its own schedule, and the legend
+    // reflows once its text wraps, so a single measurement was 24px stale
+    // and the card still finished below it. Watching both boxes is the
+    // version that stays true.
+    if (global.ResizeObserver) {
+      var observer = new ResizeObserver(function () { apply(); });
+      observer.observe(legend);
+      observer.observe(card);
+    }
+    return apply;
+  }
+
   // --- Announcements ---------------------------------------------------
 
   /*
@@ -1791,6 +1837,7 @@
     monthlyTableHTML: monthlyTableHTML,
     legendHTML: legendHTML,
     reservoirListHTML: reservoirListHTML,
+    fitCardAboveLegend: fitCardAboveLegend,
     announce: announce,
     selectionMessage: selectionMessage,
     freshnessHTML: freshnessHTML,
