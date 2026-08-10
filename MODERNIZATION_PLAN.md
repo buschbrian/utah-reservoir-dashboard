@@ -321,6 +321,55 @@ changes yet.
 code at all — assignment, the dam/outlet coordinates to assign by, the
 Reclamation candidate audit, and writing the fields into `reservoirs.json`.
 
+### Watershed assignment measured — 2026-08-09
+
+`tools/probe_huc_points.py` answers the two questions the plan could only
+assume. Standard library only, so it runs without the pandas/numpy stack.
+
+**1. What do our published coordinates actually describe?** Not dams. The
+28 reservoirs with a NID id in `capacities.json` can be queried against the
+inventory *by id* — no name matching, so none of the risk that made
+`build_capacity_table.py` careful. The published point sits a median of
+**1.08 km** from its dam, worst **20.87 km** (Lake Powell, whose point is out
+on the lake rather than at Glen Canyon Dam; Flaming Gorge is 14.50 km).
+These are lake points.
+
+**2. Does it matter?** Today, no. **All 53 reservoirs are assigned, none is
+unassigned, and not one changes unit** when the dam point is used instead.
+So the dam/outlet rule stands — it is the correct rule and it is what the
+methods text will say — but it is a **correctness improvement, not a
+blocker**. The refresh job can publish assignments now with
+`huc_assignment_source` recording which kind of point was used, and upgrade
+the 28 to dam points afterwards without a single assignment moving.
+
+**3. How much boundary precision does this need?** Far less than assumed.
+No tracked reservoir sits closer than **2.72 km** to a unit boundary (median
+14.04 km, closest is Lost Lake). Generalizing the boundaries to roughly 500 m
+is five times finer than the closest call anyone has to make, and was checked
+directly rather than argued: all 53 assignments are identical to the
+ungeneralized geometry.
+
+| Boundaries | Size | Vertices | Assignments that move |
+|---|---|---|---|
+| `geometryPrecision=5`, ungeneralized | 718 KiB | 33,646 | — |
+| `maxAllowableOffset=0.001` (~100 m) | 601 KiB | 28,155 | 0 |
+| **`maxAllowableOffset=0.005` (~500 m)** | **146 KiB** | **6,764** | **0** |
+| `maxAllowableOffset=0.01` (~1 km) | 75 KiB | 3,414 | 0 |
+
+This **retires the "two files" plan** from the scaffolding note above: one
+generalized file serves both the assignment and the map. `huc6.geojson` is
+committed at 0.005. 0.01 also loses nothing today and was not taken — at
+~1 km it is the same order as the 2.72 km closest approach, so one reservoir
+added near a divide could quietly flip; 146 KiB buys a real margin.
+
+`tests/test_huc.py` locks all of this in against the committed files, with no
+network: the 15 units by code and name, every reservoir landing in exactly
+one unit, ten hand-checkable assignments (Strawberry in Lower Green rather
+than Jordan, Bear Lake in Lower Bear, Meeks Cabin in Upper Green from
+Wyoming), the 2 km boundary margin the generalization was chosen against, and
+the ray-casting fixtures shared with `src/data/huc.test.ts` so the Python and
+TypeScript implementations cannot drift.
+
 ### Starting extent — 2026-08-09
 
 The starting box was a tight fit around Utah and cropped hard against the

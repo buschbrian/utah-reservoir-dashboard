@@ -15,14 +15,27 @@
  * The pages keep their live query for now. Phase 1.5 switches them to this
  * file once the reservoir records carry their assignments.
  *
- * Measured 2026-08-09: 15 units, 1.7 MiB at `geometryPrecision=5` (about a
- * metre). That is a lot to commit and a lot to send to a phone, and the
- * answer is probably two files rather than one compromise -- full precision
- * for the point-in-polygon assignment, which runs once in the refresh job,
- * and a generalized copy for the map, which does not need metre-accurate
- * basin outlines. Decide that when the assignment lands, with both sizes
- * measured, rather than by lowering the precision here and quietly making
- * the assignment less certain.
+ * **One generalized file serves both the assignment and the map**, which is
+ * not what this script originally assumed. `tools/probe_huc_points.py`
+ * measured the thing the guess was missing: no tracked reservoir sits closer
+ * than 2.72 km to a unit boundary (median 14.04 km). Generalizing to roughly
+ * 500 m is therefore five times finer than the closest call anyone has to
+ * make, and it was verified directly -- all 53 assignments are identical to
+ * the ungeneralized geometry.
+ *
+ * Measured 2026-08-09, 15 units, assignment mismatches against full
+ * precision in the last column:
+ *
+ *     geometryPrecision=5, no generalization    718 KiB   33,646 pts   0
+ *     maxAllowableOffset=0.001  (~100 m)        601 KiB   28,155 pts   0
+ *     maxAllowableOffset=0.005  (~500 m)        146 KiB    6,764 pts   0   <- used
+ *     maxAllowableOffset=0.01   (~1 km)          75 KiB    3,414 pts   0
+ *
+ * 0.01 also loses nothing today, and is not worth the extra 71 KiB of
+ * margin: at ~1 km it is within the same order as the 2.72 km closest
+ * approach, so one reservoir added near a divide could quietly flip. 0.005
+ * keeps a real margin at a size that is still fine to commit and to send to
+ * a phone.
  */
 
 import { readFile, writeFile } from "node:fs/promises";
@@ -35,6 +48,9 @@ const QUERY = new URLSearchParams({
   returnGeometry: "true",
   outSR: "4326",
   geometryPrecision: "5",
+  // Roughly 500 m. See the size/accuracy table above; this is a measured
+  // choice, not a default.
+  maxAllowableOffset: "0.005",
   f: "geojson"
 });
 const OUT = resolve(process.cwd(), "huc6.geojson");
@@ -85,7 +101,9 @@ const published = {
   }))
 };
 
-const body = `${JSON.stringify(published, null, 1)}\n`;
+// Compact, not pretty-printed: one space of indent per line nearly doubles
+// the file for a payload nobody reads by eye.
+const body = `${JSON.stringify(published)}\n`;
 for (const feature of published.features) {
   console.log(`  ${feature.properties.huc6}  ${feature.properties.name}` +
     `  (${feature.properties.states})`);

@@ -59,7 +59,10 @@
       max-width: 240px;
     }
     @media (max-width: 640px) {
-      #titleDiv { top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px; }
+      /* The right gutter is the zoom control's lane: 32px of control plus
+         the SDK's 15px corner margin, rounded up. Without it the card runs
+         under the control, which is the phone overlap CI catches. */
+      #titleDiv { top: 8px; left: 8px; right: 56px; max-width: none; padding: 8px 10px; }
       #titleDiv .disclaimer { display: none; }
       #titleDiv h1 { font-size: 15px; }
       .map-actions { margin-top: 5px; }
@@ -187,15 +190,16 @@
       // default zoom control there makes the two surfaces overlap at desktop
       // widths and puts the control under the card on narrow screens.
       //
-      // On a phone the card spans the full width, so the top-right corner is
-      // taken too: the Simplified Technical English status text is tall
-      // enough that the control lands inside the card. Below 640px the zoom
-      // control therefore goes to the bottom right, opposite the legend.
-      const ZOOM_NARROW = window.matchMedia("(max-width: 640px)");
-      const placeZoom = () =>
-        view.ui.move("zoom", ZOOM_NARROW.matches ? "bottom-right" : "top-right");
-      placeZoom();
-      ZOOM_NARROW.addEventListener("change", placeZoom);
+      // Top-right, at every width. The phone overlap this used to cause is
+      // solved in CSS instead, by keeping a gutter on the right of the title
+      // card below 640px -- not by moving the control to another corner.
+      // Moving it to "bottom-right" worked on a developer machine and
+      // produced *no zoom control at all* in CI at 390px and 360px, while
+      // the same build was fine at 1280px. Whatever the SDK does with that
+      // corner on a narrow headless viewport, the top-right corner is the
+      // one both environments agree about, and a control that exists is
+      // worth more than a tidier corner.
+      view.ui.move("zoom", "top-right");
 
       // Shared attribute schema. A FeatureLayer built from client-side
       // graphics only understands scalar fields, so the attributes are
