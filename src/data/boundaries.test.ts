@@ -26,6 +26,7 @@ describe("the Utah mask", () => {
     const outer = boundary?.[0]?.[0] ?? [];
     const signedArea = outer.slice(0, -1).reduce((area, [x, y], index) => {
       const next = outer[index + 1] ?? outer[0];
+      if (!next) return area;
       return area + x * next[1] - next[0] * y;
     }, 0) / 2;
     expect(signedArea).toBeGreaterThan(0);
