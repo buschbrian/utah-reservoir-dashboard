@@ -29,6 +29,61 @@ and Calcite 5, with the three current pages staying live until it lands.
 record of what has been measured; [What is done and what is
 next](#what-is-done-and-what-is-next) summarizes where it stands.
 
+## Quick start
+
+```bash
+npm ci
+npm run dev
+```
+
+Then open the page you want: `/explore.html` for the overview, `/index.html`
+for the ArcGIS map, `/maplibre/` for the MapLibre one.
+
+The two map pages need network access, since they load their SDK from a CDN
+and their basemap tiles from a tile service. To work on the Python pipeline
+instead, see [Working on the data script](#working-on-the-data-script).
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Typecheck, unit tests, SDK bundle budget, then the production build |
+| `npm test` | Vitest only |
+| `npm run typecheck` | `tsc --noEmit` |
+| `python -m pytest tests/ -q` | Data-pipeline and watershed tests (no network) |
+| `node tests/smoke.mjs` | Browser smoke test, against the built `dist/` |
+| `python refresh_reservoirs.py --dry-run` | Recompute every metric without writing |
+| `node scripts/fetch-huc6.mjs --dry-run` | Re-derive the watershed boundaries |
+
+## Why the project is built this way
+
+[`docs/decisions/`](docs/decisions/) holds the architecture decision records —
+the build step, the runtime-data rule, where capacity comes from, why there is
+no API key, how the watershed boundaries were chosen, the wording standard, why
+there are two map engines, and the one class-break table everything derives
+from. [`CLAUDE.md`](CLAUDE.md) is the short version: the conventions a
+contributor will be failed by a test for breaking.
+
+## Using the maps
+
+Both map pages carry the same controls, built from the same shared module so
+they cannot drift:
+
+- **Hover** a reservoir for its name, percent full and reading date, with no
+  click. **Select** one — by clicking, or from the keyboard list — for the full
+  record and its 12-month chart.
+- **Filter** by percent-full class, or to reservoirs with late data only.
+  Matching reservoirs stay bright and the rest recede rather than disappearing:
+  where the low reservoirs are is most of the answer.
+- **The month slider** redraws every reservoir at any of the last 12 months,
+  with play and pause. The capacity ring does not change with the month — only
+  the storage fill does, so the gap between them stays a true read of
+  depletion. A reservoir with no reading for that month is a small grey circle.
+- **Every reservoir is reachable by keyboard**, from a focusable list beside
+  the map in size order. Selections are announced, focus moves into the popup
+  and returns to where it came from.
+- **Links are shareable.** `?reservoir=Deer+Creek` works on all three pages and
+  means the same thing on each.
+
 `reservoirs.json` is regenerated daily by [`refresh_reservoirs.py`](refresh_reservoirs.py),
 run on a schedule via [GitHub Actions](.github/workflows/refresh-data.yml) (6am
 Mountain Time). The script re-pulls each reservoir's full 2015–present
@@ -301,21 +356,6 @@ ArcGIS 5.1 import surface and fails if it exceeds 18 MiB raw / 6 MiB gzip
 emitted or a 2.5 MiB gzip static entry path. It is a budget for the rebuild,
 checked before the rebuild depends on it.
 
-## Working on the data script
-
-```bash
-pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
-
-python refresh_reservoirs.py                      # full refresh, writes reservoirs.json
-python refresh_reservoirs.py --dry-run            # compute + print the freshness report only
-python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, never writes
-
-python tools/build_capacity_table.py --dry-run   # re-derive capacities from NID
-python tools/probe_rise.py --name "Lake Powell"  # dump RISE's catalog for a reservoir
-python tools/probe_huc_points.py                 # compare our points against the dams
-node scripts/fetch-huc6.mjs --dry-run            # re-derive the watershed boundaries
-```
-
 ## Watersheds
 
 Every reservoir carries the six-digit hydrologic unit its water drains
@@ -348,6 +388,21 @@ a shapefile — 42°N to 37°N, 114°03′W to 109°03′W, with the northeast n
 belonging to Wyoming. It exists twice, in [`huc.py`](huc.py) and in the map
 mask in [`shared/reservoir-viz.js`](shared/reservoir-viz.js); a test reads the
 numbers out of the JavaScript and fails if they drift apart.
+
+## Working on the data script
+
+```bash
+pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
+
+python refresh_reservoirs.py                      # full refresh, writes reservoirs.json
+python refresh_reservoirs.py --dry-run            # compute + print the freshness report only
+python refresh_reservoirs.py --only "Deer Creek"  # one reservoir, prints JSON, never writes
+
+python tools/build_capacity_table.py --dry-run   # re-derive capacities from NID
+python tools/probe_rise.py --name "Lake Powell"  # dump RISE's catalog for a reservoir
+python tools/probe_huc_points.py                 # compare our points against the dams
+node scripts/fetch-huc6.mjs --dry-run            # re-derive the watershed boundaries
+```
 
 Tests (no network — RISE is slow, rate-limited and occasionally wrong, and
 none of that should decide whether CI is green):
@@ -389,7 +444,9 @@ CI's Linux.
 | **No credential prompt can reach a public page** | The real failure mode was a 401 raising a username/password modal and then hanging the load for 20 seconds. `src/arcgis/auth.ts` refuses credential challenges at `IdentityManager.getCredential`, and `src/arcgis/basemaps.ts` falls through a chain of candidates. Measured after: fails in 54 ms, no modal, map renders. |
 | **A bundle budget** | Every build measures the planned SDK import surface (15.49 MiB raw / 5.43 MiB gzip today) against a ceiling, so Phase 2 cannot quietly become enormous. |
 | **Plain wording** | Simplified Technical English across all visible text, enforced by two tests. See [Wording](#wording). |
-| **Mobile layout on the maps** | Partly. The phone viewport is now tested at two widths on all three pages: the title panel stays inside the viewport, the ArcGIS zoom control moves to the bottom right below 640px instead of landing under the title card, and no page scrolls sideways. The structural fix is still Phase 2. |
+| **Mobile layout on the maps** | Partly. All three pages are tested at 1280, 390 and 360 pixels: the title panel stays inside the viewport, nothing overlaps the ArcGIS zoom control, and no page scrolls sideways. The card's height is measured against the legend rather than capped at a constant. The structural fix is still Phase 2. |
+| **Interaction, pulled forward from Phases 3 and 5** | Hover reading, class and late-data filtering with dimming, a twelve-month time slider, deep links, and a keyboard path to every reservoir — on both maps, built from the shared module. See [Using the maps](#using-the-maps). Done on the current pages rather than held for the shell, because the shell is several phases away and these are the pages people use. |
+| **Decisions written down** | Eight architecture decision records in [`docs/decisions/`](docs/decisions/), plus [`CLAUDE.md`](CLAUDE.md) for the conventions a test will fail you for breaking. |
 
 ### Next, in order
 
@@ -410,10 +467,10 @@ CI's Linux.
    map, filters, the selected reservoir and the ranking/table/sparkline tabs.
    This is what replaces the three pages, and it closes mobile layout
    structurally rather than with more media queries.
-3. **Phase 3–5 — symbology, charts, state.** `CIMSymbol` dual circles with a
-   real drop shadow, `featureEffect` filter dimming, layer-bound charts,
-   one filter/selection state object, deep links on the maps, and the time
-   slider over the 12 months already in the data.
+3. **Phase 3–5 — the parts not yet pulled forward.** `CIMSymbol` dual circles
+   with a real drop shadow, and layer-bound charts bound to the same filter.
+   Filter dimming, the shared selection object, deep links and the time slider
+   already landed on the current pages.
 4. **Phase 6–7 — MapLibre 6 parity, then verification.** Rewrite the smoke
    test against the new DOM, add axe-core, and assert end-to-end that no
    password prompt can appear.

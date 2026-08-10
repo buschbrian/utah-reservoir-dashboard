@@ -1,0 +1,65 @@
+# Changelog
+
+Notable changes to the dashboard. The data itself is refreshed every morning
+and is not listed here.
+
+## [Unreleased]
+
+### Added
+
+- **Hover reading on both maps.** Pointing at a reservoir shows its name,
+  percent full and reading date without a click.
+- **Filter dimming.** A percent-full class filter and a "show only late data"
+  switch keep matching reservoirs bright and let the rest recede, rather than
+  removing them — the empty reservoirs being the southern half of the state is
+  the answer, and deleting the others deletes it.
+- **A twelve-month time slider** on both maps, with play, pause and a return to
+  today. The data already held twelve months per reservoir and the maps only
+  ever drew today. A month a reservoir never reported draws as a small grey
+  circle, not as an empty one.
+- **Deep links on both maps.** `?reservoir=Deer+Creek` opens that reservoir,
+  selecting one updates the address bar, and the back and forward buttons work.
+  The parameter matches the overview's, so links are interchangeable across all
+  three pages.
+- **A keyboard path to every reservoir.** Both maps now carry a focusable list
+  of all 53, in size order, with focus moving into a popup when it opens and
+  back to the button when it closes. Chart bars are reachable, and selections
+  are announced politely.
+- **Watershed membership.** Every reservoir carries the six-digit hydrologic
+  unit its water drains through, whether it is in Utah, and the point the
+  assignment used. Boundaries ship as a committed `huc6.geojson`.
+- Architecture decision records, in [`docs/decisions/`](docs/decisions/).
+
+### Fixed
+
+- **`Ken's Lake` was unclickable.** The shared HTML escaper never escaped
+  apostrophes, so the name broke out of its own `data-name='…'` attribute and
+  shattered into junk attributes. Its ranking row, table row and sparkline card
+  all rendered, counted toward the tests' expected 53, and did nothing when
+  activated.
+- **The ArcGIS colour ramp was silently truncated.** A `MapView` supports at
+  most 8 stops on a colour visual variable and the ramp needed 10; the map drew
+  an SDK-simplified approximation of the class table rather than the table.
+  Now a `UniqueValueRenderer` with no such limit.
+- **The Utah mask had been deleted** several commits earlier while the README
+  still described it. Restored, under the drainage-area outlines.
+- **Focus never returned from an ArcGIS popup.** Opening one fires a spurious
+  "not visible" first, which was read as a close and consumed the stored
+  opener, so Escape dropped focus on the document body.
+- **The reservoir list ran underneath the legend** at common window sizes.
+  Both were capped by a guessed constant that had gone stale as each grew.
+- **The overview scrolled sideways on a phone.** A `<select>` sized itself to
+  its longest option inside a grid item that would not shrink.
+- **The ArcGIS zoom control overlapped the title card** on a phone, and was
+  missing entirely at phone widths in CI after a first attempt to move it.
+- Contrast failures on link, caption and axis text across all three pages.
+
+### Changed
+
+- The starting extent is one zoom level wider. It is marked provisional: it
+  stops making sense once connected out-of-state reservoirs land.
+- All visible text now follows Simplified Technical English, enforced by tests
+  (ADR-006).
+- The statewide trend chart is drawn with Observable Plot, with pointer tips
+  and controls for scope and units.
+- The site is built with Vite and published to GitHub Pages by Actions.
