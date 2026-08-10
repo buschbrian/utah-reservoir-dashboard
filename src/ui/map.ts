@@ -77,6 +77,21 @@ function showDegradedBasemap(name: string | null): void {
   elementById("map-host").append(notice);
 }
 
+function showMissingBasemap(): void {
+  const notice = document.createElement("calcite-notice");
+  notice.setAttribute("kind", "warning");
+  notice.setAttribute("open", "");
+  notice.setAttribute("icon", "");
+  const title = document.createElement("div");
+  title.slot = "title";
+  title.textContent = "Map background is unavailable";
+  const message = document.createElement("div");
+  message.slot = "message";
+  message.textContent = "Reservoirs and drainage areas are still shown from local data.";
+  notice.append(title, message);
+  elementById("map-host").append(notice);
+}
+
 /* The pointer half of selection. The keyboard half is the reservoir list in
  * the storage summary, which is a real focusable control rather than a
  * keyboard trap over a canvas -- and it works in the one environment the
@@ -101,16 +116,8 @@ function wirePointerSelection(element: MapElement, selection: SelectionStore): v
   });
 }
 
-export async function loadMap(selection: SelectionStore): Promise<MapController | null> {
+export async function loadMap(selection: SelectionStore): Promise<MapController> {
   const resolution = await resolveBasemap();
-  if (!resolution.resource) {
-    showMapMessage(
-      "The map background is unavailable",
-      "Reservoir data remains available in the summary and statewide overview.",
-      "alert"
-    );
-    return null;
-  }
 
   /* The SDK's `basemap` property is typed as basemap *properties*, and an
    * already-constructed Basemap does not satisfy that shape under
@@ -119,7 +126,9 @@ export async function loadMap(selection: SelectionStore): Promise<MapController 
    * The SDK passes an instance straight through at runtime, so the one
    * assignment is narrowed here rather than the whole map being untyped. */
   const map = new ArcGISMap();
-  (map as { basemap: unknown }).basemap = resolution.resource;
+  if (resolution.resource) {
+    (map as { basemap: unknown }).basemap = resolution.resource;
+  }
   const maskLayer = createMaskLayer();
   const highlightLayer = createHighlightLayer();
   map.add(maskLayer);
@@ -146,10 +155,11 @@ export async function loadMap(selection: SelectionStore): Promise<MapController 
   }, { once: true });
   wirePointerSelection(element, selection);
   elementById("map-host").replaceChildren(element);
-  if (resolution.degraded) showDegradedBasemap(resolution.name);
+  if (!resolution.resource) showMissingBasemap();
+  else if (resolution.degraded) showDegradedBasemap(resolution.name);
 
   const status: MapStatus = {
-    basemap: true,
+    basemap: resolution.resource !== null,
     basemapDegraded: resolution.degraded,
     masked: map.layers.includes(maskLayer),
     drainageAreas: 0,

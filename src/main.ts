@@ -75,8 +75,7 @@ async function loadData(): Promise<Reservoir[] | null> {
 
 /* The boundaries are context and are loaded on their own path: a missing or
  * malformed file leaves the reservoirs exactly where they are. */
-async function loadContext(map: MapController | null): Promise<void> {
-  if (!map) return;
+async function loadContext(map: MapController): Promise<void> {
   try {
     map.drawDrainageAreas(await loadDrainageAreas());
   } catch (error) {
@@ -124,7 +123,7 @@ if (!supportsDashboard(browserCapabilities())) {
   const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection)]);
   if (reservoirs) {
     wireSelection(reservoirs);
-    map?.drawReservoirs(reservoirs);
+    map.drawReservoirs(reservoirs);
   }
   await loadContext(map);
 
@@ -135,12 +134,12 @@ if (!supportsDashboard(browserCapabilities())) {
   window.__dashboardReady = {
     engine: "arcgis-5",
     reservoirs: reservoirs?.length ?? 0,
-    drawn: map?.status.reservoirsDrawn ?? 0,
+    drawn: map.status.reservoirsDrawn,
     late: reservoirs?.filter(isLateForCadence).length ?? 0,
-    basemap: map?.status.basemap ?? false,
-    basemapDegraded: map?.status.basemapDegraded ?? false,
-    masked: map?.status.masked ?? false,
-    drainageAreas: map?.status.drainageAreas ?? 0,
+    basemap: map.status.basemap,
+    basemapDegraded: map.status.basemapDegraded,
+    masked: map.status.masked,
+    drainageAreas: map.status.drainageAreas,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     selected: selection.get()
   };

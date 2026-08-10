@@ -313,6 +313,59 @@ for (const viewport of VIEWPORTS) {
   await context.close();
 }
 
+/* A reader may block every ArcGIS background through a privacy extension,
+ * network policy or temporary service outage. The reservoir and boundary
+ * layers are local, so losing geographic context must not delete the map's
+ * actual subject. */
+{
+  const context = await browser.newContext({ viewport: VIEWPORTS[0] });
+  const tab = await context.newPage();
+  const errors = [];
+  const refused = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (msg) => {
+    if (msg.type() !== "error") return;
+    // These are the SDK and Chromium reporting the failures this block
+    // intentionally injects. Anything else remains an unexpected error.
+    if (/401 \(Unauthorized\)|\[@arcgis\/core\/layers\/VectorTileLayer\]/
+      .test(msg.text())) return;
+    errors.push(`console: ${msg.text()}`);
+  });
+  await tab.route(/\/sharing\/rest\/content\/items\/[0-9a-f]+/i, async (route) => {
+    refused.push(route.request().url());
+    return route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: { code: 401, message: "This background is unavailable anonymously." }
+      })
+    });
+  });
+
+  const label = "Phase 2 shell (all basemaps refused)";
+  console.log(`\n=== ${label}`);
+  try {
+    await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const ready = await tab.evaluate(() => window.__dashboardReady);
+    console.log("  ready:", JSON.stringify(ready), `\n  refused: ${refused.length} request(s)`);
+    check(refused.length >= 3, `${label}: the complete fallback chain was not exercised`);
+    check(ready.basemap === false, `${label}: a refused basemap was reported as available`);
+    check(ready.drawn === expectedReservoirs,
+      `${label}: drew ${ready.drawn} reservoirs, expected ${expectedReservoirs}`);
+    check(await tab.locator("arcgis-map").count() === 1,
+      `${label}: the local map was removed with the background`);
+    check(/background is unavailable/i.test(await tab.locator("#map-host").innerText()),
+      `${label}: the missing background is not explained`);
+    check((await tab.evaluate(FIND_CREDENTIAL_UI)).length === 0,
+      `${label}: a credential prompt appeared`);
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
+  await context.close();
+}
+
 await browser.close();
 server.close();
 
@@ -322,4 +375,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`\nThe Phase 2 shell rendered cleanly at ${VIEWPORTS.length} viewport sizes, ` +
-  "and asked for no credentials when the first basemap was refused.");
+  "kept local data when every basemap was refused, and never asked for credentials.");
