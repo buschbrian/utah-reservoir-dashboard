@@ -29,8 +29,8 @@
     html, body, #viewDiv { height: 100%; width: 100%; margin: 0; padding: 0; }
     #titleDiv {
       position: absolute; top: 10px; left: 60px; z-index: 10;
-      background: white; padding: 10px 14px; border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-family: sans-serif;
+      background: rgba(251,252,251,.96); padding: 10px 14px; border-radius: 6px;
+      box-shadow: 0 2px 10px rgba(36,49,47,.16); font-family: sans-serif;
       max-width: 340px;
     }
     #titleDiv h1 { font-size: 16px; margin: 0; }
@@ -41,7 +41,7 @@
     .map-actions label { font-size: 11px; color: #555; }
     .map-actions select {
       margin-left: 4px; max-width: 170px; padding: 4px 24px 4px 7px;
-      border: 1px solid #c8d0d8; border-radius: 4px; background: white; font: inherit;
+      border: 1px solid #c6d1ce; border-radius: 4px; background: #fbfcfb; font: inherit;
     }
     .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
     .map-links a { color: #0079c1; }
@@ -54,8 +54,8 @@
        more room than the SDK's default. */
     .esri-popup__content { font-family: sans-serif; }
     #legendDiv {
-      background: white; padding: 10px 14px; font-family: sans-serif;
-      font-size: 13px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      background: rgba(251,252,251,.96); padding: 10px 14px; font-family: sans-serif;
+      font-size: 13px; border-radius: 6px; box-shadow: 0 2px 10px rgba(36,49,47,.16);
       max-width: 240px;
     }
     @media (max-width: 640px) {
@@ -80,7 +80,7 @@
       <label for="basemapSelect">Map background
         <select id="basemapSelect">
           <option value="topo-vector">Topographic</option>
-          <option value="gray-vector">Light gray canvas</option>
+          <option value="gray-vector" selected>Light gray canvas</option>
           <option value="streets-vector">Streets</option>
           <option value="satellite">Imagery</option>
         </select>
@@ -122,7 +122,7 @@
     ], function (EsriMap, MapView, Graphic, FeatureLayer) {
 
       // --- Base map + view ---
-      const map = new EsriMap({ basemap: "topo-vector" });
+      const map = new EsriMap({ basemap: "gray-vector" });
       const basemapSelect = document.getElementById("basemapSelect");
       basemapSelect.addEventListener("change", () => { map.basemap = basemapSelect.value; });
 

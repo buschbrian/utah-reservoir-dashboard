@@ -165,6 +165,23 @@ for (const page of PAGES) {
       // to a reservoir's full record.
       check(await tab.locator("#stateChart > svg").count() === 1,
         `${label}: Observable Plot statewide chart did not render`);
+      const monthAxis = await tab.evaluate(() => {
+        const target = document.querySelector("#stateChart");
+        const labels = [...(target?.querySelectorAll(
+          'svg g[aria-label="x-axis tick label"] text'
+        ) || [])].map((text) => text.textContent);
+        const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const expected = (target?.dataset.monthTicks || "").split(",").filter(Boolean)
+          .map((month) => {
+            const [year, number] = month.split("-");
+            return `${names[Number(number) - 1]} '${year.slice(-2)}`;
+          });
+        return { labels, expected };
+      });
+      check(JSON.stringify(monthAxis.labels) === JSON.stringify(monthAxis.expected),
+        `${label}: month labels do not match their chart points ` +
+        `(shown ${monthAxis.labels.join(", ")}; expected ${monthAxis.expected.join(", ")})`);
       await tab.locator("#trendScope").selectOption("all");
       await tab.locator("#trendMetric").selectOption("percent");
       check(await tab.locator("#stateChart").getAttribute("data-scope") === "all",

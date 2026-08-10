@@ -29,18 +29,20 @@
        rv-* classes (popup, chart, table) are injected by the module and
        are what actually holds the three pages visually together. */
     :root {
-      --bg: #f6f7f9;
-      --surface: #ffffff;
-      --ink: #1b1f24;
-      --ink-2: #57606a;
-      --ink-3: #8b949e;
-      --line: #e3e6ea;
-      --accent: #0b5fa5;
-      --neg: #b3261e;
-      --pos: #1a7f37;
-      --warn: #b45309;
+      --bg: #edf1ef;
+      --surface: #fbfcfb;
+      --ink: #24312f;
+      --ink-2: #60706d;
+      --ink-3: #87938f;
+      --line: #d6dfdc;
+      --accent: #466a73;
+      --chart: #a5663f;
+      --reference: #637c87;
+      --neg: #a44840;
+      --pos: #48735b;
+      --warn: #9a682f;
       --radius: 12px;
-      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 14px rgba(16,24,40,.05);
+      --shadow: 0 1px 2px rgba(36,49,47,.035), 0 4px 14px rgba(36,49,47,.035);
       --pad: 20px;
     }
     * { box-sizing: border-box; }
@@ -56,8 +58,8 @@
     /* --- Top bar ---------------------------------------------------- */
     .topbar {
       position: sticky; top: 0; z-index: 20;
-      background: rgba(255,255,255,.88);
-      backdrop-filter: saturate(1.6) blur(8px);
+      background: rgba(251,252,251,.92);
+      backdrop-filter: saturate(1.1) blur(8px);
       border-bottom: 1px solid var(--line);
     }
     .topbar .wrap {
@@ -71,8 +73,8 @@
       font-size: 13px; text-decoration: none; color: var(--ink-2);
       padding: 6px 11px; border-radius: 999px; white-space: nowrap;
     }
-    nav.views a:hover { background: #eef1f4; color: var(--ink); }
-    nav.views a[aria-current="page"] { background: var(--ink); color: #fff; }
+    nav.views a:hover { background: #e4ebe8; color: var(--ink); }
+    nav.views a[aria-current="page"] { background: #344e54; color: #fff; }
 
     /* --- Sections --------------------------------------------------- */
     main { padding: 26px 0 60px; }
@@ -98,7 +100,7 @@
     .k-sub.warn { color: var(--warn); font-weight: 600; }
 
     /* Capacity meter under the headline tile. */
-    .meter { height: 8px; border-radius: 999px; background: #eceff2; overflow: hidden; margin-top: 9px; }
+    .meter { height: 8px; border-radius: 999px; background: #e3e9e7; overflow: hidden; margin-top: 9px; }
     .meter span { display: block; height: 100%; border-radius: 999px; }
 
     /* --- Statewide chart + class breakdown --------------------------- */
@@ -106,7 +108,7 @@
     .class-rows { display: flex; flex-direction: column; gap: 9px; margin: 0; }
     .class-row { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 9px; font-size: 13px; }
     .class-row .swatch { width: 12px; height: 12px; border-radius: 3px; }
-    .class-row .track { height: 9px; background: #eceff2; border-radius: 999px; overflow: hidden; }
+    .class-row .track { height: 9px; background: #e3e9e7; border-radius: 999px; overflow: hidden; }
     .class-row .track span { display: block; height: 100%; }
     .class-row .n { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12.5px; }
     .chart-toolbar {
@@ -124,30 +126,43 @@
     .state-plot svg { display: block; max-width: 100%; height: auto; overflow: visible; }
     .chart-key { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 0; }
     .chart-key span { display: inline-flex; align-items: center; gap: 6px; }
-    .chart-key i { display: inline-block; width: 22px; height: 3px; background: #d94801; }
+    .chart-key i { display: inline-block; width: 22px; height: 3px; background: var(--chart); }
     .chart-key i.normal {
-      height: 0; background: none; border-top: 2px dashed #31527a;
+      height: 0; background: none; border-top: 2px dashed var(--reference);
     }
 
     /* --- Ranking ----------------------------------------------------- */
-    .rank { display: flex; flex-direction: column; gap: 2px; }
+    .rank { display: flex; flex-direction: column; gap: 3px; }
+    .rank-head, .rank-row {
+      display: grid; grid-template-columns: 175px 52px minmax(0, 1fr) 58px;
+      align-items: center; gap: 12px;
+    }
+    .rank-head {
+      padding: 0 8px 7px; color: var(--ink-2); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: .045em; border-bottom: 1px solid var(--line);
+    }
+    .rank-head span:nth-child(2), .rank-head span:nth-child(4) { text-align: center; }
     .rank-row {
-      display: grid; grid-template-columns: 165px minmax(0, 1fr) 62px;
-      align-items: center; gap: 12px; padding: 5px 8px; border: 0; border-radius: 8px;
+      padding: 6px 8px; border: 0; border-radius: 8px;
       background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
     }
-    .rank-row:hover, .rank-row:focus-visible { background: #f1f4f7; outline: none; }
+    .rank-row:hover, .rank-row:focus-visible { background: #e9efec; outline: none; }
     .rank-row:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
     .rank-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-name small { display: block; color: var(--ink-2); font-size: 10.5px; font-weight: 400; }
-    .rank-track { height: 15px; background: #eef1f4; border-radius: 4px; position: relative; }
-    .rank-track > span { display: block; height: 100%; border-radius: 4px; }
-    /* The prior-years normal, as a tick on the same axis: a reservoir can
-       sit at 40% of capacity and be either fine or historically bad, and
-       only the distance to this mark says which. */
-    .rank-normal { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #31527a; opacity: .75; }
+    .rank-size { display: flex; align-items: center; justify-content: center; min-height: 36px; }
+    .rank-size i {
+      display: block; width: var(--size); height: var(--size); max-width: 38px; max-height: 38px;
+      border-radius: 50%; background: #d8e2df; border: 1.5px solid #6f8782;
+    }
+    .rank-track { height: 13px; background: #e3e9e7; border-radius: 999px; overflow: hidden; }
+    .rank-track > span { display: block; height: 100%; border-radius: 999px; }
     .rank-pct { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
     .rank-stale { color: var(--warn); font-size: 11px; margin-left: 5px; }
+    .rank-key { display: flex; gap: 18px; flex-wrap: wrap; margin: 7px 0 0; }
+    .rank-key span { display: inline-flex; align-items: center; gap: 6px; }
+    .rank-key .size-key { width: 14px; height: 14px; border-radius: 50%; background: #d8e2df; border: 1.5px solid #6f8782; }
+    .rank-key .fill-key { width: 24px; height: 8px; border-radius: 999px; background: #a6d96a; }
 
     /* --- Toolbar ----------------------------------------------------- */
     .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
@@ -160,8 +175,8 @@
       padding: 8px 13px; font: inherit; font-size: 13px; border-radius: 8px;
       border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
     }
-    .btn:hover { background: #f1f4f7; }
-    .btn[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .btn:hover { background: #e9efec; }
+    .btn[aria-pressed="true"] { background: #344e54; color: #fff; border-color: #344e54; }
     .count { font-size: 12.5px; color: var(--ink-2); }
 
     /* --- Table ------------------------------------------------------- */
@@ -225,7 +240,7 @@
     footer.page p { margin: 0 0 6px; max-width: 74ch; line-height: 1.55; }
 
     .banner {
-      background: #fff7ed; border: 1px solid #fcd9a8; color: #7c2d12;
+      background: #f5f0e7; border: 1px solid #dfcfb7; color: #76502b;
       border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px;
     }
     .terms { margin: 0 0 24px; }
@@ -238,7 +253,8 @@
        their bars and the two-column split becomes one column. */
     @media (max-width: 760px) {
       .split { grid-template-columns: 1fr; }
-      .rank-row { grid-template-columns: 1fr 52px; row-gap: 2px; }
+      .rank-head { display: none; }
+      .rank-row { grid-template-columns: 40px minmax(0, 1fr) 52px; row-gap: 3px; }
       .rank-name { grid-column: 1 / -1; }
       .kpi .k-value { font-size: 23px; }
       .terms dl { grid-template-columns: 1fr; gap: 3px; }
@@ -336,10 +352,19 @@
 
     <section aria-labelledby="h-rank">
       <div class="sec-head">
-        <h2 id="h-rank">Reservoirs from largest to smallest</h2>
-        <p>The bar shows percent full. The dark line shows the normal value for this week.</p>
+        <h2 id="h-rank">Reservoir size and current storage</h2>
+        <p>Rows are sorted by capacity. The circle shows relative capacity. The bar shows the current percent full.</p>
       </div>
-      <div class="card"><div class="rank" id="rank"></div></div>
+      <div class="card">
+        <div class="rank-head" aria-hidden="true">
+          <span>Reservoir</span><span>Size</span><span>Current storage</span><span>Full</span>
+        </div>
+        <div class="rank" id="rank"></div>
+        <p class="rank-key count">
+          <span><i class="size-key"></i> Larger circle means more capacity</span>
+          <span><i class="fill-key"></i> Bar shows current percent full</span>
+        </p>
+      </div>
     </section>
 
     <section aria-labelledby="h-table">
@@ -554,9 +579,13 @@
         : "";
     }
 
-    function monthDate(month) {
-      const [year, number] = month.split("-").map(Number);
-      return new Date(year, number - 1, 1);
+    function chartMonthTicks(months, maximum) {
+      if (!months.length || maximum < 1) return [];
+      if (months.length <= maximum) return months;
+      if (maximum === 1) return [months[months.length - 1]];
+      return Array.from({ length: maximum }, (_, index) =>
+        months[Math.round(index * (months.length - 1) / (maximum - 1))]
+      ).filter((month, index, ticks) => index === 0 || month !== ticks[index - 1]);
     }
 
     function renderStateChart() {
@@ -568,7 +597,6 @@
       const monthly = RV.statewideMonthly(reservoirs);
       const capacity = summary.capacity_af || 1;
       const points = monthly.map((month) => ({
-        date: monthDate(month.month),
         month: month.month,
         storageAf: month.mean_af,
         normalAf: month.normal_af,
@@ -581,6 +609,10 @@
       const target = el("stateChart");
       const width = Math.max(300, Math.floor(target.getBoundingClientRect().width || 720));
       const compact = width < 480;
+      const monthTicks = chartMonthTicks(
+        points.map((point) => point.month),
+        Math.min(compact ? 3 : 6, points.length)
+      );
       const formatValue = (value) => metric === "percent"
         ? RV.fmtPct(value, 1)
         : RV.fmtCompact(value) + " acre-feet";
@@ -603,10 +635,9 @@
         },
         x: {
           label: null,
-          ticks: Math.min(compact ? 3 : 6, points.length),
-          tickFormat: (date) => date.toLocaleDateString("en-US", {
-            month: "short", year: "2-digit"
-          })
+          domain: points.map((point) => point.month),
+          ticks: monthTicks,
+          tickFormat: (month) => RV.fmtMonth(month).replace(" 20", " '")
         },
         y: {
           label: metric === "percent" ? "Percent of capacity" : "Storage (acre-feet)",
@@ -619,23 +650,23 @@
         marks: [
           Plot.ruleY([0], { stroke: "#c8d0d8" }),
           Plot.areaY(actual, {
-            x: "date", y: "value", fill: "#fdae61", fillOpacity: 0.28,
+            x: "month", y: "value", fill: "#b9825e", fillOpacity: 0.2,
             curve: "monotone-x"
           }),
           Plot.lineY(actual, {
-            x: "date", y: "value", stroke: "#d94801", strokeWidth: 3,
+            x: "month", y: "value", stroke: "#a5663f", strokeWidth: 3,
             curve: "monotone-x"
           }),
           Plot.lineY(normal, {
-            x: "date", y: "normal", stroke: "#31527a", strokeWidth: 2,
+            x: "month", y: "normal", stroke: "#637c87", strokeWidth: 2,
             strokeDasharray: "6,4", curve: "monotone-x"
           }),
-          Plot.dot(actual, { x: "date", y: "value", fill: "#d94801", r: 3.5 }),
+          Plot.dot(actual, { x: "month", y: "value", fill: "#a5663f", r: 3.5 }),
           Plot.ruleX(actual, Plot.pointerX({
-            x: "date", stroke: "#8b949e", strokeOpacity: 0.35
+            x: "month", stroke: "#8b949e", strokeOpacity: 0.35
           })),
           Plot.tip(actual, Plot.pointerX({
-            x: "date",
+            x: "month",
             y: "value",
             title: (point) => RV.fmtMonth(point.month) + "\n" +
               "Storage: " + formatValue(point.value) + "\n" +
@@ -647,6 +678,7 @@
       target.replaceChildren(chart);
       target.dataset.scope = scope;
       target.dataset.metric = metric;
+      target.dataset.monthTicks = monthTicks.join(",");
       el("trendSummary").textContent = summary.count + " reservoirs · " +
         RV.fmtPct(summary.pct_full) + " full now";
       el("stateChartNote").textContent = monthly.length < 12
@@ -665,25 +697,22 @@
     function renderRank(rows) {
       const sorted = rows.slice().sort((a, b) =>
         (b.size_basis_af ?? -1) - (a.size_basis_af ?? -1));
+      const largest = sorted[0]?.size_basis_af || 1;
       el("rank").innerHTML = sorted.map((r) => {
         const pct = Math.max(0, Math.min(100, r.fill_pct ?? 0));
-        // Normal expressed on the same 0–100% of capacity axis as the bar,
-        // so the two are directly comparable rather than two scales side by
-        // side. Off the chart (above capacity) it is clamped and simply
-        // sits at the right edge.
-        const normalPct = (r.seasonal_normal_af && r.size_basis_af)
-          ? Math.max(0, Math.min(100, (r.seasonal_normal_af / r.size_basis_af) * 100)) : null;
-        return "<button class='rank-row' data-name='" + RV.esc(r.name) + "'>" +
+        const size = 10 + Math.sqrt((r.size_basis_af || 0) / largest) * 28;
+        const label = r.name + ". Capacity: " + RV.fmtAf(r.size_basis_af) +
+          " acre-feet. Current storage: " + RV.fmtPct(r.fill_pct) + " full.";
+        return "<button class='rank-row' data-name='" + RV.esc(r.name) +
+          "' aria-label='" + RV.esc(label) + "'>" +
           "<span class='rank-name'>" + RV.esc(r.name) +
             (r.is_stale ? "<span class='rank-stale' title='Data is late'>&#9888;</span>" : "") +
             "<small>" + RV.fmtAf(r.size_basis_af) + " acre-feet at full level</small>" +
           "</span>" +
+          "<span class='rank-size' title='Capacity: " + RV.fmtAf(r.size_basis_af) +
+            " acre-feet'><i style='--size:" + size.toFixed(1) + "px'></i></span>" +
           "<span class='rank-track'><span style='width:" + pct.toFixed(1) + "%;background:" +
-            RV.colorFor(r.fill_pct) + "'></span>" +
-            (normalPct === null ? "" :
-              "<span class='rank-normal' style='left:" + normalPct.toFixed(1) +
-              "%' title='Normal for this week: " + RV.fmtAf(r.seasonal_normal_af) + " acre-feet'></span>") +
-          "</span>" +
+            RV.colorFor(r.fill_pct) + "'></span></span>" +
           "<span class='rank-pct'>" + RV.fmtPct(r.fill_pct) + "</span></button>";
       }).join("");
     }

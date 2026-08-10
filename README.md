@@ -200,11 +200,10 @@ way at all to see the state as a single quantity. The overview adds:
   separate, prominent total excludes Lake Powell as the useful Utah read.
 - **Twelve months of statewide storage**, drawn by the same chart function
   the popups use, with the state standing in for a reservoir.
-- **A size-first ranking** of all 53, each bar carrying a tick for that
-  reservoir's normal on the same axis — so the distance between bar and tick
-  is the "is this bad or just August?" read, at a glance, for every
-  reservoir at once.
-- **A sortable table** of every metric, with a name filter, a stale-feeds-only
+- **A size-first comparison** of all 53. Circle size shows relative capacity.
+  The adjacent bar shows current percent full. Normal storage stays in the
+  time-series chart and details, where it has enough context.
+- **A sortable table** of every metric, with a name filter, a late-data-only
   toggle, and CSV export of exactly the rows on screen (raw numbers, not the
   formatted strings).
 - **Twelve-month sparklines for all 53 at once**, scaled against each

@@ -220,6 +220,75 @@ in an `arcgis-map` named slot. Also start with a configured keyless
 `arcgis-basemap-toggle`, not a gallery whose default source can expose the
 key-gated `arcgis/*` styles this hardening deliberately excludes.
 
+### Watershed expansion and Reclamation open data — scoped 2026-08-09
+
+The dashboard needs two separate geographic groups. Do not merge them into one
+number:
+
+1. **Utah sites** contains measurement sites in Utah. This remains the default.
+2. **Sites in drainage areas that touch Utah** also contains sites outside the
+   state when their six-digit hydrologic unit intersects Utah. This includes the
+   Colorado Headwaters and the connected Green, Gunnison, Dolores, and San Juan
+   areas.
+
+The U.S. Geological Survey Watershed Boundary Dataset is the boundary source.
+It defines hydrologic units without regard to state borders. Keep the current
+six-digit level because its 15 Utah-intersecting units are large enough for a
+readable comparison chart. Add these fields to each published reservoir:
+
+```text
+in_utah                  true or false
+huc6                     six-digit code
+huc6_name                display name
+huc_assignment_point     dam or outlet coordinates
+huc_assignment_source    source for those coordinates
+```
+
+Assign a reservoir by its dam or outlet point, not by the center of its water
+polygon. Large reservoirs can cross more than one boundary. The assignment says
+where the stored water leaves the reservoir. Show this rule in the methods text.
+
+**Reservoir discovery and measurements use different sources:**
+
+- Use Reclamation's public `Reclamation_Reservoirs` ArcGIS FeatureServer for
+  facility discovery and geometry. It is a native ArcGIS source and can load as
+  a `FeatureLayer` in the SDK.
+- Use observed storage time series from Reclamation RISE or another official
+  operating source. The geometry service does not replace measured storage.
+- Start the outside-Utah audit with the reservoirs on Reclamation's official
+  Upper Colorado status page: Blue Mesa, Crystal, Morrow Point, Navajo, and
+  Fontenelle. Lake Powell and Flaming Gorge are already present.
+- Include a candidate only when it has an observed storage series, a traceable
+  capacity, a stable site identifier, and a usable dam or outlet coordinate.
+  Do not mix modeled values into current conditions.
+- The refresh job writes normalized reservoir points and watershed boundaries
+  to local JSON/GeoJSON. ArcGIS can use the live native layer when it is
+  available. MapLibre uses the published local copy and does not depend on an
+  Esri service at runtime.
+
+**HUC totals are capacity-weighted reservoir totals:**
+
+```text
+percent full = sum(current storage) / sum(capacity) × 100
+```
+
+Label the result **tracked reservoir storage in this drainage area**. It is not
+the percentage of all water in the watershed. Show the reservoir count and the
+combined capacity beside every value. A 12-month HUC value is valid only when
+every tracked reservoir in that HUC has a value for that month. Otherwise, show
+a gap and the coverage count.
+
+The HUC chart uses the same shared selection state as the map and table:
+
+- `Utah sites`, `all connected sites`, or one HUC is the active group.
+- The comparison view shows one capacity-weighted bar for each HUC.
+- Selecting a HUC highlights its boundary and filters the reservoirs.
+- The 12-month chart then shows the total for the selected HUC.
+- The URL stores the selected HUC so that the view is shareable.
+
+This is a data-enrichment step. It does not change the existing storage,
+capacity, normal-value, or late-data formulas.
+
 ### Noticed while testing, not fixed
 
 The live 4.34 page logs `Found 10 Visual Variable stops, but MapView only
@@ -384,6 +453,27 @@ with no DOM in it that is currently only ever exercised by a browser smoke test.
 
 **Done when:** the ported modules reproduce the legacy numbers exactly, under test.
 
+### Phase 1.5 — Watershed and connected-reservoir data
+
+This phase must finish before the new shell depends on HUC filters.
+
+1. Publish the 15 six-digit hydrologic units that intersect Utah as versioned
+   GeoJSON from the official U.S. Geological Survey service.
+2. Add the HUC and Utah-membership fields defined above to the typed reservoir
+   record and runtime validator.
+3. Add a tested point-in-polygon join that uses each dam or outlet point.
+4. Audit Reclamation facility candidates inside those HUC polygons. Join each
+   accepted site to an observed storage series and a capacity source.
+5. Add pure `rollupByHuc` and `monthlyRollupByHuc` functions. Test capacity
+   weighting, missing capacity, duplicate sites, cross-border sites, and partial
+   monthly coverage.
+6. Publish a coverage report. It lists accepted, rejected, and unmatched sites
+   with the reason for each result.
+
+**Done when:** every published reservoir has one verified HUC assignment; the
+Utah-only totals do not change; and each HUC total states its reservoir count and
+coverage.
+
 ### Phase 2 — The unified dashboard shell
 
 Start from Esri's [dashboard layout sample](https://github.com/Esri/jsapi-resources/tree/main/layouts/dashboard-sample). Structure, per Esri's own guidance, keeps layout (Calcite) strictly separate from GIS functionality (map components).
@@ -408,14 +498,14 @@ calcite-shell
 │     KPI tiles · 12-month trend chart · monthly table (calcite-block, collapsed)
 │     · sample-depth and staleness notices · source links
 └── calcite-shell-center-row (bottom, collapsible)
-      tabbed: Ranking (all 53, with normal ticks) | Table (sortable + CSV) | Sparklines (53)
+      tabbed: Ranking (all loaded reservoirs) | Table (sortable + CSV) | Sparklines
 ```
 
 - Calcite handles responsive collapse; on mobile the side panels become sheets. This closes the README's "mobile layout on the maps" item structurally rather than with media-query patches.
 - Light/dark via `calcite-mode-light` / `calcite-mode-dark` on the root. **Caveat from Esri's docs: `calcite-mode-dark` is not applied to charts components** — chart theming must be handled explicitly.
 - Theme tokens in `src/styles/theme.css`. Style with Calcite CSS variables; use plain CSS only for structure. Do not override Calcite internals.
 
-**Done when:** the new `index.html` shows the map and all 53 reservoirs with the current symbology, in one responsive shell, at parity with the 4.34 page.
+**Done when:** the new `index.html` shows every published reservoir with the current symbology, in one responsive shell, at parity with the 4.34 page.
 
 ### Phase 3 — Symbology and micro-interactions
 
@@ -441,7 +531,7 @@ fields — `% capacity`, `% record max`, `seasonal percentile`, `current_storage
 — are ordinary `FeatureLayer` fields, so `<arcgis-chart>` binds to them
 natively, honors the same filter, and stays in sync with map selection for free.
 Use it for:
-- the 53-reservoir ranking bar chart (colored on the same class breaks),
+- the all-reservoir ranking chart (colored on the same class breaks),
 - a distribution histogram of % capacity,
 - and legitimately showcase the new charts package on data that actually fits it.
 
@@ -452,14 +542,14 @@ a poor fit for a layer-bound chart component. Use
 [Observable Plot](https://observablehq.com/plot/): small, declarative, plain SVG
 output, easy to theme from Calcite tokens, and it replaces the hand-rolled chart
 with materially less code while adding per-month tooltips and focusable marks.
-Use it for the 12-month trend (with the dashed normal line), the 53 sparklines,
+Use it for the 12-month trend (with the dashed normal line), the reservoir sparklines,
 and the statewide 12-month chart.
 
 The statewide chart is the first production proof: `explore.html` is now a
 Vite entry and ships Plot as a 102.4 kB gzip bundle alongside the existing
 runtime-loaded data. It adds pointer tooltips, with/without-Powell scope and
 acre-feet/percent controls without taking a dependency on either map SDK. Keep
-the 53 tiny multiples as lightweight SVG until the unified shell can measure
+the tiny multiples as lightweight SVG until the unified shell can measure
 whether replacing all of them is worth the DOM and interaction cost.
 
 Both must read colors from `src/viz/classes.ts`. The single-source-of-truth
@@ -481,12 +571,30 @@ with per-month tooltips.
 
 - `maplibre-gl@^6` as an npm ESM dependency. **v6 requires WebGL2 and ships ESM-only** — note the browser floor (pre-2022 browsers are dropped) and add a capability check with a graceful message rather than a blank canvas.
 - Rebuild the parity page inside the same Vite app so it shares `src/viz` and `src/charts` — which is the entire point of the comparison, and what `shared/reservoir-viz.js` was invented to protect.
+- Read the same normalized reservoir and HUC GeoJSON that the refresh job
+  publishes. Keep monthly arrays in the keyed data lookup instead of feature
+  properties. This avoids engine-specific parsing and keeps the map source small.
+- Make CARTO Positron the calm default background. Keep Voyager and Dark Matter
+  as explicit choices. Save the choice in the URL.
+- Add HUC hover and selection. A selected HUC gets a stronger outline. Its
+  tracked-reservoir total appears in a small summary card. Selection filters the
+  points, chart, table, and URL through the shared state object.
+- Add reservoir hover, keyboard-accessible results beside the canvas, selected
+  feature state, and the same deep links as the ArcGIS page. Canvas markers alone
+  are not a complete accessible interface.
+- Treat the HUC layer, facility layer, and background style as independent
+  failures. Reservoir points must still render when one optional layer fails.
+- Add expression-parity tests for class color, relative circle size, late-data
+  rings, selected state, and HUC filters. Compare pixel screenshots at desktop
+  and phone widths after the data assertions pass.
 - Re-run the comparison and update `maplibre/README.md`. The v5-era findings need re-checking: the dashed-stroke gap, the nested-array behavior, and the antimeridian mask inversion are all worth re-testing against 6.x and 5.1 respectively.
-- **The MapLibre page is also the CDN-outage insurance** the current `explore.html` provides. Keep at least one page that renders without Esri.
+- **The MapLibre page is also the Esri-outage fallback** the current
+  `explore.html` provides. Do not make its runtime depend on the Reclamation
+  FeatureServer. Use the local normalized copy created during the refresh.
 
 ### Phase 7 — Consolidation, verification, docs
 
-- Rewrite the Playwright smoke test against the new DOM. **Gotcha: Calcite and ArcGIS components are shadow-DOM.** Playwright's CSS locators pierce open shadow roots, but map readiness cannot be asserted from the DOM — wait on the `arcgis-map` component's ready event / `view.when()` via `page.waitForFunction`, not on a selector. Keep the existing assertions: all 53 render, a popup opens, zero console errors, screenshots uploaded.
+- Rewrite the Playwright smoke test against the new DOM. **Gotcha: Calcite and ArcGIS components are shadow-DOM.** Playwright's CSS locators pierce open shadow roots, but map readiness cannot be asserted from the DOM — wait on the `arcgis-map` component's ready event / `view.when()` via `page.waitForFunction`, not on a selector. Keep the existing assertions: every published reservoir renders, a popup opens, zero console errors, screenshots uploaded.
 - **Assert no credential prompt can reach production.** Load the shell with a key-gated basemap forced to the front of the chain and assert there is no password input anywhere in the DOM (piercing shadow roots), and that the fallback basemap rendered. The policy in `src/arcgis/auth.ts` is unit-tested against a fake IdentityManager; this is the end-to-end half.
 - Add axe-core to the Playwright run. Keyboard and contrast pass across the shell — the README's open accessibility item.
 - Lighthouse and runtime-transfer audit. The emitted SDK budget already runs in every build; replace its fixture with the real shell entry, verify lazy chunks are requested only when used, and verify CDN-hosted assets resolve under the production CSP.
@@ -506,7 +614,7 @@ with per-month tooltips.
 | **MapLibre 6 browser floor** | WebGL2 mandatory, ESM only. Detect and message. |
 | **Shadow DOM in tests** | Existing smoke test will not survive the port unchanged. Rewrite in Phase 7, don't patch. |
 | **Losing single-source-of-truth for class breaks** | The current code is careful that breaks, legend, chart colors and both engines' expressions derive from one table. A rewrite across four packages is exactly where that drifts. Assert it in a unit test. |
-| **Scope creep into the data pipeline** | `refresh_reservoirs.py`, the capacity table and the staleness logic are correct and well-tested. Nothing in this plan touches them. Data-side items in the README's "Future improvements" (catalog ID verification, plausibility checks, snowpack context, series caching) are a **separate** track. |
+| **Scope creep into the data pipeline** | The HUC work adds a controlled enrichment stage and additional observed sites. It does not change the existing storage, capacity, normal-value, or late-data formulas. Keep candidate discovery, HUC assignment, and rollups in new tested modules. Catalog ID verification, plausibility checks, snowpack context, and series caching remain a separate track. |
 
 ---
 
@@ -547,3 +655,7 @@ Not in this pass, but the architecture should not preclude them:
 - [MapLibre GL JS v6.0.0: Mandatory WebGL2 and ESM Only](https://geo.malagis.com/maplibre-gl-js-v6-mandatory-webgl-and-esm-only.html)
 - [MapLibre GL JS releases](https://github.com/maplibre/maplibre-gl-js/releases) · [MapLibre Newsletter April 2026](https://maplibre.org/news/2026-05-02-maplibre-newsletter-april-2026/)
 - [Using deck.gl with MapLibre](https://deck.gl/docs/developer-guide/base-maps/using-with-maplibre) · [deck.gl What's New](https://deck.gl/docs/whats-new)
+- [USGS Hydrologic Units and the Watershed Boundary Dataset](https://water.usgs.gov/themes/hydrologic-units/)
+- [Reclamation Reservoirs ArcGIS FeatureServer](https://services5.arcgis.com/HDRa0B57OVrv2E1q/ArcGIS/rest/services/Reclamation_Reservoirs/FeatureServer)
+- [Reclamation RISE reservoir conditions data and methods](https://data.usbr.gov/visualizations/reservoir-conditions/)
+- [Reclamation Upper Colorado Basin status](https://www.usbr.gov/uc/water/hydrodata/status_maps/uc_status.html)
