@@ -1,12 +1,16 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status:** Phase 0–1 groundwork started in parallel; current dashboards remain live. **Date:** 2026-08-09.
+**Status (2026-08-10):** Phases 0, 1, and 1.5 are complete. The inventory
+portion of Phase 1.6 added Fontenelle; snowpack and drought context are not
+implemented. Phase 2, the unified dashboard shell, is the next application
+milestone. The three production views remain live.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
 JavaScript 5.1, MapLibre GL JS 6, Calcite Design System 5, and a real build
-pipeline — without touching the Python data pipeline or the daily refresh
-contract that feeds it.
+pipeline — while preserving the daily refresh contract. Controlled data
+enrichment is allowed; the storage formulas and refresh reliability contract
+are not part of the frontend rewrite.
 
 **Decisions already made** (see [Open decisions](#open-decisions) for what is not):
 
@@ -14,8 +18,23 @@ contract that feeds it.
 |---|---|
 | Build step | **Yes.** Vite + npm + TypeScript. The zero-build constraint is retired. |
 | Visual scope | Polished 2D + micro-interactions, plus a real charting upgrade. 3D scenes and deck.gl are **out of scope** for this pass (parked in [Deferred](#deferred)). |
-| First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. The three existing pages stay as-is until it lands. |
+| First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. The three existing views remain live until it lands. |
 | User text | **Use ASD-STE100 Simplified Technical English.** Use short sentences. Use one term for one item. Replace specialist terms when possible. Define each required water or file term. |
+
+### Current snapshot
+
+| Area | State |
+|---|---|
+| Production views | ArcGIS map, MapLibre parity map, and no-map-SDK overview remain stable at their existing URLs. |
+| Build and deploy | Vite, strict TypeScript, Vitest, runtime-data copying, GitHub Pages deployment, and the SDK bundle budget are live. |
+| Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
+| Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
+| Next application work | Phase 2: the ArcGIS 5.1 and Calcite 5 unified shell. |
+
+This file is both a roadmap and an implementation journal. Dated review and
+measurement sections are historical evidence; the snapshot above and the phase
+headings below are the current status. Accepted architectural decisions live
+in [`docs/decisions/`](docs/decisions/) and are not rewritten here.
 
 ### Implementation review — 2026-08-09
 
@@ -48,7 +67,7 @@ before installing anything:
 
 Implemented so far: strict TypeScript data types, a hand-written runtime
 validator, class-break and statewide-rollup modules, cadence-aware staleness,
-unit parity tests against the real 53-reservoir payload, a Vite production
+unit parity tests against the then-current payload, a Vite production
 build, and a small modernization workbench. The Python refresh pipeline is not
 part of this modernization track.
 
@@ -414,9 +433,11 @@ areas stay empty, and why each is empty is still open.
 
 ---
 
-## Phase 1.6 — Snowpack, drought context, and the Colorado/Wyoming inventory
+## Phase 1.6 — Snowpack, drought context, and the Colorado/Wyoming inventory (in progress)
 
-Scoped 2026-08-10. Three related additions, in the order they pay back.
+Scoped 2026-08-10. The inventory pass and first addition are complete;
+snowpack and drought context remain unimplemented. Three related additions,
+in the order they pay back.
 
 ### What was measured before scoping this
 
@@ -571,7 +592,8 @@ inventory *by id* — no name matching, so none of the risk that made
 on the lake rather than at Glen Canyon Dam; Flaming Gorge is 14.50 km).
 These are lake points.
 
-**2. Does it matter?** Today, no. **All 53 reservoirs are assigned, none is
+**2. Does it matter?** At the time of this measurement, no. **All 53 reservoirs
+then published were assigned, none was
 unassigned, and not one changes unit** when the dam point is used instead.
 So the dam/outlet rule stands — it is the correct rule and it is what the
 methods text will say — but it is a **correctness improvement, not a
@@ -583,7 +605,7 @@ the 28 to dam points afterwards without a single assignment moving.
 No tracked reservoir sits closer than **2.72 km** to a unit boundary (median
 14.04 km, closest is Lost Lake). Generalizing the boundaries to roughly 500 m
 is five times finer than the closest call anyone has to make, and was checked
-directly rather than argued: all 53 assignments are identical to the
+directly rather than argued: all 53 then-current assignments are identical to the
 ungeneralized geometry.
 
 | Boundaries | Size | Vertices | Assignments that move |
@@ -651,39 +673,40 @@ watershed work landed.
   of graphics in a layer, not of anything painted. Worth closing with a pixel
   or WebGL check rather than leaving the artifact looking authoritative.
 
-### Noticed while testing, not fixed
+### Noticed while testing — subsequently fixed
 
-The live 4.34 page logs `Found 10 Visual Variable stops, but MapView only
+The live 4.34 page logged `Found 10 Visual Variable stops, but MapView only
 supports 8. Displayed stops will be simplified` — three times, once per
-layer. The size ramp is being silently truncated today, so the current map's
-circle sizing is not quite what the code asks for. Phase 3 rebuilds this
-symbology on `CIMSymbol` anyway; fold the fix in there rather than patching
-the page being replaced.
+layer. This was fixed on the production page by replacing the color visual
+variable with a `UniqueValueRenderer` generated from the shared class table
+(ADR-008); it was not deferred to the new shell.
 
 ---
 
-## 1. Where the project is today
+## 1. Baseline when this plan started
 
-Five source files do all the work, with no dependencies and no build:
+This section records the starting point on 2026-08-09. It is historical; use
+the [current snapshot](#current-snapshot) for present status. Five source files
+did the application work, with no local frontend dependency graph or build:
 
 | File | Role |
 |---|---|
 | `index.html` | ArcGIS Maps SDK **4.34**, loaded from CDN with a `<link>` + `<script>` pair and AMD `require()`. Two `FeatureLayer`s, `SimpleRenderer` + Arcade `valueExpression` visual variables. |
 | `maplibre/index.html` | MapLibre GL JS from unpkg. One GeoJSON source, two `circle` layers, native expressions. Open-source parity comparison. |
-| `explore.html` | Statewide overview. Vite entry using bundled Observable Plot, but no map SDK. Totals, interactive statewide trend, ranking, sortable table + CSV, 53 sparklines. |
+| `explore.html` | Statewide overview. It later became a Vite entry using bundled Observable Plot, but no map SDK. |
 | `shared/reservoir-viz.js` | An IIFE hanging one global off `window`. Class breaks, popup markup, the 12-month trend chart, the legend, the Utah mask, the statewide rollup. |
 | `refresh_reservoirs.py` | Regenerates `reservoirs.json` daily via GitHub Actions. **Out of scope — do not touch.** |
 
-The codebase is in unusually good shape for a rewrite: the data contract is
+The codebase was in unusually good shape for a rewrite: the data contract was
 documented, the shared logic is already factored out of the pages, class breaks
-live in exactly one table, and there is a Playwright smoke test asserting all 53
-reservoirs actually render. The rewrite is mostly a re-hosting of logic that is
+live in exactly one table, and a Playwright smoke test asserted every
+then-published reservoir actually rendered. The rewrite is mostly a re-hosting of logic that is
 already correct, not a redesign of it.
 
-The README's own "Future improvements" section already names most of what this
-plan does — a real module, a time slider, deep links on the maps, mobile layout
-on the maps, an accessibility pass, hardening the CDN dependency, a size legend.
-Those are folded in below rather than listed separately.
+The former README's "Future improvements" section named most of what this plan
+does — a real module, a time slider, deep links on the maps, mobile layout, an
+accessibility pass, CDN hardening, and a size legend. Those items were folded
+into the phases below; the README now stays focused on use and contribution.
 
 ### What has changed underneath it
 
@@ -710,24 +733,26 @@ Relevant to us specifically from the 5.x line:
 
 ```
 utah-reservoir-dashboard/
-├── refresh_reservoirs.py          # unchanged
-├── tools/                         # unchanged
-├── tests/test_refresh.py          # unchanged
-├── reservoirs.json                # unchanged — still the daily artifact
-├── capacities.json                # unchanged
-│
-├── package.json                   # new: Vite + TS + SDK deps
+├── index.html                     # current ArcGIS 4.34 production URL
+├── explore.html                   # current overview and Vite entry
+├── maplibre/index.html            # current parity URL; rebuilt in Phase 6
+├── modern.html                    # unified dashboard entry during development
+├── shared/reservoir-viz.js        # shared current-page behavior until consolidation
+├── refresh_reservoirs.py          # daily storage artifact and enrichment pipeline
+├── huc.py                         # drainage-area assignment and rollups
+├── reservoirs.json                # daily runtime artifact
+├── capacities.json                # committed capacity table
+├── huc6.geojson                   # committed generalized boundaries
+├── package.json                   # Vite + TypeScript + SDK dependencies
 ├── vite.config.ts
 ├── tsconfig.json
-├── index.html                     # NEW unified dashboard entry
-├── public/
-│   └── data/                      # reservoirs.json + capacities.json copied at build
 ├── src/
 │   ├── main.ts                    # app bootstrap
-│   ├── types.ts                   # Reservoir, MonthlyRecord, Capacity — the data contract, typed
+│   ├── types.ts                   # typed runtime data contract
 │   ├── data/
 │   │   ├── load.ts                # fetch + runtime-validate reservoirs.json
-│   │   └── rollup.ts              # statewide rollup (ported, now unit-testable)
+│   │   ├── rollup.ts              # statewide rollup
+│   │   └── huc.ts                 # drainage-area assignment and rollups
 │   ├── viz/
 │   │   ├── classes.ts             # the five class breaks — still one table
 │   │   ├── symbology.ts           # CIMSymbol builders, visual variables, size domain
@@ -744,15 +769,15 @@ utah-reservoir-dashboard/
 │   └── styles/
 │       ├── theme.css              # Calcite token overrides, light + dark
 │       └── app.css
-├── src/legacy/                    # the three original pages, moved verbatim
-│   ├── arcgis-434.html
-│   ├── maplibre/
-│   ├── explore.html
-│   └── reservoir-viz.js
-├── maplibre/                      # rebuilt on MapLibre 6 (Phase 6)
-└── e2e/
-    └── dashboard.spec.ts          # Playwright, rewritten
+└── tests/
+    ├── test_refresh.py            # Python pipeline behavior
+    ├── test_huc.py                # committed geometry and assignments
+    └── smoke.mjs                  # current production browser contract
 ```
+
+The production URLs stay at the repository root until consolidation. Vite
+copies those pages and all runtime data into `dist/`; it does not require a
+second `src/legacy/` tree or a checked-in `public/data/` duplicate.
 
 **Dependencies** (verify exact versions at install; these are current as of writing):
 
@@ -779,10 +804,13 @@ and a build failure silently freezes the dashboard.
 
 **Rule: data is fetched at runtime, never bundled.** Concretely:
 
-- The app fetches `./data/reservoirs.json` at runtime with a cache-busting query on `as_of`.
-- The Pages deploy workflow copies `reservoirs.json` and `capacities.json` into `dist/data/` — a copy step, not an import.
-- `refresh-data.yml` gains a `workflow_run` trigger on the deploy workflow (or the deploy workflow triggers on changes to `reservoirs.json`), so a data-only change republishes without rebuilding anything semantic.
-- Keep the current file paths working. `reservoirs.json` stays at the folder root so the archived legacy pages keep loading.
+- The typed app fetches `./data/reservoirs.json` with `cache: "no-store"`.
+- The Pages build copies `reservoirs.json`, `capacities.json`, and
+  `huc6.geojson` into both `dist/` and `dist/data/`; it never imports them.
+- The deploy workflow runs on every push to `main`, including a data-only
+  refresh commit, and verifies that the payload did not enter `dist/assets`.
+- Root file paths remain available for the production pages while the typed
+  application uses the `data/` copies.
 
 ---
 
@@ -791,17 +819,20 @@ and a build failure silently freezes the dashboard.
 Each phase is independently shippable and independently revertable. Nothing in
 Phases 0–1 changes a pixel.
 
-### Phase 0 — Groundwork (no visual change)
+### Phase 0 — Groundwork (complete; no visual change)
 
 1. `npx @arcgis/create -n _scaffold -t vite` into a throwaway directory. Read its `vite.config.ts`, asset handling and CSS imports; copy what's needed; delete it.
 2. Add `package.json`, `vite.config.ts`, `tsconfig.json` (strict). Configure `base` for the Pages path.
-3. Move the three existing pages verbatim into `src/legacy/`, fix their relative paths to `reservoirs.json`, confirm they still load. **They are the working dashboard until Phase 2 lands** — do not break them.
+3. Keep the three production pages at their public paths and copy them into
+   `dist/`. Moving them under `src/legacy/` was rejected because their URLs are
+   the production contract. **They remain the working dashboard until Phase 2
+   lands.**
 4. Add the Pages deploy workflow with the runtime-data rule above. Verify a data-only commit republishes.
 5. Extend `ci.yml`: `tsc --noEmit`, `vitest run`, then the existing Python tests and Playwright job.
 
 **Done when:** `npm run build` produces a `dist/` that serves the three legacy pages identically, and CI is green.
 
-### Phase 1 — Port the shared logic to typed, tested modules
+### Phase 1 — Port the shared logic to typed, tested modules (complete)
 
 This is the README's flagged `IMPROVEMENT` in `shared/reservoir-viz.js`, and it
 is the highest-value step in the whole plan: the statewide rollup is arithmetic
@@ -811,16 +842,19 @@ with no DOM in it that is currently only ever exercised by a browser smoke test.
 2. Add a runtime validator at the fetch boundary (Zod, or a hand-written guard — the schema is small and stable). A malformed refresh should fail loudly at load, not render as a blank map.
 3. Split `reservoir-viz.js` into the modules listed above. Behavior-preserving port; resist redesigning while porting.
 4. **Vitest unit tests** for the parts that are pure: the class-break lookup, `percentFull` and its capacity-vs-record-max fallback, the statewide rollup (including the exclude-Lake-Powell variant), staleness thresholds (2-day daily / 45-day monthly), and the formatters.
-5. Keep `src/legacy/reservoir-viz.js` frozen as the reference. Add a test that the ported rollup matches the legacy one on the real `reservoirs.json`.
+5. Load `shared/reservoir-viz.js` in a `node:vm` sandbox as the reference. The
+   ported rollup and class table are tested against it without importing the
+   daily payload into the application bundle.
 
 **Done when:** the ported modules reproduce the legacy numbers exactly, under test.
 
-### Phase 1.5 — Watershed and connected-reservoir data
+### Phase 1.5 — Watershed and connected-reservoir data (complete)
 
 This phase must finish before the new shell depends on HUC filters.
 
-1. Publish the 15 six-digit hydrologic units that intersect Utah as versioned
-   GeoJSON from the official U.S. Geological Survey service.
+1. Publish the 14 six-digit hydrologic units that intersect Utah and belong to
+   the Colorado River or Great Basin systems as versioned GeoJSON from the
+   official U.S. Geological Survey service (ADR-010).
 2. Add the HUC and Utah-membership fields defined above to the typed reservoir
    record and runtime validator.
 3. Add a tested point-in-polygon join that uses each dam or outlet point.
@@ -836,7 +870,7 @@ This phase must finish before the new shell depends on HUC filters.
 Utah-only totals do not change; and each HUC total states its reservoir count and
 coverage.
 
-### Phase 2 — The unified dashboard shell
+### Phase 2 — The unified dashboard shell (next)
 
 Start from Esri's [dashboard layout sample](https://github.com/Esri/jsapi-resources/tree/main/layouts/dashboard-sample). Structure, per Esri's own guidance, keeps layout (Calcite) strictly separate from GIS functionality (map components).
 
@@ -997,7 +1031,9 @@ with per-month tooltips.
    [basemap authentication spike](#basemap-authentication-spike--2026-08-09).
    A key is now an optional upgrade, not a dependency.
 2. ~~**Observable Plot vs. ECharts vs. keeping hand-rolled SVG**~~ — **resolved 2026-08-09: Observable Plot.** It is live in the statewide Vite entry with pointer tips, responsive axes, scope switching and unit switching. ECharts remains unnecessary unless a later phase needs linked brushing or zoom-heavy analysis.
-3. **Validation library** — Zod adds a dependency for a small, stable schema. A hand-written guard may be enough.
+3. ~~**Validation library**~~ — **resolved 2026-08-10: keep the hand-written
+   guard.** The payload is small and stable, the complete runtime contract is
+   covered by focused tests, and no additional dependency is required.
 4. **Fate of `explore.html`** — recommend keeping it as the deliberate no-SDK fallback rather than retiring it.
 5. **Framework** — the plan assumes vanilla TS + web components, which is what Calcite and the SDK components are designed for and keeps the dependency surface small. React would be a defensible alternative if the state management in Phase 5 gets unwieldy; decide at Phase 5, not now.
 
@@ -1008,7 +1044,10 @@ Not in this pass, but the architecture should not preclude them:
 - **3D / SceneView** — extruded reservoir volumes, and 5.0's **emissive materials + glow effect** for genuinely striking nighttime symbology.
 - **MapLibre 6 globe projection + Terrain3D.**
 - **deck.gl 9.3 interleaved overlay** — works with both engines and with MapLibre's globe; the route to arcs, hexbins and GPU-driven transitions neither SDK does natively.
-- **ArcGIS AI components (beta)** — `<arcgis-assistant>` with the navigation and data-exploration agents. Natural-language querying of 53 reservoirs is a genuinely good demo of the new SDK, and it is a handful of lines. Beta, so not on the critical path.
+- **ArcGIS AI components (beta)** — `<arcgis-assistant>` with the navigation
+  and data-exploration agents. Natural-language querying of the reservoir
+  inventory is a genuinely good demo of the new SDK, and it is a handful of
+  lines. Beta, so not on the critical path.
 - **Snowpack context (NRCS SNOTEL)** — data-track work, but the one addition that would give every reservoir's trend a *cause* rather than just a shape.
 
 ---

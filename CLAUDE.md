@@ -6,14 +6,17 @@ exist.
 
 ## The shape of the project
 
-Three published pages, one shared module, one Python pipeline:
+Three production views, one modernization workbench, one shared module, and
+one Python pipeline:
 
 | | |
 |---|---|
 | `index.html` | ArcGIS Maps SDK **4.34** from Esri's CDN, AMD `require()`. Not in the module graph — copied verbatim into `dist/`. |
 | `maplibre/index.html` | MapLibre GL JS from unpkg. Also copied verbatim. |
-| `explore.html` | A Vite entry point (Observable Plot). The only page with a bundle. |
+| `explore.html` | A Vite entry point for the production overview (Observable Plot). |
+| `modern.html` | The Vite entry for the typed ArcGIS 5.1 and Calcite 5 workbench. Not yet a production replacement. |
 | `shared/reservoir-viz.js` | Plain script hanging `window.ReservoirViz` off the window. Loaded by all three. |
+| `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 
 ## Rules
@@ -52,6 +55,10 @@ a measurement of copy drift.
 in 6.0. `src/architecture.test.ts` fails the build on a widget import, on a
 package-wide component import, and on a second physical Calcite installation.
 
+**Architecture decision records are history.** Do not rewrite an accepted ADR
+to match later work. Add a new ADR and mark the old one superseded; only the
+status of an existing record changes after acceptance.
+
 ## Layout constraints that are already solved
 
 Do not regress these; they were each found by a failing test or a screenshot.
@@ -69,11 +76,10 @@ Do not regress these; they were each found by a failing test or a screenshot.
 ## Verify before you finish
 
 ```bash
-npx tsc --noEmit
-npx vitest run
+npm run build             # typecheck, unit tests, SDK budget, production build
 python -m pytest tests/ -q
-npx vite build
-node tests/smoke.mjs      # needs a Playwright browser; runs against dist/
+mkdir -p screenshots
+node tests/smoke.mjs      # needs Playwright Chromium; runs against dist/
 ```
 
 The smoke test is the one that catches what the others cannot: a page that

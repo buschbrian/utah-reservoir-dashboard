@@ -22,9 +22,9 @@ and is not listed here.
   The parameter matches the overview's, so links are interchangeable across all
   three pages.
 - **A keyboard path to every reservoir.** Both maps now carry a focusable list
-  of all 53, in size order, with focus moving into a popup when it opens and
-  back to the button when it closes. Chart bars are reachable, and selections
-  are announced politely.
+  of every published reservoir, in size order, with focus moving into a popup
+  when it opens and back to the button when it closes. Chart bars are reachable,
+  and selections are announced politely.
 - **Drainage areas on the overview.** A capacity-weighted total per hydrologic
   unit, with the reservoir count and combined full level beside each one.
   Selecting an area filters the ranking, table and cards together and is
@@ -51,7 +51,7 @@ and is not listed here.
 - **`Ken's Lake` was unclickable.** The shared HTML escaper never escaped
   apostrophes, so the name broke out of its own `data-name='…'` attribute and
   shattered into junk attributes. Its ranking row, table row and sparkline card
-  all rendered, counted toward the tests' expected 53, and did nothing when
+  all rendered, counted toward the tests' expected total, and did nothing when
   activated.
 - **The ArcGIS colour ramp was silently truncated.** A `MapView` supports at
   most 8 stops on a colour visual variable and the ramp needed 10; the map drew
