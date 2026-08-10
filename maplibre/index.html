@@ -179,7 +179,38 @@
       map.addImage("stale-ring", makeDashedRing(RING_SPRITE_PX, ReservoirViz.STALE_ACCENT),
                    { pixelRatio: 2 });
 
-      // --- HUC6 watershed mask ---
+      // --- Utah mask ---
+      //
+      // A single polygon with a Utah-shaped hole, laid over the basemap so
+      // out-of-state geography recedes. Both engines get the rings from the
+      // shared module; here they arrive in GeoJSON winding (outer
+      // counterclockwise, hole clockwise), which is what MapLibre's tiler
+      // expects.
+      //
+      // First, so every other layer paints over it: the basin outlines and
+      // the reservoir circles both have to stay readable through it. Kept
+      // translucent on purpose -- Lake Powell reaches into Arizona and Meeks
+      // Cabin is in Wyoming.
+      map.addSource("utah-mask", { type: "geojson", data: ReservoirViz.utahMaskGeoJSON() });
+      map.addSource("utah-outline", { type: "geojson", data: ReservoirViz.utahOutlineGeoJSON() });
+      map.addLayer({
+        id: "utah-mask",
+        type: "fill",
+        source: "utah-mask",
+        paint: { "fill-color": ReservoirViz.MASK_FILL }
+      });
+      map.addLayer({
+        id: "utah-outline",
+        type: "line",
+        source: "utah-outline",
+        paint: {
+          "line-color": ReservoirViz.MASK_LINE,
+          "line-width": 1.2,
+          "line-opacity": 0.9
+        }
+      });
+
+      // --- HUC6 watershed basins ---
       //
       // The USGS WBD query returns the 15 HUC6 basins that intersect Utah
       // as GeoJSON. A light fill and labeled boundary make the watershed

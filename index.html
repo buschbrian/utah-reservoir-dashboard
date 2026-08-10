@@ -121,15 +121,55 @@
       "esri/Map",
       "esri/views/MapView",
       "esri/Graphic",
-      "esri/layers/FeatureLayer"
-    ], function (EsriMap, MapView, Graphic, FeatureLayer) {
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer"
+    ], function (EsriMap, MapView, Graphic, FeatureLayer, GraphicsLayer) {
 
       // --- Base map + view ---
       const map = new EsriMap({ basemap: "gray-vector" });
       const basemapSelect = document.getElementById("basemapSelect");
       basemapSelect.addEventListener("change", () => { map.basemap = basemapSelect.value; });
 
-      // --- HUC6 watershed mask ---
+      // --- Utah mask ---
+      //
+      // One polygon covering the continent with a Utah-shaped hole in it,
+      // translucent, under everything else -- so Nevada and Wyoming stop
+      // competing with the state this dashboard is about. It matters more
+      // than it used to: the starting extent is now a zoom level wider, so
+      // there is far more out-of-state area on screen.
+      //
+      // Deliberately a dimming pass rather than a clip. Lake Powell reaches
+      // into Arizona and Meeks Cabin is in Wyoming, and the drainage areas
+      // this dashboard now publishes do not stop at the state line either.
+      //
+      // Added *before* the basin layer so the outlines draw on top of it:
+      // the mask says what the subject is, the basin lines say how the water
+      // is organized, and the second one has to stay readable through the
+      // first. A GraphicsLayer rather than a FeatureLayer because this is
+      // one static shape with no attributes, no popup and nothing to
+      // symbolize by.
+      const maskLayer = new GraphicsLayer({ title: "Outside Utah", listMode: "hide" });
+      maskLayer.add(new Graphic({
+        geometry: { type: "polygon", rings: ReservoirViz.utahMaskRings(),
+                    spatialReference: { wkid: 4326 } },
+        symbol: {
+          type: "simple-fill",
+          color: ReservoirViz.MASK_FILL,
+          outline: { color: [0, 0, 0, 0], width: 0 }
+        }
+      }));
+      maskLayer.add(new Graphic({
+        geometry: { type: "polyline", paths: [ReservoirViz.UTAH_RING],
+                    spatialReference: { wkid: 4326 } },
+        symbol: {
+          type: "simple-line",
+          color: ReservoirViz.MASK_LINE,
+          width: 1.2
+        }
+      }));
+      map.add(maskLayer);
+
+      // --- HUC6 watershed basins ---
       //
       // The same USGS WBD HUC6 service used for the MapLibre GeoJSON layer,
       // filtered to basins whose `states` field includes Utah. This keeps
@@ -481,7 +521,11 @@
               // can't quietly satisfy a test that meant "the data drew".
               layers: [maxLayer, staleLayer, currentLayer]
                 .filter((l) => map.layers.includes(l)).length,
-              masked: map.layers.includes(hucLayer),
+              // Two different layers, deliberately reported separately.
+              // These both used to read `hucLayer`, so the smoke test made
+              // two assertions about one fact -- which is how the Utah mask
+              // came to be deleted without a single test noticing.
+              masked: map.layers.includes(maskLayer),
               huc6: map.layers.includes(hucLayer)
             };
           });
