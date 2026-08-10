@@ -22,7 +22,7 @@
   <!-- Colors, popup markup, the 12-month trend chart and the legend come
        from the same module the ArcGIS version uses, so any difference you
        see between the two pages is the rendering engine and nothing else. -->
-  <script src="../shared/reservoir-viz.js?v=20260809-2"></script>
+  <script src="../shared/reservoir-viz.js?v=20260810-1"></script>
 
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
@@ -44,6 +44,12 @@
     }
     .map-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 11px; }
     .map-links a { color: #0079c1; }
+    /* The month slider's note is a <p> inside this card, so `#titleDiv p`
+       above outranks the shared module's own rule for it on specificity
+       alone, whatever the order the two stylesheets land in. Restated here
+       at the same weight rather than fought over in the shared file, which
+       has no idea what card either page drops the slider into. */
+    #titleDiv .rv-month-note { font-size: 10.5px; color: #777; margin: 4px 0 0; }
     #titleDiv .disclaimer {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 10.5px; color: #777; line-height: 1.4;
@@ -68,7 +74,12 @@
       .map-links { margin-top: 5px; }
       #legendDiv { bottom: 8px; left: 8px; max-width: 160px; padding: 7px 9px; font-size: 11px; }
       #legendDiv .rv-legend-note { display: none; }
-      .maplibregl-ctrl-top-right { top: 150px; }
+      /* The title card is full width on a phone, so the zoom control has to
+         start below it. The offset is set from the card's measured height
+         once the month slider is inside it -- the old fixed 150px was
+         already a guess about a card whose height depends on how many
+         reservoirs have late data, and the slider made the guess wrong. */
+      .maplibregl-ctrl-top-right { top: var(--rv-card-bottom, 150px); }
       .maplibregl-popup { max-width: calc(100vw - 16px) !important; }
       .maplibregl-popup-content { max-height: 65vh; padding: 9px 10px; }
     }
@@ -127,15 +138,21 @@
     });
 
     const mapBounds = ReservoirViz.MAP_BOUNDS || [[-117.55, 33.90], [-105.55, 45.10]];
+
+    // On a phone the title card covers the top of the map, so the fit has to
+    // hold room for it. Measured from the card once it exists rather than
+    // hard-coded, and re-applied after the month slider is added to it.
+    function fitPadding() {
+      if (window.innerWidth > 640) return 24;
+      const card = document.getElementById("titleDiv");
+      return { top: (card ? card.offsetHeight : 140) + 16, right: 8, bottom: 8, left: 8 };
+    }
+
     const map = new maplibregl.Map({
       container: "map",
       style: CARTO_STYLES[basemapKey],
       bounds: mapBounds,
-      fitBoundsOptions: {
-        padding: window.innerWidth <= 640
-          ? { top: 150, right: 8, bottom: 8, left: 8 }
-          : 24
-      }
+      fitBoundsOptions: { padding: fitPadding() }
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -147,6 +164,18 @@
     // name -- the same pattern the ArcGIS version uses for the same
     // underlying reason (its FeatureLayer fields are scalar-only).
     let byName = new Map();
+
+    // The month the slider is on, or null for today, read by the popup.
+    let selectedMonth = null;
+
+    // Matches the ArcGIS page's sentinel exactly. A paint expression cannot
+    // branch on a missing property and still return a radius and a color for
+    // it, but it can branch on a number no real percentage reaches -- so
+    // "this month has no reading" becomes one comparison in each of the two
+    // paint properties instead of a second layer.
+    const NO_DATA = -1;
+    const toPct = (value) =>
+      (value === null || value === undefined || isNaN(value)) ? NO_DATA : value;
 
     /*
      * A dashed ring for stale reservoirs, as a generated sprite.
@@ -235,7 +264,19 @@
             "Without Lake Powell: " + ReservoirViz.fmtPct(statewide.pct_full) +
             " full for " + statewide.count + " reservoirs in this dashboard";
 
-          const geojson = {
+          const months = ReservoirViz.monthKeys(reservoirs);
+
+          /* One collection per position of the month slider, rebuilt on
+           * demand. This is where the two engines genuinely differ: the
+           * ArcGIS page keeps every month as its own field and swaps which
+           * field the renderer reads, because a client-side FeatureLayer's
+           * schema is fixed and its features are not cheap to rewrite.
+           * MapLibre has no schema to satisfy and setData is its normal way
+           * to change anything, so rewriting one property on 53 points is
+           * both simpler and the idiomatic answer here. Same numbers, same
+           * colors, two engines doing what each is good at -- which is what
+           * this page exists to show. */
+          const collectionFor = (month) => ({
             type: "FeatureCollection",
             features: reservoirs.map((r) => ({
               type: "Feature",
@@ -250,13 +291,16 @@
                 // where NID has it, observed record max where it doesn't,
                 // resolved once here so the paint expressions stay simple.
                 size_basis_af: r.capacity_af || r.record_max_af,
-                fill_pct: ReservoirViz.headlinePct(r),
+                fill_pct: toPct(month === null
+                  ? ReservoirViz.headlinePct(r)
+                  : ReservoirViz.monthPct(r, month)),
                 is_stale: !!r.is_stale
               }
             }))
-          };
+          });
 
-          map.addSource("reservoirs", { type: "geojson", data: geojson });
+          // Today, so the page opens exactly as it did before the slider.
+          map.addSource("reservoirs", { type: "geojson", data: collectionFor(null) });
 
           // The ring is sized by absolute capacity, sqrt-scaled to
           // compress Lake Powell down to the smallest reservoirs into a
@@ -339,23 +383,64 @@
             type: "circle",
             source: "reservoirs",
             paint: {
+              // A reservoir with no reading for the selected month is a
+              // small grey dot, not an empty one: zero and unknown look
+              // identical once a circle shrinks to nothing, and on a drought
+              // map "empty" is the most consequential thing a dot can say.
+              // The size is below the smallest ring (4) so it never reads as
+              // a real fill.
               "circle-radius": [
-                "*",
-                ringRadiusExpr,
-                ["sqrt", ["/", ["get", "fill_pct"], 100]]
+                "case",
+                ["<", ["get", "fill_pct"], 0], 3,
+                ["*", ringRadiusExpr, ["sqrt", ["/", ["get", "fill_pct"], 100]]]
               ],
               // Built from the shared class table rather than hand-written
               // step stops, so this can't drift from the ArcGIS renderer,
               // the legend, or the chart bars the way three hand-kept
-              // copies of the thresholds did.
-              "circle-color": ReservoirViz.CLASSES.reduce(
-                (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, cls.color]),
-                ["step", ["get", "fill_pct"], ReservoirViz.CLASSES[0].color]
-              ),
+              // copies of the thresholds did. The one color outside that
+              // table is the shared module's own grey for unknown values.
+              "circle-color": [
+                "case",
+                ["<", ["get", "fill_pct"], 0], ReservoirViz.STALE_COLOR,
+                ReservoirViz.CLASSES.reduce(
+                  (expr, cls, i) => i === 0 ? expr : expr.concat([cls.min, cls.color]),
+                  ["step", ["get", "fill_pct"], ReservoirViz.CLASSES[0].color]
+                )
+              ],
               "circle-stroke-color": "rgba(0,0,0,0.4)",
               "circle-stroke-width": 0.75
             }
           });
+
+          // --- Month slider ---
+          //
+          // The same shared control the ArcGIS page builds, with the same
+          // words and the same keyboard behavior; only the three lines
+          // inside onChange are engine-specific.
+          const slider = ReservoirViz.createMonthSlider({
+            months: months,
+            missingCount: (month) => ReservoirViz.monthMissingCount(reservoirs, month),
+            onChange: (month) => {
+              selectedMonth = month;
+              map.getSource("reservoirs").setData(collectionFor(month));
+              // The dashed ring means "this reservoir's newest reading is
+              // old", which is a fact about today and says nothing about
+              // last February. Left on, it would read as a claim about the
+              // month on screen.
+              map.setLayoutProperty("stale-ring", "visibility",
+                month === null ? "visible" : "none");
+              if (window.__dashboardReady) window.__dashboardReady.month = month;
+            }
+          });
+          const titleDiv = document.getElementById("titleDiv");
+          titleDiv.insertBefore(slider.element, titleDiv.querySelector(".map-links"));
+
+          // The card is taller now. Both the zoom control's offset (a CSS
+          // variable read by the phone rule in the stylesheet) and the map's
+          // own fit have to follow it.
+          document.documentElement.style.setProperty(
+            "--rv-card-bottom", (titleDiv.offsetHeight + 16) + "px");
+          map.fitBounds(mapBounds, { padding: fitPadding(), duration: 0 });
 
           // Popup only on the front-most (current-storage) layer -- the
           // same lesson as the ArcGIS version: binding it to both layers
@@ -367,7 +452,9 @@
             if (!record) return;
             new maplibregl.Popup({ maxWidth: "330px" })
               .setLngLat(e.features[0].geometry.coordinates)
-              .setHTML(ReservoirViz.popupHTML(record, { includeTitle: true, width: 300 }))
+              .setHTML(ReservoirViz.popupHTML(record, {
+                includeTitle: true, width: 300, month: selectedMonth
+              }))
               .addTo(map);
           });
           map.on("mouseenter", "current-circle", () => {
@@ -386,7 +473,13 @@
             layers: ["max-circle", "stale-ring", "current-circle"]
               .filter((id) => map.getLayer(id)).length,
             masked: !!map.getLayer("huc6-mask"),
-            huc6: !!map.getLayer("huc6-outline")
+            huc6: !!map.getLayer("huc6-outline"),
+            // The month slider, for a test that wants to prove it moves:
+            // `months` is how many positions it offers besides today, and
+            // `month` is the one on screen -- null while the map shows the
+            // newest reading, which is how the page opens.
+            months: months.length,
+            month: slider.month()
           };
         })
         .catch((err) => {

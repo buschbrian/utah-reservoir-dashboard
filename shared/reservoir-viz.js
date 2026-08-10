@@ -320,6 +320,242 @@
     return months.filter(function (m) { return m.reservoirs === full; }).slice(-12);
   }
 
+  // --- Month history ---------------------------------------------------
+  //
+  // The maps answer "how is this reservoir doing today". These answer "how
+  // did it get here", which is the question a drought dashboard is really
+  // for: one dry dot tells you nothing about whether the state is draining
+  // or refilling, and twelve of them in sequence tell you everything.
+  //
+  // Kept here rather than in the pages for the usual reason -- the two map
+  // pages exist to compare rendering engines, so the *data* behind the two
+  // sliders has to come from one place or the comparison starts measuring
+  // arithmetic drift instead.
+
+  /* The months the slider offers, oldest first.
+   *
+   * The union of every reservoir's own window rather than the intersection,
+   * which is a deliberate reversal of what statewideMonthly() does two
+   * hundred lines up. That function sums reservoirs together, so a month
+   * that only half of them reported would render as a statewide collapse
+   * that is really a reporting gap -- it has to drop those months. The
+   * slider draws each reservoir separately and has a grey for "no reading",
+   * so it can afford to show the newest month honestly instead of hiding
+   * it. That matters here: the reservoirs on a monthly schedule publish a
+   * month only after it ends, so the intersection would always be eleven
+   * months and would always be one month behind.
+   */
+  function monthKeys(reservoirs) {
+    var seen = {};
+    (reservoirs || []).forEach(function (r) {
+      (r.monthly || []).forEach(function (m) {
+        if (m && m.month) seen[m.month] = true;
+      });
+    });
+    return Object.keys(seen).sort().slice(-12);
+  }
+
+  function monthEntry(r, month) {
+    var months = r.monthly || [];
+    for (var i = 0; i < months.length; i++) {
+      if (months[i] && months[i].month === month) return months[i];
+    }
+    return null;
+  }
+
+  /* Percent full for one month, against the same denominator the map's
+   * colors already use -- capacity where the National Inventory of Dams has
+   * it, highest recorded storage where it does not. Recomputed rather than
+   * read off a field because the file only carries today's percentages, and
+   * using a different denominator for the past would make the slider's
+   * colors mean something subtly different from the colors it starts on. */
+  function monthPct(r, month) {
+    var entry = monthEntry(r, month);
+    if (!entry || entry.mean_af === null || entry.mean_af === undefined) return null;
+    var basis = sizeBasis(r);
+    if (!basis) return null;
+    return (entry.mean_af / basis) * 100;
+  }
+
+  function monthMissingCount(reservoirs, month) {
+    return (reservoirs || []).filter(function (r) {
+      var pct = monthPct(r, month);
+      return pct === null || isNaN(pct);
+    }).length;
+  }
+
+  // --- Month slider control --------------------------------------------
+  //
+  // One factory for both maps: identical markup, identical wording,
+  // identical keyboard behavior, and only the redraw differs (an ArcGIS
+  // renderer swap on one page, a GeoJSON source update on the other). The
+  // page hands in the months and a callback and gets a DOM node back.
+  //
+  // The rightmost position is "Today", not the newest month, and it is
+  // where the control starts. Those are two different claims -- a month is
+  // an average over up to 31 days, today is one reading -- and the page has
+  // always opened on today, so today keeps a position of its own instead of
+  // being approximated by the last month. It also gives the keyboard an
+  // exact way home: End on the slider, as well as the Today button.
+
+  var PLAY_INTERVAL_MS = 1000;
+
+  function createMonthSlider(opts) {
+    opts = opts || {};
+    var months = opts.months || [];
+    var last = months.length - 1;
+    var todayIndex = months.length;
+    var onChange = opts.onChange || function () {};
+    var missingCount = opts.missingCount || function () { return 0; };
+
+    var root = document.createElement("div");
+    root.className = "rv-timeline";
+    root.id = "monthSlider";
+    root.setAttribute("role", "group");
+    root.setAttribute("aria-label", "Month control");
+
+    var head = document.createElement("div");
+    head.className = "rv-timeline-head";
+
+    // A real <button>, not a clickable div: it has to be reachable by Tab
+    // and operable by Space and Enter without any code from us.
+    var play = document.createElement("button");
+    play.type = "button";
+    play.id = "monthPlay";
+    play.setAttribute("aria-pressed", "false");
+    play.textContent = "Play";
+
+    // <output> is announced politely on change by default, so the month
+    // name reaches a screen reader as the slider moves.
+    var label = document.createElement("output");
+    label.className = "rv-month-label";
+    label.id = "monthLabel";
+    label.setAttribute("for", "monthRange");
+
+    var today = document.createElement("button");
+    today.type = "button";
+    today.id = "monthToday";
+    today.textContent = "Today";
+
+    head.appendChild(play);
+    head.appendChild(label);
+    head.appendChild(today);
+
+    // A native range input, which brings arrow keys, Home and End with it.
+    var range = document.createElement("input");
+    range.type = "range";
+    range.className = "rv-month-range";
+    range.id = "monthRange";
+    range.min = "0";
+    range.max = String(todayIndex);
+    range.step = "1";
+    range.value = String(todayIndex);
+    range.setAttribute("aria-label", "Month to show. The last position is today.");
+
+    var note = document.createElement("p");
+    note.className = "rv-month-note";
+
+    root.appendChild(head);
+    root.appendChild(range);
+    root.appendChild(note);
+
+    var index = todayIndex;
+    var timer = null;
+    // matchMedia is guarded because this file is also evaluated outside a
+    // browser by the unit-test harness.
+    var motion = global.matchMedia
+      ? global.matchMedia("(prefers-reduced-motion: reduce)") : null;
+
+    function reducedMotion() { return !!(motion && motion.matches); }
+
+    function selected() { return index === todayIndex ? null : months[index]; }
+
+    function describe() {
+      var month = selected();
+      label.textContent = month === null ? "Today" : fmtMonth(month);
+      var lines = [];
+      if (month === null) {
+        lines.push("The map shows the newest reading for each reservoir.");
+      } else {
+        lines.push("The map shows the average storage for " + fmtMonth(month) + ".");
+        // Named, not silently absent: a reservoir with no reading for the
+        // month is drawn grey, and a grey circle that nothing explains
+        // reads as an error rather than as missing data.
+        var missing = missingCount(month);
+        if (missing) {
+          lines.push(missing + (missing === 1 ? " reservoir has" : " reservoirs have") +
+            " no data for this month. " +
+            (missing === 1 ? "It shows as a small gray circle."
+                           : "They show as small gray circles."));
+        }
+      }
+      if (reducedMotion()) {
+        lines.push("Automatic play is off. Your device asks for less movement.");
+      }
+      note.textContent = lines.join(" ");
+    }
+
+    function apply(next) {
+      index = Math.max(0, Math.min(todayIndex, next));
+      if (String(index) !== range.value) range.value = String(index);
+      describe();
+      onChange(selected(), index);
+    }
+
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+      play.setAttribute("aria-pressed", "false");
+      play.textContent = "Play";
+    }
+
+    // Loops through the twelve months only. Today is not a frame of the
+    // animation: it is the place the reader comes back to, and dropping it
+    // into the loop would make the map jump between an average and a single
+    // reading once a cycle for no reason a reader could name.
+    function step() { apply(index >= last ? 0 : index + 1); }
+
+    function start() {
+      if (reducedMotion() || timer) return;
+      step();
+      timer = setInterval(step, PLAY_INTERVAL_MS);
+      play.setAttribute("aria-pressed", "true");
+      play.textContent = "Pause";
+    }
+
+    play.addEventListener("click", function () { timer ? stop() : start(); });
+    today.addEventListener("click", function () { stop(); apply(todayIndex); });
+    // Any hand movement of the slider takes over from the animation --
+    // otherwise the next tick yanks the map off the month just chosen.
+    range.addEventListener("input", function () {
+      stop();
+      apply(parseInt(range.value, 10));
+    });
+
+    /* The play button stays in the DOM when motion is reduced, disabled
+     * rather than removed: a control that vanishes depending on a system
+     * setting is harder to explain than one that is visibly off, and the
+     * note says why. The listener matters because the setting can change
+     * while the page is open. */
+    function syncMotion() {
+      if (reducedMotion()) stop();
+      play.disabled = reducedMotion();
+      describe();
+    }
+    if (motion) {
+      if (motion.addEventListener) motion.addEventListener("change", syncMotion);
+      else if (motion.addListener) motion.addListener(syncMotion);
+    }
+    syncMotion();
+
+    return {
+      element: root,
+      months: months,
+      month: selected,
+      setMonth: apply,
+      stop: stop
+    };
+  }
+
   // --- Formatting ----------------------------------------------------
 
   function fmtAf(v) {
@@ -614,6 +850,24 @@
         " The values below are for that date. They are not values for today.</p>";
     }
 
+    /* When the map is showing a past month, the popup below it is still
+     * about today -- the record only carries one set of current numbers.
+     * Rather than rewrite every row for the selected month, the popup says
+     * plainly which number the dot on the map is, and leaves the rest
+     * labelled as the newest reading. The 12-month table further down
+     * already holds every other month's value. */
+    if (opts.month) {
+      var monthValue = monthEntry(r, opts.month);
+      var monthShare = monthPct(r, opts.month);
+      var monthText = (monthValue && monthValue.mean_af !== null &&
+                       monthValue.mean_af !== undefined)
+        ? fmtAf(monthValue.mean_af) + " acre-feet" +
+          (monthShare === null ? "" : " (" + fmtPct(monthShare) + " of the full level)")
+        : "no data";
+      html += "<p class='rv-month-callout'>" + esc(fmtMonth(opts.month)) + ": " +
+        esc(monthText) + ". The values below are the newest reading.</p>";
+    }
+
     html += "<p class='rv-status'>" + esc(statusLine(r)) + "</p>";
 
     html += "<div class='rv-stats'>" +
@@ -665,10 +919,13 @@
       "<div class='rv-legend-scale'>" + swatches + "</div>" +
       "<span class='rv-legend-row'><span class='rv-dot rv-dot-stale'></span>" +
       "Dashed circle: data is late</span>" +
+      "<span class='rv-legend-row'><span class='rv-dot' style='background:" + STALE_COLOR +
+      "'></span>Small gray circle: no data</span>" +
       "<p class='rv-legend-note'>The filled circle shows current storage. The gray circle shows " +
       "the full level. A large gap means that more water is missing. Where capacity data is not " +
       "available, the gray circle shows the highest recorded storage. Select a reservoir to see " +
-      "its storage during the last 12 months.</p>" +
+      "its storage during the last 12 months. Move the month slider to see the storage for each " +
+      "of the last 12 months. The gray circle does not change with the month.</p>" +
       "<p class='rv-legend-note'>The shaded lines show large drainage areas from the U.S. Geological Survey.</p>";
   }
 
@@ -712,6 +969,22 @@
   var CSS = [
     ".rv-title{font-size:15px;margin:0 0 6px;}",
     ".rv-status{font-weight:600;font-size:13px;margin:0 0 8px;line-height:1.35;}",
+    ".rv-month-callout{background:#eef4fb;border-left:3px solid #31527a;color:#1f3350;",
+      "font-size:11.5px;line-height:1.4;margin:0 0 8px;padding:6px 8px;}",
+    /* The slider sits inside the title card on both pages, which is the one
+       place on either map that cannot collide with the zoom control in the
+       top right or the legend in the bottom left. Everything below is
+       width-safe: the range fills its container and the head row wraps, so
+       a 360px phone gets no horizontal scroll. */
+    ".rv-timeline{margin-top:8px;padding-top:8px;border-top:1px solid #e3e8e6;}",
+    ".rv-timeline-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}",
+    ".rv-timeline button{font:inherit;font-size:11px;line-height:1.2;padding:3px 9px;",
+      "border:1px solid #c6d1ce;border-radius:4px;background:#fbfcfb;color:#263746;",
+      "cursor:pointer;}",
+    ".rv-timeline button:disabled{opacity:.55;cursor:default;}",
+    ".rv-month-label{font-size:12px;font-weight:600;color:#263746;flex:1 1 auto;}",
+    ".rv-month-range{display:block;width:100%;box-sizing:border-box;margin:7px 0 0;}",
+    ".rv-month-note{font-size:10.5px;color:#777;margin:4px 0 0;line-height:1.35;}",
     ".rv-stale{background:#fff7ed;border-left:3px solid " + STALE_ACCENT + ";",
       "color:#7c2d12;font-size:11.5px;line-height:1.4;margin:0 0 8px;padding:6px 8px;}",
     ".rv-stats{display:grid;grid-template-columns:1fr;gap:2px;margin-bottom:10px;}",
@@ -778,6 +1051,11 @@
     utahOutlineGeoJSON: utahOutlineGeoJSON,
     statewideSummary: statewideSummary,
     statewideMonthly: statewideMonthly,
+    monthKeys: monthKeys,
+    monthEntry: monthEntry,
+    monthPct: monthPct,
+    monthMissingCount: monthMissingCount,
+    createMonthSlider: createMonthSlider,
     sizeBasis: sizeBasis,
     colorFor: colorFor,
     headlinePct: headlinePct,
