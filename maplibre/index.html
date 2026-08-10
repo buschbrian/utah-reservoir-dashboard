@@ -402,6 +402,10 @@
       ReservoirViz.load("../reservoirs.json")
         .then((data) => {
           const reservoirs = data.reservoirs;
+          // Hover events carry only the GeoJSON properties. Keep the complete
+          // validated record lookup beside the array that owns it so the hover
+          // card can show freshness and source fields without a linear scan.
+          const byName = new Map(reservoirs.map((record) => [record.name, record]));
 
           document.getElementById("freshness").innerHTML =
             ReservoirViz.freshnessHTML(data);

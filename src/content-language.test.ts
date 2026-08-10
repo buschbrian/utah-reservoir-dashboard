@@ -54,3 +54,14 @@ describe("user text", () => {
     }
   });
 });
+
+describe("production page runtime references", () => {
+  it("builds the MapLibre hover lookup before the pointer handler uses it", async () => {
+    const source = await readFile(resolve(root, "maplibre/index.html"), "utf8");
+    const declaration = source.indexOf("const byName = new Map(");
+    const hoverUse = source.indexOf("hoverCard.show(byName.get(name)");
+
+    expect(declaration).toBeGreaterThanOrEqual(0);
+    expect(hoverUse).toBeGreaterThan(declaration);
+  });
+});
