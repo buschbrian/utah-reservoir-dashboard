@@ -43,6 +43,8 @@ rankings, tables, CSV export, and final production consolidation.
 
 ### P2.2 — Shell skeleton and states
 
+**Status:** Complete on 2026-08-10.
+
 **Work**
 
 - Add the Calcite shell, navigation, start panel, end panel, and map region.
@@ -69,6 +71,11 @@ transitions.
 - Loading and errors are visible text, not console-only failures.
 - No tested width scrolls horizontally or overlaps map controls.
 - Existing production smoke tests remain green.
+
+**Implementation note:** The shell vendors only the Calcite icons and English
+messages it uses (under 200 KiB), so privacy tools that block the public asset
+CDN do not leave navigation controls blank. Browser smoke automation and the
+real-entry bundle budget remain P2.4 work.
 
 ### P2.3 — Current map parity
 

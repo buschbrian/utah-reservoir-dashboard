@@ -14,9 +14,10 @@ The same data is presented in three production views:
 | [MapLibre map](maplibre/) | Open-source parity view built with MapLibre GL JS and CARTO. |
 | [Statewide overview](explore.html) | Totals, a 12-month chart, drainage areas, ranking, table, CSV export, and sparklines without a map SDK. |
 
-The repository also publishes [modern.html](modern.html), a development
-workbench for the typed ArcGIS 5.1 and Calcite 5 modernization. It is not yet a
-replacement for the three production views.
+The repository also publishes [modern.html](modern.html), the responsive
+ArcGIS 5.1 and Calcite 5 modernization preview. Its shell, explicit failure
+states, and persistent theme are in place; reservoir map layers and selection
+arrive in P2.3. It is not yet a replacement for the three production views.
 
 ## Use the dashboard
 
@@ -164,7 +165,7 @@ while a typed, component-based replacement is built alongside them.
 | `index.html` | CDN-loaded ArcGIS 4.34 production map; copied into `dist/`. |
 | `maplibre/index.html` | CDN-loaded MapLibre production map; copied into `dist/`. |
 | `explore.html` | Vite entry using Observable Plot. |
-| `modern.html` + `src/` | Typed modernization workbench and application modules. |
+| `modern.html` + `src/` | Responsive Calcite modernization shell and typed application modules. |
 | `shared/reservoir-viz.js` | Shared behavior and markup for the three production views. |
 | `refresh_reservoirs.py` | Daily storage pipeline and metric calculation. |
 | `huc.py` | Drainage-area geometry, assignment, and pipeline rollups. |

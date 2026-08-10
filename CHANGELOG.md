@@ -7,6 +7,10 @@ and is not listed here.
 
 ### Added
 
+- **The Phase 2 application shell.** `modern.html` now uses the ArcGIS 5.1 and
+  Calcite 5 components with responsive summary and detail surfaces, persisted
+  system/light/dark themes, anonymous-only map authentication, and visible
+  loading, empty, data-error, map-error, and unsupported-browser states.
 - **Hover reading on both maps.** Pointing at a reservoir shows its name,
   percent full and reading date without a click.
 - **Filter dimming.** A percent-full class filter and a "show only late data"
@@ -48,6 +52,9 @@ and is not listed here.
 
 ### Fixed
 
+- **MapLibre hover no longer throws.** Its pointer handler referenced a
+  reservoir lookup that the page never constructed; a regression test now
+  keeps the lookup and handler together.
 - **Cross-border reservoirs now count as Utah waterbodies.** Bear Lake and
   Meeks Cabin Reservoir extend into Utah even though their published points
   are in Idaho and Wyoming. The Utah total now uses reviewed USGS waterbody

@@ -1,21 +1,174 @@
 :root {
-  color: #17212b;
-  background: #edf2f5;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --app-accent: #176b87;
+  --app-border: #c7d3da;
+  --app-muted: #52636e;
+  --app-surface: #f7f9fa;
+  --app-surface-raised: #ffffff;
+  --app-text: #17212b;
+  font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --app-accent: #7fc7dd;
+  --app-border: #4b5962;
+  --app-muted: #bdc8ce;
+  --app-surface: #202a31;
+  --app-surface-raised: #28343c;
+  --app-text: #f2f5f6;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; }
-#app { max-width: 980px; margin: 0 auto; padding: 48px 24px; }
-.eyebrow { color: #517087; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-h1 { max-width: 700px; margin: 8px 0; font-size: clamp(30px, 5vw, 54px); line-height: 1; letter-spacing: -.04em; }
-.intro { max-width: 700px; color: #52616d; line-height: 1.6; }
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 28px 0; }
-.metric { min-height: 128px; padding: 18px; border: 1px solid #d4dee5; border-radius: 14px; background: rgba(255,255,255,.9); box-shadow: 0 8px 24px rgba(35,52,66,.06); }
-.metric span { display: block; color: #61717c; font-size: 12px; }
-.metric strong { display: block; margin-top: 8px; font-size: 30px; font-variant-numeric: tabular-nums; }
-.metric small { display: block; margin-top: 7px; color: #61717c; line-height: 1.4; }
-.status { padding: 14px 16px; border-left: 4px solid #2b7c8c; background: #fff; line-height: 1.5; }
-.error { border-color: #b42318; color: #7a271a; }
-a { color: #176b87; }
-@media (max-width: 520px) { #app { padding: 28px 16px; } }
+html, body, #app, #dashboard-shell { height: 100%; }
+html, body { margin: 0; overflow: hidden; }
+body { color: var(--app-text); background: var(--app-surface); }
+a { color: var(--app-accent); }
+
+.initial-loading,
+.unsupported {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.unsupported h1 { margin: .5rem 0 1rem; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.05; }
+.unsupported p { line-height: 1.6; }
+
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  inset-block-start: .5rem;
+  inset-inline-start: .5rem;
+  padding: .75rem 1rem;
+  color: #fff;
+  background: #0b4f65;
+  transform: translateY(-150%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+calcite-navigation { border-block-end: 1px solid var(--app-border); }
+calcite-shell-panel { --calcite-shell-panel-width: 21rem; }
+
+.map-stage,
+#map-host,
+arcgis-map { width: 100%; height: 100%; min-width: 0; }
+.map-stage { position: relative; overflow: hidden; background: #dfe8ec; }
+
+.map-state {
+  position: absolute;
+  z-index: 2;
+  inset: 50% auto auto 50%;
+  width: min(24rem, calc(100% - 2rem));
+  padding: 1rem;
+  text-align: center;
+  color: var(--app-text);
+  background: var(--app-surface-raised);
+  border: 1px solid var(--app-border);
+  transform: translate(-50%, -50%);
+}
+.map-state calcite-loader { display: block; margin-block-end: .75rem; }
+.map-state strong { font-size: 1rem; }
+.map-state p { margin: .4rem 0 0; color: var(--app-muted); line-height: 1.45; }
+.map-state-error { border-inline-start: .25rem solid #b42318; }
+
+.map-alternative {
+  position: absolute;
+  z-index: 3;
+  inset-inline-end: .75rem;
+  inset-block-end: 2rem;
+  padding: .55rem .75rem;
+  color: #12333e;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid #9eafb8;
+  font-size: .875rem;
+  font-weight: 600;
+}
+.map-alternative:focus-visible { outline: .2rem solid #00619b; outline-offset: .15rem; }
+
+#map-host > calcite-notice {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: .75rem;
+  inset-inline: 50% auto;
+  width: min(30rem, calc(100% - 5rem));
+  transform: translateX(-50%);
+}
+
+.panel-copy { padding: 1rem; }
+.eyebrow {
+  margin: 0 0 .35rem;
+  color: var(--app-muted);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.scope-copy { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.35; }
+
+.data-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .25rem .625rem;
+  align-items: center;
+  margin-block: 1rem;
+  padding: .75rem;
+  border-inline-start: .25rem solid var(--app-accent);
+  background: var(--app-surface);
+}
+.data-state calcite-loader { grid-row: 1 / 3; }
+.data-state strong,
+.data-state span { grid-column: 2; }
+.data-state span { color: var(--app-muted); font-size: .8125rem; line-height: 1.35; }
+.data-state[role="alert"] { border-inline-start-color: #b42318; }
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-block: 1px solid var(--app-border);
+}
+.summary[hidden] { display: none; }
+.summary-stat { min-width: 0; padding: 1rem .5rem; }
+.summary-stat + .summary-stat { border-inline-start: 1px solid var(--app-border); }
+.summary-stat span,
+.summary-stat small,
+.summary-stat strong { display: block; }
+.summary-stat span { color: var(--app-muted); font-size: .75rem; }
+.summary-stat strong { margin-block: .25rem; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.summary-stat small { color: var(--app-muted); font-size: .75rem; line-height: 1.35; }
+
+.coming-soon { margin-block-start: 1rem; }
+.coming-soon h3,
+.detail-placeholder h2 { margin: 0; font-size: 1rem; }
+.coming-soon p,
+.detail-placeholder p { color: var(--app-muted); font-size: .875rem; line-height: 1.5; }
+
+#start-sheet,
+#detail-sheet { display: none; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 47.99rem) {
+  calcite-shell-panel { display: none; }
+  #start-sheet,
+  #detail-sheet { display: block; --calcite-sheet-max-height: 70vh; }
+  calcite-navigation-logo { max-width: 12rem; }
+  .map-alternative { inset-inline: .75rem auto; inset-block-end: 2.25rem; }
+}
+
+@media (max-width: 22.5rem) {
+  calcite-navigation-logo { max-width: 9rem; }
+  .map-alternative { max-width: calc(100% - 4.5rem); font-size: .75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; }
+}
