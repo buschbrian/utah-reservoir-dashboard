@@ -307,7 +307,8 @@ changes yet.
 - **`scripts/fetch-huc6.mjs`** publishes the units as versioned GeoJSON, and
   fails rather than writing if the service stops returning exactly 15 — the
   `states` filter and the layer numbering are both things that can change
-  without notice. Verified against the live service: the 15 units are correct.
+  without notice. Verified against the live service. (Fourteen since ADR-010; fifteen when
+  this was written.)
 - **Not committed yet: the boundary file.** 1.7 MiB at metre precision. The
   likely answer is two files, full precision for the assignment and a
   generalized copy for the map, decided with both sizes measured. Until then
@@ -347,8 +348,8 @@ Three decisions worth keeping:
 and the shipped page are the same code) and renders one capacity-weighted bar
 per drainage area. Selecting an area filters the ranking, table and cards
 through the existing `visibleRows()`, so it is a filter beside `q` and
-`staleOnly` rather than a second mode. Eleven of the fifteen units have
-tracked reservoirs; the four empty ones are where the connected out-of-state
+`staleOnly` rather than a second mode. Eleven of the fourteen units in scope have tracked
+reservoirs; the three empty ones are where the connected out-of-state
 reservoirs would land. The browser test asserts the filter actually filters --
 a section that renders but filters nothing looks correct in a screenshot.
 
@@ -516,25 +517,25 @@ and Jordan return zero candidates, which is the reassuring half — those are
 fully covered, and it is what tells us the matching is working rather than
 just permissive.
 
-**Decisions:** Upper Snake is now excluded by ADR-010; capacity remains the bottleneck.
+**One decision taken, one still open:**
 
-**Two decisions this forces, neither taken yet:**
-
-1. **Upper Snake is thirteen Idaho reservoirs.** The unit qualifies under
-   ADR-009 — it touches Utah — but American Falls and Island Park are Snake
-   River sites with no bearing on Utah's water supply, and adding them would
-   make "Utah Reservoir Drought Dashboard" a harder claim to defend. The rule
-   is right in the Colorado basin and awkward here. Worth an exception, or a
-   second rule about the Great Basin and Colorado systems.
+1. **Upper Snake is excluded — decided 2026-08-10.**
+   [ADR-010](docs/decisions/ADR-010-colorado-and-great-basin-systems-only.md)
+   supersedes ADR-009: a drainage area must touch Utah *and* belong to the
+   Colorado River or Great Basin systems (regions 14, 15, 16). Upper Snake
+   clips Utah's northern edge and drains to the Columbia, so its thirteen
+   Idaho reservoirs are out of scope. **Fourteen units, and no published
+   number changed** — it never held a tracked reservoir. 34 candidates remain,
+   all Colorado and Great Basin. Bear River is region 16 and unaffected.
 2. **Capacity is still the bottleneck.** AWDB publishes none, so each of the
-   47 needs an NID match that survives the observed-storage check — the same
+   34 needs an NID match that survives the observed-storage check — the same
    check Fontenelle only just passed. Expect attrition, and expect it to be
    worst for the small Colorado sites.
 
 ### 1.6c The Colorado and Wyoming inventory
 
 ADR-009 keeps the intersect-Utah rule, so this is not "add Colorado". It is:
-**which sites inside the fifteen units are we missing?**
+**which sites inside the fourteen units are we missing?**
 
 - Start from the 85 Colorado and 20 Wyoming AWDB storage stations, assign each
   by point-in-polygon against the committed units, and keep the ones that land
@@ -599,7 +600,7 @@ committed at 0.005. 0.01 also loses nothing today and was not taken — at
 added near a divide could quietly flip; 146 KiB buys a real margin.
 
 `tests/test_huc.py` locks all of this in against the committed files, with no
-network: the 15 units by code and name, every reservoir landing in exactly
+network: the units by code and name, every reservoir landing in exactly
 one unit, ten hand-checkable assignments (Strawberry in Lower Green rather
 than Jordan, Bear Lake in Lower Bear, Meeks Cabin in Upper Green from
 Wyoming), the 2 km boundary margin the generalization was chosen against, and
