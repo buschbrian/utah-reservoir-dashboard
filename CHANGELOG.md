@@ -7,6 +7,15 @@ and is not listed here.
 
 ### Added
 
+- **Reservoirs on the Phase 2 shell.** `modern.html` now draws every reservoir
+  in the connected scope from the committed data, over the Utah mask and the
+  drainage-area outlines, with the same class colours and the same size basis
+  the production maps use. Selecting one — by pointer on the map, or from a
+  focusable list of every reservoir in the storage summary — gives its name,
+  percent full, what that percentage is measured against, stored volume,
+  reading date, measuring agency and drainage area, and says so when the
+  reading is late. Boundaries load on their own path: a missing or malformed
+  boundary file costs the reader context and leaves every reservoir drawn.
 - **The Phase 2 application shell.** `modern.html` now uses the ArcGIS 5.1 and
   Calcite 5 components with responsive summary and detail surfaces, persisted
   system/light/dark themes, anonymous-only map authentication, and visible

@@ -27,6 +27,12 @@ function panelContents(suffix: string): string {
           <small data-value="updated">—</small>
         </div>
       </section>
+      <section class="reservoir-list" aria-labelledby="list-${suffix}">
+        <h3 id="list-${suffix}">Reservoirs</h3>
+        <p class="list-hint">Choose a reservoir to see its details, on the map or in this list.</p>
+        <div class="list-host" data-list="reservoirs" role="group"
+          aria-labelledby="list-${suffix}"></div>
+      </section>
       <section class="coming-soon" aria-labelledby="analysis-${suffix}">
         <h3 id="analysis-${suffix}">Analysis controls</h3>
         <p>Drainage-area filters and storage comparisons arrive in a later Phase 2 increment.</p>
@@ -39,11 +45,13 @@ function panelContents(suffix: string): string {
 
 function detailContents(suffix: string): string {
   return `
-    <div class="panel-copy detail-placeholder">
-      <p class="eyebrow">Reservoir details</p>
-      <h2 id="detail-${suffix}">No reservoir selected</h2>
-      <p>Map selection and current-storage details arrive with the reservoir layer in P2.3.</p>
-      <a href="./explore.html">Browse every reservoir in the current overview</a>
+    <div class="panel-copy detail-copy" data-detail="${suffix}" aria-live="polite">
+      <div class="detail-placeholder">
+        <p class="eyebrow">Reservoir details</p>
+        <h2 id="detail-${suffix}">No reservoir selected</h2>
+        <p>Choose a reservoir on the map, or in the list in the storage summary.</p>
+        <a href="./explore.html">Browse every reservoir in the current overview</a>
+      </div>
     </div>`;
 }
 

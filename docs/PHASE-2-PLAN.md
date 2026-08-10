@@ -79,6 +79,8 @@ real-entry bundle budget remain P2.4 work.
 
 ### P2.3 — Current map parity
 
+**Status:** Complete on 2026-08-10.
+
 **Work**
 
 - Fetch and validate `reservoirs.json` and `huc6.geojson` at runtime.
@@ -96,6 +98,14 @@ real-entry bundle budget remain P2.4 work.
 - Selecting a reservoir exposes its name, percent full, data date, source, and
   whether its data is late.
 - A missing boundary file does not remove reservoir points.
+
+**Implementation note:** Both halves of selection are wired, and they are not
+the same control. The pointer half is a map hit test; the keyboard half is a
+list of real buttons in the storage summary, because a canvas cannot be tabbed
+through and `hitTest` never settles in a hidden browser pane — so the list is
+also the only selection path automation can exercise. The readiness signal
+gained `drawn`, `late`, `basemap`, `drainageAreas`, `listItems` and `selected`;
+no existing field changed. The browser smoke test that reads them is P2.4.
 
 ### P2.4 — Integration gates
 

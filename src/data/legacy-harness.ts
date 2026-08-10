@@ -66,6 +66,12 @@ export interface LegacySelectionStore {
 export interface LegacyApi {
   CLASSES: readonly { min: number; label: string; color: string }[];
   HUC6_WHERE: string;
+  MASK_FILL: string;
+  MASK_LINE: string;
+  HUC_FILL: string;
+  HUC_LINE: string;
+  UTAH_RING: readonly (readonly [number, number])[];
+  utahMaskRings(): (readonly (readonly [number, number])[])[];
   utahReservoirs<T>(reservoirs: readonly T[], excludeLakePowell: boolean): T[];
   headlinePct(reservoir: unknown): number | null;
   sizeBasis(reservoir: unknown): number;

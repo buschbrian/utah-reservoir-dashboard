@@ -31,7 +31,7 @@ describe("SDK architecture boundaries", () => {
   it("installs anonymous auth before the shell constructs a map", async () => {
     const source = await readFile(resolve(root, "src/main.ts"), "utf8");
     const policy = source.indexOf("installAnonymousAuthPolicy(");
-    const startMap = source.indexOf("loadMap()", policy);
+    const startMap = source.indexOf("loadMap(", policy);
 
     expect(policy).toBeGreaterThanOrEqual(0);
     expect(startMap).toBeGreaterThan(policy);

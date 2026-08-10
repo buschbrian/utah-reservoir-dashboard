@@ -9,7 +9,13 @@ const userTextFiles = [
   "explore.html",
   "modern.html",
   "shared/reservoir-viz.js",
-  "src/main.ts"
+  "src/main.ts",
+  // The shell's own visible text, and the words the details panel puts
+  // around a reservoir -- the provider names in the payload are written as
+  // acronyms, so this is where one is most likely to reach a reader.
+  "src/state/detail.ts",
+  "src/ui/shell.ts",
+  "src/ui/shell-template.ts"
 ];
 
 const oldUnexplainedTerms = [

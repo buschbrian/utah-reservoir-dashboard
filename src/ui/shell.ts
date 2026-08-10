@@ -1,3 +1,4 @@
+import type { DetailView } from "../state/detail";
 import { describeDataState, type DataState } from "../state/shell";
 import { elementById } from "./dom";
 
@@ -89,6 +90,119 @@ export function setDataState(state: DataState): void {
     detail.textContent = description.detail;
     element.replaceChildren(heading, detail);
   });
+}
+
+export interface ReservoirListEntry {
+  name: string;
+  percent: string;
+  color: string;
+  late: boolean;
+}
+
+/**
+ * The keyboard half of selection, and the map's alternative: every drawn
+ * reservoir as a real button, in both the desktop panel and the phone sheet.
+ * A canvas cannot be tabbed through, and `hitTest` never settles in a hidden
+ * browser pane, so this is also the only selection path a test can exercise.
+ */
+export function setReservoirList(
+  entries: readonly ReservoirListEntry[],
+  onSelect: (name: string) => void
+): void {
+  document.querySelectorAll<HTMLElement>('[data-list="reservoirs"]').forEach((host) => {
+    const buttons = entries.map((entry) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "list-btn";
+      button.dataset.reservoir = entry.name;
+      button.setAttribute("aria-pressed", "false");
+
+      const swatch = document.createElement("span");
+      swatch.className = "list-swatch";
+      swatch.style.background = entry.color;
+      const name = document.createElement("span");
+      name.className = "list-name";
+      name.textContent = entry.name;
+      const percent = document.createElement("span");
+      percent.className = "list-percent";
+      percent.textContent = entry.percent;
+
+      button.append(swatch, name, percent);
+      if (entry.late) {
+        const late = document.createElement("span");
+        late.className = "list-late";
+        late.textContent = "Late";
+        button.append(late);
+      }
+      button.addEventListener("click", () => onSelect(entry.name));
+      return button;
+    });
+    host.replaceChildren(...buttons);
+  });
+}
+
+export function markSelectedInList(name: string | null): void {
+  document.querySelectorAll<HTMLElement>(".list-btn").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.reservoir === name));
+  });
+}
+
+export function setDetail(view: DetailView | null): void {
+  document.querySelectorAll<HTMLElement>("[data-detail]").forEach((host) => {
+    const suffix = host.dataset.detail ?? "desktop";
+    if (!view) {
+      const placeholder = document.createElement("div");
+      placeholder.className = "detail-placeholder";
+      const eyebrow = document.createElement("p");
+      eyebrow.className = "eyebrow";
+      eyebrow.textContent = "Reservoir details";
+      const heading = document.createElement("h2");
+      heading.id = `detail-${suffix}`;
+      heading.textContent = "No reservoir selected";
+      const copy = document.createElement("p");
+      copy.textContent = "Choose a reservoir on the map, or in the list in the storage summary.";
+      placeholder.append(eyebrow, heading, copy);
+      host.replaceChildren(placeholder);
+      return;
+    }
+
+    const heading = document.createElement("h2");
+    heading.id = `detail-${suffix}`;
+    heading.textContent = view.name;
+
+    const headline = document.createElement("p");
+    headline.className = "detail-headline";
+    const value = document.createElement("strong");
+    value.textContent = view.percent;
+    value.style.color = view.color;
+    const basis = document.createElement("span");
+    basis.textContent = view.basis;
+    headline.append(value, basis);
+
+    const rows = document.createElement("dl");
+    rows.className = "detail-rows";
+    for (const row of view.rows) {
+      const term = document.createElement("dt");
+      term.textContent = row.label;
+      const definition = document.createElement("dd");
+      definition.textContent = row.value;
+      rows.append(term, definition);
+    }
+
+    const children: HTMLElement[] = [heading, headline, rows];
+    if (view.late) {
+      const late = document.createElement("p");
+      late.className = "detail-late";
+      late.textContent = view.late;
+      children.splice(2, 0, late);
+    }
+    host.replaceChildren(...children);
+  });
+}
+
+/** Brings the details into view where the reader is: panel or sheet. */
+export function revealDetail(): void {
+  setOpen(activeSurface("detail"), true);
 }
 
 export function setSummary(values: Record<"percent" | "storage" | "count" | "updated", string>): void {
