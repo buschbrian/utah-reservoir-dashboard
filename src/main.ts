@@ -318,7 +318,8 @@ if (!supportsDashboard(browserCapabilities())) {
       const month = selectedMonth();
       updateSummary();
       renderReservoirList();
-      map.drawReservoirs(inScope, percentShown);
+      // The layer already has these reservoirs; only what they show changes.
+      map.setPercents(percentShown);
       applyFilter();
       setMonthState(monthIndex, months, month === null
         ? "Showing the newest reading from each reservoir."

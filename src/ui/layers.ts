@@ -118,23 +118,32 @@ const RESERVOIR_FIELDS = [
  * limit -- unlike a colour visual variable, which silently truncated the
  * ten-stop ramp to eight the last time this map was drawn a different way.
  */
-export function createReservoirLayer(
+interface ReservoirEntries {
+  graphics: Graphic[];
+  uniqueValueInfos: { value: number; symbol: CIMSymbolReference }[];
+}
+
+/**
+ * The features and their symbols, built once and used two ways.
+ *
+ * `createReservoirLayer` builds a layer from these; `updateReservoirPercents`
+ * pushes the same values onto a layer that already exists. Sharing the
+ * construction is what stops the month view and the first draw disagreeing
+ * about what a reservoir looks like.
+ */
+function reservoirEntries(
   reservoirs: readonly Reservoir[],
-  /* What each reservoir's fill should show. Defaults to the newest reading,
-   * which is what the map opens on; the month slider passes that month's
-   * percentage instead. The ring is unaffected either way -- it carries
-   * physical scale, which does not change with the month. */
-  percentOf: (reservoir: Reservoir) => NullableNumber = headlinePercent
-): ReservoirLayerResult {
+  percentOf: (reservoir: Reservoir) => NullableNumber
+): ReservoirEntries {
   const domain = sizeDomain(reservoirs);
-  const source: Graphic[] = [];
+  const graphics: Graphic[] = [];
   const uniqueValueInfos: { value: number; symbol: CIMSymbolReference }[] = [];
 
   reservoirs.forEach((reservoir, index) => {
     const objectId = index + 1;
     const percent = percentOf(reservoir);
     const symbol = reservoirSymbolFor(reservoir, domain, percent);
-    source.push(new Graphic({
+    graphics.push(new Graphic({
       geometry: new Point({
         longitude: reservoir.lon,
         latitude: reservoir.lat,
@@ -150,6 +159,52 @@ export function createReservoirLayer(
     }));
     uniqueValueInfos.push({ value: objectId, symbol: reservoirCIM(symbol) });
   });
+
+  return { graphics, uniqueValueInfos };
+}
+
+/**
+ * Redraws an existing layer at new percentages, without replacing it.
+ *
+ * The month slider used to call `createReservoirLayer` on every tick, which
+ * removed the layer, rebuilt 51 features and 51 composed symbols, added a
+ * new layer and waited for a new layer view -- roughly 9ms of main-thread
+ * work per tick before any of the GPU cost, against a 16.7ms frame. Swapping
+ * the renderer and editing one field is a fraction of that and keeps the
+ * layer view, so the map stays interactive while the handle moves.
+ *
+ * `fill_percent` is edited as well as the symbols because the storage filter
+ * reads it: leaving it on today's value would grey reservoirs by one month's
+ * class while drawing them in another's.
+ */
+export function updateReservoirPercents(
+  layer: FeatureLayer,
+  reservoirs: readonly Reservoir[],
+  percentOf: (reservoir: Reservoir) => NullableNumber
+): void {
+  const { graphics, uniqueValueInfos } = reservoirEntries(reservoirs, percentOf);
+  /* Same narrowing as the constructor's renderer below, and for the same
+   * reason: the SDK's own CIM property types mark every optional member
+   * `T | null | undefined` where ours are `T | undefined`. */
+  (layer as { renderer: unknown }).renderer = {
+    type: "unique-value",
+    field: OBJECT_ID_FIELD,
+    uniqueValueInfos: uniqueValueInfos as unknown as UniqueValueInfoProperties[]
+  };
+  void layer.applyEdits({ updateFeatures: graphics }).catch((error: unknown) => {
+    console.warn("The map could not update to the selected month:", error);
+  });
+}
+
+export function createReservoirLayer(
+  reservoirs: readonly Reservoir[],
+  /* What each reservoir's fill should show. Defaults to the newest reading,
+   * which is what the map opens on; the month slider passes that month's
+   * percentage instead. The ring is unaffected either way -- it carries
+   * physical scale, which does not change with the month. */
+  percentOf: (reservoir: Reservoir) => NullableNumber = headlinePercent
+): ReservoirLayerResult {
+  const { graphics: source, uniqueValueInfos } = reservoirEntries(reservoirs, percentOf);
 
   const layer = new FeatureLayer({
     id: "reservoirs",

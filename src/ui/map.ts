@@ -24,7 +24,8 @@ import {
   createHighlightLayer,
   createMaskLayer,
   createReservoirLayer,
-  showHighlight
+  showHighlight,
+  updateReservoirPercents
 } from "./layers";
 
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -65,6 +66,12 @@ export interface MapController {
    * applied rather than dropped.
    */
   setFilter(where: string | null): void;
+  /**
+   * Redraws at new percentages without replacing the layer. Use this for
+   * anything that changes what a reservoir shows; `drawReservoirs` is for
+   * changing *which* reservoirs there are.
+   */
+  setPercents(percentOf: (reservoir: Reservoir) => NullableNumber): void;
 }
 
 /** What excluded reservoirs look like: present, readable, clearly not chosen. */
@@ -527,6 +534,10 @@ export async function loadMap(
       });
     },
     setFilter: applyFilter,
+    setPercents(percentOf) {
+      if (!reservoirLayer) return;
+      updateReservoirPercents(reservoirLayer, drawn, percentOf);
+    },
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);
       drainageLayer = createDrainageLayer(areas);

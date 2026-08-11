@@ -258,10 +258,17 @@ export function setMonthControl(
     slider.max = months.length;
     slider.value = months.length;
     slider.addEventListener("calciteSliderChange", () => onChange(slider.value));
-    // Dragging fires input continuously; the map redraw is cheap enough to
-    // follow it, and a slider that only acts on release does not read as a
-    // slider at all.
-    slider.addEventListener("calciteSliderInput", () => onChange(slider.value));
+    /* Dragging fires input continuously -- faster than the screen can show
+     * it. One redraw per animation frame, with the last value winning, so a
+     * drag is smooth without queueing work nobody will ever see. */
+    let frame = 0;
+    slider.addEventListener("calciteSliderInput", () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        onChange(slider.value);
+      });
+    });
   });
   document.querySelectorAll<HTMLElement>('[data-month="now"]').forEach((button) => {
     button.addEventListener("click", onNow);
