@@ -15,13 +15,51 @@
  * `connectSelectionToUrl`, at the bottom, and it is four lines.
  */
 
+import type { LakePowellChoice } from "../data/rollup";
+import type { Reporting } from "./filters";
 import { normalizeSelectionValue, type SelectionStore } from "./selection";
 
-/** Field name -> query parameter. One entry; the table is what makes the
- * second one a line rather than a refactor. */
-const SELECTION_PARAMS = { reservoir: "reservoir" } as const;
+/**
+ * Field -> query parameter. The table is what the shared module's own
+ * comment promised would make the second entry a line rather than a
+ * refactor, and this is that second entry -- and the third and fourth.
+ *
+ * `reservoir` keeps its spelling because links are interchangeable with the
+ * three production pages (`url.test.ts` holds that against the shared
+ * module). The others are this shell's own: the legacy pages have their own
+ * filter controls and do not read these, but they *preserve* them, because
+ * both writers keep parameters they do not own.
+ */
+const SELECTION_PARAMS = {
+  reservoir: "reservoir",
+  storageClass: "storage",
+  reporting: "reporting",
+  lakePowell: "powell"
+} as const;
 type SelectionField = keyof typeof SELECTION_PARAMS;
 const SELECTION_FIELDS = Object.keys(SELECTION_PARAMS) as SelectionField[];
+
+/**
+ * Everything a shared link carries.
+ *
+ * Only what a reader has actually chosen reaches the address bar: a default
+ * is written as absence, so an untouched dashboard has a clean URL and a
+ * link says exactly what was changed to produce it.
+ */
+export interface DashboardUrlState {
+  reservoir: string | null;
+  /** An index into the storage class table, or null for every class. */
+  storageClass: number | null;
+  reporting: Reporting;
+  lakePowell: LakePowellChoice;
+}
+
+export const DEFAULT_URL_STATE: DashboardUrlState = {
+  reservoir: null,
+  storageClass: null,
+  reporting: "all",
+  lakePowell: "exclude"
+};
 
 /**
  * `URLSearchParams` is deliberately not used. It writes a space as `+`
@@ -68,19 +106,58 @@ export function selectionFromSearch(search: string | null | undefined): string |
 }
 
 /**
- * The selection back to a query string, keeping every other parameter that
- * was already there and putting the selection first, so the interesting
- * part of a shared link is the readable part.
+ * A query string to the view it describes.
+ *
+ * A value this page does not recognise falls back to the default rather
+ * than throwing: a hand-edited or truncated link should open the dashboard,
+ * not break it.
  */
-export function searchWithSelection(
-  reservoir: string | null,
+export function stateFromSearch(search: string | null | undefined): DashboardUrlState {
+  const state: DashboardUrlState = { ...DEFAULT_URL_STATE };
+  for (const [key, value] of parseQuery(search)) {
+    if (key === SELECTION_PARAMS.reservoir) {
+      state.reservoir = normalizeSelectionValue(value);
+    } else if (key === SELECTION_PARAMS.storageClass) {
+      const index = Number.parseInt(value, 10);
+      state.storageClass = Number.isInteger(index) && index >= 0 ? index : null;
+    } else if (key === SELECTION_PARAMS.reporting) {
+      state.reporting = value === "late" || value === "current" ? value : "all";
+    } else if (key === SELECTION_PARAMS.lakePowell) {
+      state.lakePowell = value === "include" ? "include" : "exclude";
+    }
+  }
+  return state;
+}
+
+/**
+ * The view back to a query string, keeping every parameter this page does
+ * not own and putting the selection first, so the interesting part of a
+ * shared link is the readable part.
+ *
+ * Defaults are written as absence. A dashboard nobody has touched produces
+ * no query string at all.
+ */
+export function searchWithState(
+  state: Partial<DashboardUrlState>,
   currentSearch?: string | null
 ): string {
+  const full: DashboardUrlState = { ...DEFAULT_URL_STATE, ...state };
   const parts: string[] = [];
-  const value = normalizeSelectionValue(reservoir);
-  if (value !== null) {
-    parts.push(`${SELECTION_PARAMS.reservoir}=${encodeURIComponent(value)}`);
+
+  const reservoir = normalizeSelectionValue(full.reservoir);
+  if (reservoir !== null) {
+    parts.push(`${SELECTION_PARAMS.reservoir}=${encodeURIComponent(reservoir)}`);
   }
+  if (full.storageClass !== null) {
+    parts.push(`${SELECTION_PARAMS.storageClass}=${full.storageClass}`);
+  }
+  if (full.reporting !== "all") {
+    parts.push(`${SELECTION_PARAMS.reporting}=${full.reporting}`);
+  }
+  if (full.lakePowell !== "exclude") {
+    parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);
+  }
+
   for (const [key, existing] of parseQuery(currentSearch)) {
     const owned = SELECTION_FIELDS.some((field) => key === SELECTION_PARAMS[field]);
     if (owned) continue;
@@ -98,10 +175,25 @@ export function searchWithSelection(
  * all five instead of leaving the page. The address bar is a description of
  * the current view, not a history of how it was reached.
  */
-export function connectSelectionToUrl(store: SelectionStore): () => void {
+export function writeUrlState(state: Partial<DashboardUrlState>): void {
+  const search = searchWithState(state, window.location.search);
+  if (search === window.location.search) return;
+  window.history.replaceState(
+    null, "", `${window.location.pathname}${search}${window.location.hash}`);
+}
+
+/**
+ * Keeps the address bar current as the selection changes.
+ *
+ * `read` supplies the rest of the view, because the address bar carries one
+ * state and the selection is only part of it -- writing from the selection
+ * alone would clear a filter the reader had set.
+ */
+export function connectSelectionToUrl(
+  store: SelectionStore,
+  read: () => Omit<DashboardUrlState, "reservoir">
+): () => void {
   return store.subscribe((reservoir) => {
-    const search = searchWithSelection(reservoir, window.location.search);
-    if (search === window.location.search) return;
-    window.history.replaceState(null, "", `${window.location.pathname}${search}${window.location.hash}`);
+    writeUrlState({ ...read(), reservoir });
   });
 }

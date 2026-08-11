@@ -18,7 +18,7 @@ import {
   type FilterState
 } from "./state/filters";
 import { createSelectionStore, findReservoir } from "./state/selection";
-import { connectSelectionToUrl, selectionFromSearch } from "./state/url";
+import { connectSelectionToUrl, stateFromSearch, writeUrlState } from "./state/url";
 import { supportsDashboard } from "./state/shell";
 import { loadMap, type MapController } from "./ui/map";
 import {
@@ -137,6 +137,17 @@ async function loadContext(map: MapController): Promise<void> {
 let filterState: FilterState = ALL_RESERVOIRS;
 let applyFilter: () => void = () => undefined;
 
+/* Everything the address bar carries except the selection, which the store
+ * owns. One function, so the writer cannot go stale as controls are added. */
+function viewState(): { storageClass: number | null; reporting: FilterState["reporting"];
+  lakePowell: LakePowellChoice } {
+  return {
+    storageClass: filterState.storageClass,
+    reporting: filterState.reporting,
+    lakePowell
+  };
+}
+
 function wireFilters(map: MapController): void {
   const apply = (): void => {
     // Reads the current scope rather than the one that existed when the
@@ -170,8 +181,13 @@ function wireFilters(map: MapController): void {
         ? { ...filterState, storageClass: value === "all" ? null : Number(value) }
         : { ...filterState, reporting: value as FilterState["reporting"] };
       apply();
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
     },
-    () => { filterState = ALL_RESERVOIRS; apply(); }
+    () => {
+      filterState = ALL_RESERVOIRS;
+      apply();
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
+    }
   );
   applyFilter = apply;
   apply();
@@ -261,7 +277,15 @@ if (!supportsDashboard(browserCapabilities())) {
     setScopeControl((value) => {
       lakePowell = value === "include" ? "include" : "exclude";
       applyScope();
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
     });
+
+    /* Restore the whole view a link describes, not just its selection: a
+     * filtered, Lake-Powell-included link that opened on an unfiltered
+     * dashboard would show numbers that do not match the words around it. */
+    const wanted = stateFromSearch(window.location.search);
+    lakePowell = wanted.lakePowell;
+    filterState = { storageClass: wanted.storageClass, reporting: wanted.reporting };
     setScopeValue(lakePowell);
     applyScope();
 
@@ -269,8 +293,8 @@ if (!supportsDashboard(browserCapabilities())) {
      * selection writes the same URL back rather than a differently-spelled
      * one -- "?reservoir=deer creek" typed by hand becomes the canonical
      * "?reservoir=Deer%20Creek" the moment it resolves. */
-    connectSelectionToUrl(selection);
-    deepLink = findReservoir(inScope, selectionFromSearch(window.location.search));
+    connectSelectionToUrl(selection, viewState);
+    deepLink = findReservoir(inScope, wanted.reservoir);
     if (deepLink) selection.set(deepLink.name, { source: "url" });
   }
   await loadContext(map);

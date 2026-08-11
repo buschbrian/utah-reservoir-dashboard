@@ -747,6 +747,34 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     check(moved !== null && moved.zoom >= 8 - 0.01,
       `${label}: the map ended at zoom ${moved?.zoom}, closer than 8 was expected`);
 
+    /* The rest of the view, not just the selection. A filtered link that
+     * opened on an unfiltered dashboard would show numbers that disagree
+     * with the words printed beside them. */
+    await tab.goto(`${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}` +
+      "&reporting=late&powell=include",
+    { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const restored = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      search: window.location.search,
+      reporting: document.querySelector('#start-panel [data-filter="reporting"]')?.value,
+      scope: document.querySelector('#start-panel [data-filter="scope"]')?.value,
+      where: document.querySelector("arcgis-map")?.map
+        ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
+    }));
+    check(restored.ready.lakePowell === "include",
+      `${label}: the link's scope was not restored`);
+    check(restored.scope === "include",
+      `${label}: the scope control does not show the scope the link asked for`);
+    check(restored.reporting === "late",
+      `${label}: the reporting control does not show the filter the link asked for`);
+    check(restored.ready.filtered === true,
+      `${label}: the link's filter was not applied`);
+    check(restored.where === "late = 1",
+      `${label}: the map filter is "${restored.where}" after restoring a filtered link`);
+    check(/powell=include/.test(restored.search) && /reporting=late/.test(restored.search),
+      `${label}: the address bar dropped the view it restored ("${restored.search}")`);
+
     // A link that names nothing this page draws is not an error; it is no
     // selection, and the reader gets the ordinary starting view.
     await tab.goto(`${URL}?reservoir=Not+A+Reservoir`,

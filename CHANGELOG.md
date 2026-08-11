@@ -64,6 +64,14 @@ and is not listed here.
 
 ### Added
 
+- **A shared link now carries the whole view.** The analysis controls join the
+  address bar beside the selection: `?reservoir=…&storage=…&reporting=…&powell=…`
+  restores the filters and the Lake Powell scope as well as the reservoir, so a
+  filtered view can be handed to somebody else and arrive as what the sender was
+  looking at. Anything left at its default is written as absence, so an
+  untouched dashboard still has a clean URL, and a parameter belonging to
+  another page is preserved rather than dropped.
+
 - **Shareable links on the modern map.** Selecting a reservoir now writes
   `?reservoir=` into the address bar without a reload, and opening such a link
   restores the selection and eases the map to it. The parameter name and its
