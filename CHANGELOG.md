@@ -17,6 +17,14 @@ and is not listed here.
 
 ### Added
 
+- **Analysis controls on the modern map.** The storage summary's placeholder
+  is now two working filters: storage level, whose choices are the storage
+  classes themselves, and reporting state. Reservoirs the filter excludes stay
+  on the map in grey and stay in the list, dimmed and still selectable — the
+  panel reports how many of how many are shown. Moving the pointer over a
+  reservoir now uses the SDK's own emphasis on the layer view instead of a
+  drawn ring.
+
 - **One reservoir feature layer, one composed symbol.** The modern map draws
   each reservoir as a single feature of a client-side `FeatureLayer` rather
   than as a pair of stacked markers. Capacity ring, proportional storage fill,

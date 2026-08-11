@@ -7,7 +7,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 
 import { loadReservoirs } from "./data/load";
-import { isLateForCadence, statewideRollup } from "./data/rollup";
+import { isLate, statewideRollup } from "./data/rollup";
 import { renderArcgisBarChart } from "./overview-charts";
 import {
   filterAndSort,
@@ -58,7 +58,7 @@ function renderRows(tbody: HTMLTableSectionElement, reservoirs: readonly Reservo
     cells.forEach((value, index) => {
       const cell = document.createElement("td");
       cell.textContent = value;
-      if (index === 5 && isLateForCadence(reservoir)) cell.className = "late-badge";
+      if (index === 5 && isLate(reservoir)) cell.className = "late-badge";
       row.append(cell);
     });
     return row;

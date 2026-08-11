@@ -9,7 +9,7 @@
  * key, never from the label the payload carries.
  */
 
-import { isLateForCadence } from "../data/rollup";
+import { isLate } from "../data/rollup";
 import type { Reservoir, SourceKey } from "../types";
 import { formatAcreFeet, formatDate, formatPercent } from "../viz/format";
 import { headlineBasis, headlinePercent } from "../viz/symbols";
@@ -40,7 +40,7 @@ export function providerName(reservoir: Reservoir): string {
 }
 
 export function lateMessage(reservoir: Reservoir): string | null {
-  if (!isLateForCadence(reservoir)) return null;
+  if (!isLate(reservoir)) return null;
   const days = Math.max(1, Math.round(reservoir.days_stale));
   return days === 1
     ? "This reading is late by one day."

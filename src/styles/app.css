@@ -213,11 +213,29 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .detail-rows dt { color: var(--app-muted); }
 .detail-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
 
-.coming-soon { margin-block-start: 1rem; }
-.coming-soon h3,
+.filters { margin-block-start: 1rem; }
+.filters h3,
 .detail-placeholder h2 { margin: 0; font-size: 1rem; }
-.coming-soon p,
+.filter-summary,
 .detail-placeholder p { color: var(--app-muted); font-size: .875rem; line-height: 1.5; }
+/* min-width: 0 for the same reason the reservoir name has it: a select sizes
+ * itself to its longest option, by a platform-dependent amount that comes
+ * from font metrics, and would otherwise widen the panel and the page. */
+.filters calcite-label { min-width: 0; margin-block-start: .5rem; }
+.filters calcite-select { min-width: 0; width: 100%; }
+.filter-summary { margin: .75rem 0 .5rem; }
+/* Calcite sets its own `display` on the host, which wins over the user-agent
+ * `[hidden] { display: none }` -- so the reset button needs to be hidden by a
+ * rule at least as specific as the component's own. */
+.filters calcite-button[hidden] { display: none; }
+
+/* The map greys what the filter excludes and keeps it on screen, so the list
+ * dims the same rows rather than removing them. They stay operable: the
+ * reservoir is still visible on the map and still worth being able to reach
+ * from the keyboard. */
+.list-btn-excluded { opacity: .45; }
+.list-btn-excluded:hover,
+.list-btn-excluded:focus-visible { opacity: 1; }
 
 #start-sheet,
 #detail-sheet { display: none; }

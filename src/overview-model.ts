@@ -1,5 +1,5 @@
 import type { Reservoir } from "./types";
-import { isLateForCadence, reservoirInScope, statewideRollup } from "./data/rollup";
+import { isLate, reservoirInScope, statewideRollup } from "./data/rollup";
 
 export type OverviewSort = "name" | "capacity" | "storage" | "percent" | "updated";
 export type OverviewCadence = "all" | "daily" | "monthly" | "late";
@@ -56,7 +56,7 @@ export function filterOverview(
     const matchesWatershed = filters.huc6 === "all" || reservoir.huc6 === filters.huc6;
     const matchesCadence = filters.cadence === "all"
       || (filters.cadence === "late"
-        ? isLateForCadence(reservoir)
+        ? isLate(reservoir)
         : reservoir.data_frequency === filters.cadence);
     return matchesQuery && matchesWatershed && matchesCadence;
   });

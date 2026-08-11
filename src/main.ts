@@ -4,19 +4,32 @@ import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
-import { isLateForCadence, statewideRollup } from "./data/rollup";
+import { isLate, statewideRollup } from "./data/rollup";
 import { overviewScope } from "./overview-model";
 import { describeReservoir } from "./state/detail";
+import {
+  ALL_RESERVOIRS,
+  describeFilter,
+  filterWhere,
+  isFiltered,
+  matchesFilter,
+  reportingLabel,
+  storageLabel,
+  type FilterState
+} from "./state/filters";
 import { createSelectionStore, findReservoir } from "./state/selection";
 import { supportsDashboard } from "./state/shell";
 import { loadMap, type MapController } from "./ui/map";
 import {
   browserCapabilities,
+  markFilteredInList,
   markSelectedInList,
   renderUnsupported,
   revealDetail,
   setDataState,
   setDetail,
+  setFilterControls,
+  setFilterState,
   setReservoirList,
   setSummary,
   wirePanels
@@ -24,7 +37,7 @@ import {
 import { renderShell } from "./ui/shell-template";
 import { wireTheme } from "./ui/theme";
 import type { Reservoir } from "./types";
-import { storageColor } from "./viz/classes";
+import { STORAGE_CLASSES, storageColor } from "./viz/classes";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import { headlinePercent } from "./viz/symbols";
 import "./styles/app.css";
@@ -38,6 +51,11 @@ if (!rootCandidate) throw new Error("Missing #app root");
 const root: HTMLElement = rootCandidate;
 
 const selection = createSelectionStore();
+
+/* What the filter currently shows. The readiness signal is written after the
+ * first draw and the filter keeps changing after that, so this is the one
+ * place the answer lives and both readers take it from here. */
+const filterStatus = { filtered: false, shown: 0 };
 
 async function loadData(): Promise<Reservoir[] | null> {
   try {
@@ -75,13 +93,59 @@ async function loadContext(map: MapController): Promise<void> {
   }
 }
 
+/**
+ * The analysis controls, and the one rule they drive.
+ *
+ * The map greys what is excluded and the list dims it, both from the same
+ * `FilterState`: the panel's sentence, the dimmed rows and the greyed
+ * circles are three renderings of one answer, not three answers.
+ */
+function wireFilters(reservoirs: readonly Reservoir[], map: MapController): void {
+  let state: FilterState = ALL_RESERVOIRS;
+
+  const apply = (): void => {
+    const shown = reservoirs.filter((reservoir) => matchesFilter(reservoir, state));
+    map.setFilter(filterWhere(state));
+    markFilteredInList((name) => !shown.some((reservoir) => reservoir.name === name));
+    setFilterState(
+      { storage: String(state.storageClass ?? "all"), reporting: state.reporting },
+      describeFilter(state, shown.length, reservoirs.length),
+      isFiltered(state)
+    );
+    filterStatus.filtered = isFiltered(state);
+    filterStatus.shown = shown.length;
+    if (window.__dashboardReady) {
+      window.__dashboardReady.filtered = filterStatus.filtered;
+      window.__dashboardReady.shown = filterStatus.shown;
+    }
+  };
+
+  setFilterControls(
+    [{ value: "all", label: storageLabel(null) },
+      ...STORAGE_CLASSES.map((_, index) => ({
+        value: String(index), label: storageLabel(index)
+      }))],
+    (["all", "late", "current"] as const).map((reporting) => ({
+      value: reporting, label: reportingLabel(reporting)
+    })),
+    (kind, value) => {
+      state = kind === "storage"
+        ? { ...state, storageClass: value === "all" ? null : Number(value) }
+        : { ...state, reporting: value as FilterState["reporting"] };
+      apply();
+    },
+    () => { state = ALL_RESERVOIRS; apply(); }
+  );
+  apply();
+}
+
 function wireSelection(reservoirs: readonly Reservoir[]): void {
   setReservoirList(
     reservoirs.map((reservoir) => ({
       name: reservoir.name,
       percent: formatPercent(headlinePercent(reservoir)),
       color: storageColor(headlinePercent(reservoir)),
-      late: isLateForCadence(reservoir)
+      late: isLate(reservoir)
     })),
     (name) => selection.set(name, { source: "list" })
   );
@@ -120,6 +184,8 @@ if (!supportsDashboard(browserCapabilities())) {
   if (reservoirs) {
     wireSelection(reservoirs);
     map.drawReservoirs(reservoirs);
+    // After the list exists: the filter dims rows the map greys.
+    wireFilters(reservoirs, map);
   }
   await loadContext(map);
 
@@ -132,13 +198,15 @@ if (!supportsDashboard(browserCapabilities())) {
     reservoirs: reservoirs?.length ?? 0,
     drawn: map.status.reservoirsDrawn,
     symbols: map.status.reservoirSymbols,
-    late: reservoirs?.filter(isLateForCadence).length ?? 0,
+    late: reservoirs?.filter(isLate).length ?? 0,
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,
     masked: map.status.masked,
     boundaryPoints: map.status.boundaryPoints,
     drainageAreas: map.status.drainageAreas,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
+    filtered: filterStatus.filtered,
+    shown: filterStatus.shown,
     selected: selection.get()
   };
 }

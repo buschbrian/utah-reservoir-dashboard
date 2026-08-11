@@ -14,6 +14,9 @@ const userTextFiles = [
   // around a reservoir -- the provider names in the payload are written as
   // acronyms, so this is where one is most likely to reach a reader.
   "src/state/detail.ts",
+  // The analysis controls: every label and the sentence that reports what
+  // the filter is doing are written here, not in the template.
+  "src/state/filters.ts",
   "src/ui/shell.ts",
   "src/ui/shell-template.ts"
 ];

@@ -62,7 +62,7 @@ that quietly kept fewer than it was given. The browser gate queries the layer
 itself, which catches a layer that accepted the renderer and rejected the
 source.
 
-### 3.3 Layer-view hover and filter effects — next
+### 3.3 Layer-view hover and filter effects — complete
 
 - Move the visual hover emphasis to the layer view's named `temporary`
   highlight after 3.2 supplies a feature layer.
@@ -73,7 +73,35 @@ source.
 - Disable bloom under reduced motion and when the performance measurement does
   not support it.
 
-### 3.4 Selection motion and shareable state
+The storage control's choices are the storage classes, read from the class
+table rather than written down again (ADR-008): the class a reservoir is
+filtered into is the class it is coloured by, or the legend describes a
+different map than the one on screen.
+
+One filter, expressed twice, because the map filters on the layer's fields
+and the list filters on reservoirs in memory. `src/state/filters.ts` derives
+both from one set of bounds and `filters.test.ts` holds them against each
+other over every state the two controls can reach — an agreement test, not an
+assertion about today's numbers.
+
+`featureEffect` is set on the layer rather than on the layer view. The layer
+view inherits it, and the layer exists before the view that draws it does, so
+a filter chosen while the map is still starting is applied rather than
+dropped. It is also the form a headless browser can read back.
+
+Excluded reservoirs stay on the map in grey, so the list dims the same rows
+rather than removing them, and leaves them operable: the reservoir is still
+visible and still worth reaching from the keyboard.
+
+**Bloom is not enabled, and this is the measured decision, not an omission.**
+The baseline ring/fill encoding already carries the data, the composed CIM
+symbol added a shadow for separation in 3.2, and nothing has been measured on
+integrated graphics yet. Recommendation 3 says to keep the baseline until a
+measurement says otherwise, so there is no bloom to disable under reduced
+motion. 3.5 profiles the symbol and filter path; if that measurement supports
+an emphasis effect, it arrives with the reduced-motion gate attached.
+
+### 3.4 Selection motion and shareable state — next
 
 - Ease `goTo` toward a selected reservoir without exceeding the constrained
   regional extent; skip animation under reduced motion.

@@ -196,6 +196,75 @@ for (const viewport of VIEWPORTS) {
     check(await tab.locator(".map-stage > .map-alternative").count() === 0,
       `${label}: the old table and charts overlay still covers the map`);
 
+    /* The analysis controls. The map greys what is excluded rather than
+     * removing it, so the assertion is that the panel's count, the dimmed
+     * rows and the layer's own effect all describe one filter -- three
+     * surfaces disagreeing is the failure this catches. */
+    // The surface a reader can actually reach at this width; a scripted
+    // change on the hidden desktop panel would make the phone run meaningless.
+    const mobile = viewport.width < 768;
+    const controls = mobile ? "#start-sheet" : "#start-panel";
+    check(await tab.locator(`${controls} [data-filter="storage"]`).isVisible(),
+      `${label}: the storage level filter is not visible`);
+    check(ready.filtered === false,
+      `${label}: the map starts filtered`);
+    check(ready.shown === expectedReservoirs,
+      `${label}: the unfiltered panel reports ${ready.shown} of ${expectedReservoirs}`);
+
+    await tab.evaluate((selector) => {
+      const select = document.querySelector(`${selector} [data-filter="reporting"]`);
+      select.value = "late";
+      select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+    }, controls);
+    await tab.waitForFunction("window.__dashboardReady.filtered === true", { timeout: 5000 });
+
+    const filtered = await tab.evaluate(async (selector) => {
+      const layer = document.querySelector("arcgis-map")?.map?.findLayerById("reservoirs");
+      const effect = layer?.featureEffect;
+      return {
+        shown: window.__dashboardReady.shown,
+        where: effect?.filter?.where ?? null,
+        excludedEffect: effect?.excludedEffect ?? null,
+        // Counted from the layer, under the same clause the effect uses.
+        included: await layer.queryFeatureCount({ where: effect?.filter?.where }),
+        dimmed: document.querySelectorAll(`${selector} .list-btn-excluded`).length,
+        listed: document.querySelectorAll(`${selector} .list-btn`).length,
+        summary: document.querySelector(`${selector} [data-filter="summary"]`)?.textContent ?? ""
+      };
+    }, controls);
+    check(filtered.where === "late = 1",
+      `${label}: the layer filter is "${filtered.where}", expected "late = 1"`);
+    check(/grayscale/.test(filtered.excludedEffect ?? ""),
+      `${label}: excluded reservoirs are not greyed (${filtered.excludedEffect})`);
+    check(filtered.included === filtered.shown,
+      `${label}: the map includes ${filtered.included} reservoirs, the panel says ${filtered.shown}`);
+    check(filtered.listed - filtered.dimmed === filtered.shown,
+      `${label}: ${filtered.listed - filtered.dimmed} rows stayed bright, ` +
+      `the panel says ${filtered.shown}`);
+    check(filtered.listed === expectedReservoirs,
+      `${label}: the filter removed rows from the list instead of dimming them`);
+    check(filtered.summary.includes(String(filtered.shown)),
+      `${label}: the panel does not report how many reservoirs are shown`);
+
+    // Excluded reservoirs stay on the map, so their rows stay reachable.
+    const dimmedButton = tab.locator(`${controls} .list-btn-excluded`).first();
+    if (await dimmedButton.count()) {
+      check(await dimmedButton.isEnabled(),
+        `${label}: a filtered-out reservoir cannot be selected from the list`);
+    }
+
+    await tab.locator(`${controls} [data-filter="reset"]`).first().click();
+    await tab.waitForFunction("window.__dashboardReady.filtered === false", { timeout: 5000 });
+    const cleared = await tab.evaluate((selector) => ({
+      effect: document.querySelector("arcgis-map")?.map
+        ?.findLayerById("reservoirs")?.featureEffect ?? null,
+      dimmed: document.querySelectorAll(`${selector} .list-btn-excluded`).length
+    }), controls);
+    check(cleared.effect === null,
+      `${label}: clearing the filter left an effect on the layer`);
+    check(cleared.dimmed === 0,
+      `${label}: clearing the filter left ${cleared.dimmed} rows dimmed`);
+
     if (viewport.name === "desktop") {
       const pointerName = await tab.locator("#start-panel .list-btn").first()
         .getAttribute("data-reservoir");
@@ -239,9 +308,6 @@ for (const viewport of VIEWPORTS) {
 
     // Selection, through the list rather than the map: `hitTest` is resolved
     // by the render loop, which does not run reliably in headless Chromium.
-    // Use the surface a reader can actually reach at this width; a scripted
-    // click on the hidden desktop panel would make the phone run meaningless.
-    const mobile = viewport.width < 768;
     const listSelector = mobile ? "#start-sheet .list-btn" : "#start-panel .list-btn";
     const detailSelector = mobile ? "#detail-sheet [data-detail]" :
       "#detail-panel [data-detail]";

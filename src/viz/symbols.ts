@@ -23,7 +23,7 @@
  *     carry the percentage for the fill to read proportionally.
  */
 
-import { sizeBasis } from "../data/rollup";
+import { isLate, sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
 import { STALE_ACCENT, storageColor } from "./classes";
 
@@ -86,6 +86,7 @@ export function reservoirSymbol(reservoir: Reservoir, domain: number): Reservoir
     ringPx,
     fillPx: fillSize(ringPx, percent),
     color: storageColor(percent),
-    accent: reservoir.is_stale ? STALE_ACCENT : null
+    // The same rule the list badge, the filter and the summary count use.
+    accent: isLate(reservoir) ? STALE_ACCENT : null
   };
 }

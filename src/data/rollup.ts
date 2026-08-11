@@ -52,12 +52,26 @@ export function percentFull(reservoir: Reservoir): number | null {
   return denominator > 0 ? reservoir.current_storage_af / denominator * 100 : null;
 }
 
-export function expectedStaleAfterDays(reservoir: Reservoir): number {
-  return reservoir.stale_after_days ?? (reservoir.data_frequency === "monthly" ? 45 : 2);
-}
-
-export function isLateForCadence(reservoir: Reservoir): boolean {
-  return !reservoir.fetch_ok || reservoir.days_stale > expectedStaleAfterDays(reservoir);
+/**
+ * Whether a reservoir's reading is older than its own update schedule.
+ *
+ * One rule, and it is the pipeline's own answer rather than a second
+ * calculation of it. `refresh_reservoirs.py` sets `is_stale` from
+ * `days_stale > stale_after_days` using the threshold it publishes on the
+ * same record -- two days for a daily feed, 45 for a month-end one -- and
+ * forces it true whenever a fetch fails, which is also when `fetch_ok` goes
+ * false. The validator requires all three fields, so there is nothing left
+ * for a client-side rule to add.
+ *
+ * This used to be re-derived here, from a time when the pipeline compared
+ * every reservoir against a single threshold. It no longer does. Deriving it
+ * twice meant the dashed ring on the map and the "Late" badge in the list
+ * were two rules with one name, agreeing only by luck -- and the map's
+ * reporting filter would have greyed a row that still wore the badge on the
+ * first morning they disagreed.
+ */
+export function isLate(reservoir: Reservoir): boolean {
+  return reservoir.is_stale;
 }
 
 export function statewideRollup(
@@ -92,7 +106,7 @@ export function statewideRollup(
     normalAf,
     percentOfNormal: normalAf > 0 ? storageWithNormal / normalAf * 100 : null,
     normalCovers: withNormal.length,
-    stale: reservoirs.filter(isLateForCadence).length,
+    stale: reservoirs.filter(isLate).length,
     belowHalf: reservoirs.filter((reservoir) => {
       const percent = percentFull(reservoir);
       return percent !== null && percent < 50;

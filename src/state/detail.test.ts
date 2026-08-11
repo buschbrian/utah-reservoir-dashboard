@@ -66,10 +66,14 @@ describe("the details a reader sees", () => {
   });
 
   it("marks late data in plain words and leaves current data unmarked", () => {
-    const late = { ...reservoirs[0], days_stale: 40, stale_after_days: 2, fetch_ok: true };
+    /* Whether a reading is late is the pipeline's answer, published as
+     * `is_stale`; the message only says how late. Setting the flag here
+     * rather than the days it was derived from is what keeps this panel,
+     * the dashed ring and the list badge one rule instead of three. */
+    const late = { ...reservoirs[0], is_stale: true, days_stale: 40, fetch_ok: true };
     expect(lateMessage(late as never)).toBe("This reading is late by 40 days.");
-    expect(lateMessage({ ...late, days_stale: 1, fetch_ok: true } as never)).toBeNull();
-    expect(lateMessage({ ...late, days_stale: 3, stale_after_days: 2 } as never))
+    expect(lateMessage({ ...late, is_stale: false } as never)).toBeNull();
+    expect(lateMessage({ ...late, days_stale: 3 } as never))
       .toBe("This reading is late by 3 days.");
   });
 

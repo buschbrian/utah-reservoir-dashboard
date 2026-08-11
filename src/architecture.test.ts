@@ -100,14 +100,15 @@ describe("SDK architecture boundaries", () => {
 
   it("ships the small local Calcite asset contract used by the shell", async () => {
     const icons = [
-      "arrowRightLeft", "brightness", "chevronsRight", "cursorSelection", "erase", "exclamationMarkTriangle",
+      "arrowRightLeft", "brightness", "chevronDown", "chevronsRight", "cursorSelection", "erase",
+      "exclamationMarkTriangle",
       "export", "extentFilter", "fullScreen", "fullScreenExit", "home", "information",
       "legend", "magnifyingGlass", "rotate", "selectionFilter", "slidersHorizontal",
       "table", "waterDrop", "x", "zoomInFixed", "zoomOutFixed"
     ];
     const messages = [
       "action", "action-bar", "action-group", "button", "notice", "panel", "popover",
-      "scrim", "sheet", "shell-panel"
+      "scrim", "select", "sheet", "shell-panel"
     ];
     const paths = [
       ...icons.flatMap((icon) => [16, 24, 32].map((size) => {

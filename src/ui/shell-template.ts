@@ -1,6 +1,9 @@
 import "@esri/calcite-components/components/calcite-action";
 import "@esri/calcite-components/components/calcite-button";
+import "@esri/calcite-components/components/calcite-label";
 import "@esri/calcite-components/components/calcite-loader";
+import "@esri/calcite-components/components/calcite-option";
+import "@esri/calcite-components/components/calcite-select";
 import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 import "@esri/calcite-components/components/calcite-panel";
@@ -33,11 +36,22 @@ function panelContents(suffix: string): string {
         <div class="list-host" data-list="reservoirs" role="group"
           aria-labelledby="list-${suffix}"></div>
       </section>
-      <section class="coming-soon" aria-labelledby="analysis-${suffix}">
+      <section class="filters" aria-labelledby="analysis-${suffix}">
         <h3 id="analysis-${suffix}">Analysis controls</h3>
-        <p>Drainage-area filters and storage comparisons arrive in a later Phase 2 increment.</p>
-        <calcite-button appearance="outline" disabled icon-start="sliders-horizontal" width="full">
-          Filters coming soon
+        <calcite-label scale="s">
+          Storage level
+          <calcite-select data-filter="storage" scale="s"
+            label="Filter reservoirs by storage level"></calcite-select>
+        </calcite-label>
+        <calcite-label scale="s">
+          Reporting
+          <calcite-select data-filter="reporting" scale="s"
+            label="Filter reservoirs by reporting state"></calcite-select>
+        </calcite-label>
+        <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
+        <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
+          width="full" scale="s" hidden>
+          Show all reservoirs
         </calcite-button>
       </section>
     </div>`;

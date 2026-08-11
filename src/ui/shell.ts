@@ -150,6 +150,71 @@ export function setReservoirList(
   });
 }
 
+type CalciteSelect = HTMLElement & { value: string };
+
+export interface FilterOption { value: string; label: string }
+
+/**
+ * The analysis controls, built once per surface -- the desktop panel and the
+ * phone sheet each hold a copy, and both are kept at the same value. A
+ * reader who filters on a phone, rotates, and finds the desktop panel
+ * showing something else is looking at two answers to one question.
+ */
+export function setFilterControls(
+  storage: readonly FilterOption[],
+  reporting: readonly FilterOption[],
+  onChange: (kind: "storage" | "reporting", value: string) => void,
+  onReset: () => void
+): void {
+  const fill = (kind: "storage" | "reporting", options: readonly FilterOption[]): void => {
+    document.querySelectorAll<CalciteSelect>(`[data-filter="${kind}"]`).forEach((select) => {
+      select.replaceChildren(...options.map((option) => {
+        const element = document.createElement("calcite-option");
+        element.setAttribute("value", option.value);
+        element.textContent = option.label;
+        return element;
+      }));
+      select.addEventListener("calciteSelectChange", () => onChange(kind, select.value));
+    });
+  };
+  fill("storage", storage);
+  fill("reporting", reporting);
+  document.querySelectorAll<HTMLElement>('[data-filter="reset"]').forEach((button) => {
+    button.addEventListener("click", onReset);
+  });
+}
+
+/** Puts every copy of the controls, the summary and the reset at one state. */
+export function setFilterState(
+  values: { storage: string; reporting: string },
+  summary: string,
+  filtered: boolean
+): void {
+  document.querySelectorAll<CalciteSelect>('[data-filter="storage"]')
+    .forEach((select) => { select.value = values.storage; });
+  document.querySelectorAll<CalciteSelect>('[data-filter="reporting"]')
+    .forEach((select) => { select.value = values.reporting; });
+  document.querySelectorAll<HTMLElement>('[data-filter="summary"]')
+    .forEach((element) => { element.textContent = summary; });
+  document.querySelectorAll<HTMLElement>('[data-filter="reset"]')
+    .forEach((button) => { button.hidden = !filtered; });
+}
+
+/**
+ * Dims the reservoirs the filter excludes, and leaves them operable.
+ *
+ * The map greys excluded reservoirs rather than removing them, so removing
+ * them from the list here would make the two surfaces disagree about what
+ * exists -- and would take away the keyboard path to a reservoir that is
+ * still visible on the map and still clickable with a pointer.
+ */
+export function markFilteredInList(excluded: (name: string) => boolean): void {
+  document.querySelectorAll<HTMLElement>(".list-btn").forEach((button) => {
+    const name = button.dataset.reservoir ?? "";
+    button.classList.toggle("list-btn-excluded", excluded(name));
+  });
+}
+
 export function markSelectedInList(name: string | null): void {
   document.querySelectorAll<HTMLElement>(".list-btn").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.reservoir === name));

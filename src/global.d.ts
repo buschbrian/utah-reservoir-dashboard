@@ -21,6 +21,10 @@ interface DashboardReady {
   boundaryPoints: number;
   drainageAreas: number;
   listItems: number;
+  /** True when the reader has narrowed the map with the analysis controls. */
+  filtered: boolean;
+  /** Reservoirs the current filter includes. The rest stay on the map, greyed. */
+  shown: number;
   selected: string | null;
 }
 

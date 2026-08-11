@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { statewideRollup, percentFull, isLateForCadence, sizeBasis } from "./rollup";
+import { reservoirSymbol, sizeDomain } from "../viz/symbols";
+import { statewideRollup, percentFull, isLate, sizeBasis } from "./rollup";
 import { validateReservoirPayload } from "./validate";
 import { loadLegacyApi } from "./legacy-harness";
 import { STORAGE_CLASSES, storageClass } from "../viz/classes";
@@ -104,16 +105,18 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
     expect(Math.abs(ported.belowHalf - legacyAll.below_half)).toBeLessThanOrEqual(drift);
   });
 
-  /* The one aggregate that is deliberately *not* a parity port. The legacy
-   * page counts the pipeline's `is_stale` flag, which is computed against a
-   * single threshold; the port asks whether each reservoir is late for its
-   * own cadence -- 2 days for daily feeds, 45 for month-end ones -- which is
-   * the claim the refresh workflow's staleness issue already makes. Asserted
-   * here so the divergence stays a decision rather than a surprise.
+  /* This was once the one aggregate deliberately *not* a parity port: the
+   * legacy page counted the pipeline's `is_stale` flag, and the port asked
+   * its own question, because the flag was computed against a single
+   * threshold for every reservoir. The pipeline has since caught up -- it
+   * applies each record's own threshold and publishes the answer -- so the
+   * port's second calculation had become a duplicate that could only ever
+   * drift. It now reports the published flag, and this is a parity port
+   * like the rest.
    */
-  it("counts staleness per cadence rather than by the legacy flag", () => {
+  it("counts late readings exactly as the published payload does", () => {
     const ported = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
-    expect(ported.stale).toBe(payload.reservoirs.filter(isLateForCadence).length);
+    expect(ported.stale).toBe(payload.reservoirs.filter(isLate).length);
     expect(ported.stale).toBe(payload.stale_count);
   });
 
@@ -238,18 +241,32 @@ describe("rollup rules independent of today's data", () => {
     );
   });
 
-  it("applies each record's daily or monthly freshness contract", () => {
-    const monthly = payload.reservoirs.find((entry) => entry.data_frequency === "monthly");
-    const daily = payload.reservoirs.find((entry) => entry.data_frequency === "daily");
-    expect(monthly).toBeDefined();
-    expect(daily).toBeDefined();
-    if (!monthly || !daily) return;
-    const late = { stale_after_days: 45, data_frequency: "monthly" as const, fetch_ok: true };
-    expect(isLateForCadence({ ...monthly, ...late, days_stale: 44 })).toBe(false);
-    expect(isLateForCadence({ ...monthly, ...late, days_stale: 46 })).toBe(true);
-    const soon = { stale_after_days: 2, data_frequency: "daily" as const, fetch_ok: true };
-    expect(isLateForCadence({ ...daily, ...soon, days_stale: 2 })).toBe(false);
-    expect(isLateForCadence({ ...daily, ...soon, days_stale: 3 })).toBe(true);
-    expect(isLateForCadence({ ...daily, ...soon, days_stale: 0, fetch_ok: false })).toBe(true);
+  /* The freshness contract is the pipeline's, not the page's. It applies
+   * each record's own threshold -- two days for a daily feed, 45 for a
+   * month-end one -- and publishes the answer as `is_stale`, so what is
+   * asserted here is that the page reports that answer rather than
+   * recomputing it. It did recompute it once; the two rules agreed only by
+   * luck, and one of them fed the dashed ring while the other fed the list
+   * badge beside it. */
+  it("reports the published freshness answer instead of recomputing it", () => {
+    const reservoir = payload.reservoirs[0];
+    expect(reservoir).toBeDefined();
+    if (!reservoir) return;
+    expect(isLate({ ...reservoir, is_stale: true })).toBe(true);
+    expect(isLate({ ...reservoir, is_stale: false })).toBe(false);
+    // The threshold and the reading age do not get a second vote: the
+    // pipeline already weighed them, and a fetch failure is published as a
+    // late reading rather than left for the page to infer.
+    expect(isLate({ ...reservoir, is_stale: false, days_stale: 400 })).toBe(false);
+    expect(isLate({ ...reservoir, is_stale: true, days_stale: 0, fetch_ok: false })).toBe(true);
+  });
+
+  it("agrees with every other surface that reports a late reading", () => {
+    for (const reservoir of payload.reservoirs) {
+      // The ring the map draws and the badge the list draws are now one
+      // rule, so this holds for every reservoir rather than most mornings.
+      expect(reservoirSymbol(reservoir, sizeDomain(payload.reservoirs)).accent !== null)
+        .toBe(isLate(reservoir));
+    }
   });
 });

@@ -5,6 +5,7 @@ import "@arcgis/map-components/components/arcgis-map";
 import "@arcgis/map-components/components/arcgis-scale-bar";
 
 import ArcGISMap from "@arcgis/core/Map";
+import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
@@ -36,20 +37,38 @@ export interface MapStatus {
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
+  /** True when the map is greying reservoirs the reader filtered out. */
+  filtered: boolean;
 }
 
 export interface MapController {
   status: MapStatus;
   drawReservoirs(reservoirs: readonly Reservoir[]): void;
   drawDrainageAreas(areas: readonly DrainageArea[]): void;
+  /**
+   * Greys the reservoirs a `where` clause excludes, and leaves them on the
+   * map. Pass null to clear. Set on the layer rather than on the layer view:
+   * the layer view inherits it, and the layer exists before the view that
+   * draws it does -- so a filter chosen while the map is still starting is
+   * applied rather than dropped.
+   */
+  setFilter(where: string | null): void;
 }
+
+/** What excluded reservoirs look like: present, readable, clearly not chosen. */
+const EXCLUDED_EFFECT = "grayscale(100%) opacity(35%)";
+
+type HitGraphic = { attributes?: Record<string, unknown> };
+
+type LayerView = { highlight(target: unknown, options?: { name?: string }): { remove(): void } };
 
 type MapElement = HTMLElement & {
   map?: ArcGISMap | null;
   basemap?: unknown;
   animationsDisabled?: boolean;
+  view?: { whenLayerView(layer: unknown): Promise<unknown> };
   hitTest(target: { x: number; y: number }, options?: { include?: unknown }): Promise<{
-    results: { type: string; graphic?: { attributes?: Record<string, unknown> } }[];
+    results: { type: string; graphic?: HitGraphic }[];
   }>;
 };
 
@@ -156,11 +175,40 @@ function wirePointerSelection(element: MapElement, selection: SelectionStore): v
 }
 
 /** One hit test per animation frame, with stale async answers discarded. */
-function wirePointerHover(element: MapElement, drawn: () => readonly Reservoir[]): void {
+function wirePointerHover(
+  element: MapElement,
+  drawn: () => readonly Reservoir[],
+  layerView: () => LayerView | null
+): void {
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
   let queued: ScreenPoint | null = null;
   let frame = 0;
   let request = 0;
+  let highlight: { remove(): void } | null = null;
+
+  /* The SDK's own emphasis, on the layer view, rather than a fourth circle
+   * drawn on a graphics layer: `temporary` is the named highlight the SDK
+   * ships pre-configured for exactly this, so hover emphasis matches the
+   * platform instead of being a second opinion about what hover looks like.
+   * A hover card can be shown without it -- the highlight needs a layer
+   * view, which never arrives in a hidden pane. */
+  const emphasize = (graphic: HitGraphic | undefined): void => {
+    highlight?.remove();
+    highlight = null;
+    const view = layerView();
+    if (!view || !graphic) return;
+    try {
+      highlight = view.highlight(graphic, { name: "temporary" });
+    } catch {
+      // An emphasis the view refuses is not worth losing the hover card over.
+      highlight = null;
+    }
+  };
+
+  const clear = (): void => {
+    emphasize(undefined);
+    hideMapHover();
+  };
 
   element.addEventListener("arcgisViewPointerMove", (event) => {
     queued = eventPoint(event);
@@ -177,9 +225,10 @@ function wirePointerHover(element: MapElement, drawn: () => readonly Reservoir[]
           typeof result.graphic?.attributes?.[NAME_FIELD] === "string");
         const name = hit?.graphic?.attributes?.[NAME_FIELD];
         const reservoir = typeof name === "string" ? findReservoir(drawn(), name) : null;
+        emphasize(reservoir ? hit?.graphic : undefined);
         if (reservoir) showMapHover(reservoir, point);
         else hideMapHover();
-      }).catch(() => hideMapHover());
+      }).catch(() => clear());
     });
   });
   element.addEventListener("arcgisViewPointerLeave", () => {
@@ -187,9 +236,9 @@ function wirePointerHover(element: MapElement, drawn: () => readonly Reservoir[]
     queued = null;
     if (frame) cancelAnimationFrame(frame);
     frame = 0;
-    hideMapHover();
+    clear();
   });
-  element.addEventListener("arcgisViewClick", hideMapHover);
+  element.addEventListener("arcgisViewClick", clear);
 }
 
 export async function loadMap(
@@ -233,9 +282,12 @@ export async function loadMap(
     );
   }, { once: true });
   let drainageLayer: GraphicsLayer | null = null;
+  let reservoirLayer: FeatureLayer | null = null;
+  let reservoirLayerView: LayerView | null = null;
+  let pendingFilter: string | null = null;
   let drawn: readonly Reservoir[] = [];
   wirePointerSelection(element, selection);
-  wirePointerHover(element, () => drawn);
+  wirePointerHover(element, () => drawn, () => reservoirLayerView);
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();
   else if (resolution.degraded) showDegradedBasemap(resolution.name);
@@ -248,24 +300,48 @@ export async function loadMap(
       sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
     reservoirsDrawn: 0,
-    reservoirSymbols: 0
+    reservoirSymbols: 0,
+    filtered: false
   };
   selection.subscribe((name) => {
     showHighlight(highlightLayer, findReservoir(drawn, name), drawn);
   });
+
+  function applyFilter(where: string | null): void {
+    // Held until the layer exists rather than dropped: the reader can reach
+    // the controls before the first draw finishes.
+    pendingFilter = where;
+    status.filtered = where !== null;
+    if (!reservoirLayer) return;
+    reservoirLayer.featureEffect = where === null
+      ? null
+      : { filter: { where }, excludedEffect: EXCLUDED_EFFECT };
+  }
 
   return {
     status,
     drawReservoirs(reservoirs) {
       const result = createReservoirLayer(reservoirs);
       drawn = reservoirs;
+      reservoirLayer = result.layer;
       map.add(result.layer);
       // Added after the points so a selected reservoir is not covered by
       // the reservoir drawn next to it.
       map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
       status.reservoirSymbols = result.symbols;
+      if (pendingFilter !== null) applyFilter(pendingFilter);
+      /* The layer view is what the hover highlight needs, and it only ever
+       * arrives in a browser that is actually painting: `whenLayerView` is
+       * settled by the same render loop `hitTest` is, which does not run in
+       * a hidden pane. Nothing else waits on it. */
+      void element.view?.whenLayerView(result.layer).then((view) => {
+        reservoirLayerView = view as LayerView;
+      }).catch((error: unknown) => {
+        console.warn("The map cannot emphasize a reservoir under the pointer:", error);
+      });
     },
+    setFilter: applyFilter,
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);
       drainageLayer = createDrainageLayer(areas);
