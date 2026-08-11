@@ -71,7 +71,9 @@ describe("SDK architecture boundaries", () => {
         // Calcite's package root exports only asset-path configuration in 5.1;
         // it does not register components. The local path keeps component
         // icons available when a content blocker rejects the public CDN.
-        const isPackageUtility = specifier === "@esri/calcite-components";
+        const isPackageUtility = specifier === "@esri/calcite-components"
+          || specifier === "@arcgis/charts-components"
+          || specifier === "@arcgis/charts-components/model/shared/setup-utils";
         const isPackageStylesheet = specifier === `${packageName}/main.css`;
         if (packageName && !specifier.startsWith(`${packageName}/components/`) &&
             !isPackageStylesheet && !isPackageUtility) {
@@ -98,12 +100,14 @@ describe("SDK architecture boundaries", () => {
 
   it("ships the small local Calcite asset contract used by the shell", async () => {
     const icons = [
-      "brightness", "exclamationMarkTriangle", "fullScreen", "fullScreenExit",
-      "home", "information", "slidersHorizontal", "table", "waterDrop", "x",
-      "zoomInFixed", "zoomOutFixed"
+      "arrowRightLeft", "brightness", "chevronsRight", "cursorSelection", "erase", "exclamationMarkTriangle",
+      "export", "extentFilter", "fullScreen", "fullScreenExit", "home", "information",
+      "legend", "magnifyingGlass", "rotate", "selectionFilter", "slidersHorizontal",
+      "table", "waterDrop", "x", "zoomInFixed", "zoomOutFixed"
     ];
     const messages = [
-      "action", "button", "notice", "panel", "popover", "scrim", "sheet", "shell-panel"
+      "action", "action-bar", "action-group", "button", "notice", "panel", "popover",
+      "scrim", "sheet", "shell-panel"
     ];
     const paths = [
       ...icons.flatMap((icon) => [16, 24, 32].map((size) => {

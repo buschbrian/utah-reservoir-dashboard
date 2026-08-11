@@ -30,6 +30,19 @@ export interface StatewideRollupOptions {
   lakePowell: LakePowellChoice;
 }
 
+/** RISE item 509 is Lake Powell's stable provider identity (ADR-003). */
+export function isLakePowell(reservoir: Reservoir): boolean {
+  return reservoir.rise_item_id === 509
+    || reservoir.name.trim().toLocaleLowerCase("en-US").replace(/\s+/g, " ") === "lake powell";
+}
+
+export function reservoirInScope(
+  reservoir: Reservoir, options: StatewideRollupOptions
+): boolean {
+  if (options.geography === "utah" && !reservoir.intersects_utah) return false;
+  return options.lakePowell === "include" || !isLakePowell(reservoir);
+}
+
 export function sizeBasis(reservoir: Reservoir): number {
   return reservoir.capacity_af ?? reservoir.record_max_af;
 }
@@ -51,11 +64,7 @@ export function statewideRollup(
   allReservoirs: readonly Reservoir[],
   options: StatewideRollupOptions
 ): StatewideRollup {
-  const reservoirs = allReservoirs.filter((reservoir) => {
-    if (options.geography === "utah" && !reservoir.intersects_utah) return false;
-    return options.lakePowell === "include"
-      || reservoir.name.trim().toLowerCase() !== "lake powell";
-  });
+  const reservoirs = allReservoirs.filter((reservoir) => reservoirInScope(reservoir, options));
   const sum = (pick: (reservoir: Reservoir) => number | null): number =>
     reservoirs.reduce((total, reservoir) => total + (pick(reservoir) ?? 0), 0);
   const storageAf = sum((reservoir) => reservoir.current_storage_af);

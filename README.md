@@ -6,22 +6,24 @@ A public dashboard for current reservoir storage in Utah and connected Colorado
 River and Great Basin drainage areas. It combines official storage observations,
 traceable capacity figures, twelve months of history, and drainage-area context.
 
-The same data is presented in three production views:
+The same validated data is presented in one ArcGIS application and retained
+legacy comparisons:
 
 | View | Purpose |
 |---|---|
-| [ArcGIS map](index.html) | Geographic view built with ArcGIS Maps SDK for JavaScript 4.34. |
-| [MapLibre map](maplibre/) | Open-source parity view built with MapLibre GL JS and CARTO. |
-| [Statewide overview](explore.html) | Totals, a 12-month chart, drainage areas, ranking, table, CSV export, and sparklines without a map SDK. |
+| [ArcGIS dashboard](modern.html) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
+| [ArcGIS data workspace](overview.html) | Cross-filtered KPIs, ArcGIS charts, and an accessible exact-value table. |
+| [Legacy ArcGIS map](index.html) | Retained ArcGIS 4.34 comparison. |
+| [Legacy MapLibre map](maplibre/) | Retained MapLibre GL JS and CARTO comparison. |
+| [Legacy overview](explore.html) | Retained no-SDK analysis page for experiments and historical comparison. |
 
-The repository also publishes [modern.html](modern.html), the responsive
-ArcGIS 5.1 and Calcite 5 modernization preview. Its shell, explicit failure
-states, and persistent theme are in place; reservoir map layers and selection
-arrive in P2.3. It is not yet a replacement for the three production views.
+`modern.html` is the ArcGIS Maps SDK for JavaScript application, not a preview.
+The legacy pages stay available so renderer behavior, accessibility, and
+performance can be compared without holding the primary dashboard back.
 
 ## Use the dashboard
 
-Both maps provide the same controls and behavior:
+The ArcGIS dashboard provides these map controls:
 
 - Point at a reservoir for its name, percent full, and data date.
 - Select a reservoir for its complete record and 12-month chart.
@@ -31,11 +33,11 @@ Both maps provide the same controls and behavior:
 - Open the reservoir list to reach every site with a keyboard.
 - Share a selection with `?reservoir=Deer+Creek`.
 
-The overview answers comparison questions that a map cannot. It shows combined
-storage with and without Lake Powell, the distribution across percent-full
-classes, drainage-area totals, a size-first ranking, every published metric,
-and one 12-month sparkline per reservoir. Drainage-area selections are
-shareable with `?area=160201` and can be combined with a reservoir link.
+The ArcGIS data workspace answers comparison questions that a map cannot. Its
+search, drainage-area, and reporting filters update the KPI strip, both ArcGIS
+charts, and semantic table as one view. Lake Powell is excluded by stable RISE
+item identifier 509 from the default map and data workspace; it remains in the
+source data for traceability and explicit legacy comparisons.
 
 ## Quick start
 
@@ -50,9 +52,9 @@ npm ci
 npm run dev
 ```
 
-Vite opens the modernization workbench. Open `/index.html`, `/maplibre/`, or
-`/explore.html` to work on a production view. The two maps need network access
-for their SDKs and basemap tiles; the overview does not load a map SDK.
+Vite opens the ArcGIS dashboard. Open `/overview.html` for the data workspace,
+or `/index.html`, `/maplibre/`, and `/explore.html` for the legacy comparisons.
+The ArcGIS pages need network access for SDK assets and basemap services.
 
 ### Commands
 
@@ -162,16 +164,17 @@ provider's published point. `huc6` is assigned by the dam or outlet. See
 
 ## Architecture
 
-The project is deliberately transitional: the current pages remain stable
-while a typed, component-based replacement is built alongside them.
+The primary application is typed and component based. The original pages are
+kept as comparison fixtures, not parallel product targets.
 
 | Path | Role |
 |---|---|
-| `index.html` | CDN-loaded ArcGIS 4.34 production map; copied into `dist/`. |
-| `maplibre/index.html` | CDN-loaded MapLibre production map; copied into `dist/`. |
-| `explore.html` | Vite entry using Observable Plot. |
-| `modern.html` + `src/` | Responsive Calcite modernization shell and typed application modules. |
-| `shared/reservoir-viz.js` | Shared behavior and markup for the three production views. |
+| `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application. |
+| `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
+| `index.html` | CDN-loaded ArcGIS 4.34 legacy comparison; copied into `dist/`. |
+| `maplibre/index.html` | CDN-loaded MapLibre legacy comparison; copied into `dist/`. |
+| `explore.html` | Legacy no-SDK overview. |
+| `shared/reservoir-viz.js` | Shared behavior retained by the legacy views. |
 | `refresh_reservoirs.py` | Daily storage pipeline and metric calculation. |
 | `huc.py` | Drainage-area geometry, assignment, and pipeline rollups. |
 | `tests/smoke.mjs` | Browser contract for all production views at desktop and phone widths. |
@@ -184,8 +187,8 @@ The load-bearing rules are:
    in `shared/reservoir-viz.js`; the typed port is tested for parity.
 3. **Color classes have one source of truth.** Renderers, legends, filters, and
    charts derive from the same table.
-4. **The two map engines remain comparable.** Their differences are useful
-   evidence, not accidental duplication.
+4. **Legacy engines remain comparable, but do not constrain the ArcGIS app.**
+   Their differences are useful evidence, not a second product roadmap.
 5. **A public page never asks for ArcGIS credentials.** Secured resources fail
    promptly and fall back rather than opening a sign-in dialog.
 6. **Visible text uses Simplified Technical English.** Tests reject retired or
@@ -219,8 +222,8 @@ types and runtime validation, tested rollups, drainage-area enrichment, and
 the modernization workbench are in place. The connected-reservoir audit added
 Fontenelle; snowpack and drought context remain research tracks.
 
-Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 shell now runs at
-`modern.html` without replacing the current production URLs prematurely.
+Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
+`modern.html`, with its ArcGIS Charts workspace at `overview.html`.
 Phase 3 has begun with pointer hover and corrected map-click selection. Its
 ordered increments and gates are in [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md);
 the completed shell contract remains in
@@ -241,16 +244,16 @@ and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
   refreshes are intentionally omitted.
-- [`maplibre/README.md`](maplibre/README.md) — focused ArcGIS/MapLibre parity
-  findings.
+- [`maplibre/README.md`](maplibre/README.md) — historical ArcGIS/MapLibre
+  comparison findings.
 
 ## Known limitations
 
 - Monthly sources cannot support a meaningful 7-day change.
-- The maps depend on third-party SDK and basemap CDNs; the overview is the
-  no-map-SDK fallback.
-- The unified Calcite shell, automated accessibility audit, snowpack context,
-  and drought context are not complete.
+- The ArcGIS application depends on third-party SDK assets and basemap services;
+  the legacy overview remains the no-SDK comparison.
+- Automated accessibility auditing, snowpack context, and drought context are
+  not complete.
 - ArcGIS map pixels render blank in headless Chromium even when the map and
   reservoir layers are ready, so smoke tests assert runtime state as well as
   capturing screenshots.

@@ -61,6 +61,7 @@ const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"
  * this red on its own. */
 const expectedReservoirs = payload.reservoirs.filter((reservoir) =>
   reservoir.intersects_utah === true &&
+  reservoir.rise_item_id !== 509 &&
   reservoir.name.trim().toLowerCase() !== "lake powell").length;
 const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
@@ -118,7 +119,9 @@ const FIND_CREDENTIAL_UI = `(() => {
 })()`;
 
 await new Promise((resolve) => server.listen(PORT, resolve));
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+  : {});
 
 for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({ viewport });
@@ -146,6 +149,8 @@ for (const viewport of VIEWPORTS) {
       `${label}: drew ${ready.drawn} reservoirs, expected ${expectedReservoirs}`);
     check(ready.listItems === expectedReservoirs,
       `${label}: the reservoir list has ${ready.listItems} entries, expected ${expectedReservoirs}`);
+    check(await tab.locator('[data-reservoir="Lake Powell"]').count() === 0,
+      `${label}: Lake Powell appears in the default reservoir list`);
     check(ready.basemap === true, `${label}: no basemap resolved`);
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
@@ -306,12 +311,28 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   try {
     await tab.goto(`http://127.0.0.1:${PORT}/overview.html`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForSelector("#capacity-chart svg", { timeout: 30000 });
+    await tab.waitForFunction("window.__overviewReady?.charts === 2", { timeout: 60000 });
+    const overviewReady = await tab.evaluate(() => window.__overviewReady);
+    check(overviewReady.lakePowellExcluded === true,
+      `${label}: readiness signal reports Lake Powell in scope`);
+    check(await tab.locator("arcgis-chart").count() === 2,
+      `${label}: both ArcGIS charts did not render`);
+    check(await tab.locator("arcgis-chart").evaluateAll((charts) => charts.every((chart) =>
+      [...(chart.shadowRoot?.querySelectorAll("svg rect") ?? [])].some((rect) =>
+        Number(rect.getAttribute("width")) > 20 && Number(rect.getAttribute("height")) > 3))),
+    `${label}: an ArcGIS chart has no visible data bars`);
     check(await tab.locator("#reservoir-rows tr").count() === expectedReservoirs,
       `${label}: table does not match the map scope`);
-    check(await tab.locator("#capacity-chart svg").getAttribute("aria-label") !== null,
+    check(!(await tab.locator("#reservoir-rows").innerText()).includes("Lake Powell"),
+      `${label}: Lake Powell appears in the default overview table`);
+    check(await tab.locator("#capacity-chart arcgis-chart")
+      .evaluate((chart) => Boolean(chart.aria?.label)),
       `${label}: chart has no accessible name`);
     await tab.locator("#reservoir-search").fill("Jordan");
+    await tab.waitForFunction(
+      `(expected) => window.__overviewReady?.visible > 0 &&
+        window.__overviewReady?.visible < expected`, expectedReservoirs,
+      { timeout: 60000 });
     const filtered = await tab.locator("#reservoir-rows tr").count();
     check(filtered > 0 && filtered < expectedReservoirs,
       `${label}: drainage-area search did not filter the table`);

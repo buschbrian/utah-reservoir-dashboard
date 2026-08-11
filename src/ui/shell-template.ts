@@ -61,7 +61,7 @@ export function renderShell(root: HTMLElement): void {
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
         <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
-          description="Modern preview" heading-level="1" icon="water-drop"></calcite-navigation-logo>
+          description="ArcGIS Maps SDK for JavaScript" heading-level="1" icon="water-drop"></calcite-navigation-logo>
         <calcite-button id="overview-link" slot="content-end" href="./overview.html"
           appearance="transparent" kind="neutral" icon-start="table"
           label="Open reservoir table and charts">

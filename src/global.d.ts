@@ -22,4 +22,10 @@ interface DashboardReady {
 
 interface Window {
   __dashboardReady?: DashboardReady;
+  __overviewReady?: {
+    reservoirs: number;
+    visible: number;
+    charts: number;
+    lakePowellExcluded: boolean;
+  };
 }

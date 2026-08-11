@@ -17,6 +17,16 @@ and is not listed here.
 
 ### Added
 
+- **ArcGIS Charts data workspace.** The primary overview now cross-filters its
+  KPI strip, largest-reservoir chart, drainage-area chart, and semantic table
+  by reservoir, drainage area, and reporting status. Esri chart action bars
+  provide interactive inspection and export, and a muted Southwest theme keeps
+  the analytical layout usable from desktop to phone widths.
+
+- **ArcGIS is the primary application.** `modern.html` now carries the official
+  ArcGIS Maps SDK for JavaScript name; MapLibre and the original chart/table
+  page remain clearly labeled legacy comparisons.
+
 - **Phase 3 pointer interaction.** The modern map now throttles hover hit tests,
   shows reservoir name, percent full, and reading date in a lightweight card,
   and supports pointer selection through the map component's documented event
@@ -79,6 +89,10 @@ and is not listed here.
 - Architecture decision records, in [`docs/decisions/`](docs/decisions/).
 
 ### Fixed
+
+- Lake Powell is excluded from the default modern map, metrics, charts, and
+  table by its stable RISE item identifier (509), with a normalized-name
+  fallback for older payloads.
 
 - **The basemap fallback now notices a refused background.** A basemap whose
   style answers 401 still resolved its own `load()`, so the preferred

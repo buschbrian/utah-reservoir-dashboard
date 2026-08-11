@@ -161,8 +161,10 @@ describe("rollup rules independent of today's data", () => {
     };
     const reservoirs = [
       lakePowell,
-      { ...example, name: "Utah example", in_utah: true, intersects_utah: true },
-      { ...example, name: "Connected example", in_utah: false, intersects_utah: false }
+      { ...example, name: "Utah example", rise_item_id: 101,
+        in_utah: true, intersects_utah: true },
+      { ...example, name: "Connected example", rise_item_id: 102,
+        in_utah: false, intersects_utah: false }
     ];
 
     for (const geography of ["utah", "connected"] as const) {
@@ -185,6 +187,29 @@ describe("rollup rules independent of today's data", () => {
         6
       );
     }
+  });
+
+  it("excludes Lake Powell by its stable RISE identity when its label changes", () => {
+    const example = payload.reservoirs[0];
+    expect(example).toBeDefined();
+    if (!example) return;
+    const renamedPowell = {
+      ...example,
+      name: "Glen Canyon reservoir",
+      rise_item_id: 509,
+      intersects_utah: true,
+      current_storage_af: 5_000,
+      capacity_af: 25_000
+    };
+    const local = { ...example, name: "Local", rise_item_id: 100, intersects_utah: true };
+
+    const result = statewideRollup([renamedPowell, local], {
+      geography: "utah",
+      lakePowell: "exclude"
+    });
+
+    expect(result.count).toBe(1);
+    expect(result.storageAf).toBe(local.current_storage_af);
   });
 
   it("keeps the production overview's Utah scope aligned with the typed rollup", () => {

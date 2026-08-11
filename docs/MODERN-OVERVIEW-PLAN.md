@@ -26,8 +26,8 @@ color-vision simulation, lightness-order checks and non-text contrast review.
 ## Incremental delivery
 
 1. Move the overview link from the map canvas into the modern header.
-2. Add the modern overview with shared scope, a capacity chart, search, sort
-   and a semantic data table. Keep the legacy overview linked for comparison.
+2. Add the modern overview with shared scope, ArcGIS Charts, search, sort and a
+   semantic data table. Keep the legacy overview linked for comparison.
 3. Extract shared modern navigation and theme primitives so the map and
    overview cannot drift.
 4. Add drainage-area and seasonal charts from shared rollups, with a written
@@ -35,5 +35,8 @@ color-vision simulation, lightness-order checks and non-text contrast review.
 5. Add CSV export and URL-backed filters after the displayed values have
    browser and accessibility coverage.
 
-The first two steps are the initial implementation. They deliberately avoid
-changing `explore.html` or the legacy map pages.
+Steps 1–4 are implemented. Search, drainage-area, and reporting filters now
+cross-filter the KPI strip, two ArcGIS bar charts, and exact-value table. The
+chart action bars expose interactive inspection and export. Step 5 remains:
+URL-backed filter state and a dashboard-level CSV export. `explore.html` and
+the legacy map pages remain unchanged.
