@@ -17,6 +17,15 @@ and is not listed here.
 
 ### Added
 
+- **One reservoir feature layer, one composed symbol.** The modern map draws
+  each reservoir as a single feature of a client-side `FeatureLayer` rather
+  than as a pair of stacked markers. Capacity ring, proportional storage fill,
+  the dashed late-reading accent and a soft shadow are now one CIM symbol
+  built from the same tested radii and class colours as before. The layer
+  carries the object ID, name, size basis, fill percentage and late-reading
+  state that the upcoming map filters need, and the readiness signal reports
+  how many symbols the renderer actually holds.
+
 - **ArcGIS Charts data workspace.** The primary overview now cross-filters its
   KPI strip, largest-reservoir chart, drainage-area chart, and semantic table
   by reservoir, drainage area, and reporting status. Esri chart action bars

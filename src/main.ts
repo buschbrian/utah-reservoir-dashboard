@@ -131,6 +131,7 @@ if (!supportsDashboard(browserCapabilities())) {
     engine: "arcgis-5",
     reservoirs: reservoirs?.length ?? 0,
     drawn: map.status.reservoirsDrawn,
+    symbols: map.status.reservoirSymbols,
     late: reservoirs?.filter(isLateForCadence).length ?? 0,
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,

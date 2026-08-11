@@ -34,6 +34,8 @@ export interface MapStatus {
   boundaryPoints: number;
   drainageAreas: number;
   reservoirsDrawn: number;
+  /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
+  reservoirSymbols: number;
 }
 
 export interface MapController {
@@ -245,7 +247,8 @@ export async function loadMap(
     boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
       sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
-    reservoirsDrawn: 0
+    reservoirsDrawn: 0,
+    reservoirSymbols: 0
   };
   selection.subscribe((name) => {
     showHighlight(highlightLayer, findReservoir(drawn, name), drawn);
@@ -261,6 +264,7 @@ export async function loadMap(
       // the reservoir drawn next to it.
       map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
+      status.reservoirSymbols = result.symbols;
     },
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);

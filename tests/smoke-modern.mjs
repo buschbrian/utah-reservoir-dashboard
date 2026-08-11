@@ -147,6 +147,10 @@ for (const viewport of VIEWPORTS) {
       `${label}: scope holds ${ready.reservoirs} reservoirs, expected ${expectedReservoirs}`);
     check(ready.drawn === expectedReservoirs,
       `${label}: drew ${ready.drawn} reservoirs, expected ${expectedReservoirs}`);
+    // One composed symbol per feature. A renderer that quietly kept fewer
+    // draws a plausible map of sizes and colours nobody chose.
+    check(ready.symbols === expectedReservoirs,
+      `${label}: the renderer holds ${ready.symbols} symbols, expected ${expectedReservoirs}`);
     check(ready.listItems === expectedReservoirs,
       `${label}: the reservoir list has ${ready.listItems} entries, expected ${expectedReservoirs}`);
     check(await tab.locator('[data-reservoir="Lake Powell"]').count() === 0,
@@ -159,6 +163,23 @@ for (const viewport of VIEWPORTS) {
       `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     check(ready.drainageAreas === expectedAreas,
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
+
+    /* The renderer count above proves what the page built. This proves the
+     * layer accepted it: a client-side feature layer whose source is
+     * rejected still exists, still reports its renderer, and holds nothing.
+     * `queryFeatureCount` answers from the layer, not from a view, so it
+     * settles in headless Chromium where the render loop does not run. */
+    const layerFeatures = await tab.evaluate(async () => {
+      const layer = document.querySelector("arcgis-map")?.map
+        ?.findLayerById("reservoirs");
+      if (!layer) return { type: null, count: 0 };
+      return { type: layer.type, count: await layer.queryFeatureCount() };
+    });
+    check(layerFeatures.type === "feature",
+      `${label}: the reservoirs layer is "${layerFeatures.type}", expected a feature layer`);
+    check(layerFeatures.count === expectedReservoirs,
+      `${label}: the reservoir layer holds ${layerFeatures.count} features, ` +
+      `expected ${expectedReservoirs}`);
 
     const visibleText = await tab.evaluate(COLLECT_SHADOW_TEXT);
     check(!RETIRED_TERMS.test(visibleText),

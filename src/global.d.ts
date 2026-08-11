@@ -10,6 +10,10 @@ interface DashboardReady {
   reservoirs: number;
   /** Reservoirs the map actually drew. */
   drawn: number;
+  /** Symbols the reservoir renderer holds. One per feature by construction:
+   * a smaller number means the renderer dropped some and drew an
+   * approximation of the class table rather than the table. */
+  symbols: number;
   late: number;
   basemap: boolean;
   basemapDegraded: boolean;

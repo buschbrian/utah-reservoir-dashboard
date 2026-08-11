@@ -36,7 +36,7 @@ scientific scope or replace the production URLs.
   hover and click selection.
 - Browser-test hover and map click with deterministic hit-test results.
 
-### 3.2 One reservoir feature layer and CIM symbols — next
+### 3.2 One reservoir feature layer and CIM symbols — complete
 
 - Replace the two graphics per reservoir with one client-side `FeatureLayer`
   feature carrying stable object ID, name, size basis, fill percentage, and
@@ -49,7 +49,20 @@ scientific scope or replace the production URLs.
 - Record bundle and frame-time measurements; do not enable a heavier effect
   solely because the SDK supports it.
 
-### 3.3 Layer-view hover and filter effects
+The renderer is keyed on the object ID, one composed symbol per feature: every
+reservoir's ring is a different width, so there are as many symbols as features
+by construction, and a `UniqueValueRenderer` is the one renderer with no stop
+limit. `src/viz/cim.ts` builds the symbol as a plain property object with no
+SDK import, so its arrangement is asserted in the same node environment that
+already holds the radii against `shared/reservoir-viz.js`.
+
+Two new assertions, because a feature layer can fail at either end. The page
+publishes `symbols`, the count the renderer holds, which catches a renderer
+that quietly kept fewer than it was given. The browser gate queries the layer
+itself, which catches a layer that accepted the renderer and rejected the
+source.
+
+### 3.3 Layer-view hover and filter effects — next
 
 - Move the visual hover emphasis to the layer view's named `temporary`
   highlight after 3.2 supplies a feature layer.
