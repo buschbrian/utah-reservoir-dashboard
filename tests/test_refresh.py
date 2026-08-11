@@ -370,6 +370,19 @@ def test_committed_reservoirs_json_is_well_formed():
         assert isinstance(record["intersects_utah"], bool)
 
 
+def test_one_export_contains_capacity_and_every_visualization_geography():
+    sections = R.build_export_sections()
+
+    assert sections["schema_version"] == 1
+    assert sections["capacity_catalog"]["capacities"]["Deer Creek"]["nid_id"] == "UT10117"
+    geography = sections["geography"]
+    assert geography["state"]["features"][0]["properties"]["name"] == "Utah"
+    watersheds = geography["watersheds"]
+    assert watersheds["default_scope"] == "utah-connected"
+    assert watersheds["scopes"]["utah-connected"]["unit_count"] == 14
+    assert watersheds["scopes"]["upper-colorado"]["unit_count"] == 10
+
+
 # --- watershed enrichment -------------------------------------------------
 
 def test_every_record_gets_a_watershed_and_the_summary_agrees():

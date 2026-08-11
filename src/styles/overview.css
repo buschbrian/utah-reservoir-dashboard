@@ -207,3 +207,45 @@ body {
   border: 1px solid rgba(0, 0, 0, .25);
   flex: none;
 }
+
+/* The distribution across the storage classes, which is also the filter for
+ * everything below it. One bar rather than five cards: the question it
+ * answers is "what share", and shares read as widths. */
+.class-strip {
+  margin-block: .75rem;
+  padding: .9rem;
+  background: color-mix(in srgb, var(--app-surface-raised) 94%, var(--app-sand));
+  border: 1px solid var(--app-border);
+  border-radius: .65rem;
+}
+.class-strip-head h2 { margin: 0; font-size: 1rem; }
+.class-strip-head p {
+  margin: .2rem 0 .6rem;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.class-bar { display: flex; gap: .2rem; min-width: 0; }
+.class-seg {
+  flex: 1 1 0;
+  min-width: 2.25rem;
+  padding: .5rem .25rem;
+  border: 1px solid rgba(0, 0, 0, .28);
+  border-radius: .25rem;
+  color: #1c1c1c;
+  font: 700 .8125rem "Avenir Next", Avenir, sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  /* The unchosen segments recede rather than disappear: the spread is the
+   * point, and hiding it would leave the filter with nothing to explain. */
+  opacity: .55;
+  transition: opacity .12s ease-out;
+}
+.class-seg:hover { opacity: .85; }
+.class-seg[aria-pressed="true"] { opacity: 1; box-shadow: inset 0 0 0 .15rem #1c1c1c; }
+.class-bar:not(:has([aria-pressed="true"])) .class-seg { opacity: 1; }
+.class-seg:focus-visible {
+  outline: .18rem solid color-mix(in srgb, var(--app-accent) 70%, transparent);
+  outline-offset: .12rem;
+}

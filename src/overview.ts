@@ -8,6 +8,8 @@ import "@esri/calcite-components/components/calcite-navigation-logo";
 
 import { loadReservoirs } from "./data/load";
 import { isLate, statewideRollup, type LakePowellChoice } from "./data/rollup";
+import { classIndexOf } from "./state/filters";
+import { STORAGE_CLASSES } from "./viz/classes";
 import { renderArcgisBarChart, storageLegendEntries } from "./overview-charts";
 import {
   filterAndSort,
@@ -70,11 +72,22 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
    * not apply a second Lake Powell filter on top of it -- "include" here
    * means "do not filter again", which is what makes the toggle work. */
   const rollup = statewideRollup(reservoirs, { geography: "connected", lakePowell: "include" });
+  const signed = (value: number): string =>
+    `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const values: Record<string, string> = {
     percent: formatPercent(rollup.percentFull),
     volume: `${formatAcreFeet(rollup.storageAf)} of ${formatAcreFeet(rollup.capacityAf)}`,
     count: String(rollup.count),
-    change: `${rollup.change30dAf >= 0 ? "+" : ""}${formatAcreFeet(rollup.change30dAf)}`,
+    /* How full against how full it usually is on this date. The headline
+     * percentage cannot answer that on its own: a reservoir at 60% in April
+     * and one at 60% in September are not the same news, and this is the
+     * number a drought reader is actually looking for. */
+    normal: formatPercent(rollup.percentOfNormal),
+    "normal-note": rollup.normalCovers === rollup.count
+      ? "Of the usual storage for this date"
+      : `Of the usual storage for this date, for ${rollup.normalCovers} of ${rollup.count}`,
+    year: signed(rollup.change365dAf),
+    change: `30 days: ${signed(rollup.change30dAf)}`,
     late: String(rollup.stale)
   };
   for (const [name, value] of Object.entries(values)) {
@@ -102,9 +115,17 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     <section class="overview-kpis" aria-label="Filtered storage summary">
       <article class="overview-kpi overview-kpi-primary"><span>Combined storage</span><strong data-kpi="percent">—</strong><small data-kpi="volume">—</small></article>
       <article class="overview-kpi"><span>Reservoirs in view</span><strong data-kpi="count">—</strong><small>Utah-intersecting waterbodies</small></article>
-      <article class="overview-kpi"><span>30-day volume change</span><strong data-kpi="change">—</strong><small>Net change across the current view</small></article>
+      <article class="overview-kpi"><span>Compared with normal</span><strong data-kpi="normal">—</strong><small data-kpi="normal-note">—</small></article>
+      <article class="overview-kpi"><span>Change over the year</span><strong data-kpi="year">—</strong><small data-kpi="change">30 days: —</small></article>
       <article class="overview-kpi"><span>Late or unavailable</span><strong data-kpi="late">—</strong><small>Evaluated against each source update schedule</small></article>
       <article class="overview-kpi"><span>Data published</span><strong>${formatDate(generatedAt.slice(0, 10))}</strong><small>Observation dates vary by reservoir</small></article>
+    </section>
+    <section class="class-strip" aria-labelledby="class-heading">
+      <div class="class-strip-head">
+        <h2 id="class-heading">How the reservoirs are spread</h2>
+        <p>Choose a level to filter everything below. The widths are the share of reservoirs in view.</p>
+      </div>
+      <div class="class-bar" data-classes role="group" aria-labelledby="class-heading"></div>
     </section>
     <div class="overview-chart-grid">
       <section class="overview-card" aria-labelledby="capacity-heading"><div class="card-heading"><div><h2 id="capacity-heading">Largest reservoirs</h2><p>Percent of conservation capacity for the 15 largest reservoirs in the current view.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="capacity-chart" class="chart-host" aria-busy="true"></div><div class="chart-legend" data-legend></div></section>
@@ -133,6 +154,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     host.setAttribute("aria-label", "Storage levels, the same colours the map uses");
   }
 
+  /* The class the reader has narrowed to, or null for all of them. Held
+   * here rather than in a control because the strip *is* the control: the
+   * distribution and the filter are one thing, so a reader cannot be
+   * looking at a spread that does not match what is below it. */
+  let storageClassFilter: number | null = null;
+
   const watershed = document.querySelector<HTMLSelectElement>("#watershed-filter");
   for (const choice of watershedChoices) {
     const option = document.createElement("option");
@@ -153,19 +180,68 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
       || !capacityHost || !watershedHost || !lakePowell) return;
 
+  /**
+   * The distribution across the storage classes, drawn as one bar.
+   *
+   * Reads from `statewideRollup`, which has computed this since the port and
+   * which the page has never shown -- so "is this a few empty reservoirs or
+   * most of the state?" had no answer here. Each segment is a button: the
+   * spread and the filter are the same control, which is what stops them
+   * disagreeing.
+   */
+  const renderClassStrip = (visible: readonly Reservoir[]): void => {
+    const host = document.querySelector<HTMLElement>("[data-classes]");
+    if (!host) return;
+    const rollup = statewideRollup(visible, { geography: "connected", lakePowell: "include" });
+    const total = rollup.classes.reduce((sum, entry) => sum + entry.count, 0);
+    host.replaceChildren(...rollup.classes.map((entry, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "class-seg";
+      button.dataset.class = String(index);
+      // A class nobody is in still gets a sliver, so the scale stays legible
+      // and the button stays clickable.
+      button.style.flexGrow = String(Math.max(entry.count, total === 0 ? 1 : 0.12));
+      button.style.background = entry.color;
+      button.setAttribute("aria-pressed", String(storageClassFilter === index));
+      button.setAttribute("aria-label",
+        `${entry.label}: ${entry.count} of ${total} reservoirs`);
+      const count = document.createElement("span");
+      count.className = "class-seg-count";
+      count.textContent = String(entry.count);
+      button.append(count);
+      button.addEventListener("click", () => {
+        storageClassFilter = storageClassFilter === index ? null : index;
+        void update();
+      });
+      return button;
+    }));
+    const chosen = storageClassFilter === null ? null : rollup.classes[storageClassFilter];
+    host.setAttribute("data-chosen", chosen ? chosen.label : "");
+  };
+
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
     const scoped = overviewScope(allReservoirs, lakePowell.value as LakePowellChoice);
-    const visible = filterOverview(scoped, {
+    const matching = filterOverview(scoped, {
       query: search.value,
       huc6: watershed.value,
       cadence: cadence.value as OverviewCadence
     });
+    /* The strip narrows what is below it, but the strip itself keeps showing
+     * the whole spread of the other filters -- otherwise choosing a class
+     * would collapse the very chart that offers the choice. */
+    const visible = storageClassFilter === null
+      ? matching
+      : matching.filter((reservoir) => classIndexOf(reservoir) === storageClassFilter);
     updateKpis(visible);
+    renderClassStrip(matching);
     renderRows(tbody, filterAndSort(visible, "", sort.value as OverviewSort));
+    const chosenClass = storageClassFilter === null
+      ? "" : ` · ${STORAGE_CLASSES[storageClassFilter]?.label ?? ""}`;
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · Lake Powell ` +
-      `${lakePowell.value === "include" ? "included" : "excluded"}`;
+      `${lakePowell.value === "include" ? "included" : "excluded"}${chosenClass}`;
     capacityHost.setAttribute("aria-busy", "true");
     watershedHost.setAttribute("aria-busy", "true");
     try {
@@ -219,6 +295,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     cadence.value = "all";
     sort.value = "capacity";
     lakePowell.value = "exclude";
+    storageClassFilter = null;
     void update();
     search.focus();
   });
