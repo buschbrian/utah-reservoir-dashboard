@@ -100,10 +100,16 @@ describe("the rest of the view in the link", () => {
     expect(searchWithState({})).toBe("");
   });
 
-  it("carries the filters, the scope and the month", () => {
+  it("carries the filters, both scope dimensions and the month", () => {
     expect(searchWithState({
-      storageClass: 0, reporting: "late", lakePowell: "include", month: "2026-02"
-    })).toBe("?storage=0&reporting=late&powell=include&month=2026-02");
+      storageClass: 0, reporting: "late", lakePowell: "include",
+      geography: "connected", month: "2026-02"
+    })).toBe("?storage=0&reporting=late&powell=include&reservoirs=connected&month=2026-02");
+  });
+
+  it("writes nothing for the geography the dashboard opens on", () => {
+    expect(searchWithState({ geography: "utah" })).toBe("");
+    expect(stateFromSearch("?reservoirs=nonsense").geography).toBe("utah");
   });
 
   it("takes a month only in the shape the payload writes them", () => {
@@ -121,9 +127,13 @@ describe("the rest of the view in the link", () => {
     for (const storageClass of [null, 0, 3]) {
       for (const reporting of ["all", "late", "current"] as const) {
         for (const lakePowell of ["exclude", "include"] as const) {
-          for (const month of [null, "2026-02"]) {
-            const state = { reservoir: "Deer Creek", storageClass, reporting, lakePowell, month };
-            expect(stateFromSearch(searchWithState(state))).toEqual(state);
+          for (const geography of ["utah", "connected"] as const) {
+            for (const month of [null, "2026-02"]) {
+              const state = {
+                reservoir: "Deer Creek", storageClass, reporting, lakePowell, geography, month
+              };
+              expect(stateFromSearch(searchWithState(state))).toEqual(state);
+            }
           }
         }
       }

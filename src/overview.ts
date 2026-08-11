@@ -7,7 +7,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 
 import { loadReservoirs } from "./data/load";
-import { isLate, statewideRollup, type LakePowellChoice } from "./data/rollup";
+import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import { STORAGE_CLASSES } from "./viz/classes";
 import { renderArcgisBarChart, storageLegendEntries } from "./overview-charts";
@@ -101,14 +101,16 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   if (!content) return;
   // Built from the widest scope so the list of drainage areas does not
   // change shape when Lake Powell is toggled.
-  const watershedChoices = watershedOptions(overviewScope(allReservoirs, "include"));
+  const watershedChoices = watershedOptions(
+    overviewScope(allReservoirs, { geography: "connected", lakePowell: "include" }));
   content.innerHTML = `
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
       <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
       <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
       <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
       <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
-      <label>Lake Powell<select id="lake-powell-filter"><option value="exclude">Excluded</option><option value="include">Included</option></select></label>
+      <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
+      <label class="switch-label" for="lake-powell-toggle">Include Lake Powell<input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
       <button id="reset-filters" class="reset-button" type="button">Reset filters</button>
     </section>
     <p id="filter-status" class="filter-status" role="status"></p>
@@ -172,13 +174,14 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const search = document.querySelector<HTMLInputElement>("#reservoir-search");
   const cadence = document.querySelector<HTMLSelectElement>("#cadence-filter");
   const sort = document.querySelector<HTMLSelectElement>("#reservoir-sort");
-  const lakePowell = document.querySelector<HTMLSelectElement>("#lake-powell-filter");
+  const lakePowell = document.querySelector<HTMLInputElement>("#lake-powell-toggle");
+  const geography = document.querySelector<HTMLSelectElement>("#geography-filter");
   const reset = document.querySelector<HTMLButtonElement>("#reset-filters");
   const status = document.querySelector<HTMLElement>("#filter-status");
   const capacityHost = document.querySelector<HTMLElement>("#capacity-chart");
   const watershedHost = document.querySelector<HTMLElement>("#watershed-chart");
   if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
-      || !capacityHost || !watershedHost || !lakePowell) return;
+      || !capacityHost || !watershedHost || !lakePowell || !geography) return;
 
   /**
    * The distribution across the storage classes, drawn as one bar.
@@ -223,7 +226,10 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
-    const scoped = overviewScope(allReservoirs, lakePowell.value as LakePowellChoice);
+    const scoped = overviewScope(allReservoirs, {
+      geography: geography.value as ReservoirGeography,
+      lakePowell: lakePowell.checked ? "include" : "exclude"
+    });
     const matching = filterOverview(scoped, {
       query: search.value,
       huc6: watershed.value,
@@ -240,8 +246,9 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     renderRows(tbody, filterAndSort(visible, "", sort.value as OverviewSort));
     const chosenClass = storageClassFilter === null
       ? "" : ` · ${STORAGE_CLASSES[storageClassFilter]?.label ?? ""}`;
-    status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · Lake Powell ` +
-      `${lakePowell.value === "include" ? "included" : "excluded"}${chosenClass}`;
+    status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +
+      `${geography.value === "connected" ? "All connected" : "Utah waterbodies"} · Lake Powell ` +
+      `${lakePowell.checked ? "included" : "excluded"}${chosenClass}`;
     capacityHost.setAttribute("aria-busy", "true");
     watershedHost.setAttribute("aria-busy", "true");
     try {
@@ -286,15 +293,20 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
     };
   };
-  for (const control of [search, watershed, cadence, sort, lakePowell]) {
-    control.addEventListener(control === sort || control instanceof HTMLSelectElement ? "change" : "input", () => void update());
+  for (const control of [search, watershed, cadence, sort, lakePowell, geography]) {
+    const event = control instanceof HTMLSelectElement
+      || (control instanceof HTMLInputElement && control.type === "checkbox")
+      ? "change"
+      : "input";
+    control.addEventListener(event, () => void update());
   }
   reset.addEventListener("click", () => {
     search.value = "";
     watershed.value = "all";
     cadence.value = "all";
     sort.value = "capacity";
-    lakePowell.value = "exclude";
+    lakePowell.checked = false;
+    geography.value = "utah";
     storageClassFilter = null;
     void update();
     search.focus();

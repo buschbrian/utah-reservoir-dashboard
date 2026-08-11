@@ -15,7 +15,7 @@
  * `connectSelectionToUrl`, at the bottom, and it is four lines.
  */
 
-import type { LakePowellChoice } from "../data/rollup";
+import type { LakePowellChoice, ReservoirGeography } from "../data/rollup";
 import type { Reporting } from "./filters";
 import { normalizeSelectionValue, type SelectionStore } from "./selection";
 
@@ -35,6 +35,7 @@ const SELECTION_PARAMS = {
   storageClass: "storage",
   reporting: "reporting",
   lakePowell: "powell",
+  geography: "reservoirs",
   month: "month"
 } as const;
 type SelectionField = keyof typeof SELECTION_PARAMS;
@@ -53,6 +54,8 @@ export interface DashboardUrlState {
   storageClass: number | null;
   reporting: Reporting;
   lakePowell: LakePowellChoice;
+  /** Utah waterbodies, or every connected reservoir (ADR-011). */
+  geography: ReservoirGeography;
   /** A month key the payload carries, or null for the newest reading. */
   month: string | null;
 }
@@ -62,6 +65,7 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   storageClass: null,
   reporting: "all",
   lakePowell: "exclude",
+  geography: "utah",
   month: null
 };
 
@@ -128,6 +132,8 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
       state.reporting = value === "late" || value === "current" ? value : "all";
     } else if (key === SELECTION_PARAMS.lakePowell) {
       state.lakePowell = value === "include" ? "include" : "exclude";
+    } else if (key === SELECTION_PARAMS.geography) {
+      state.geography = value === "connected" ? "connected" : "utah";
     } else if (key === SELECTION_PARAMS.month) {
       /* Only the shape is checked here. Whether the payload actually has
        * this month is the page's business, and it falls back to the newest
@@ -166,6 +172,9 @@ export function searchWithState(
   }
   if (full.lakePowell !== "exclude") {
     parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);
+  }
+  if (full.geography !== "utah") {
+    parts.push(`${SELECTION_PARAMS.geography}=${full.geography}`);
   }
   if (full.month !== null) {
     parts.push(`${SELECTION_PARAMS.month}=${encodeURIComponent(full.month)}`);

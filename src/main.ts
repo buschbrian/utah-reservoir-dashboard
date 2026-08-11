@@ -5,8 +5,13 @@ import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
-import { isLate, statewideRollup, type LakePowellChoice } from "./data/rollup";
-import { overviewScope } from "./overview-model";
+import {
+  isLate,
+  statewideRollup,
+  type LakePowellChoice,
+  type ReservoirGeography
+} from "./data/rollup";
+import { DEFAULT_SCOPE, overviewScope, type ScopeChoice } from "./overview-model";
 import { describeReservoir } from "./state/detail";
 import {
   ALL_RESERVOIRS,
@@ -75,8 +80,11 @@ let deepLink: Reservoir | null = null;
 let published: readonly Reservoir[] = [];
 /** Everything the map is currently drawing. */
 let inScope: readonly Reservoir[] = [];
-/** ADR-011: a deliberate comparison control, not a geographic filter. */
-let lakePowell: LakePowellChoice = "exclude";
+/* ADR-011's two dimensions, both the reader's to choose. Geography was
+ * pinned to `utah`, which is why Fontenelle and Woodruff Narrows -- paid for
+ * by the refresh every morning, connected to Utah by drainage but never
+ * touching it -- were published and drawn nowhere. */
+let scope: ScopeChoice = { ...DEFAULT_SCOPE };
 
 /* Which month the map is showing. Every month the payload carries, oldest
  * first, with the newest published reading one position past the end -- that
@@ -140,9 +148,8 @@ function updateSummary(): void {
       : `Average through ${monthLabel(month)}`,
     // Written from the control rather than fixed in the markup: it read
     // "excluding Lake Powell" whatever the reader had chosen.
-    scope: lakePowell === "include"
-      ? "Utah waterbodies, including Lake Powell"
-      : "Utah waterbodies, excluding Lake Powell"
+    scope: `${scope.geography === "connected" ? "Connected reservoirs" : "Utah waterbodies"}, ` +
+      `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell`
   });
 }
 
@@ -168,12 +175,18 @@ let applyFilter: () => void = () => undefined;
 
 /* Everything the address bar carries except the selection, which the store
  * owns. One function, so the writer cannot go stale as controls are added. */
-function viewState(): { storageClass: number | null; reporting: FilterState["reporting"];
-  lakePowell: LakePowellChoice; month: string | null } {
+function viewState(): {
+  storageClass: number | null;
+  reporting: FilterState["reporting"];
+  lakePowell: LakePowellChoice;
+  geography: ReservoirGeography;
+  month: string | null;
+} {
   return {
     storageClass: filterState.storageClass,
     reporting: filterState.reporting,
-    lakePowell,
+    lakePowell: scope.lakePowell,
+    geography: scope.geography,
     month: selectedMonth()
   };
 }
@@ -283,7 +296,7 @@ if (!supportsDashboard(browserCapabilities())) {
      * panel describing something nobody can see.
      */
     const applyScope = (): void => {
-      inScope = overviewScope(published, lakePowell);
+      inScope = overviewScope(published, scope);
       updateSummary();
       renderReservoirList();
       map.drawReservoirs(inScope, percentShown);
@@ -296,7 +309,8 @@ if (!supportsDashboard(browserCapabilities())) {
         window.__dashboardReady.drawn = map.status.reservoirsDrawn;
         window.__dashboardReady.symbols = map.status.reservoirSymbols;
         window.__dashboardReady.late = inScope.filter(isLate).length;
-        window.__dashboardReady.lakePowell = lakePowell;
+        window.__dashboardReady.lakePowell = scope.lakePowell;
+        window.__dashboardReady.geography = scope.geography;
         window.__dashboardReady.listItems =
           document.querySelectorAll("#start-panel .list-btn").length;
       }
@@ -340,9 +354,13 @@ if (!supportsDashboard(browserCapabilities())) {
       monthIndex = months.length;
       applyMonth();
     });
-    setScopeControl((value) => {
-      lakePowell = value === "include" ? "include" : "exclude";
+    setScopeControl((chosen) => {
+      scope = {
+        geography: chosen.geography === "connected" ? "connected" : "utah",
+        lakePowell: chosen.lakePowell ? "include" : "exclude"
+      };
       applyScope();
+      applyMonth();
       writeUrlState({ ...viewState(), reservoir: selection.get() });
     });
 
@@ -350,13 +368,16 @@ if (!supportsDashboard(browserCapabilities())) {
      * filtered, Lake-Powell-included link that opened on an unfiltered
      * dashboard would show numbers that do not match the words around it. */
     const wanted = stateFromSearch(window.location.search);
-    lakePowell = wanted.lakePowell;
+    scope = { geography: wanted.geography, lakePowell: wanted.lakePowell };
     filterState = { storageClass: wanted.storageClass, reporting: wanted.reporting };
     // A link to a month the payload no longer carries opens on the newest
     // reading rather than on nothing.
     const askedFor = wanted.month === null ? -1 : months.indexOf(wanted.month);
     monthIndex = askedFor >= 0 ? askedFor : months.length;
-    setScopeValue(lakePowell);
+    setScopeValue({
+      geography: scope.geography,
+      lakePowell: scope.lakePowell === "include"
+    });
     applyScope();
     applyMonth();
 
@@ -380,7 +401,8 @@ if (!supportsDashboard(browserCapabilities())) {
     drawn: map.status.reservoirsDrawn,
     symbols: map.status.reservoirSymbols,
     late: inScope.filter(isLate).length,
-    lakePowell,
+    lakePowell: scope.lakePowell,
+    geography: scope.geography,
     months: months.length,
     month: selectedMonth(),
     basemap: map.status.basemap,

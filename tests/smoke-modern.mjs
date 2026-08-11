@@ -255,6 +255,33 @@ for (const viewport of VIEWPORTS) {
     const controls = mobile ? "#start-sheet" : "#start-panel";
     check(await tab.locator(`${controls} [data-filter="storage"]`).isVisible(),
       `${label}: the storage level filter is not visible`);
+    /* Both of ADR-011's dimensions are the reader's to choose. Geography was
+     * pinned to Utah, which is why Fontenelle and Woodruff Narrows were
+     * published every morning and drawn nowhere. */
+    const wider = await tab.evaluate(async (selector) => {
+      const geography = document.querySelector(`${selector} [data-scope="geography"]`);
+      geography.value = "connected";
+      geography.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+      await new Promise((resolve) => { setTimeout(resolve, 900); });
+      return {
+        drawn: window.__dashboardReady.drawn,
+        geography: window.__dashboardReady.geography,
+        search: window.location.search
+      };
+    }, controls);
+    check(wider.geography === "connected",
+      `${label}: the geography control did not widen the scope`);
+    check(wider.drawn > expectedReservoirs,
+      `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
+      `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);
+    check(/reservoirs=connected/.test(wider.search),
+      `${label}: the wider scope is missing from a shareable link`);
+    await tab.evaluate(async (selector) => {
+      const geography = document.querySelector(`${selector} [data-scope="geography"]`);
+      geography.value = "utah";
+      geography.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+      await new Promise((resolve) => { setTimeout(resolve, 900); });
+    }, controls);
     check(ready.filtered === false,
       `${label}: the map starts filtered`);
     check(ready.shown === expectedReservoirs,
@@ -838,14 +865,15 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       ready: window.__dashboardReady,
       search: window.location.search,
       reporting: document.querySelector('#start-panel [data-filter="reporting"]')?.value,
-      scope: document.querySelector('#start-panel [data-filter="scope"]')?.value,
+      scope: document.querySelector('#start-panel [data-scope="powell"]')?.checked
+        ? "include" : "exclude",
       where: document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
     }));
     check(restored.ready.lakePowell === "include",
       `${label}: the link's scope was not restored`);
     check(restored.scope === "include",
-      `${label}: the scope control does not show the scope the link asked for`);
+      `${label}: the Lake Powell switch does not show the scope the link asked for`);
     check(restored.reporting === "late",
       `${label}: the reporting control does not show the filter the link asked for`);
     check(restored.ready.filtered === true,

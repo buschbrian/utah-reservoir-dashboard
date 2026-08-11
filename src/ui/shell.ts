@@ -221,22 +221,44 @@ export function setFilterControls(
   });
 }
 
+type CalciteSwitch = HTMLElement & { checked: boolean };
+
+export interface ScopeControls {
+  geography: string;
+  lakePowell: boolean;
+}
+
 /**
- * The scope control, which is not one of the filters.
+ * The scope controls, which are not filters.
  *
- * The filters grey reservoirs the map still draws; this changes which
- * reservoirs the map has at all, so it redraws rather than dims (ADR-011).
- * Both surfaces carry a copy and both are kept at one value.
+ * The filters grey reservoirs the map still draws; these change which
+ * reservoirs the map has at all, so they redraw rather than dim (ADR-011).
+ * Lake Powell is a switch rather than a select because it is one yes-or-no
+ * question, and a two-option dropdown makes a reader open a menu to answer
+ * it. Both surfaces carry a copy and both are kept at one value.
  */
-export function setScopeControl(onChange: (value: string) => void): void {
-  document.querySelectorAll<CalciteSelect>('[data-filter="scope"]').forEach((select) => {
-    select.addEventListener("calciteSelectChange", () => onChange(select.value));
+export function setScopeControl(onChange: (scope: ScopeControls) => void): void {
+  const read = (): ScopeControls => ({
+    geography: document.querySelector<CalciteSelect>('[data-scope="geography"]')?.value ?? "utah",
+    lakePowell: document.querySelector<CalciteSwitch>('[data-scope="powell"]')?.checked ?? false
+  });
+  document.querySelectorAll<CalciteSelect>('[data-scope="geography"]').forEach((select) => {
+    select.addEventListener("calciteSelectChange", () => onChange({
+      ...read(), geography: select.value
+    }));
+  });
+  document.querySelectorAll<CalciteSwitch>('[data-scope="powell"]').forEach((toggle) => {
+    toggle.addEventListener("calciteSwitchChange", () => onChange({
+      ...read(), lakePowell: toggle.checked
+    }));
   });
 }
 
-export function setScopeValue(value: string): void {
-  document.querySelectorAll<CalciteSelect>('[data-filter="scope"]')
-    .forEach((select) => { select.value = value; });
+export function setScopeValue(scope: ScopeControls): void {
+  document.querySelectorAll<CalciteSelect>('[data-scope="geography"]')
+    .forEach((select) => { select.value = scope.geography; });
+  document.querySelectorAll<CalciteSwitch>('[data-scope="powell"]')
+    .forEach((toggle) => { toggle.checked = scope.lakePowell; });
 }
 
 type CalciteSlider = HTMLElement & { value: number; max: number };

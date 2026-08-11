@@ -10,6 +10,7 @@ import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-option";
 import "@esri/calcite-components/components/calcite-select";
 import "@esri/calcite-components/components/calcite-slider";
+import "@esri/calcite-components/components/calcite-switch";
 import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 import "@esri/calcite-components/components/calcite-panel";
@@ -56,15 +57,21 @@ function panelContents(suffix: string): string {
             label="Filter reservoirs by reporting state"></calcite-select>
         </calcite-label>
         <!-- Scope, not a filter, and separated from the two above because of
-             that: the filters grey reservoirs the map still draws, while this
-             changes which reservoirs the map has (ADR-011). -->
+             that: the filters grey reservoirs the map still draws, while these
+             change which reservoirs the map has (ADR-011). Both of that
+             record's dimensions, both the reader's to choose. -->
         <calcite-label>
-          Lake Powell
-          <calcite-select data-filter="scope"
-            label="Include or exclude Lake Powell">
-            <calcite-option value="exclude">Excluded</calcite-option>
-            <calcite-option value="include">Included</calcite-option>
+          Reservoirs
+          <calcite-select data-scope="geography"
+            label="Which reservoirs to show">
+            <calcite-option value="utah">Utah waterbodies</calcite-option>
+            <calcite-option value="connected">All connected reservoirs</calcite-option>
           </calcite-select>
+        </calcite-label>
+        <calcite-label layout="inline-space-between">
+          Include Lake Powell
+          <calcite-switch data-scope="powell"
+            label="Include Lake Powell in every total"></calcite-switch>
         </calcite-label>
         <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
         <calcite-button data-filter="reset" appearance="outline" icon-start="erase"

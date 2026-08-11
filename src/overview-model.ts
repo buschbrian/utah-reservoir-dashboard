@@ -3,7 +3,8 @@ import {
   isLate,
   reservoirInScope,
   statewideRollup,
-  type LakePowellChoice
+  type LakePowellChoice,
+  type ReservoirGeography
 } from "./data/rollup";
 import { STALE_COLOR, storageClass } from "./viz/classes";
 
@@ -50,14 +51,26 @@ function classOf(percent: number): { classLabel: string; classColor: string } {
  * ask. Geography stays fixed at `utah` here -- that is the page's subject,
  * not a preference.
  */
+export interface ScopeChoice {
+  geography: ReservoirGeography;
+  lakePowell: LakePowellChoice;
+}
+
+export const DEFAULT_SCOPE: ScopeChoice = { geography: "utah", lakePowell: "exclude" };
+
+/**
+ * The reservoirs a page shows.
+ *
+ * Both of ADR-011's dimensions are now the reader's to choose. Geography was
+ * pinned to `utah` here, which is why Fontenelle and Woodruff Narrows -- two
+ * reservoirs the refresh pays for every morning, connected to Utah by
+ * drainage but never touching it -- were published and then drawn nowhere.
+ */
 export function overviewScope(
   reservoirs: readonly Reservoir[],
-  lakePowell: LakePowellChoice = "exclude"
+  scope: ScopeChoice = DEFAULT_SCOPE
 ): Reservoir[] {
-  return reservoirs.filter((reservoir) => reservoirInScope(reservoir, {
-    geography: "utah",
-    lakePowell
-  }));
+  return reservoirs.filter((reservoir) => reservoirInScope(reservoir, scope));
 }
 
 function numberOrLast(value: number | null): number {
