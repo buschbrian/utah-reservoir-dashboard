@@ -49,6 +49,57 @@ describe("the navigable region", () => {
   });
 });
 
+/* Where the map opens, which the two production pages take from the shared
+ * module and the modern map takes from its own layer's extent. The three
+ * have to agree or the engines stop being comparable (ADR-007), so this
+ * holds the shared answer against the reservoirs it is computed from
+ * rather than against a written-down box. */
+describe("where the map opens", () => {
+  const opening = legacy.reservoirBounds(reservoirs);
+
+  it("contains every reservoir it was computed from", () => {
+    for (const reservoir of reservoirs) {
+      expect(reservoir.lon, reservoir.name).toBeGreaterThanOrEqual(opening[0][0]);
+      expect(reservoir.lon, reservoir.name).toBeLessThanOrEqual(opening[1][0]);
+      expect(reservoir.lat, reservoir.name).toBeGreaterThanOrEqual(opening[0][1]);
+      expect(reservoir.lat, reservoir.name).toBeLessThanOrEqual(opening[1][1]);
+    }
+  });
+
+  it("never opens outside the region navigation is held inside", () => {
+    expect(opening[0][0]).toBeGreaterThanOrEqual(MAP_BOUNDS[0][0]);
+    expect(opening[0][1]).toBeGreaterThanOrEqual(MAP_BOUNDS[0][1]);
+    expect(opening[1][0]).toBeLessThanOrEqual(MAP_BOUNDS[1][0]);
+    expect(opening[1][1]).toBeLessThanOrEqual(MAP_BOUNDS[1][1]);
+  });
+
+  it("is tighter than the region, which is the whole point", () => {
+    const span = (box: readonly (readonly [number, number])[]): number =>
+      ((box[1]?.[0] ?? 0) - (box[0]?.[0] ?? 0)) * ((box[1]?.[1] ?? 0) - (box[0]?.[1] ?? 0));
+    expect(span(opening)).toBeLessThan(span(MAP_BOUNDS));
+  });
+
+  it("gives an empty payload the region rather than a box with no width", () => {
+    expect(legacy.reservoirBounds([]).map((corner) => [...corner]))
+      .toEqual(MAP_BOUNDS.map((corner) => [...corner]));
+    expect(legacy.reservoirBounds(null).map((corner) => [...corner]))
+      .toEqual(MAP_BOUNDS.map((corner) => [...corner]));
+  });
+
+  it("keeps a usable box around a single reservoir", () => {
+    const one = legacy.reservoirBounds([{ lon: -111.5, lat: 39.5 }]);
+    expect(one[1][0]).toBeGreaterThan(one[0][0]);
+    expect(one[1][1]).toBeGreaterThan(one[0][1]);
+  });
+
+  it("ignores a record with no usable position", () => {
+    const withJunk = legacy.reservoirBounds([
+      ...reservoirs, { lon: Number.NaN, lat: Number.NaN }, { lon: null, lat: null }
+    ]);
+    expect(withJunk.map((corner) => [...corner])).toEqual(opening.map((corner) => [...corner]));
+  });
+});
+
 describe("where selecting a reservoir goes", () => {
   it("centres on the reservoir, inside the region, for every published one", () => {
     for (const reservoir of reservoirs) {

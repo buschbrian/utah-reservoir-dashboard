@@ -178,6 +178,56 @@
   // connected Colorado River and Great Basin context visible.
   var MAP_MIN_ZOOM = 4;
   var MAP_CENTER = [-111.55, 39.50];
+
+  /* Where the map should open, which is a different question from where it
+   * is allowed to go.
+   *
+   * MAP_BOUNDS is the second: the region navigation is held inside, which
+   * reaches well past Utah on every side because the connected drainage
+   * areas do. Opening at it spends most of the canvas on Nevada, Wyoming
+   * and Arizona and draws the reservoirs small in the middle. This asks the
+   * published reservoirs where they actually are.
+   *
+   * The margin keeps the outermost reservoirs off the edge of the canvas.
+   * The result is clamped back into MAP_BOUNDS so the opening view can
+   * never sit outside the region the same map then refuses to pan to.
+   *
+   * Returns the fallback -- MAP_BOUNDS, normally -- when nothing usable is
+   * published, which is the honest answer for an empty payload rather than
+   * a degenerate zero-width box.
+   */
+  function reservoirBounds(reservoirs, fallback) {
+    var back = fallback || MAP_BOUNDS;
+    if (!reservoirs || !reservoirs.length) return back;
+    var west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    for (var i = 0; i < reservoirs.length; i++) {
+      var record = reservoirs[i] || {};
+      /* Null is checked before the conversion because `Number(null)` is 0,
+       * not NaN: a record with no position would otherwise read as a
+       * reservoir off the coast of Africa and stretch the opening view to
+       * the whole region -- which is exactly the view this replaces. */
+      if (record.lon === null || record.lon === undefined) continue;
+      if (record.lat === null || record.lat === undefined) continue;
+      var lon = Number(record.lon);
+      var lat = Number(record.lat);
+      if (!isFinite(lon) || !isFinite(lat)) continue;
+      if (lon < west) west = lon;
+      if (lon > east) east = lon;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+    if (!isFinite(west) || !isFinite(south)) return back;
+
+    // A tenth of the span on each side, and a floor for the case where every
+    // reservoir sits at nearly one point -- without it a single reservoir
+    // would open the map at a box with no width at all.
+    var padX = Math.max((east - west) * 0.1, 0.15);
+    var padY = Math.max((north - south) * 0.1, 0.15);
+    return [
+      [Math.max(back[0][0], west - padX), Math.max(back[0][1], south - padY)],
+      [Math.min(back[1][0], east + padX), Math.min(back[1][1], north + padY)]
+    ];
+  }
   var HUC_FILL = "rgba(226,232,239,0.22)";
   var HUC_LINE = "#6f8498";
 
@@ -1850,6 +1900,7 @@
     MAP_BOUNDS: MAP_BOUNDS,
     MAP_MIN_ZOOM: MAP_MIN_ZOOM,
     MAP_CENTER: MAP_CENTER,
+    reservoirBounds: reservoirBounds,
     UTAH_RING: UTAH_RING,
     parseUtahBoundary: parseUtahBoundary,
     loadUtahBoundary: loadUtahBoundary,

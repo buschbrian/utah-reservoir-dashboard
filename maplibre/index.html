@@ -89,8 +89,14 @@
        back on the way the ArcGIS SDK does. */
     .maplibregl-popup-content { max-height: 70vh; overflow-y: auto; }
     @media (max-width: 640px) {
+      /* The right gutter is the zoom control's lane, the same solution the
+         ArcGIS page uses: the control's width plus the SDK's corner margin,
+         rounded up. The card used to run the full width and push the control
+         down instead, from a measurement taken after the data loaded -- so
+         until then, and whenever the data never arrived, the control sat
+         under the card. A gutter cannot be late. */
       #titleDiv {
-        top: 8px; left: 8px; right: 8px; max-width: none; padding: 8px 10px;
+        top: 8px; left: 8px; right: 56px; max-width: none; padding: 8px 10px;
         max-height: calc(100vh - 16px);
       }
       #titleDiv .disclaimer { display: none; }
@@ -99,12 +105,6 @@
       .map-links { margin-top: 5px; }
       #legendDiv { bottom: 8px; left: 8px; max-width: 160px; padding: 7px 9px; font-size: 11px; }
       #legendDiv .rv-legend-note { display: none; }
-      /* The title card is full width on a phone, so the zoom control has to
-         start below it. The offset is set from the card's measured height
-         once the month slider is inside it -- the old fixed 150px was
-         already a guess about a card whose height depends on how many
-         reservoirs have late data, and the slider made the guess wrong. */
-      .maplibregl-ctrl-top-right { top: var(--rv-card-bottom, 150px); }
       .maplibregl-popup { max-width: calc(100vw - 16px) !important; }
       .maplibregl-popup-content { max-height: 65vh; padding: 9px 10px; }
     }
@@ -673,12 +673,15 @@
           const titleDiv = document.getElementById("titleDiv");
           titleDiv.insertBefore(slider.element, titleDiv.querySelector(".map-links"));
 
-          // The card is taller now. Both the zoom control's offset (a CSS
-          // variable read by the phone rule in the stylesheet) and the map's
-          // own fit have to follow it.
-          document.documentElement.style.setProperty(
-            "--rv-card-bottom", (titleDiv.offsetHeight + 16) + "px");
-          map.fitBounds(mapBounds, { padding: fitPadding(), duration: 0 });
+          /* The card is taller now, so the fit has to follow it -- and the
+             fit is to the reservoirs rather than to `mapBounds`. That
+             constant is the region navigation is held inside; it reaches
+             well past Utah on every side because the connected drainage
+             areas do, so opening at it spent most of the canvas on Nevada
+             and Wyoming. `reservoirBounds` asks the published reservoirs
+             where they are, and clamps the answer back inside the region. */
+          map.fitBounds(ReservoirViz.reservoirBounds(reservoirs, mapBounds),
+                        { padding: fitPadding(), duration: 0 });
 
 
           // Popup only on the front-most (current-storage) layer -- the
@@ -822,24 +825,6 @@
                   { dim: active && !matching.has(r.name) });
               });
             });
-
-          // The phone stylesheet pushes the zoom control down to a fixed
-          // 150px so it clears the title card, which was already a guess and
-          // is now wrong: the filter controls make the card taller, and the
-          // freshness line grows by a line for every reservoir with late
-          // data. Measuring the card is the only version of this that stays
-          // true. Above the breakpoint the card is narrow and the control
-          // sits in the corner, so the inline value is removed and the
-          // stylesheet takes it back.
-          const controlCorner = document.querySelector(".maplibregl-ctrl-top-right");
-          const positionControls = () => {
-            if (!controlCorner) return;
-            if (window.innerWidth > 640) { controlCorner.style.top = ""; return; }
-            const card = document.getElementById("titleDiv").getBoundingClientRect();
-            controlCorner.style.top = Math.round(card.bottom + 8) + "px";
-          };
-          positionControls();
-          window.addEventListener("resize", positionControls);
 
           // Readiness signal for the CI browser smoke test (tests/smoke.mjs),
           // matching the ArcGIS version's so one test can check both engines.

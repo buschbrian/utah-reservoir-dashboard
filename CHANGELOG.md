@@ -7,6 +7,20 @@ and is not listed here.
 
 ### Fixed
 
+- **The MapLibre title card covered its own zoom control on a phone.** The
+  card ran the full width and pushed the control down by an offset measured
+  after the reservoir data arrived, so until then — and whenever the data
+  never arrived — the control sat underneath it. The card now keeps a right
+  gutter below 640px, the same solution the ArcGIS page has used since the
+  overlap was first found there, and the control stays in its corner. The
+  browser test measured this on the ArcGIS page only, which is why it went
+  unnoticed; it now checks both engines.
+- **Both map pages opened on the whole region instead of on the
+  reservoirs.** The region reaches well past Utah on every side because the
+  connected drainage areas do, so the opening view spent most of the canvas
+  on Nevada and Wyoming. Both now open on a box computed from the published
+  reservoirs and clamped back inside the region, so the two engines and the
+  modern map open the same way.
 - **The modern map could be panned out of the region entirely.** Both
   production maps have constrained navigation to the drainage areas around
   Utah since that fix landed; the modern shell had no constraints at all, so

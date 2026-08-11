@@ -142,8 +142,13 @@ for (const page of PAGES) {
         viewport: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth,
         title: box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null,
+        /* Each engine's zoom control, so the overlap check below covers
+           both. It used to look only for `.esri-zoom` and run only for the
+           ArcGIS page, which is why the MapLibre card sat over its own zoom
+           control on a phone for as long as it did. */
         zoom: (() => {
-          const rect = document.querySelector(".esri-zoom")?.getBoundingClientRect();
+          const rect = (document.querySelector(".esri-zoom")
+            ?? document.querySelector(".maplibregl-ctrl-top-right"))?.getBoundingClientRect();
           return rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } : null;
         })()
       };
@@ -154,12 +159,14 @@ for (const page of PAGES) {
       check(layout.title && layout.title.left >= 0 && layout.title.right <= layout.viewport + 1,
         `${label}: title panel extends outside the phone viewport`);
     }
-    if (page.engine === "arcgis") {
+    if (page.map) {
       const overlaps = layout.title && layout.zoom &&
         layout.title.left < layout.zoom.right && layout.title.right > layout.zoom.left &&
         layout.title.top < layout.zoom.bottom && layout.title.bottom > layout.zoom.top;
-      check(layout.zoom, `${label}: ArcGIS zoom control is missing`);
-      check(!overlaps, `${label}: ArcGIS zoom control overlaps the title panel`);
+      check(layout.zoom, `${label}: the zoom control is missing`);
+      check(!overlaps, `${label}: the zoom control overlaps the title panel`);
+      check(!layout.zoom || layout.zoom.right <= layout.viewport + 1,
+        `${label}: the zoom control extends outside the viewport`);
     }
 
     if (page.map) {

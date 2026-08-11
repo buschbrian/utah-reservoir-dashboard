@@ -65,8 +65,11 @@ Do not regress these; they were each found by a failing test or a screenshot.
 
 - The pages are tested at **1280, 390 and 360** pixels wide. No page may scroll
   sideways at any of them.
-- The title card keeps a **56px right gutter below 640px** — that is the ArcGIS
-  zoom control's lane.
+- The title card keeps a **56px right gutter below 640px** — that is the zoom
+  control's lane. Both map pages do this. MapLibre used to push the control
+  down by a measured offset instead, which is late by definition: the
+  measurement happens after the data loads, and the control sits under the
+  card until then. A gutter cannot be late.
 - The card's height is **measured against the legend**, not capped at a
   constant, and needs `border-box` plus a `ResizeObserver` to stay correct.
 - Grid and flex children carrying unbreakable controls need `min-width: 0`, or
