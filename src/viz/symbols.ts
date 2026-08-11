@@ -79,8 +79,17 @@ export function fillSize(ringPx: number, percent: NullableNumber): number {
   return ringPx * Math.sqrt(Math.min(100, Math.max(0, percent)) / 100);
 }
 
-export function reservoirSymbol(reservoir: Reservoir, domain: number): ReservoirSymbol {
-  const percent = headlinePercent(reservoir);
+/**
+ * The symbol for a reservoir at a given percentage.
+ *
+ * The ring is not a parameter: it is sized from the reservoir's own size
+ * basis, which does not change with the month. Only the fill and the colour
+ * move, so the twelve-month slider animates the water rather than resizing
+ * the reservoirs underneath it.
+ */
+export function reservoirSymbolFor(
+  reservoir: Reservoir, domain: number, percent: NullableNumber
+): ReservoirSymbol {
   const ringPx = ringSize(reservoir, domain);
   return {
     ringPx,
@@ -89,4 +98,8 @@ export function reservoirSymbol(reservoir: Reservoir, domain: number): Reservoir
     // The same rule the list badge, the filter and the summary count use.
     accent: isLate(reservoir) ? STALE_ACCENT : null
   };
+}
+
+export function reservoirSymbol(reservoir: Reservoir, domain: number): ReservoirSymbol {
+  return reservoirSymbolFor(reservoir, domain, headlinePercent(reservoir));
 }

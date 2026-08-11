@@ -1,9 +1,15 @@
+/*
+ * Every string in this file is inside a JavaScript template literal, so a
+ * backtick anywhere -- including in an HTML comment -- ends it and turns the
+ * rest of the markup into code. Write names in plain words here.
+ */
 import "@esri/calcite-components/components/calcite-action";
 import "@esri/calcite-components/components/calcite-button";
 import "@esri/calcite-components/components/calcite-label";
 import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-option";
 import "@esri/calcite-components/components/calcite-select";
+import "@esri/calcite-components/components/calcite-slider";
 import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 import "@esri/calcite-components/components/calcite-panel";
@@ -64,6 +70,21 @@ function panelContents(suffix: string): string {
         <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
           width="full" hidden>
           Show all reservoirs
+        </calcite-button>
+      </section>
+      <!-- The twelve months already in the payload. A Calcite slider rather
+           than the SDK's time slider: that component drives time-enabled
+           layer features, and this layer is one feature per reservoir with
+           the months in a side lookup, because neither engine will carry a
+           nested array on a feature. -->
+      <section class="months" aria-labelledby="months-${suffix}">
+        <h3 id="months-${suffix}">Storage over the last year</h3>
+        <p class="month-current" data-month="label" role="status" aria-live="polite"></p>
+        <calcite-slider data-month="slider" min="0" max="12" step="1" value="12"
+          label="Month to show"></calcite-slider>
+        <calcite-button data-month="now" appearance="outline" icon-start="rotate"
+          width="full" scale="s" hidden>
+          Back to the newest reading
         </calcite-button>
       </section>
       <section class="reservoir-list" aria-labelledby="list-${suffix}">

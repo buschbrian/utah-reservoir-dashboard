@@ -34,7 +34,8 @@ const SELECTION_PARAMS = {
   reservoir: "reservoir",
   storageClass: "storage",
   reporting: "reporting",
-  lakePowell: "powell"
+  lakePowell: "powell",
+  month: "month"
 } as const;
 type SelectionField = keyof typeof SELECTION_PARAMS;
 const SELECTION_FIELDS = Object.keys(SELECTION_PARAMS) as SelectionField[];
@@ -52,13 +53,16 @@ export interface DashboardUrlState {
   storageClass: number | null;
   reporting: Reporting;
   lakePowell: LakePowellChoice;
+  /** A month key the payload carries, or null for the newest reading. */
+  month: string | null;
 }
 
 export const DEFAULT_URL_STATE: DashboardUrlState = {
   reservoir: null,
   storageClass: null,
   reporting: "all",
-  lakePowell: "exclude"
+  lakePowell: "exclude",
+  month: null
 };
 
 /**
@@ -124,6 +128,12 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
       state.reporting = value === "late" || value === "current" ? value : "all";
     } else if (key === SELECTION_PARAMS.lakePowell) {
       state.lakePowell = value === "include" ? "include" : "exclude";
+    } else if (key === SELECTION_PARAMS.month) {
+      /* Only the shape is checked here. Whether the payload actually has
+       * this month is the page's business, and it falls back to the newest
+       * reading if not -- a link to a month that has aged out of the
+       * twelve should still open. */
+      state.month = /^\d{4}-\d{2}$/.test(value) ? value : null;
     }
   }
   return state;
@@ -156,6 +166,9 @@ export function searchWithState(
   }
   if (full.lakePowell !== "exclude") {
     parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);
+  }
+  if (full.month !== null) {
+    parts.push(`${SELECTION_PARAMS.month}=${encodeURIComponent(full.month)}`);
   }
 
   for (const [key, existing] of parseQuery(currentSearch)) {

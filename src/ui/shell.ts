@@ -239,6 +239,45 @@ export function setScopeValue(value: string): void {
     .forEach((select) => { select.value = value; });
 }
 
+type CalciteSlider = HTMLElement & { value: number; max: number };
+
+/**
+ * The month slider, on both surfaces.
+ *
+ * The rightmost position is the newest reading rather than a month, because
+ * that is what the map opens on and what every other number on the page is
+ * about. Months occupy the positions before it, oldest at the left, so the
+ * handle travels forward in time the way a reader expects.
+ */
+export function setMonthControl(
+  months: readonly string[],
+  onChange: (index: number) => void,
+  onNow: () => void
+): void {
+  document.querySelectorAll<CalciteSlider>('[data-month="slider"]').forEach((slider) => {
+    slider.max = months.length;
+    slider.value = months.length;
+    slider.addEventListener("calciteSliderChange", () => onChange(slider.value));
+    // Dragging fires input continuously; the map redraw is cheap enough to
+    // follow it, and a slider that only acts on release does not read as a
+    // slider at all.
+    slider.addEventListener("calciteSliderInput", () => onChange(slider.value));
+  });
+  document.querySelectorAll<HTMLElement>('[data-month="now"]').forEach((button) => {
+    button.addEventListener("click", onNow);
+  });
+}
+
+/** Puts every copy of the slider, its caption and its reset at one state. */
+export function setMonthState(index: number, months: readonly string[], caption: string): void {
+  document.querySelectorAll<CalciteSlider>('[data-month="slider"]')
+    .forEach((slider) => { slider.value = index; });
+  document.querySelectorAll<HTMLElement>('[data-month="label"]')
+    .forEach((element) => { element.textContent = caption; });
+  document.querySelectorAll<HTMLElement>('[data-month="now"]')
+    .forEach((button) => { button.hidden = index >= months.length; });
+}
+
 /** Puts every copy of the controls, the summary and the reset at one state. */
 export function setFilterState(
   values: { storage: string; reporting: string },

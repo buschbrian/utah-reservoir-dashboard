@@ -12,7 +12,7 @@ import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import { resolveBasemap } from "../arcgis/basemaps";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
-import type { Reservoir } from "../types";
+import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
 import { formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
@@ -50,7 +50,12 @@ export interface MapStatus {
 
 export interface MapController {
   status: MapStatus;
-  drawReservoirs(reservoirs: readonly Reservoir[]): void;
+  /** `percentOf` decides what each fill shows -- today's reading, or a
+   * month the reader has moved the slider to. */
+  drawReservoirs(
+    reservoirs: readonly Reservoir[],
+    percentOf?: (reservoir: Reservoir) => NullableNumber
+  ): void;
   drawDrainageAreas(areas: readonly DrainageArea[]): void;
   /**
    * Greys the reservoirs a `where` clause excludes, and leaves them on the
@@ -494,14 +499,14 @@ export async function loadMap(
 
   return {
     status,
-    drawReservoirs(reservoirs) {
+    drawReservoirs(reservoirs, percentOf) {
       // Replaced, not added to. The scope control redraws, and a second
       // call used to leave the first layer underneath the new one: the map
       // then showed reservoirs that were no longer in scope, drawn by a
       // renderer nothing could reach to filter or grey.
       if (reservoirLayer) map.remove(reservoirLayer);
       reservoirLayerView = null;
-      const result = createReservoirLayer(reservoirs);
+      const result = createReservoirLayer(reservoirs, percentOf);
       drawn = reservoirs;
       reservoirLayer = result.layer;
       map.add(result.layer);

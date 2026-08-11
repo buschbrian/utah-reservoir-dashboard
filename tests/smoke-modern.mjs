@@ -152,6 +152,12 @@ for (const viewport of VIEWPORTS) {
     // draws a plausible map of sizes and colours nobody chose.
     check(ready.symbols === expectedReservoirs,
       `${label}: the renderer holds ${ready.symbols} symbols, expected ${expectedReservoirs}`);
+    /* The twelve months the payload has always carried, which this map has
+     * only ever shown the newest of. The slider's rightmost position is the
+     * newest reading, not a month, which is why `month` opens as null. */
+    check(ready.months > 1, `${label}: the month slider offers ${ready.months} positions`);
+    check(ready.month === null,
+      `${label}: the map opened on ${ready.month} instead of the newest reading`);
     check(ready.listItems === expectedReservoirs,
       `${label}: the reservoir list has ${ready.listItems} entries, expected ${expectedReservoirs}`);
     check(await tab.locator('[data-reservoir="Lake Powell"]').count() === 0,
@@ -259,6 +265,53 @@ for (const viewport of VIEWPORTS) {
       `${label}: the filter removed rows from the list instead of dimming them`);
     check(filtered.summary.includes(String(filtered.shown)),
       `${label}: the panel does not report how many reservoirs are shown`);
+
+    /* Moving the slider has to move the map, the list and the headline
+     * together. A headline still reporting today while the map draws last
+     * November is the page saying two things at once. */
+    const monthView = await tab.evaluate(async (selector) => {
+      const before = document.querySelector(`${selector} [data-value="percent"]`)?.textContent;
+      const slider = document.querySelector(`${selector} [data-month="slider"]`);
+      slider.value = 0;
+      slider.dispatchEvent(new CustomEvent("calciteSliderChange", { bubbles: true }));
+      await new Promise((resolve) => { setTimeout(resolve, 800); });
+      return {
+        before,
+        month: window.__dashboardReady.month,
+        drawn: window.__dashboardReady.drawn,
+        percent: document.querySelector(`${selector} [data-value="percent"]`)?.textContent,
+        updated: document.querySelector(`${selector} [data-value="updated"]`)?.textContent,
+        caption: document.querySelector(`${selector} [data-month="label"]`)?.textContent,
+        search: window.location.search
+      };
+    }, controls);
+    check(typeof monthView.month === "string" && /^\d{4}-\d{2}$/.test(monthView.month),
+      `${label}: the slider did not move the map to a month (${monthView.month})`);
+    check(monthView.drawn === expectedReservoirs,
+      `${label}: a past month drew ${monthView.drawn} reservoirs, expected ${expectedReservoirs}`);
+    check(/[Aa]verage through/.test(monthView.updated ?? ""),
+      `${label}: the headline still reads "${monthView.updated}" in a past month`);
+    check((monthView.caption ?? "").includes("Showing the average through"),
+      `${label}: the slider caption does not say which month is on screen`);
+    check(monthView.search.includes(`month=${monthView.month}`),
+      `${label}: the month is missing from a shareable link ("${monthView.search}")`);
+
+    // Back to the newest reading, which is what every other number is about.
+    await tab.evaluate(async (selector) => {
+      document.querySelector(`${selector} [data-month="now"]`).click();
+      await new Promise((resolve) => { setTimeout(resolve, 800); });
+    }, controls);
+    const backToNow = await tab.evaluate((selector) => ({
+      month: window.__dashboardReady.month,
+      percent: document.querySelector(`${selector} [data-value="percent"]`)?.textContent,
+      search: window.location.search
+    }), controls);
+    check(backToNow.month === null,
+      `${label}: the map stayed on ${backToNow.month} after returning to the newest reading`);
+    check(backToNow.percent === monthView.before,
+      `${label}: the headline came back as ${backToNow.percent}, was ${monthView.before}`);
+    check(!backToNow.search.includes("month="),
+      `${label}: the newest reading is written into the link as a month`);
 
     // Excluded reservoirs stay on the map, so their rows stay reachable.
     const dimmedButton = tab.locator(`${controls} .list-btn-excluded`).first();

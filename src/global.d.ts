@@ -33,6 +33,10 @@ interface DashboardReady {
   deepLink: string | null;
   /** Whether Lake Powell is in scope: a comparison control, not a filter. */
   lakePowell: "include" | "exclude";
+  /** How many months the slider offers besides the newest reading. */
+  months: number;
+  /** The month on screen, or null while the map shows the newest reading. */
+  month: string | null;
   selected: string | null;
 }
 

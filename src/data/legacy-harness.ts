@@ -89,6 +89,8 @@ export interface LegacyApi {
   utahMaskRings(boundary?: LegacyBoundary): LegacyRing[];
   utahReservoirs<T>(reservoirs: readonly T[], excludeLakePowell: boolean): T[];
   headlinePct(reservoir: unknown): number | null;
+  /** Percent full for one month, recomputed from that month's mean storage. */
+  monthPct(reservoir: unknown, month: string): number | null;
   sizeBasis(reservoir: unknown): number;
   colorFor(percent: number | null): string;
   statewideSummary(reservoirs: readonly unknown[]): LegacySummary;

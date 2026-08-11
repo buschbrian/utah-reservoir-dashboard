@@ -4,6 +4,7 @@ import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
+import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
 import { isLate, statewideRollup, type LakePowellChoice } from "./data/rollup";
 import { overviewScope } from "./overview-model";
 import { describeReservoir } from "./state/detail";
@@ -31,6 +32,8 @@ import {
   setDetail,
   setFilterControls,
   setFilterState,
+  setMonthControl,
+  setMonthState,
   setReservoirList,
   setScopeControl,
   setScopeValue,
@@ -74,6 +77,24 @@ let published: readonly Reservoir[] = [];
 let inScope: readonly Reservoir[] = [];
 /** ADR-011: a deliberate comparison control, not a geographic filter. */
 let lakePowell: LakePowellChoice = "exclude";
+
+/* Which month the map is showing. Every month the payload carries, oldest
+ * first, with the newest published reading one position past the end -- that
+ * last position is what the page opens on and what the details panel and the
+ * late-data badges are about. */
+let months: readonly string[] = [];
+let monthIndex = 0;
+
+/** Null while the map shows the newest reading. */
+function selectedMonth(): string | null {
+  return monthIndex < months.length ? months[monthIndex] ?? null : null;
+}
+
+/** What each reservoir's fill shows right now: a month, or today. */
+function percentShown(reservoir: Reservoir): ReturnType<typeof headlinePercent> {
+  const month = selectedMonth();
+  return month === null ? headlinePercent(reservoir) : monthPercent(reservoir, month);
+}
 let publishedAt = "";
 
 async function loadData(): Promise<readonly Reservoir[] | null> {
@@ -98,17 +119,25 @@ async function loadData(): Promise<readonly Reservoir[] | null> {
 
 /** The headline, recomputed for whatever the scope control now includes. */
 function updateSummary(): void {
-  const rollup = statewideRollup(inScope, {
-    geography: "utah",
-    // `inScope` already answered the Lake Powell question; asking it twice
-    // here would make the control unable to add the reservoir back.
-    lakePowell: "include"
-  });
+  const month = selectedMonth();
+  /* The headline follows the slider. A summary still reporting today while
+   * the map draws last November is the page saying two things at once, and
+   * the map is the louder one. */
+  const rollup = month === null
+    ? statewideRollup(inScope, {
+      geography: "utah",
+      // `inScope` already answered the Lake Powell question; asking it twice
+      // here would make the control unable to add the reservoir back.
+      lakePowell: "include"
+    })
+    : { ...monthlyRollup(inScope, month), count: monthlyRollup(inScope, month).reporting };
   setSummary({
     percent: formatPercent(rollup.percentFull),
     storage: `${formatAcreFeet(rollup.storageAf)} acre-feet stored`,
     count: String(rollup.count),
-    updated: `Published ${formatDate(publishedAt)}`,
+    updated: month === null
+      ? `Published ${formatDate(publishedAt)}`
+      : `Average through ${monthLabel(month)}`,
     // Written from the control rather than fixed in the markup: it read
     // "excluding Lake Powell" whatever the reader had chosen.
     scope: lakePowell === "include"
@@ -140,11 +169,12 @@ let applyFilter: () => void = () => undefined;
 /* Everything the address bar carries except the selection, which the store
  * owns. One function, so the writer cannot go stale as controls are added. */
 function viewState(): { storageClass: number | null; reporting: FilterState["reporting"];
-  lakePowell: LakePowellChoice } {
+  lakePowell: LakePowellChoice; month: string | null } {
   return {
     storageClass: filterState.storageClass,
     reporting: filterState.reporting,
-    lakePowell
+    lakePowell,
+    month: selectedMonth()
   };
 }
 
@@ -198,8 +228,8 @@ function renderReservoirList(): void {
   setReservoirList(
     inScope.map((reservoir) => ({
       name: reservoir.name,
-      percent: formatPercent(headlinePercent(reservoir)),
-      color: storageColor(headlinePercent(reservoir)),
+      percent: formatPercent(percentShown(reservoir)),
+      color: storageColor(percentShown(reservoir)),
       late: isLate(reservoir)
     })),
     (name) => selection.set(name, { source: "list" })
@@ -256,7 +286,7 @@ if (!supportsDashboard(browserCapabilities())) {
       inScope = overviewScope(published, lakePowell);
       updateSummary();
       renderReservoirList();
-      map.drawReservoirs(inScope);
+      map.drawReservoirs(inScope, percentShown);
       if (selection.get() && !findReservoir(inScope, selection.get())) {
         selection.set(null, { source: "scope" });
       }
@@ -272,8 +302,43 @@ if (!supportsDashboard(browserCapabilities())) {
       }
     };
 
+    months = monthKeys(published);
+    monthIndex = months.length;
+
+    /**
+     * Redraws for the month the slider is on.
+     *
+     * The map, the list and the headline all take their percentage from
+     * `percentShown`, so they cannot disagree about which month is on
+     * screen. The details panel deliberately does not move: it reports a
+     * reservoir's latest reading, its source and whether that reading is
+     * late, none of which is a per-month fact.
+     */
+    const applyMonth = (): void => {
+      const month = selectedMonth();
+      updateSummary();
+      renderReservoirList();
+      map.drawReservoirs(inScope, percentShown);
+      applyFilter();
+      setMonthState(monthIndex, months, month === null
+        ? "Showing the newest reading from each reservoir."
+        : `Showing the average through ${monthLabel(month)}.`);
+      if (window.__dashboardReady) {
+        window.__dashboardReady.month = month;
+        window.__dashboardReady.drawn = map.status.reservoirsDrawn;
+      }
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
+    };
+
     wireSelection();
     wireFilters(map);
+    setMonthControl(months, (index) => {
+      monthIndex = Math.max(0, Math.min(months.length, index));
+      applyMonth();
+    }, () => {
+      monthIndex = months.length;
+      applyMonth();
+    });
     setScopeControl((value) => {
       lakePowell = value === "include" ? "include" : "exclude";
       applyScope();
@@ -286,8 +351,13 @@ if (!supportsDashboard(browserCapabilities())) {
     const wanted = stateFromSearch(window.location.search);
     lakePowell = wanted.lakePowell;
     filterState = { storageClass: wanted.storageClass, reporting: wanted.reporting };
+    // A link to a month the payload no longer carries opens on the newest
+    // reading rather than on nothing.
+    const askedFor = wanted.month === null ? -1 : months.indexOf(wanted.month);
+    monthIndex = askedFor >= 0 ? askedFor : months.length;
     setScopeValue(lakePowell);
     applyScope();
+    applyMonth();
 
     /* The address bar is connected before the link is read, so restoring a
      * selection writes the same URL back rather than a differently-spelled
@@ -310,6 +380,8 @@ if (!supportsDashboard(browserCapabilities())) {
     symbols: map.status.reservoirSymbols,
     late: inScope.filter(isLate).length,
     lakePowell,
+    months: months.length,
+    month: selectedMonth(),
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,
     masked: map.status.masked,

@@ -30,9 +30,9 @@ import {
 } from "../data/boundaries";
 import type { Ring } from "../data/huc";
 import { sizeBasis } from "../data/rollup";
-import type { Reservoir } from "../types";
+import type { NullableNumber, Reservoir } from "../types";
 import { reservoirCIM, type CIMSymbolReference } from "../viz/cim";
-import { headlinePercent, reservoirSymbol, sizeDomain } from "../viz/symbols";
+import { headlinePercent, reservoirSymbol, reservoirSymbolFor, sizeDomain } from "../viz/symbols";
 
 /** The attribute every reservoir feature carries, and the only one selection reads. */
 export const NAME_FIELD = "name";
@@ -119,7 +119,12 @@ const RESERVOIR_FIELDS = [
  * ten-stop ramp to eight the last time this map was drawn a different way.
  */
 export function createReservoirLayer(
-  reservoirs: readonly Reservoir[]
+  reservoirs: readonly Reservoir[],
+  /* What each reservoir's fill should show. Defaults to the newest reading,
+   * which is what the map opens on; the month slider passes that month's
+   * percentage instead. The ring is unaffected either way -- it carries
+   * physical scale, which does not change with the month. */
+  percentOf: (reservoir: Reservoir) => NullableNumber = headlinePercent
 ): ReservoirLayerResult {
   const domain = sizeDomain(reservoirs);
   const source: Graphic[] = [];
@@ -127,7 +132,8 @@ export function createReservoirLayer(
 
   reservoirs.forEach((reservoir, index) => {
     const objectId = index + 1;
-    const symbol = reservoirSymbol(reservoir, domain);
+    const percent = percentOf(reservoir);
+    const symbol = reservoirSymbolFor(reservoir, domain, percent);
     source.push(new Graphic({
       geometry: new Point({
         longitude: reservoir.lon,
@@ -138,7 +144,7 @@ export function createReservoirLayer(
         [OBJECT_ID_FIELD]: objectId,
         [NAME_FIELD]: reservoir.name,
         size_basis: sizeBasis(reservoir),
-        fill_percent: headlinePercent(reservoir),
+        fill_percent: percent,
         late: symbol.accent === null ? 0 : 1
       }
     }));
