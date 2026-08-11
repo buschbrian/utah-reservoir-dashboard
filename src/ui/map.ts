@@ -148,6 +148,39 @@ function showDegradedBasemap(name: string | null): void {
   elementById("map-host").append(notice);
 }
 
+/**
+ * How long the map may claim to be starting before it has to say something.
+ *
+ * Generous: this is a WebGL view fetching a basemap, not a JSON file. The
+ * point is that there is a terminal state at all, not that it is prompt.
+ */
+const VIEW_READY_TIMEOUT_MS = 25000;
+
+/** The notice the watchdog raises, so a later ready can take it back down. */
+const SLOW_NOTICE_ID = "map-slow-notice";
+
+function showSlowMap(): void {
+  if (document.getElementById(SLOW_NOTICE_ID)) return;
+  const notice = document.createElement("calcite-notice");
+  notice.id = SLOW_NOTICE_ID;
+  notice.setAttribute("kind", "warning");
+  notice.setAttribute("open", "");
+  notice.setAttribute("icon", "");
+  const title = document.createElement("div");
+  title.slot = "title";
+  title.textContent = "The map is slow to start";
+  const message = document.createElement("div");
+  message.slot = "message";
+  message.textContent =
+    "Storage figures are in the summary. The map appears when it is ready.";
+  notice.append(title, message);
+  elementById("map-host").append(notice);
+}
+
+function clearSlowMap(): void {
+  document.getElementById(SLOW_NOTICE_ID)?.remove();
+}
+
 function showMissingBasemap(): void {
   const notice = document.createElement("calcite-notice");
   notice.setAttribute("kind", "warning");
@@ -342,17 +375,35 @@ export async function loadMap(
      * is what once-only listening quietly turned into "the first thing that
      * happened", whatever it was. */
     if (!element.view?.ready) return;
-    elementById("map-host").setAttribute("aria-busy", "false");
+    settleMapHost();
     syncPadding();
     if (pendingSelection) easeToSelection(pendingSelection);
   });
   element.addEventListener("arcgisViewReadyError", () => {
+    settleMapHost();
     showMapMessage(
       "The map could not start",
       "Reservoir data remains available in the summary and statewide overview.",
       "alert"
     );
   }, { once: true });
+
+  /* `aria-busy` reports one fact -- the map is still starting -- so every
+   * way of no longer starting has to clear it. It used to be cleared only
+   * on ready, and the visible loader is replaced by the map element before
+   * that, so a view that neither readied nor errored left a screen reader
+   * told "busy" indefinitely with nothing to read. */
+  const watchdog = setTimeout(() => {
+    if (element.view?.ready) return;
+    elementById("map-host").setAttribute("aria-busy", "false");
+    showSlowMap();
+  }, VIEW_READY_TIMEOUT_MS);
+
+  function settleMapHost(): void {
+    clearTimeout(watchdog);
+    clearSlowMap();
+    elementById("map-host").setAttribute("aria-busy", "false");
+  }
   let drainageLayer: GraphicsLayer | null = null;
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: LayerView | null = null;

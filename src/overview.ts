@@ -168,14 +168,38 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       `${lakePowell.value === "include" ? "included" : "excluded"}`;
     capacityHost.setAttribute("aria-busy", "true");
     watershedHost.setAttribute("aria-busy", "true");
-    await Promise.all([
-      renderArcgisBarChart(capacityHost, largestReservoirRecords(visible),
-        "Percent full for the largest reservoirs in the filtered view",
-        () => currentRevision === revision),
-      renderArcgisBarChart(watershedHost, watershedRecords(visible),
-        "Combined percent full by drainage area in the filtered view",
-        () => currentRevision === revision)
-    ]);
+    try {
+      await Promise.all([
+        renderArcgisBarChart(capacityHost, largestReservoirRecords(visible),
+          "Percent full for the largest reservoirs in the filtered view",
+          () => currentRevision === revision),
+        renderArcgisBarChart(watershedHost, watershedRecords(visible),
+          "Combined percent full by drainage area in the filtered view",
+          () => currentRevision === revision)
+      ]);
+    } catch (error) {
+      /* A chart that throws used to leave both hosts reporting `aria-busy`
+       * with nothing in them and no readiness signal -- an empty box that
+       * announces itself as still loading, forever. Say what happened and
+       * stop claiming to be busy; the table below still has every value. */
+      console.error("A chart could not be drawn:", error);
+      if (currentRevision === revision) {
+        for (const host of [capacityHost, watershedHost]) {
+          host.setAttribute("aria-busy", "false");
+          if (host.childElementCount === 0) {
+            const failed = document.createElement("p");
+            failed.className = "chart-empty";
+            failed.setAttribute("role", "alert");
+            failed.textContent =
+              "This chart could not be drawn. The table below has the same values.";
+            host.replaceChildren(failed);
+          }
+        }
+      }
+      return;
+    }
+    // Only the winning revision owns these: a superseded run clearing them
+    // would report "not busy" while its successor is still drawing.
     if (currentRevision !== revision) return;
     capacityHost.setAttribute("aria-busy", "false");
     watershedHost.setAttribute("aria-busy", "false");

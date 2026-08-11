@@ -7,6 +7,15 @@ and is not listed here.
 
 ### Fixed
 
+- **Four loading states could never end.** No data fetch had a deadline, so a
+  request that hung left the storage summary on "Loading reservoir data"
+  indefinitely and the overview holding a bare spinner with no error path ever
+  reached. The map kept announcing itself as loading if its view neither
+  started nor failed. The overview left both chart hosts announcing the same
+  after a chart threw, and awaited a rendering event from the charts SDK that
+  has been observed never to arrive even with the bars fully drawn. Every one
+  of these now has a deadline and a terminal state — a spinner that cannot
+  resolve is not a loading state, it is an error nobody is being told about.
 - **The MapLibre title card covered its own zoom control on a phone.** The
   card ran the full width and pushed the control down by an offset measured
   after the reservoir data arrived, so until then — and whenever the data

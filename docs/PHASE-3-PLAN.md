@@ -160,7 +160,7 @@ surfaces at once. The scope control, the storage classes, the opening extent
 and the analysis controls each took a pass to bring back into line after one
 engine moved first.
 
-### 3.5 Loading and release gates — in progress
+### 3.5 Loading and release gates — loading states complete, profiling pending
 
 - Replace remaining loading copy with Calcite loader/skeleton states without
   hiding error explanations.
@@ -188,7 +188,17 @@ reader is not being told about:
 - The overview clears chart `aria-busy` only on the winning revision, so a
   superseded update leaves both hosts busy.
 
-The first two are done and gated. The last two are outstanding.
+All four are done and gated, and a fifth turned up while verifying them: the
+overview awaited the SDK's `arcgisRenderingComplete` with no deadline, and the
+charts have been observed fully drawn -- bars measurable in the shadow root --
+with the event never arriving. The page then awaited it forever, both chart
+hosts announcing `aria-busy`, and the readiness signal was never published.
+The wait now races a timer, because the chart being on screen is the fact that
+matters and the event is only how we hoped to learn it.
+
+The browser gate covers the data state (a payload that answers 503 and one
+that never answers) and asserts that neither the map host nor either chart
+host is left claiming to be busy.
 
 #### Pre-registered decision rule for the profiling — written before any number
 

@@ -160,6 +160,12 @@ for (const viewport of VIEWPORTS) {
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
     check(ready.masked === true, `${label}: the Utah mask is missing`);
+    /* `aria-busy` reports one fact: the map is still starting. Once it has
+     * started, every path out of that has to clear it -- the visible loader
+     * is replaced by the map element well before the view is ready, so a
+     * stuck flag is a screen reader told "busy" with nothing to read. */
+    check(await tab.getAttribute("#map-host", "aria-busy") === "false",
+      `${label}: the map still reports itself as loading after it started`);
     /* Both production maps already refuse to leave the region. Without the
      * constraint a reader can pan a Utah dashboard into open ocean and find
      * an empty basemap with no way back except reloading. */
@@ -501,6 +507,11 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: table does not match the map scope`);
     check(!(await tab.locator("#reservoir-rows").innerText()).includes("Lake Powell"),
       `${label}: Lake Powell appears in the default overview table`);
+    // A chart host that finished drawing must stop announcing itself busy.
+    for (const host of ["#capacity-chart", "#watershed-chart"]) {
+      check(await tab.getAttribute(host, "aria-busy") === "false",
+        `${label}: ${host} still reports itself as loading`);
+    }
     check(await tab.locator("#capacity-chart arcgis-chart")
       .evaluate((chart) => Boolean(chart.aria?.label)),
       `${label}: chart has no accessible name`);

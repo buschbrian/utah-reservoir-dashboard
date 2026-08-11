@@ -14,6 +14,18 @@ import Point from "@arcgis/core/geometry/Point.js";
 import type { OverviewChartRecord } from "./overview-model";
 import { STORAGE_CLASSES } from "./viz/classes";
 
+/**
+ * How long to wait for the SDK to say it finished drawing.
+ *
+ * `arcgisRenderingComplete` is the signal we want, but it is not
+ * guaranteed: the charts have been observed fully drawn -- bars measured in
+ * the shadow root -- with the event never arriving, which left the page
+ * awaiting it forever, both chart hosts announcing `aria-busy`, and the
+ * readiness signal never published. The chart being on screen is the fact
+ * that matters; the event is only how we hoped to learn it.
+ */
+const RENDER_SETTLE_MS = 8000;
+
 /** A percentage axis runs 0 to 100, always. */
 const PERCENT_AXIS = { min: 0, max: 100 };
 /** The value axis is the second one; the category axis is the first. */
@@ -157,7 +169,14 @@ export async function renderArcgisBarChart(
   });
   chart.layer = layer;
   chart.model = model;
-  await rendered;
+  // Whichever comes first. Proceeding on the deadline can only mean the
+  // page stops claiming to be busy slightly early; waiting forever means it
+  // never stops claiming it at all.
+  let settle: ReturnType<typeof setTimeout>;
+  await Promise.race([
+    rendered,
+    new Promise<void>((resolve) => { settle = setTimeout(resolve, RENDER_SETTLE_MS); })
+  ]).finally(() => clearTimeout(settle));
 
   /* Colour every bar by its storage class, from the same table the map is
    * drawn from (ADR-008). `colorMatch` takes the colours from the layer

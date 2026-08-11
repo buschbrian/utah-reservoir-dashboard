@@ -96,10 +96,29 @@ node tests/smoke.mjs        # needs Playwright Chromium; runs against dist/
 node tests/smoke-modern.mjs # the Phase 2 shell, same requirements
 ```
 
+On demand, not part of the build and not runnable in CI:
+
+```bash
+node tools/profile-symbols.mjs   # needs a real, visible browser window
+```
+
+It measures what the composed symbol and the filter effect cost on the machine
+you run it on, and refuses to run in CI rather than report a perfect score from
+a renderer that never drew. Leave the window in front for the duration.
+
 The smoke test is the one that catches what the others cannot: a page that
 loads, paints a basemap and renders no reservoirs at all. It asserts every
 reservoir rendered, no retired vocabulary is visible, nothing overlaps the map
 controls, and there are no console errors.
+
+**Anything that can wait forever needs a deadline.** A promise that never
+settles is a loading state that never ends, and a spinner that cannot resolve
+is an error the reader is not being told about. Runtime fetches go through
+`src/data/fetch.ts`; the basemap chain has its own in `src/arcgis/fallback.ts`;
+the chart render waits on an SDK event that has been observed never to arrive
+and races it against a timer. `aria-busy` is part of this: it reports one fact,
+so every way of no longer being busy has to clear it, the unhappy ones
+included.
 
 **A readiness signal field must report one fact.** Both map pages and the
 Phase 2 shell publish `window.__dashboardReady`. Two fields that read the same expression make two
