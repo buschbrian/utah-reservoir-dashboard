@@ -42,9 +42,9 @@ export function describeDataState(state: DataState): StateDescription {
 export interface DashboardCapabilities {
   customElements: boolean;
   resizeObserver: boolean;
-  webgl: boolean;
+  webgl2: boolean;
 }
 
 export function supportsDashboard(capabilities: DashboardCapabilities): boolean {
-  return capabilities.customElements && capabilities.resizeObserver && capabilities.webgl;
+  return capabilities.customElements && capabilities.resizeObserver && capabilities.webgl2;
 }

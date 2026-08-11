@@ -13,12 +13,12 @@ describe("shell states", () => {
     expect(supportsDashboard({
       customElements: true,
       resizeObserver: true,
-      webgl: true
+      webgl2: true
     })).toBe(true);
     expect(supportsDashboard({
       customElements: true,
       resizeObserver: true,
-      webgl: false
+      webgl2: false
     })).toBe(false);
   });
 });

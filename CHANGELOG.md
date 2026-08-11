@@ -7,6 +7,11 @@ and is not listed here.
 
 ### Fixed
 
+- **Browsers without WebGL 2 no longer get stuck on a loading map.** ArcGIS
+  Maps SDK 5.1 requires WebGL 2, but the shell previously accepted a WebGL 1
+  context and started a renderer that could never succeed. The capability
+  check now requires WebGL 2 and directs unsupported Safari configurations to
+  the accessible reservoir overview instead.
 - **Four loading states could never end.** No data fetch had a deadline, so a
   request that hung left the storage summary on "Loading reservoir data"
   indefinitely and the overview holding a bare spinner with no error path ever

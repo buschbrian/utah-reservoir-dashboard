@@ -12,7 +12,10 @@ export function browserCapabilities() {
   return {
     customElements: "customElements" in window,
     resizeObserver: "ResizeObserver" in window,
-    webgl: Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"))
+    // ArcGIS Maps SDK 5.1 supports WebGL2 only. Accepting a WebGL1 context
+    // lets the shell start a renderer that cannot succeed, which Safari can
+    // leave looking like a map that is still loading.
+    webgl2: Boolean(canvas.getContext("webgl2"))
   };
 }
 
@@ -21,7 +24,7 @@ export function renderUnsupported(root: HTMLElement): void {
     <main class="unsupported" role="alert">
       <p class="eyebrow">Browser support</p>
       <h1>This browser cannot display the reservoir map.</h1>
-      <p>Use a current browser with WebGL enabled, or open the accessible
+      <p>Use a current browser with WebGL 2 enabled, or open the accessible
         <a href="./explore.html">reservoir overview</a>.</p>
     </main>`;
 }
