@@ -148,10 +148,39 @@ for (const viewport of VIEWPORTS) {
       `${label}: scope holds ${ready.reservoirs} reservoirs, expected ${expectedReservoirs}`);
     check(ready.drawn === expectedReservoirs,
       `${label}: drew ${ready.drawn} reservoirs, expected ${expectedReservoirs}`);
-    // One composed symbol per feature. A renderer that quietly kept fewer
-    // draws a plausible map of sizes and colours nobody chose.
-    check(ready.symbols === expectedReservoirs,
-      `${label}: the renderer holds ${ready.symbols} symbols, expected ${expectedReservoirs}`);
+    /* The renderer no longer holds one symbol per feature -- size is an
+     * expression and colour is the key, so it holds one per storage class
+     * per late state. The fact worth asserting is not the count but that
+     * every feature has a symbol: a key the renderer does not carry draws
+     * nothing, which is exactly the silent failure the old count-based
+     * check existed to catch. */
+    const symbology = await tab.evaluate(async () => {
+      const layer = document.querySelector("arcgis-map")?.map?.findLayerById("reservoirs");
+      const renderer = layer?.renderer;
+      if (!layer || !renderer) return null;
+      const known = new Set((renderer.uniqueValueInfos ?? []).map((info) => String(info.value)));
+      const features = await layer.queryFeatures({
+        where: "1=1", outFields: ["symbol_key"], returnGeometry: false
+      });
+      const keys = features.features.map((feature) => String(feature.attributes.symbol_key));
+      return {
+        symbols: known.size,
+        field: renderer.field,
+        features: keys.length,
+        unsymbolised: keys.filter((key) => !known.has(key)).length
+      };
+    });
+    check(symbology !== null, `${label}: the reservoir renderer is missing`);
+    check(symbology?.unsymbolised === 0,
+      `${label}: ${symbology?.unsymbolised} reservoirs carry a symbol key the renderer does not have`);
+    check(symbology?.features === expectedReservoirs,
+      `${label}: the layer holds ${symbology?.features} features, expected ${expectedReservoirs}`);
+    check((symbology?.symbols ?? 0) > 1 && (symbology?.symbols ?? 0) < expectedReservoirs,
+      `${label}: the renderer holds ${symbology?.symbols} symbols; one per feature is the ` +
+      "design this replaced, and it is what made re-symbolising slow");
+    check(ready.symbols === symbology?.symbols,
+      `${label}: the readiness signal reports ${ready.symbols} symbols, the renderer has ` +
+      `${symbology?.symbols}`);
     /* The twelve months the payload has always carried, which this map has
      * only ever shown the newest of. The slider's rightmost position is the
      * newest reading, not a month, which is why `month` opens as null. */
@@ -475,23 +504,21 @@ for (const viewport of VIEWPORTS) {
       `outside the ${layout.viewport}px viewport`);
     }
 
-    /* The analysis controls have to be reachable without scrolling past the
-     * reservoir list, which scrolls inside its own box: a control behind a
-     * nested scroller is a control most readers never find. */
-    const controlsReachable = await tab.evaluate((selector) => {
-      const panel = document.querySelector(`${selector} calcite-panel`)?.getBoundingClientRect();
-      const filters = document.querySelector(`${selector} .filters`)?.getBoundingClientRect();
-      if (!panel || !filters) return null;
-      return {
-        withinPanel: filters.top >= panel.top - 1 && filters.top < panel.bottom,
-        filtersTop: Math.round(filters.top),
-        panelTop: Math.round(panel.top),
-        panelBottom: Math.round(panel.bottom)
-      };
+    /* The analysis controls have to come before the reservoir list, which
+     * scrolls inside its own box: a control behind a nested scroller is a
+     * control most readers never find. Asserted as document order rather
+     * than as screen position, because by this point the tests above have
+     * driven the slider and the list and the panel has scrolled -- position
+     * would be measuring the test, not the layout. */
+    const controlsBeforeList = await tab.evaluate((selector) => {
+      const filters = document.querySelector(`${selector} .filters`);
+      const list = document.querySelector(`${selector} .reservoir-list`);
+      if (!filters || !list) return null;
+      return Boolean(
+        filters.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING);
     }, controls);
-    check(controlsReachable?.withinPanel === true,
-      `${label}: the analysis controls start at ${controlsReachable?.filtersTop}, outside the ` +
-      `${controlsReachable?.panelTop}-${controlsReachable?.panelBottom} panel`);
+    check(controlsBeforeList === true,
+      `${label}: the analysis controls are not before the reservoir list`);
     check(layout.overviewLink &&
       layout.overviewLink.left >= 0 &&
       layout.overviewLink.right <= layout.viewport + 1,
