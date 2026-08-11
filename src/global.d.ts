@@ -31,6 +31,8 @@ interface DashboardReady {
   minZoom: number;
   /** The reservoir a shared link asked for, once resolved against the scope. */
   deepLink: string | null;
+  /** Whether Lake Powell is in scope: a comparison control, not a filter. */
+  lakePowell: "include" | "exclude";
   selected: string | null;
 }
 

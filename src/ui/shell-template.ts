@@ -14,12 +14,14 @@ import "@esri/calcite-components/components/calcite-shell-panel";
 function panelContents(suffix: string): string {
   return `
     <div class="panel-copy">
-      <p class="eyebrow">Current conditions</p>
-      <p class="scope-copy">Utah waterbodies, excluding Lake Powell</p>
+      <!-- The data state is a place for a problem to appear, not a receipt
+           for a successful load: it carries the loading message and any
+           error, and takes itself out of the panel once the data is in. -->
       <div class="data-state" data-suffix="${suffix}" role="status" aria-live="polite">
         <calcite-loader inline label="Loading reservoir data" scale="s"></calcite-loader>
         <span>Loading reservoir data&hellip;</span>
       </div>
+      <p class="scope-copy" data-value="scope"></p>
       <section class="summary" aria-label="Current storage summary" hidden>
         <div class="summary-stat">
           <span>Storage</span><strong data-value="percent">—</strong>
@@ -45,6 +47,17 @@ function panelContents(suffix: string): string {
           Reporting
           <calcite-select data-filter="reporting"
             label="Filter reservoirs by reporting state"></calcite-select>
+        </calcite-label>
+        <!-- Scope, not a filter, and separated from the two above because of
+             that: the filters grey reservoirs the map still draws, while this
+             changes which reservoirs the map has (ADR-011). -->
+        <calcite-label>
+          Lake Powell
+          <calcite-select data-filter="scope"
+            label="Include or exclude Lake Powell">
+            <calcite-option value="exclude">Excluded</calcite-option>
+            <calcite-option value="include">Included</calcite-option>
+          </calcite-select>
         </calcite-label>
         <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
         <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
@@ -78,8 +91,20 @@ export function renderShell(root: HTMLElement): void {
     <a class="skip-link" href="#map-host">Skip to the reservoir map</a>
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
+        <!-- The product name is a sibling of the logo rather than the logo's
+             own description attribute (ADR-016 still requires the official
+             name in the navigation). Calcite lays that description out
+             against the full 64px bar, which left an 11px gap under the
+             heading and put the subtitle hard on the bottom edge. -->
         <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
-          description="ArcGIS Maps SDK for JavaScript" heading-level="1" icon="water-drop"></calcite-navigation-logo>
+          heading-level="1" icon="water-drop"></calcite-navigation-logo>
+        <!-- Only the product name here. The scope and the publication date
+             went in too and pushed the theme control to x=1366 in a 1280
+             viewport: this bar clips rather than scrolls, so anything that
+             does not fit is not merely ugly, it is unreachable. -->
+        <div id="header-facts" slot="content-start">
+          <span id="sdk-name">ArcGIS Maps SDK for JavaScript</span>
+        </div>
         <calcite-button id="overview-link" slot="content-end" href="./overview.html"
           appearance="transparent" kind="neutral" icon-start="table"
           label="Open reservoir table and charts">

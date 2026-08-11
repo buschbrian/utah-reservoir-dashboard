@@ -103,7 +103,7 @@ describe("SDK architecture boundaries", () => {
       "arrowRightLeft", "brightness", "chevronDown", "chevronsRight", "cursorSelection", "erase",
       "exclamationMarkTriangle",
       "export", "extentFilter", "fullScreen", "fullScreenExit", "home", "information",
-      "legend", "magnifyingGlass", "rotate", "selectionFilter", "slidersHorizontal",
+      "legend", "magnifyingGlass", "minus", "plus", "rotate", "selectionFilter", "slidersHorizontal",
       "table", "waterDrop", "x", "zoomInFixed", "zoomOutFixed"
     ];
     const messages = [

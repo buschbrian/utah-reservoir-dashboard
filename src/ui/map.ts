@@ -3,6 +3,7 @@ import "@arcgis/map-components/components/arcgis-fullscreen";
 import "@arcgis/map-components/components/arcgis-home";
 import "@arcgis/map-components/components/arcgis-map";
 import "@arcgis/map-components/components/arcgis-scale-bar";
+import "@arcgis/map-components/components/arcgis-zoom";
 
 import ArcGISMap from "@arcgis/core/Map";
 import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
@@ -69,6 +70,29 @@ type LayerView = { highlight(target: unknown, options?: { name?: string }): { re
 
 interface GoToTarget { center: [number, number]; zoom: number }
 
+interface ViewPadding { top: number; right: number; bottom: number; left: number }
+
+/**
+ * How much of the map each shell panel is covering.
+ *
+ * The shell draws its panels *over* the map (`content-behind`), so the map's
+ * centre is the centre of a rectangle whose left third is behind the storage
+ * summary. Without this the reservoirs sit under the panel and everything
+ * that frames the view -- the starting extent, Home, and the ease toward a
+ * selected reservoir -- centres on a point the reader cannot see.
+ */
+function panelPadding(): ViewPadding {
+  const stage = document.querySelector(".map-stage")?.getBoundingClientRect();
+  const overlap = (id: string): number => {
+    const panel = document.getElementById(id)?.getBoundingClientRect();
+    if (!stage || !panel || panel.width === 0) return 0;
+    // Only the part actually over the map counts; a collapsed panel is zero
+    // wide and a sheet is at the bottom, which the map does not centre on.
+    return Math.max(0, Math.min(panel.right, stage.right) - Math.max(panel.left, stage.left));
+  };
+  return { top: 0, right: overlap("detail-panel"), bottom: 0, left: overlap("start-panel") };
+}
+
 type MapElement = HTMLElement & {
   map?: ArcGISMap | null;
   basemap?: unknown;
@@ -81,6 +105,7 @@ type MapElement = HTMLElement & {
     whenLayerView(layer: unknown): Promise<unknown>;
     ready?: boolean;
     zoom?: number;
+    padding?: ViewPadding;
     goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
       Promise<unknown>;
   };
@@ -294,10 +319,17 @@ export async function loadMap(
   element.setAttribute("aria-label", "Interactive map of Utah and connected drainage areas");
   element.map = map;
   element.animationsDisabled = reducedMotionQuery.matches;
+  /* Every tool on the right. The left of the map is the storage summary's
+   * lane: the shell draws its panels over the map (`content-behind`), so a
+   * control at the top left sat underneath the panel and only the fullscreen
+   * button was reachable. Zoom is included because the component set does
+   * not add one -- `view.ui.components` is empty for a map component, so
+   * without this there is no way to zoom but the scroll wheel. */
   element.innerHTML = `
-    <arcgis-home slot="top-left"></arcgis-home>
+    <arcgis-zoom slot="top-right"></arcgis-zoom>
+    <arcgis-home slot="top-right"></arcgis-home>
     <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
-    <arcgis-scale-bar slot="bottom-left" unit="dual"></arcgis-scale-bar>`;
+    <arcgis-scale-bar slot="bottom-right" unit="dual"></arcgis-scale-bar>`;
   element.addEventListener("arcgisViewReadyChange", () => {
     /* Not `{ once: true }` any more, and guarded on the view's own `ready`
      * flag: this event also fires for the transition *out* of ready, which
@@ -305,6 +337,8 @@ export async function loadMap(
      * happened", whatever it was. */
     if (!element.view?.ready) return;
     elementById("map-host").setAttribute("aria-busy", "false");
+    syncPadding();
+    if (pendingFrame) frameReservoirs(pendingFrame);
     if (pendingSelection) easeToSelection(pendingSelection);
   });
   element.addEventListener("arcgisViewReadyError", () => {
@@ -376,6 +410,21 @@ export async function loadMap(
     easeToSelection(reservoir);
   });
 
+  /* Kept current: the panels open and close, and the window resizes. A
+   * padding that is right only at load frames the map around a panel that
+   * is no longer there. */
+  function syncPadding(): void {
+    const view = element.view;
+    if (!view?.ready) return;
+    view.padding = panelPadding();
+  }
+
+  const shellResize = new ResizeObserver(() => syncPadding());
+  for (const id of ["start-panel", "detail-panel"]) {
+    const panel = document.getElementById(id);
+    if (panel) shellResize.observe(panel);
+  }
+
   function applyFilter(where: string | null): void {
     // Held until the layer exists rather than dropped: the reader can reach
     // the controls before the first draw finishes.
@@ -387,18 +436,58 @@ export async function loadMap(
       : { filter: { where }, excludedEffect: EXCLUDED_EFFECT };
   }
 
+  /**
+   * Frames the reservoirs the map actually has, once.
+   *
+   * The starting extent used to be a written-down centre and zoom, marked
+   * provisional because it stops making sense as soon as the connected
+   * out-of-state reservoirs land -- which they have. This asks the layer
+   * where its features are instead. Skipped when the reader arrived with a
+   * reservoir already selected: a shared link asked for a particular view
+   * and should not be overruled by the default one.
+   */
+  let framed = false;
+  let pendingFrame: FeatureLayer | null = null;
+  function frameReservoirs(layer: FeatureLayer): void {
+    if (framed || selection.get()) return;
+    /* Not marked done until it actually moves. `drawReservoirs` runs as soon
+     * as the data resolves, which is routinely before the view is ready --
+     * and a `framed = true` set on the attempt rather than the outcome is
+     * how the first version of this silently left the map at its written-down
+     * starting extent. The ready handler replays whatever is pending. */
+    pendingFrame = layer;
+    const view = element.view;
+    const move = element.goTo?.bind(element) ?? view?.goTo?.bind(view);
+    if (!view?.ready || !move) return;
+    void layer.when(() => {
+      const extent = layer.fullExtent;
+      if (!extent) return undefined;
+      syncPadding();
+      framed = true;
+      pendingFrame = null;
+      return move(extent.clone().expand(1.2) as unknown as GoToTarget, { animate: false });
+    }).catch(() => undefined);
+  }
+
   return {
     status,
     drawReservoirs(reservoirs) {
+      // Replaced, not added to. The scope control redraws, and a second
+      // call used to leave the first layer underneath the new one: the map
+      // then showed reservoirs that were no longer in scope, drawn by a
+      // renderer nothing could reach to filter or grey.
+      if (reservoirLayer) map.remove(reservoirLayer);
+      reservoirLayerView = null;
       const result = createReservoirLayer(reservoirs);
       drawn = reservoirs;
       reservoirLayer = result.layer;
       map.add(result.layer);
       // Added after the points so a selected reservoir is not covered by
       // the reservoir drawn next to it.
-      map.add(highlightLayer);
+      if (!map.layers.includes(highlightLayer)) map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
       status.reservoirSymbols = result.symbols;
+      frameReservoirs(result.layer);
       if (pendingFilter !== null) applyFilter(pendingFilter);
       /* The layer view is what the hover highlight needs, and it only ever
        * arrives in a browser that is actually painting: `whenLayerView` is

@@ -20,6 +20,7 @@
  * pixel, and a plain coordinate list is something a test can read.
  */
 
+import { hexToRgb } from "./color";
 import type { ReservoirSymbol } from "./symbols";
 
 /** Points around each circle. 64 keeps the widest ring smooth at 46px. */
@@ -29,30 +30,32 @@ const CIRCLE_POINTS = 64;
 const FRAME_RADIUS = 5;
 
 /** Alpha for the shadow under the ring, and how far it is offset. */
-const SHADOW_ALPHA = 18;
+const SHADOW_ALPHA = 46;
 const SHADOW_OFFSET = 0.5;
 const SHADOW_SPREAD = 2;
 
 /** The dash template on a late reading, in points: mark, gap. */
 export const LATE_DASH: readonly [number, number] = [4, 3];
 
-export interface CIMColor {
-  type: "CIMRGBColor";
-  /** Red, green, blue 0-255, then alpha 0-100 -- the CIM alpha scale. */
-  values: [number, number, number, number];
-}
+/**
+ * A CIM colour is a plain `[red, green, blue, alpha]` array, every channel
+ * 0-255.
+ *
+ * Not a `{ type: "CIMRGBColor", values: [...] }` object, which is what the
+ * CIM specification describes and what this file used to build. The SDK
+ * accepts only the array: handed the object it does not fail, it silently
+ * falls back to a default grey, so every reservoir on the map was drawn the
+ * same grey while the list beside it showed the right classes. Nothing
+ * caught it -- the class table was correct, the renderer held the correct
+ * colours, and the one thing that would have shown it, a screenshot, is
+ * blank in headless Chromium.
+ */
+export type CIMColor = [number, number, number, number];
 
-/** `#rrggbb` to the CIM colour shape. Alpha is 0-100, not 0-1. */
-export function cimColor(hex: string, alpha = 100): CIMColor {
-  const digits = hex.replace("#", "");
-  const value = Number.parseInt(digits, 16);
-  if (digits.length !== 6 || !Number.isFinite(value)) {
-    throw new Error(`A symbol colour must be #rrggbb, received "${hex}"`);
-  }
-  return {
-    type: "CIMRGBColor",
-    values: [(value >> 16) & 255, (value >> 8) & 255, value & 255, alpha]
-  };
+/** `#rrggbb` to the CIM colour shape. Alpha is 0-255, like the channels. */
+export function cimColor(hex: string, alpha = 255): CIMColor {
+  const [red, green, blue] = hexToRgb(hex);
+  return [red, green, blue, alpha];
 }
 
 /** A closed ring of `CIRCLE_POINTS` coordinates at the frame radius. */
@@ -172,7 +175,7 @@ export function reservoirCIM(symbol: ReservoirSymbol): CIMSymbolReference {
   const fill: CIMVectorMarker[] = symbol.fillPx > 0
     ? [circleLayer(symbol.fillPx, [
       { type: "CIMSolidFill", enable: true, color: cimColor(symbol.color) },
-      { type: "CIMSolidStroke", enable: true, width: 0.75, color: cimColor("#000000", 40) }
+      { type: "CIMSolidStroke", enable: true, width: 0.75, color: cimColor("#000000", 102) }
     ])]
     : [];
 

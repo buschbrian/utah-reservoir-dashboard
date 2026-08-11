@@ -1,5 +1,11 @@
 import type { Reservoir } from "./types";
-import { isLate, reservoirInScope, statewideRollup } from "./data/rollup";
+import {
+  isLate,
+  reservoirInScope,
+  statewideRollup,
+  type LakePowellChoice
+} from "./data/rollup";
+import { STALE_COLOR, storageClass } from "./viz/classes";
 
 export type OverviewSort = "name" | "capacity" | "storage" | "percent" | "updated";
 export type OverviewCadence = "all" | "daily" | "monthly" | "late";
@@ -16,12 +22,41 @@ export interface OverviewChartRecord {
   percent: number;
   storageAf: number;
   capacityAf: number;
+  /** The storage class this value falls in, so a chart can be coloured by
+   * the same table the map is drawn from (ADR-008). */
+  classLabel: string;
+  classColor: string;
 }
 
-export function overviewScope(reservoirs: readonly Reservoir[]): Reservoir[] {
+/* A bar reads as a quantity twice: its length and its colour. The two have
+ * to be the same claim, so the class is taken from the same function the
+ * renderer and the legend use rather than re-derived from the breaks. */
+function classOf(percent: number): { classLabel: string; classColor: string } {
+  const found = storageClass(percent);
+  return {
+    classLabel: found?.label ?? "Not reported",
+    classColor: found?.color ?? STALE_COLOR
+  };
+}
+
+/**
+ * The reservoirs a page shows, for a given Lake Powell choice.
+ *
+ * ADR-011 made this two dimensions on purpose and said Lake Powell stays "a
+ * deliberate comparison control instead of an accidental geographic
+ * filter". It was a constant at every call site instead, which made the
+ * control impossible to offer: excluding one large reservoir is not a
+ * geographic rule, and a reader who wants the total with it has no way to
+ * ask. Geography stays fixed at `utah` here -- that is the page's subject,
+ * not a preference.
+ */
+export function overviewScope(
+  reservoirs: readonly Reservoir[],
+  lakePowell: LakePowellChoice = "exclude"
+): Reservoir[] {
   return reservoirs.filter((reservoir) => reservoirInScope(reservoir, {
     geography: "utah",
-    lakePowell: "exclude"
+    lakePowell
   }));
 }
 
@@ -86,7 +121,8 @@ export function largestReservoirRecords(
       label: reservoir.name,
       percent: reservoir.pct_of_capacity ?? 0,
       storageAf: reservoir.current_storage_af,
-      capacityAf: reservoir.capacity_af ?? 0
+      capacityAf: reservoir.capacity_af ?? 0,
+      ...classOf(reservoir.pct_of_capacity ?? 0)
     }));
 }
 
@@ -97,13 +133,17 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
     groups.set(label, [...(groups.get(label) ?? []), reservoir]);
   }
   return [...groups].map(([label, group], index) => {
-    const rollup = statewideRollup(group, { geography: "connected", lakePowell: "exclude" });
+    /* The group is already scoped by the caller; including Lake Powell here
+     * only means "do not filter it out a second time", not "add it back". */
+    const rollup = statewideRollup(group, { geography: "connected", lakePowell: "include" });
+    const percent = Number((rollup.percentFull ?? 0).toFixed(1));
     return {
       id: index + 1,
       label,
-      percent: Number((rollup.percentFull ?? 0).toFixed(1)),
+      percent,
       storageAf: rollup.storageAf,
-      capacityAf: rollup.capacityAf
+      capacityAf: rollup.capacityAf,
+      ...classOf(percent)
     };
   }).sort((a, b) => b.capacityAf - a.capacityAf)
     .map((record, index) => ({ ...record, id: index + 1 }));

@@ -16,12 +16,23 @@ function layersOf(symbol: ReturnType<typeof reservoirCIM>) {
 }
 
 describe("CIM colour", () => {
-  it("splits #rrggbb into channels with the CIM 0-100 alpha", () => {
-    expect(cimColor("#a50026")).toEqual({
-      type: "CIMRGBColor",
-      values: [165, 0, 38, 100]
-    });
-    expect(cimColor("#000000", 18).values[3]).toBe(18);
+  /* A plain `[r, g, b, a]` array, every channel 0-255, which is the shape
+   * the SDK's own documentation uses. This was written as the specification's
+   * `{ type: "CIMRGBColor", values: [...] }` object first; the SDK accepts
+   * only the array and silently falls back to grey rather than failing, so
+   * every reservoir drew the same grey while every test passed. The shape is
+   * pinned here because the thing that would show it -- a screenshot -- is
+   * blank in headless Chromium. */
+  it("is a four-number array, not the specification's colour object", () => {
+    const color = cimColor("#a50026");
+    expect(Array.isArray(color)).toBe(true);
+    expect(color).toHaveLength(4);
+    for (const channel of color) expect(typeof channel).toBe("number");
+  });
+
+  it("splits #rrggbb into channels, with alpha on the same 0-255 scale", () => {
+    expect(cimColor("#a50026")).toEqual([165, 0, 38, 255]);
+    expect(cimColor("#000000", 46)).toEqual([0, 0, 0, 46]);
   });
 
   it("refuses a colour it cannot read rather than drawing black", () => {
@@ -51,6 +62,18 @@ describe("the composed reservoir symbol", () => {
       const ring = layers.find((layer) => layer.markerGraphics[0]?.symbol
         .symbolLayers.some((part) => part.type === "CIMSolidStroke" && part.width >= 1));
       expect(ring?.size).toBe(symbol.ringPx);
+    }
+  });
+
+  it("gives every symbol layer a colour the SDK can read", () => {
+    for (const reservoir of reservoirs) {
+      const symbol = reservoirSymbol(reservoir, domain);
+      for (const layer of layersOf(reservoirCIM(symbol))) {
+        for (const part of layer.markerGraphics[0]?.symbol.symbolLayers ?? []) {
+          expect(Array.isArray(part.color), `${reservoir.name} ${part.type}`).toBe(true);
+          expect(part.color).toHaveLength(4);
+        }
+      }
     }
   });
 

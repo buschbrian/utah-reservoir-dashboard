@@ -7,8 +7,8 @@ import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-navigation-logo";
 
 import { loadReservoirs } from "./data/load";
-import { isLate, statewideRollup } from "./data/rollup";
-import { renderArcgisBarChart } from "./overview-charts";
+import { isLate, statewideRollup, type LakePowellChoice } from "./data/rollup";
+import { renderArcgisBarChart, storageLegendEntries } from "./overview-charts";
 import {
   filterAndSort,
   filterOverview,
@@ -42,7 +42,7 @@ root.innerHTML = `
   <main class="overview-main">
     <header class="overview-intro">
       <div><p class="eyebrow">Decision workspace</p><h1>Utah reservoir conditions</h1></div>
-      <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is excluded from every metric, chart, and row so its scale does not obscure local conditions.</p>
+      <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is large enough to hide local conditions in a combined total, so it starts excluded and can be added back at any time.</p>
     </header>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
   </main>`;
@@ -66,7 +66,10 @@ function renderRows(tbody: HTMLTableSectionElement, reservoirs: readonly Reservo
 }
 
 function updateKpis(reservoirs: readonly Reservoir[]): void {
-  const rollup = statewideRollup(reservoirs, { geography: "connected", lakePowell: "exclude" });
+  /* The rows handed in are already the scope the reader chose, so this must
+   * not apply a second Lake Powell filter on top of it -- "include" here
+   * means "do not filter again", which is what makes the toggle work. */
+  const rollup = statewideRollup(reservoirs, { geography: "connected", lakePowell: "include" });
   const values: Record<string, string> = {
     percent: formatPercent(rollup.percentFull),
     volume: `${formatAcreFeet(rollup.storageAf)} of ${formatAcreFeet(rollup.capacityAf)}`,
@@ -80,16 +83,19 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
   }
 }
 
-async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Promise<void> {
+async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): Promise<void> {
   const content = document.querySelector<HTMLElement>("#overview-content");
   if (!content) return;
-  const watershedChoices = watershedOptions(reservoirs);
+  // Built from the widest scope so the list of drainage areas does not
+  // change shape when Lake Powell is toggled.
+  const watershedChoices = watershedOptions(overviewScope(allReservoirs, "include"));
   content.innerHTML = `
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
       <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
       <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
       <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
       <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
+      <label>Lake Powell<select id="lake-powell-filter"><option value="exclude">Excluded</option><option value="include">Included</option></select></label>
       <button id="reset-filters" class="reset-button" type="button">Reset filters</button>
     </section>
     <p id="filter-status" class="filter-status" role="status"></p>
@@ -101,13 +107,31 @@ async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Pro
       <article class="overview-kpi"><span>Data published</span><strong>${formatDate(generatedAt.slice(0, 10))}</strong><small>Observation dates vary by reservoir</small></article>
     </section>
     <div class="overview-chart-grid">
-      <section class="overview-card" aria-labelledby="capacity-heading"><div class="card-heading"><div><h2 id="capacity-heading">Largest reservoirs</h2><p>Percent of conservation capacity for the 15 largest reservoirs in the current view.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="capacity-chart" class="chart-host" aria-busy="true"></div></section>
-      <section class="overview-card" aria-labelledby="watershed-heading"><div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each drainage area.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="watershed-chart" class="chart-host" aria-busy="true"></div></section>
+      <section class="overview-card" aria-labelledby="capacity-heading"><div class="card-heading"><div><h2 id="capacity-heading">Largest reservoirs</h2><p>Percent of conservation capacity for the 15 largest reservoirs in the current view.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="capacity-chart" class="chart-host" aria-busy="true"></div><div class="chart-legend" data-legend></div></section>
+      <section class="overview-card" aria-labelledby="watershed-heading"><div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each drainage area.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="watershed-chart" class="chart-host" aria-busy="true"></div><div class="chart-legend" data-legend></div></section>
     </div>
     <section class="overview-card table-card" aria-labelledby="table-heading">
       <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label></div>
       <div class="table-scroll"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
     </section>`;
+
+  /* One legend per chart, built from the class table rather than by the
+   * chart SDK: the bars, the map circles and this all read the same rows, so
+   * a break that moves moves in one place (ADR-008). */
+  for (const host of document.querySelectorAll<HTMLElement>("[data-legend]")) {
+    host.replaceChildren(...storageLegendEntries().map((entry) => {
+      const item = document.createElement("span");
+      item.className = "chart-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = "chart-legend-swatch";
+      swatch.style.background = entry.color;
+      const label = document.createElement("span");
+      label.textContent = entry.label;
+      item.append(swatch, label);
+      return item;
+    }));
+    host.setAttribute("aria-label", "Storage levels, the same colours the map uses");
+  }
 
   const watershed = document.querySelector<HTMLSelectElement>("#watershed-filter");
   for (const choice of watershedChoices) {
@@ -121,24 +145,27 @@ async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Pro
   const search = document.querySelector<HTMLInputElement>("#reservoir-search");
   const cadence = document.querySelector<HTMLSelectElement>("#cadence-filter");
   const sort = document.querySelector<HTMLSelectElement>("#reservoir-sort");
+  const lakePowell = document.querySelector<HTMLSelectElement>("#lake-powell-filter");
   const reset = document.querySelector<HTMLButtonElement>("#reset-filters");
   const status = document.querySelector<HTMLElement>("#filter-status");
   const capacityHost = document.querySelector<HTMLElement>("#capacity-chart");
   const watershedHost = document.querySelector<HTMLElement>("#watershed-chart");
   if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
-      || !capacityHost || !watershedHost) return;
+      || !capacityHost || !watershedHost || !lakePowell) return;
 
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
-    const visible = filterOverview(reservoirs, {
+    const scoped = overviewScope(allReservoirs, lakePowell.value as LakePowellChoice);
+    const visible = filterOverview(scoped, {
       query: search.value,
       huc6: watershed.value,
       cadence: cadence.value as OverviewCadence
     });
     updateKpis(visible);
     renderRows(tbody, filterAndSort(visible, "", sort.value as OverviewSort));
-    status.textContent = `${visible.length} of ${reservoirs.length} reservoirs shown · Lake Powell excluded`;
+    status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · Lake Powell ` +
+      `${lakePowell.value === "include" ? "included" : "excluded"}`;
     capacityHost.setAttribute("aria-busy", "true");
     watershedHost.setAttribute("aria-busy", "true");
     await Promise.all([
@@ -153,13 +180,13 @@ async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Pro
     capacityHost.setAttribute("aria-busy", "false");
     watershedHost.setAttribute("aria-busy", "false");
     window.__overviewReady = {
-      reservoirs: reservoirs.length,
+      reservoirs: scoped.length,
       visible: visible.length,
       charts: 2,
       lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
     };
   };
-  for (const control of [search, watershed, cadence, sort]) {
+  for (const control of [search, watershed, cadence, sort, lakePowell]) {
     control.addEventListener(control === sort || control instanceof HTMLSelectElement ? "change" : "input", () => void update());
   }
   reset.addEventListener("click", () => {
@@ -167,6 +194,7 @@ async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Pro
     watershed.value = "all";
     cadence.value = "all";
     sort.value = "capacity";
+    lakePowell.value = "exclude";
     void update();
     search.focus();
   });
@@ -175,7 +203,7 @@ async function renderOverview(reservoirs: Reservoir[], generatedAt: string): Pro
 
 try {
   const payload = await loadReservoirs();
-  await renderOverview(overviewScope(payload.reservoirs), payload.generated_at);
+  await renderOverview(payload.reservoirs, payload.generated_at);
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");

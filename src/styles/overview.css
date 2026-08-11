@@ -165,3 +165,22 @@ body {
   .chart-host { min-height: 23rem; height: 23rem; }
   .overview-link-text { display: none; }
 }
+
+/* The chart legend, built from the storage class table so the bars, the map
+ * circles and this row cannot describe different breaks (ADR-008). */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .9rem;
+  margin-block-start: .75rem;
+  font-size: .75rem;
+  color: var(--app-muted);
+}
+.chart-legend-item { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
+.chart-legend-swatch {
+  width: .7rem;
+  height: .7rem;
+  border-radius: .15rem;
+  border: 1px solid rgba(0, 0, 0, .25);
+  flex: none;
+}

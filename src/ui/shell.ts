@@ -39,30 +39,12 @@ function activeSurface(kind: "start" | "detail"): ToggleSurface {
   return elementById<ToggleSurface>(`${kind}-${mobileQuery.matches ? "sheet" : "panel"}`);
 }
 
-/**
- * Drops the logo's second line on a phone.
- *
- * The navigation bar is a fixed height and lays its contents out in one
- * row, clipping whatever does not fit rather than scrolling -- so an
- * overflowing header does not widen the page, it silently amputates the
- * controls on the end of it. At 375px the title, its description and the
- * "Table and charts" label came to 446px of content, which put the reservoir
- * details and theme controls entirely off screen with nothing to reveal
- * them. Calcite renders the description inside its own shadow root, so this
- * is an attribute change and not a CSS rule.
- */
-let logoDescription: string | null = null;
-
-function syncNavigationLogo(): void {
-  const logo = document.querySelector<HTMLElement>("calcite-navigation-logo");
-  if (!logo) return;
-  logoDescription ??= logo.getAttribute("description");
-  if (mobileQuery.matches) logo.removeAttribute("description");
-  else if (logoDescription) logo.setAttribute("description", logoDescription);
-}
-
+/* The navigation bar is a fixed height and lays its contents out in one row,
+ * clipping whatever does not fit rather than scrolling -- so an overflowing
+ * header does not widen the page, it silently amputates the controls on the
+ * end of it. Everything optional in the bar is hidden below 48rem in CSS;
+ * see `#header-facts` in app.css. */
 function syncResponsiveShell(): void {
-  syncNavigationLogo();
   const startPanel = elementById<ToggleSurface>("start-panel");
   const detailPanel = elementById<ToggleSurface>("detail-panel");
   const startSheet = elementById<ToggleSurface>("start-sheet");
@@ -115,6 +97,16 @@ export function wirePanels(): void {
 export function setDataState(state: DataState): void {
   const description = describeDataState(state);
   document.querySelectorAll<HTMLElement>(".data-state").forEach((element) => {
+    /* A successful load needs no announcement. The panel is for reading the
+     * reservoirs, and a permanent "data ready" receipt above them is a row
+     * of furniture that pushes the actual numbers down. A problem still
+     * gets the space -- that is what this element is for. */
+    if (state.kind === "ready") {
+      element.hidden = true;
+      element.replaceChildren();
+      return;
+    }
+    element.hidden = false;
     element.setAttribute("role", description.role);
     const heading = document.createElement("strong");
     heading.textContent = description.heading;
@@ -205,6 +197,24 @@ export function setFilterControls(
   document.querySelectorAll<HTMLElement>('[data-filter="reset"]').forEach((button) => {
     button.addEventListener("click", onReset);
   });
+}
+
+/**
+ * The scope control, which is not one of the filters.
+ *
+ * The filters grey reservoirs the map still draws; this changes which
+ * reservoirs the map has at all, so it redraws rather than dims (ADR-011).
+ * Both surfaces carry a copy and both are kept at one value.
+ */
+export function setScopeControl(onChange: (value: string) => void): void {
+  document.querySelectorAll<CalciteSelect>('[data-filter="scope"]').forEach((select) => {
+    select.addEventListener("calciteSelectChange", () => onChange(select.value));
+  });
+}
+
+export function setScopeValue(value: string): void {
+  document.querySelectorAll<CalciteSelect>('[data-filter="scope"]')
+    .forEach((select) => { select.value = value; });
 }
 
 /** Puts every copy of the controls, the summary and the reset at one state. */
@@ -302,7 +312,9 @@ export function revealDetail(): void {
   setOpen(activeSurface("detail"), true);
 }
 
-export function setSummary(values: Record<"percent" | "storage" | "count" | "updated", string>): void {
+export function setSummary(
+  values: Record<"percent" | "storage" | "count" | "updated" | "scope", string>
+): void {
   for (const [name, value] of Object.entries(values)) {
     document.querySelectorAll<HTMLElement>(`[data-value="${name}"]`)
       .forEach((element) => { element.textContent = value; });
