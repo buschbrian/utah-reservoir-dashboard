@@ -34,9 +34,14 @@ body {
 }
 .overview-intro h1 { margin: 0; font-size: clamp(1.85rem, 3vw, 2.8rem); line-height: 1.05; }
 .overview-intro > p { max-width: 45rem; margin: 0; color: var(--app-muted); line-height: 1.5; }
+/* Flex, not a hand-written track list. The grid this replaces named exactly
+ * five columns for what was then five children, so adding the Lake Powell
+ * control silently pushed "Reset filters" onto a second row underneath the
+ * title -- the layout knew how many controls there were, which is a fact it
+ * should not have had to know. */
 .dashboard-filterbar {
-  display: grid;
-  grid-template-columns: minmax(11rem, 1.15fr) minmax(13rem, 1.5fr) minmax(12rem, 1fr) minmax(10rem, .8fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: .75rem;
   align-items: end;
   padding: .9rem;
@@ -46,6 +51,14 @@ body {
   box-shadow: 0 .35rem 1.3rem rgb(62 48 35 / 8%);
 }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
+/* Each control takes an equal share of what is left, down to a floor that
+ * fits its longest option; below that they wrap rather than shrink into
+ * something unreadable. `min-width: 0` because a select sizes itself to its
+ * longest option and would otherwise refuse to shrink at all. */
+.dashboard-filterbar > label { flex: 1 1 11rem; min-width: 0; }
+.filterbar-title { flex: 1 1 14rem; min-width: 0; }
+.dashboard-filterbar .reset-button { flex: 0 0 auto; }
+
 .dashboard-filterbar label, .sort-control {
   display: grid;
   gap: .25rem;
@@ -84,12 +97,21 @@ body {
 }
 .reset-button:hover { background: color-mix(in srgb, var(--app-accent) 10%, transparent); }
 .filter-status { margin: .5rem .15rem 0; color: var(--app-muted); font-size: .78rem; }
+/* Five cards never divide evenly into a fixed column count, so a grid left
+ * a hole beside the last row -- three cards, then two and a gap. Flex lets
+ * whatever lands on the final row grow to fill it, so the strip reads as a
+ * strip at every width instead of a table with a corner missing. */
 .overview-kpis {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: .65rem;
   margin-block: .75rem;
 }
+/* 11.5rem rather than 11: at 11 the strip fits four cards on a 768px row
+ * and leaves the fifth alone across the full width. Five is prime, so some
+ * width always ends in a lone card -- this basis pushes that case out to
+ * the sizes where it reads as a footer rather than a gap. */
+.overview-kpi { flex: 1 1 11.5rem; min-width: 0; }
 .overview-kpi, .overview-card {
   background: var(--app-surface-raised);
   border: 1px solid var(--app-border);
@@ -148,18 +170,19 @@ body {
 .overview-error { padding: 2rem; border-inline-start: .3rem solid var(--app-terracotta); background: var(--app-surface-raised); }
 
 @media (max-width: 72rem) {
-  .dashboard-filterbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .filterbar-title { grid-column: 1 / -1; }
-  .overview-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* The title takes its own line, so the controls share the full width
+     rather than competing with it. */
+  .filterbar-title { flex-basis: 100%; }
   .overview-chart-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 42rem) {
   .overview-main { width: min(100% - .8rem, 92rem); padding-block-start: .75rem; }
   .overview-intro { display: grid; gap: .5rem; }
-  .dashboard-filterbar { grid-template-columns: 1fr; }
-  .filterbar-title { grid-column: auto; }
-  .overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .overview-kpi-primary { grid-column: 1 / -1; }
+  .dashboard-filterbar > label { flex-basis: 100%; }
+  .dashboard-filterbar .reset-button { flex: 1 1 100%; }
+  /* The headline gets its own line on a phone; the rest pair up. */
+  .overview-kpi { flex-basis: 9rem; }
+  .overview-kpi-primary { flex-basis: 100%; }
   .card-heading { flex-wrap: wrap; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
