@@ -7,6 +7,20 @@ and is not listed here.
 
 ### Fixed
 
+- **The modern map's header cut off two controls on a phone.** At 375px the
+  title, its second line and the "Table and charts" label came to 446px of
+  content in a 375px bar. The header lays out in one row and clips what does
+  not fit, so the page never scrolled sideways and the existing width test saw
+  nothing wrong — while the reservoir details and theme controls sat entirely
+  off screen with nothing to reveal them. The controls are now measured
+  against the viewport by the browser test.
+- **The analysis controls sat behind a nested scroller.** They followed the
+  reservoir list, which scrolls inside its own box, leaving them 238px below
+  the fold in the desktop panel and 815px down the phone sheet. Controls now
+  come before the list they control, and the phone sheet is sized by
+  `--calcite-sheet-height` — the property that sets the height, where the
+  previous `--calcite-sheet-max-height` only capped it and left the sheet at
+  365px of an 812px phone.
 - The modern map keeps locally committed reservoirs and drainage areas visible
   when every anonymous ArcGIS basemap candidate is unavailable, with a clear
   degraded-background notice instead of an empty map.

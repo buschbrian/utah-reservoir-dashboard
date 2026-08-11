@@ -30,29 +30,33 @@ function panelContents(suffix: string): string {
           <small data-value="updated">—</small>
         </div>
       </section>
+      <!-- Before the list, not after it. The list scrolls inside its own
+           box, so controls placed below it sat behind a nested scroller --
+           238px below the fold on a desktop panel and 815px down a phone
+           sheet. Controls come before the thing they control. -->
+      <section class="filters" aria-labelledby="analysis-${suffix}">
+        <h3 id="analysis-${suffix}">Analysis controls</h3>
+        <calcite-label>
+          Storage level
+          <calcite-select data-filter="storage"
+            label="Filter reservoirs by storage level"></calcite-select>
+        </calcite-label>
+        <calcite-label>
+          Reporting
+          <calcite-select data-filter="reporting"
+            label="Filter reservoirs by reporting state"></calcite-select>
+        </calcite-label>
+        <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
+        <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
+          width="full" hidden>
+          Show all reservoirs
+        </calcite-button>
+      </section>
       <section class="reservoir-list" aria-labelledby="list-${suffix}">
         <h3 id="list-${suffix}">Reservoirs</h3>
         <p class="list-hint">Choose a reservoir to see its details, on the map or in this list.</p>
         <div class="list-host" data-list="reservoirs" role="group"
           aria-labelledby="list-${suffix}"></div>
-      </section>
-      <section class="filters" aria-labelledby="analysis-${suffix}">
-        <h3 id="analysis-${suffix}">Analysis controls</h3>
-        <calcite-label scale="s">
-          Storage level
-          <calcite-select data-filter="storage" scale="s"
-            label="Filter reservoirs by storage level"></calcite-select>
-        </calcite-label>
-        <calcite-label scale="s">
-          Reporting
-          <calcite-select data-filter="reporting" scale="s"
-            label="Filter reservoirs by reporting state"></calcite-select>
-        </calcite-label>
-        <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
-        <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
-          width="full" scale="s" hidden>
-          Show all reservoirs
-        </calcite-button>
       </section>
     </div>`;
 }

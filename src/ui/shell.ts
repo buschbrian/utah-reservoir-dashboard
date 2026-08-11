@@ -39,7 +39,30 @@ function activeSurface(kind: "start" | "detail"): ToggleSurface {
   return elementById<ToggleSurface>(`${kind}-${mobileQuery.matches ? "sheet" : "panel"}`);
 }
 
+/**
+ * Drops the logo's second line on a phone.
+ *
+ * The navigation bar is a fixed height and lays its contents out in one
+ * row, clipping whatever does not fit rather than scrolling -- so an
+ * overflowing header does not widen the page, it silently amputates the
+ * controls on the end of it. At 375px the title, its description and the
+ * "Table and charts" label came to 446px of content, which put the reservoir
+ * details and theme controls entirely off screen with nothing to reveal
+ * them. Calcite renders the description inside its own shadow root, so this
+ * is an attribute change and not a CSS rule.
+ */
+let logoDescription: string | null = null;
+
+function syncNavigationLogo(): void {
+  const logo = document.querySelector<HTMLElement>("calcite-navigation-logo");
+  if (!logo) return;
+  logoDescription ??= logo.getAttribute("description");
+  if (mobileQuery.matches) logo.removeAttribute("description");
+  else if (logoDescription) logo.setAttribute("description", logoDescription);
+}
+
 function syncResponsiveShell(): void {
+  syncNavigationLogo();
   const startPanel = elementById<ToggleSurface>("start-panel");
   const detailPanel = elementById<ToggleSurface>("detail-panel");
   const startSheet = elementById<ToggleSurface>("start-sheet");

@@ -72,6 +72,16 @@ Do not regress these; they were each found by a failing test or a screenshot.
 - Grid and flex children carrying unbreakable controls need `min-width: 0`, or
   one `<select>` widens the whole page — by a platform-dependent amount, since
   it comes from font metrics.
+- **`calcite-navigation` clips, it does not scroll.** An overflowing header
+  never widens the page, so a `scrollWidth` check cannot see it — it just
+  amputates the controls on the end of the bar. The modern shell drops the
+  logo description and the "Table and charts" label below 48rem to fit; the
+  smoke test measures each control's box against the viewport.
+- **A `calcite-sheet` takes its height from `--calcite-sheet-height`.**
+  `--calcite-sheet-max-height` only caps it, so on its own the sheet stays at
+  its `height` preset.
+- Controls belong above the reservoir list, not below it. The list scrolls
+  inside its own box, so anything after it is behind a nested scroller.
 
 ## Verify before you finish
 

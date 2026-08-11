@@ -345,6 +345,50 @@ for (const viewport of VIEWPORTS) {
     });
     check(layout.scroll <= layout.viewport + 1,
       `${label}: page overflows horizontally (${layout.scroll}px in ${layout.viewport}px)`);
+
+    /* The header lays its contents out in one row and clips what does not
+     * fit, so an overflowing header never widens the page -- the check above
+     * cannot see this, and did not: at 375px the title, its description and
+     * the "Table and charts" label came to 446px of content, which put the
+     * reservoir details and theme controls fully off screen with nothing to
+     * reveal them. Every control in the bar is measured against the viewport. */
+    const navControls = await tab.evaluate(() => {
+      const ids = ["overview-link", "controls-toggle", "detail-toggle", "theme-toggle"];
+      return ids.map((id) => {
+        const box = document.getElementById(id)?.getBoundingClientRect();
+        return {
+          id,
+          left: box ? Math.round(box.left) : null,
+          right: box ? Math.round(box.right) : null,
+          width: box ? Math.round(box.width) : 0
+        };
+      });
+    });
+    for (const control of navControls) {
+      check(control.width > 0, `${label}: the ${control.id} control has no size`);
+      check(control.left !== null && control.left >= -1 &&
+        control.right !== null && control.right <= layout.viewport + 1,
+      `${label}: the ${control.id} control sits at ${control.left}-${control.right}, ` +
+      `outside the ${layout.viewport}px viewport`);
+    }
+
+    /* The analysis controls have to be reachable without scrolling past the
+     * reservoir list, which scrolls inside its own box: a control behind a
+     * nested scroller is a control most readers never find. */
+    const controlsReachable = await tab.evaluate((selector) => {
+      const panel = document.querySelector(`${selector} calcite-panel`)?.getBoundingClientRect();
+      const filters = document.querySelector(`${selector} .filters`)?.getBoundingClientRect();
+      if (!panel || !filters) return null;
+      return {
+        withinPanel: filters.top >= panel.top - 1 && filters.top < panel.bottom,
+        filtersTop: Math.round(filters.top),
+        panelTop: Math.round(panel.top),
+        panelBottom: Math.round(panel.bottom)
+      };
+    }, controls);
+    check(controlsReachable?.withinPanel === true,
+      `${label}: the analysis controls start at ${controlsReachable?.filtersTop}, outside the ` +
+      `${controlsReachable?.panelTop}-${controlsReachable?.panelBottom} panel`);
     check(layout.overviewLink &&
       layout.overviewLink.left >= 0 &&
       layout.overviewLink.right <= layout.viewport + 1,

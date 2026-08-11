@@ -110,7 +110,15 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   letter-spacing: .09em;
   text-transform: uppercase;
 }
-.scope-copy { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.35; }
+/* `balance` so the scope does not wrap to a single orphaned word -- it is
+ * two lines in the desktop panel at every width the panel has. */
+.scope-copy {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
+}
 
 .data-state {
   display: grid;
@@ -145,7 +153,13 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 
 .reservoir-list { margin-block-start: 1rem; }
 .reservoir-list h3 { margin: 0; font-size: 1rem; }
-.list-hint { margin: .25rem 0 .5rem; color: var(--app-muted); font-size: .8125rem; line-height: 1.4; }
+.list-hint {
+  margin: .25rem 0 .5rem;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
 /* Capped and scrolled rather than growing the panel: the list is 27 items
  * long and the analysis controls below it must stay reachable. */
 .list-host {
@@ -213,7 +227,8 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .detail-rows dt { color: var(--app-muted); }
 .detail-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
 
-.filters { margin-block-start: 1rem; }
+.filters { margin-block-start: 1rem; margin-block-end: 1.25rem; }
+.reservoir-list { margin-block-start: 1.25rem; }
 .filters h3,
 .detail-placeholder h2 { margin: 0; font-size: 1rem; }
 .filter-summary,
@@ -254,14 +269,24 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 
 @media (max-width: 47.99rem) {
   calcite-shell-panel { display: none; }
+  /* `--calcite-sheet-height` is the one that sets the height; the max-height
+   * only caps it, so on its own it left the sheet at the `height="m"` preset
+   * -- 365px of a 812px phone, with the analysis controls 815px down inside
+   * it, below a list that scrolls on its own. */
   #start-sheet,
-  #detail-sheet { display: block; --calcite-sheet-max-height: 70vh; }
-  calcite-navigation-logo { max-width: 12rem; }
-}
-
-@media (max-width: 22.5rem) {
-  calcite-navigation-logo { max-width: 9rem; }
+  #detail-sheet {
+    display: block;
+    --calcite-sheet-height: 82vh;
+    --calcite-sheet-max-height: 82vh;
+  }
+  /* The header clips rather than scrolls, so everything here is about
+   * keeping the three actions on its end inside the viewport. */
+  calcite-navigation-logo { max-width: 10rem; }
   .overview-link-text { display: none; }
+  /* A list that is 18rem tall inside a sheet leaves no room for anything
+   * under it. Against the viewport instead, so the panel keeps its shape on
+   * a short phone in landscape as well as a tall one. */
+  .list-host { max-height: min(18rem, 34vh); }
 }
 
 @media (prefers-reduced-motion: reduce) {
