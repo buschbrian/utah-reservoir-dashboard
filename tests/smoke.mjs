@@ -136,6 +136,20 @@ for (const page of PAGES) {
     const oldTerms = /\bcadence\b|stale feed|period-of-record|seasonal percentile|\baf\b|provisional and subject to revision|\bRISE\b|\bAWDB\b/i;
     check(!oldTerms.test(pageText), `${label}: old or unexplained term remains in visible text`);
 
+    /* Wait for the zoom control before measuring anything against it.
+     * `__dashboardReady` says the reservoirs are in; the control mounts on
+     * the view's own schedule, so reading the layout the moment the data
+     * lands is a race -- one CI run failed this at 390px and the next at
+     * 360px, which is what a race looks like and what a layout bug does
+     * not. If it genuinely never arrives the wait expires and the check
+     * below reports it, which is the same failure with a real cause. */
+    if (page.map) {
+      await tab.waitForSelector(
+        page.engine === "maplibre" ? ".maplibregl-ctrl-top-right button" : ".esri-zoom",
+        { state: "attached", timeout: 15000 }
+      ).catch(() => {});
+    }
+
     const layout = await tab.evaluate(() => {
       const box = document.querySelector("#titleDiv")?.getBoundingClientRect();
       return {
