@@ -12,6 +12,7 @@ import { resolveBasemap } from "../arcgis/basemaps";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { Reservoir } from "../types";
+import { MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
 import { formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
@@ -39,6 +40,10 @@ export interface MapStatus {
   reservoirSymbols: number;
   /** True when the map is greying reservoirs the reader filtered out. */
   filtered: boolean;
+  /** True when navigation is held inside the region (ADR-009). */
+  navigationBounds: boolean;
+  /** The closest the reader is allowed to zoom out. */
+  minZoom: number;
 }
 
 export interface MapController {
@@ -62,11 +67,23 @@ type HitGraphic = { attributes?: Record<string, unknown> };
 
 type LayerView = { highlight(target: unknown, options?: { name?: string }): { remove(): void } };
 
+interface GoToTarget { center: [number, number]; zoom: number }
+
 type MapElement = HTMLElement & {
   map?: ArcGISMap | null;
   basemap?: unknown;
   animationsDisabled?: boolean;
-  view?: { whenLayerView(layer: unknown): Promise<unknown> };
+  constraints?: unknown;
+  zoom?: number;
+  goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
+    Promise<unknown>;
+  view?: {
+    whenLayerView(layer: unknown): Promise<unknown>;
+    ready?: boolean;
+    zoom?: number;
+    goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
+      Promise<unknown>;
+  };
   hitTest(target: { x: number; y: number }, options?: { include?: unknown }): Promise<{
     results: { type: string; graphic?: HitGraphic }[];
   }>;
@@ -264,6 +281,16 @@ export async function loadMap(
   const element = document.createElement("arcgis-map") as MapElement;
   element.setAttribute("center", "-111.7,39.4");
   element.setAttribute("zoom", "6");
+  /* Both production maps already refuse to leave this region. Without it a
+   * reader could pan a Utah dashboard into the middle of the Pacific and
+   * find an empty basemap with no way back except reloading. `snapToZoom`
+   * off so an eased `goTo` lands where it was asked to rather than at the
+   * nearest whole level. */
+  element.constraints = {
+    snapToZoom: false,
+    minZoom: MAP_MIN_ZOOM,
+    geometry: { type: "extent", ...regionExtent() }
+  };
   element.setAttribute("aria-label", "Interactive map of Utah and connected drainage areas");
   element.map = map;
   element.animationsDisabled = reducedMotionQuery.matches;
@@ -272,8 +299,14 @@ export async function loadMap(
     <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
     <arcgis-scale-bar slot="bottom-left" unit="dual"></arcgis-scale-bar>`;
   element.addEventListener("arcgisViewReadyChange", () => {
+    /* Not `{ once: true }` any more, and guarded on the view's own `ready`
+     * flag: this event also fires for the transition *out* of ready, which
+     * is what once-only listening quietly turned into "the first thing that
+     * happened", whatever it was. */
+    if (!element.view?.ready) return;
     elementById("map-host").setAttribute("aria-busy", "false");
-  }, { once: true });
+    if (pendingSelection) easeToSelection(pendingSelection);
+  });
   element.addEventListener("arcgisViewReadyError", () => {
     showMapMessage(
       "The map could not start",
@@ -285,6 +318,7 @@ export async function loadMap(
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: LayerView | null = null;
   let pendingFilter: string | null = null;
+  let pendingSelection: Reservoir | null = null;
   let drawn: readonly Reservoir[] = [];
   wirePointerSelection(element, selection);
   wirePointerHover(element, () => drawn, () => reservoirLayerView);
@@ -301,10 +335,45 @@ export async function loadMap(
     drainageAreas: 0,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
-    filtered: false
+    filtered: false,
+    navigationBounds: (element.constraints as { geometry?: unknown } | undefined)
+      ?.geometry !== undefined,
+    minZoom: MAP_MIN_ZOOM
   };
+  /**
+   * Eases the view toward the selected reservoir.
+   *
+   * Skipped entirely under reduced motion -- not shortened, skipped: the
+   * view still moves, it just arrives. `animationsDisabled` already tells
+   * the component the same thing, and this says it at the call as well so
+   * the behaviour does not depend on which of the two the SDK honours.
+   *
+   * A failed `goTo` is swallowed. It rejects when it is interrupted by the
+   * next one, which is exactly what happens when a reader clicks down the
+   * list, and an interrupted animation is not an error worth a console.
+   */
+  function easeToSelection(reservoir: Reservoir | null): void {
+    /* Held rather than dropped. A shared link selects its reservoir as soon
+     * as the data resolves, which is routinely before the view is ready --
+     * and `goTo` on a view that is not ready rejects, which this swallows,
+     * so the link silently opened the details panel and left the map where
+     * it started. The ready handler replays whatever is pending. */
+    pendingSelection = reservoir;
+    if (!reservoir) return;
+    const view = element.view;
+    if (!view?.ready) return;
+    const move = element.goTo?.bind(element) ?? view.goTo?.bind(view);
+    if (!move) return;
+    const target = selectionTarget(reservoir, view?.zoom ?? element.zoom);
+    const animate = !reducedMotionQuery.matches;
+    void Promise.resolve(move(target, animate ? { animate: true, duration: 550, easing: "ease-in-out" } : { animate: false }))
+      .catch(() => undefined);
+  }
+
   selection.subscribe((name) => {
-    showHighlight(highlightLayer, findReservoir(drawn, name), drawn);
+    const reservoir = findReservoir(drawn, name);
+    showHighlight(highlightLayer, reservoir, drawn);
+    easeToSelection(reservoir);
   });
 
   function applyFilter(where: string | null): void {

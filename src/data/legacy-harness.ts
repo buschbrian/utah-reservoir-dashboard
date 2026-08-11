@@ -69,6 +69,10 @@ export interface LegacySelectionStore {
 
 export interface LegacyApi {
   CLASSES: readonly { min: number; label: string; color: string }[];
+  /** The region both production maps constrain navigation to. */
+  MAP_BOUNDS: readonly (readonly [number, number])[];
+  MAP_MIN_ZOOM: number;
+  MAP_CENTER: readonly [number, number];
   HUC6_WHERE: string;
   MASK_FILL: string;
   MASK_LINE: string;

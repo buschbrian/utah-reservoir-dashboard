@@ -101,7 +101,7 @@ measurement says otherwise, so there is no bloom to disable under reduced
 motion. 3.5 profiles the symbol and filter path; if that measurement supports
 an emphasis effect, it arrives with the reduced-motion gate attached.
 
-### 3.4 Selection motion and shareable state — next
+### 3.4 Selection motion and shareable state — complete
 
 - Ease `goTo` toward a selected reservoir without exceeding the constrained
   regional extent; skip animation under reduced motion.
@@ -110,7 +110,36 @@ an emphasis effect, it arrives with the reduced-motion gate attached.
 - Restore selection from the URL and preserve focus when mobile sheets open or
   close.
 
-### 3.5 Loading and release gates
+The constrained regional extent did not exist on this shell. Both production
+maps have refused to leave the region since the navigation fix, and the modern
+map had no constraints at all, so a reader could pan a Utah dashboard into open
+ocean and find an empty basemap with no way back except reloading. The bounds
+and minimum zoom are now ported into `src/viz/extent.ts` and asserted against
+`shared/reservoir-viz.js`, and the readiness signal reports both — the same two
+facts the legacy page already publishes.
+
+Selecting never zooms out and never leaves the region. A reader who has zoomed
+into a valley and then picks a reservoir from the list wants to see that
+reservoir, not to lose the detail they navigated to, so the target zoom is the
+closer of the current zoom and `SELECTION_ZOOM`. The centre is clamped rather
+than trusted: the SDK's constraint would drag the view back afterwards, and an
+eased animation that flies out of bounds and is yanked back reads as a bug even
+though it ends up correct.
+
+`goTo` is held until the view is ready. It rejects outright on a view that is
+not, and a selection restored from a link routinely lands before that — which
+is a link that silently opens the details panel and leaves the map where it
+started. That is what the browser gate checks: not that the panel filled in,
+but that the map moved.
+
+The URL half is a port of `selectionFromSearch` / `searchWithSelection` from
+the shared module, held against it character for character, including the
+`%20`-not-`+` spelling that keeps a link interchangeable with the ones
+`explore.html` produces. `replaceState`, never `pushState`: comparing five
+reservoirs means five clicks, and the address bar describes the current view
+rather than logging how the reader reached it.
+
+### 3.5 Loading and release gates — next
 
 - Replace remaining loading copy with Calcite loader/skeleton states without
   hiding error explanations.

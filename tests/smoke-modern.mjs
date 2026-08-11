@@ -159,6 +159,13 @@ for (const viewport of VIEWPORTS) {
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
     check(ready.masked === true, `${label}: the Utah mask is missing`);
+    /* Both production maps already refuse to leave the region. Without the
+     * constraint a reader can pan a Utah dashboard into open ocean and find
+     * an empty basemap with no way back except reloading. */
+    check(ready.navigationBounds === true,
+      `${label}: map navigation is not held inside the region`);
+    check(ready.minZoom === 4,
+      `${label}: the map can zoom out to ${ready.minZoom}, expected 4`);
     check(ready.boundaryPoints > 100,
       `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     check(ready.drainageAreas === expectedAreas,
@@ -318,6 +325,33 @@ for (const viewport of VIEWPORTS) {
     const selected = await tab.evaluate(() => window.__dashboardReady.selected);
     check(selected === firstName,
       `${label}: selecting ${firstName} left the signal at ${selected}`);
+    /* The address bar describes the current view; it is not a log of how
+     * the reader got here. Comparing five reservoirs means five clicks, and
+     * with pushState the back button would then walk back through all five
+     * instead of leaving the page. */
+    const shared = await tab.evaluate(() => ({
+      search: window.location.search,
+      historyLength: window.history.length
+    }));
+    check(shared.search === `?reservoir=${encodeURIComponent(firstName)}`,
+      `${label}: selecting ${firstName} left the address bar at "${shared.search}"`);
+
+    const afterMore = await tab.evaluate((selector) => {
+      const before = window.history.length;
+      const buttons = [...document.querySelectorAll(selector)].slice(0, 4);
+      buttons.forEach((button) => button.click());
+      return {
+        grewBy: window.history.length - before,
+        search: window.location.search,
+        last: buttons.at(-1)?.dataset.reservoir ?? null
+      };
+    }, listSelector);
+    check(afterMore.grewBy === 0,
+      `${label}: four more selections added ${afterMore.grewBy} history entries`);
+    check(afterMore.search === `?reservoir=${encodeURIComponent(afterMore.last)}`,
+      `${label}: the address bar lagged behind the selection`);
+    await tab.locator(listSelector).first().click();
+
     const detailHost = tab.locator(detailSelector);
     check(await detailHost.isVisible(), `${label}: the active detail surface is not visible`);
     const detail = (await detailHost.innerText()).trim();
@@ -604,6 +638,108 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the missing background is not explained`);
     check((await tab.evaluate(FIND_CREDENTIAL_UI)).length === 0,
       `${label}: a credential prompt appeared`);
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
+  await context.close();
+}
+
+/* A shared link, which is the one part of a view a reader can hand to
+ * somebody else. Loaded in its own context because it is a different first
+ * paint: the selection resolves before the view is ready, and the map has
+ * to move anyway. Deliberately spelled the awkward way -- lower case, with
+ * a "+" for the space -- because that is what a link typed by hand or
+ * pasted out of a chat window looks like, and the shared parser has
+ * accepted both spellings since explore.html. */
+{
+  /* Reduced motion, for two reasons that happen to agree. It is the branch
+   * the plan asks for -- the view still moves, it just arrives -- and it is
+   * the only branch this environment can observe: an eased `goTo` is driven
+   * by the same render loop that leaves the ArcGIS canvas blank here, so an
+   * animated move would never progress and the assertion below would be
+   * measuring the headless renderer rather than the application. */
+  const context = await browser.newContext({
+    viewport: VIEWPORTS[0],
+    reducedMotion: "reduce"
+  });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (msg) => {
+    if (msg.type() !== "error") return;
+    if (/favicon|tile|sprite|font/i.test(msg.text())) return;
+    errors.push(`console: ${msg.text()}`);
+  });
+
+  const wanted = payload.reservoirs.find((reservoir) =>
+    reservoir.intersects_utah === true &&
+    reservoir.name.trim().toLowerCase() !== "lake powell" &&
+    reservoir.name.includes(" "));
+  const label = `Phase 2 shell (shared link to ${wanted?.name})`;
+  console.log(`\n=== ${label}`);
+  try {
+    check(Boolean(wanted), `${label}: no two-word reservoir to build a link from`);
+    const link = `${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}`;
+    await tab.goto(link, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const ready = await tab.evaluate(() => window.__dashboardReady);
+    console.log("  ready:", JSON.stringify(ready));
+
+    check(ready.deepLink === wanted.name,
+      `${label}: the link resolved to ${ready.deepLink}`);
+    check(ready.selected === wanted.name,
+      `${label}: the link did not select ${wanted.name}`);
+    check(await tab.locator("#detail-panel [data-detail]").innerText()
+      .then((text) => text.includes(wanted.name)),
+    `${label}: the details panel does not describe the linked reservoir`);
+
+    // The awkward spelling is rewritten to the one the overview produces,
+    // so a link copied back out of the address bar is the canonical one.
+    const search = await tab.evaluate(() => window.location.search);
+    check(search === `?reservoir=${encodeURIComponent(wanted.name)}`,
+      `${label}: the address bar reads "${search}" after restoring the link`);
+
+    /* The map has to move, not just the panel. `goTo` is rejected outright
+     * by a view that is not ready, and the selection from a link routinely
+     * lands before that -- which is a link that silently opens the details
+     * and leaves the map where it started. */
+    await tab.waitForFunction(
+      (target) => {
+        const view = document.querySelector("arcgis-map")?.view;
+        if (!view?.ready) return false;
+        return Math.abs(view.center.longitude - target.lon) < 0.5 &&
+          Math.abs(view.center.latitude - target.lat) < 0.5;
+      },
+      { lon: wanted.lon, lat: wanted.lat },
+      { timeout: 15000 }
+    ).catch(() => {});
+    const moved = await tab.evaluate(() => {
+      const view = document.querySelector("arcgis-map")?.view;
+      return view ? { zoom: view.zoom, lon: view.center.longitude, lat: view.center.latitude } : null;
+    });
+    check(moved !== null && Math.abs(moved.lon - wanted.lon) < 0.5 &&
+      Math.abs(moved.lat - wanted.lat) < 0.5,
+    `${label}: the map stayed at ${moved?.lon}, ${moved?.lat} instead of moving to ` +
+      `${wanted.lon}, ${wanted.lat}`);
+    check(moved !== null && moved.zoom >= 8 - 0.01,
+      `${label}: the map ended at zoom ${moved?.zoom}, closer than 8 was expected`);
+
+    // A link that names nothing this page draws is not an error; it is no
+    // selection, and the reader gets the ordinary starting view.
+    await tab.goto(`${URL}?reservoir=Not+A+Reservoir`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const unknown = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      search: window.location.search
+    }));
+    check(unknown.ready.deepLink === null,
+      `${label}: an unknown name resolved to ${unknown.ready.deepLink}`);
+    check(unknown.ready.selected === null,
+      `${label}: an unknown name selected ${unknown.ready.selected}`);
+    check(unknown.ready.drawn === expectedReservoirs,
+      `${label}: an unknown name cost the map its reservoirs`);
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
   }

@@ -7,6 +7,11 @@ and is not listed here.
 
 ### Fixed
 
+- **The modern map could be panned out of the region entirely.** Both
+  production maps have constrained navigation to the drainage areas around
+  Utah since that fix landed; the modern shell had no constraints at all, so
+  a reader could pan a Utah dashboard into open ocean and find an empty
+  background with no way back except reloading.
 - **The modern map's header cut off two controls on a phone.** At 375px the
   title, its second line and the "Table and charts" label came to 446px of
   content in a 375px bar. The header lays out in one row and clips what does
@@ -30,6 +35,14 @@ and is not listed here.
   authoritative UGRC Utah State Boundary instead of a six-corner approximation.
 
 ### Added
+
+- **Shareable links on the modern map.** Selecting a reservoir now writes
+  `?reservoir=` into the address bar without a reload, and opening such a link
+  restores the selection and eases the map to it. The parameter name and its
+  encoding are the ones the statewide overview has always produced, so a link
+  opens the same reservoir on all four pages. History is replaced rather than
+  pushed: the address bar describes the view, it does not log how the reader
+  reached it.
 
 - **Analysis controls on the modern map.** The storage summary's placeholder
   is now two working filters: storage level, whose choices are the storage

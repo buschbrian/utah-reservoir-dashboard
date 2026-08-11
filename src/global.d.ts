@@ -25,6 +25,12 @@ interface DashboardReady {
   filtered: boolean;
   /** Reservoirs the current filter includes. The rest stay on the map, greyed. */
   shown: number;
+  /** True when the map refuses to navigate outside the region. */
+  navigationBounds: boolean;
+  /** The closest the reader is allowed to zoom out. */
+  minZoom: number;
+  /** The reservoir a shared link asked for, once resolved against the scope. */
+  deepLink: string | null;
   selected: string | null;
 }
 

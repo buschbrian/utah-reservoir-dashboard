@@ -18,6 +18,7 @@ import {
   type FilterState
 } from "./state/filters";
 import { createSelectionStore, findReservoir } from "./state/selection";
+import { connectSelectionToUrl, selectionFromSearch } from "./state/url";
 import { supportsDashboard } from "./state/shell";
 import { loadMap, type MapController } from "./ui/map";
 import {
@@ -56,6 +57,14 @@ const selection = createSelectionStore();
  * first draw and the filter keeps changing after that, so this is the one
  * place the answer lives and both readers take it from here. */
 const filterStatus = { filtered: false, shown: 0 };
+
+/* The reservoir a shared link asked for, once it has been matched against
+ * the reservoirs actually in scope. Null both when there was no link and
+ * when the link named something this page does not draw -- those are the
+ * same outcome for the reader, and the readiness signal reports the
+ * resolved name so a test can tell a working link from a silently ignored
+ * one. */
+let deepLink: Reservoir | null = null;
 
 async function loadData(): Promise<Reservoir[] | null> {
   try {
@@ -186,6 +195,13 @@ if (!supportsDashboard(browserCapabilities())) {
     map.drawReservoirs(reservoirs);
     // After the list exists: the filter dims rows the map greys.
     wireFilters(reservoirs, map);
+    /* The address bar is connected before the link is read, so restoring a
+     * selection writes the same URL back rather than a differently-spelled
+     * one -- "?reservoir=deer creek" typed by hand becomes the canonical
+     * "?reservoir=Deer%20Creek" the moment it resolves. */
+    connectSelectionToUrl(selection);
+    deepLink = findReservoir(reservoirs, selectionFromSearch(window.location.search));
+    if (deepLink) selection.set(deepLink.name, { source: "url" });
   }
   await loadContext(map);
 
@@ -207,6 +223,9 @@ if (!supportsDashboard(browserCapabilities())) {
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     filtered: filterStatus.filtered,
     shown: filterStatus.shown,
+    navigationBounds: map.status.navigationBounds,
+    minZoom: map.status.minZoom,
+    deepLink: deepLink?.name ?? null,
     selected: selection.get()
   };
 }

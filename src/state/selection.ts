@@ -1,13 +1,14 @@
 /*
  * Which reservoir the reader is looking at.
  *
- * The typed port of the store the three production pages share, narrowed to
- * what P2.3 needs: the map and the reservoir list both set it, the details
- * panel and the map highlight both read it. The address bar is not wired in
- * here -- deep links are later Phase 2 work -- but the name matching is the
- * same forgiving rule `shared/reservoir-viz.js` uses, and is tested against
- * it, so a link handed between pages will still resolve to one reservoir
- * when that arrives.
+ * The typed port of the store the three production pages share: the map and
+ * the reservoir list both set it, the details panel, the map highlight and
+ * the address bar all read it. The name matching is the same forgiving rule
+ * `shared/reservoir-viz.js` uses and is tested against it, so a link handed
+ * between the four pages resolves to one reservoir on all of them.
+ *
+ * The address bar itself lives in `url.ts`, which subscribes here. Keeping
+ * it out of the store is what lets the store stay browser-free.
  */
 
 export interface SelectionListenerMeta {
