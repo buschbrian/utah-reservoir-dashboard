@@ -350,6 +350,15 @@ for (const viewport of VIEWPORTS) {
       `${label}: four more selections added ${afterMore.grewBy} history entries`);
     check(afterMore.search === `?reservoir=${encodeURIComponent(afterMore.last)}`,
       `${label}: the address bar lagged behind the selection`);
+    if (mobile) {
+      // The detail sheet is modal. Close it before exercising another real
+      // list click; clicking through its overlay tests an impossible user
+      // path and lets programmatic DOM clicks hide the mistake.
+      await tab.locator("#detail-sheet-close").click();
+      await tab.waitForFunction(
+        "!document.querySelector('#detail-sheet')?.hasAttribute('opened')",
+        { timeout: 5000 });
+    }
     await tab.locator(listSelector).first().click();
 
     const detailHost = tab.locator(detailSelector);
