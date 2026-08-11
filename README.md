@@ -69,6 +69,8 @@ The ArcGIS pages need network access for SDK assets and basemap services.
 | `node tests/smoke.mjs` | Test the built production pages in Chromium. |
 | `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
 | `node scripts/fetch-huc6.mjs --dry-run` | Rebuild drainage-area boundaries without writing. |
+| `python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run` | Validate all Upper Colorado HUC6 boundaries without replacing the dashboard scope. |
+| `python tools/audit_awdb_stations.py --scope upper-colorado` | Audit RISE-compatible AWDB storage stations across the configured Upper Colorado HUC6 scope. |
 | `npm run boundary:utah -- --dry-run` | Check the authoritative Utah boundary without writing. |
 
 The browser smoke test expects a current `dist/` directory and an existing
@@ -91,18 +93,46 @@ To work on the pipeline in an isolated environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*" pytest
+python -m pip install -r requirements-test.txt
 python -m pytest tests/ -q
 python refresh_reservoirs.py --dry-run
 ```
 
 The version ranges match CI and the scheduled refresh workflow.
 
+Broader watershed research uses named scopes so it cannot silently replace
+the accepted Utah-connected production geography. `utah-connected` retains
+the 14 published units; `upper-colorado` selects the 10 HUC6 codes beginning
+with region 14 and writes `data/watersheds/upper-colorado-huc6.geojson`.
+
+The watershed fetcher uses the public ArcGIS REST query API by default. To
+exercise the ArcGIS API for Python `FeatureLayer` query path, use Python
+3.10-3.13 (the supported range for ArcGIS API 2.4.3) in a separate environment:
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-gis.txt
+python tools/fetch_watershed_scope.py --scope upper-colorado --backend arcgis --dry-run
+```
+
+Both backends first obtain the complete object-ID set and then fetch bounded
+GeoJSON batches. The script refuses missing, duplicate, out-of-region, or
+partial results. Its report uses pandas to normalize ArcGIS attributes and
+NumPy to summarize geometry size; no broader-scope file is loaded by the
+dashboard until a separate product decision changes that contract.
+
 ### Sources
 
 - Storage observations come from the [Bureau of Reclamation RISE
   API](https://data.usbr.gov/) and the [USDA Natural Resources Conservation
   Service AWDB API](https://wcc.sc.egov.usda.gov/awdbRestApi/swagger-ui.html).
+- Reclamation's [Addressing Drought Across the West Experience
+  Builder](https://experience.arcgis.com/experience/512cef7647fe42698dc05dd4e75d4343/page/Current-Conditions)
+  and its Major Reclamation River Basins layer are design and scope references
+  only. GitHub Actions continues to fetch observed storage from RISE/AWDB; an
+  Experience Builder or feature-service outage cannot change or stop the
+  published measurements.
 - Capacity for Reclamation sites comes from the U.S. Army Corps of Engineers
   National Inventory of Dams and is committed in
   [`capacities.json`](capacities.json). AWDB sites use the provider's reservoir

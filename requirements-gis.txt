@@ -1,0 +1,5 @@
+# ArcGIS API for Python 2.4.3 supports Python 3.10-3.13, pandas 3.x, and
+# NumPy 2.3.x. Use this only for GIS extraction/audit tools; the daily refresh
+# does not need the full ArcGIS package.
+-r requirements-test.txt
+arcgis==2.4.3

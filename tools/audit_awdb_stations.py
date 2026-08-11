@@ -22,6 +22,7 @@ Two things worth knowing about that API:
     needs a National Inventory of Dams match it can survive.
 
     python tools/audit_awdb_stations.py
+    python tools/audit_awdb_stations.py --scope upper-colorado
     python tools/audit_awdb_stations.py --json
 """
 
@@ -38,6 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import assign_huc, in_utah, load_units  # noqa: E402
 from admission import NAMED_RADIUS_KM, distance_km  # noqa: E402
+from watershed_scopes import load_scope_units  # noqa: E402
 
 # The same normalization build_capacity_table.py uses to match our names
 # against a second agency's. Without it "Causey" and "Causey Reservoir" read
@@ -151,16 +153,18 @@ def find_candidates(units=None):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--scope", choices=("utah-connected", "upper-colorado"),
+                        default="utah-connected")
     args = parser.parse_args()
 
-    candidates, info = find_candidates()
+    candidates, info = find_candidates(load_scope_units(args.scope))
     if candidates is None:
         print("ERROR: no stations returned", file=sys.stderr)
         return 1
     units, payload = info["units"], info["payload"]
 
     if args.json:
-        print(json.dumps({"candidates": candidates}, indent=1))
+        print(json.dumps({"scope": args.scope, "candidates": candidates}, indent=1))
         return 0
 
     print(f"{info['stations']} active storage stations returned "

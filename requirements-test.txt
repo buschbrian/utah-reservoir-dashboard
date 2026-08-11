@@ -1,0 +1,2 @@
+-r requirements-pipeline.txt
+pytest>=8,<10

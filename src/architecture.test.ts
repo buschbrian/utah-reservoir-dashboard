@@ -108,7 +108,7 @@ describe("SDK architecture boundaries", () => {
     ];
     const messages = [
       "action", "action-bar", "action-group", "button", "notice", "panel", "popover",
-      "scrim", "select", "sheet", "shell-panel"
+      "scrim", "select", "sheet", "shell-panel", "slider"
     ];
     const paths = [
       ...icons.flatMap((icon) => [16, 24, 32].map((size) => {

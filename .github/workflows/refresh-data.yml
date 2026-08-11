@@ -36,7 +36,7 @@ jobs:
       # semantics and deprecated Timestamp.utcnow(), either of which would
       # have broken the refresh on whatever morning it happened to land.
       - name: Install dependencies
-        run: pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*"
+        run: pip install -r requirements-pipeline.txt
 
       # Self-healing attempt #1: a transient RISE outage should cost the run
       # a few minutes, not a day of data. The script already retries each

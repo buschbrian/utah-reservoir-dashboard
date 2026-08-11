@@ -31,7 +31,8 @@ import {
 import type { Ring } from "../data/huc";
 import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
-import { reservoirCIM, type CIMSymbolReference } from "../viz/cim";
+import { STALE_COLOR, STORAGE_CLASSES } from "../viz/classes";
+import { reservoirCIMTemplate } from "../viz/cim";
 import { headlinePercent, reservoirSymbol, reservoirSymbolFor, sizeDomain } from "../viz/symbols";
 
 /** The attribute every reservoir feature carries, and the only one selection reads. */
@@ -39,6 +40,9 @@ export const NAME_FIELD = "name";
 
 /** The stable identity the layer is keyed on. Assigned in draw order. */
 export const OBJECT_ID_FIELD = "objectid";
+
+/** Which of the renderer's twelve symbols a reservoir draws with. */
+export const SYMBOL_KEY_FIELD = "symbol_key";
 
 const WGS84 = { wkid: 4326 };
 
@@ -106,7 +110,8 @@ const RESERVOIR_FIELDS = [
   { name: NAME_FIELD, type: "string" as const },
   { name: "size_basis", type: "double" as const },
   { name: "fill_percent", type: "double" as const },
-  { name: "late", type: "small-integer" as const }
+  { name: "late", type: "small-integer" as const },
+  { name: SYMBOL_KEY_FIELD, type: "string" as const }
 ];
 
 /**
@@ -120,7 +125,45 @@ const RESERVOIR_FIELDS = [
  */
 interface ReservoirEntries {
   graphics: Graphic[];
-  uniqueValueInfos: { value: number; symbol: CIMSymbolReference }[];
+}
+
+/**
+ * Twelve symbols, not fifty-one.
+ *
+ * Size is Arcade over the layer's own fields, so the SDK re-reads it from
+ * attributes rather than recompiling a symbol per feature. Colour is the
+ * renderer key: a `Color` primitive override does not work here -- pointed
+ * at the marker or at the fill inside it, either way the SDK draws nothing
+ * at all rather than reporting a problem.
+ *
+ * So the key is the storage class and the late state together: six colours
+ * (five classes plus the grey for no reading) times two. Assigned once, and
+ * a month change moves a feature between existing symbols instead of
+ * building new ones.
+ */
+function reservoirRenderer(domain: number): unknown {
+  const palette = [...STORAGE_CLASSES.map((entry) => entry.color), STALE_COLOR];
+  const infos: { value: string; symbol: unknown }[] = [];
+  for (const late of [false, true]) {
+    palette.forEach((color, index) => {
+      infos.push({
+        value: symbolKey(index === STORAGE_CLASSES.length ? -1 : index, late),
+        symbol: reservoirCIMTemplate(domain, late, color)
+      });
+    });
+  }
+  return {
+    type: "unique-value",
+    field: SYMBOL_KEY_FIELD,
+    defaultSymbol: reservoirCIMTemplate(domain, false, STALE_COLOR),
+    uniqueValueInfos: infos
+  };
+}
+
+/** The renderer key: which class, and whether the reading is late. Twelve
+ * combinations, assigned once, instead of one symbol per reservoir. */
+export function symbolKey(classIndex: number, late: boolean): string {
+  return `${classIndex}|${late ? 1 : 0}`;
 }
 
 /**
@@ -137,7 +180,6 @@ function reservoirEntries(
 ): ReservoirEntries {
   const domain = sizeDomain(reservoirs);
   const graphics: Graphic[] = [];
-  const uniqueValueInfos: { value: number; symbol: CIMSymbolReference }[] = [];
 
   reservoirs.forEach((reservoir, index) => {
     const objectId = index + 1;
@@ -154,13 +196,16 @@ function reservoirEntries(
         [NAME_FIELD]: reservoir.name,
         size_basis: sizeBasis(reservoir),
         fill_percent: percent,
-        late: symbol.accent === null ? 0 : 1
+        late: symbol.accent === null ? 0 : 1,
+        [SYMBOL_KEY_FIELD]: symbolKey(
+          STORAGE_CLASSES.findIndex((entry) => entry.color === symbol.color),
+          symbol.accent !== null
+        )
       }
     }));
-    uniqueValueInfos.push({ value: objectId, symbol: reservoirCIM(symbol) });
   });
 
-  return { graphics, uniqueValueInfos };
+  return { graphics };
 }
 
 /**
@@ -182,15 +227,10 @@ export function updateReservoirPercents(
   reservoirs: readonly Reservoir[],
   percentOf: (reservoir: Reservoir) => NullableNumber
 ): void {
-  const { graphics, uniqueValueInfos } = reservoirEntries(reservoirs, percentOf);
-  /* Same narrowing as the constructor's renderer below, and for the same
-   * reason: the SDK's own CIM property types mark every optional member
-   * `T | null | undefined` where ours are `T | undefined`. */
-  (layer as { renderer: unknown }).renderer = {
-    type: "unique-value",
-    field: OBJECT_ID_FIELD,
-    uniqueValueInfos: uniqueValueInfos as unknown as UniqueValueInfoProperties[]
-  };
+  const { graphics } = reservoirEntries(reservoirs, percentOf);
+  /* The renderer is untouched. Size and colour are expressions over the
+   * fields being edited here, so the SDK re-reads them -- which is the whole
+   * reason this is fast enough to run while a slider handle moves. */
   void layer.applyEdits({ updateFeatures: graphics }).catch((error: unknown) => {
     console.warn("The map could not update to the selected month:", error);
   });
@@ -204,7 +244,7 @@ export function createReservoirLayer(
    * physical scale, which does not change with the month. */
   percentOf: (reservoir: Reservoir) => NullableNumber = headlinePercent
 ): ReservoirLayerResult {
-  const { graphics: source, uniqueValueInfos } = reservoirEntries(reservoirs, percentOf);
+  const { graphics: source } = reservoirEntries(reservoirs, percentOf);
 
   const layer = new FeatureLayer({
     id: "reservoirs",
@@ -218,16 +258,11 @@ export function createReservoirLayer(
     // selection. An SDK popup would open a second, unstyled description of
     // the same reservoir over the map.
     popupEnabled: false,
-    renderer: {
-      type: "unique-value",
-      field: OBJECT_ID_FIELD,
-      /* The SDK's own CIM property types mark every optional member
-       * `T | null | undefined`, where ours are `T | undefined` under
-       * `exactOptionalPropertyTypes`, so the two shapes never unify even
-       * though the JSON they describe is identical. Narrowed here, once,
-       * rather than giving up the structural type the symbol tests read. */
-      uniqueValueInfos: uniqueValueInfos as unknown as UniqueValueInfoProperties[]
-    }
+    /* The SDK's own CIM property types mark every optional member
+     * `T | null | undefined`, where ours are `T | undefined` under
+     * `exactOptionalPropertyTypes`, so the two shapes never unify even
+     * though the JSON they describe is identical. Narrowed here, once. */
+    renderer: reservoirRenderer(sizeDomain(reservoirs)) as never
   });
 
   const rendered = layer.renderer as { uniqueValueInfos?: unknown[] } | null;

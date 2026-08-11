@@ -48,7 +48,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install "pandas==3.0.*" "numpy==2.*" "requests==2.*" pytest
+        run: pip install -r requirements-test.txt
       - name: Run tests
         run: python -m pytest tests/ -v
 

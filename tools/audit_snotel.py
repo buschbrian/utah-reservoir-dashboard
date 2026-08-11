@@ -6,6 +6,7 @@ with the committed HUC6 polygons; provider HUC metadata is retained only as
 disagreement evidence, following ADR-009.
 
     python tools/audit_snotel.py
+    python tools/audit_snotel.py --scope upper-colorado
     python tools/audit_snotel.py --json
 """
 
@@ -16,8 +17,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from huc import assign_huc, load_units  # noqa: E402
+from huc import assign_huc  # noqa: E402
 from tools.audit_awdb_stations import AWDB_STATIONS, get_json  # noqa: E402
+from watershed_scopes import load_scope_units  # noqa: E402
 
 
 def select_snotel(stations, units):
@@ -50,9 +52,11 @@ def select_snotel(stations, units):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--scope", choices=("utah-connected", "upper-colorado"),
+                        default="utah-connected")
     args = parser.parse_args()
 
-    units = load_units()
+    units = load_scope_units(args.scope)
     stations = get_json(AWDB_STATIONS, {
         "stationTriplets": "*:*:SNTL",
         "elements": "WTEQ",
@@ -68,6 +72,7 @@ def main() -> int:
     disagreements = sum(not site["agrees"] for site in selected)
 
     result = {
+        "scope": args.scope,
         "query": {"stationTriplets": "*:*:SNTL", "elements": "WTEQ",
                   "activeOnly": True},
         "national_station_count": len(stations),

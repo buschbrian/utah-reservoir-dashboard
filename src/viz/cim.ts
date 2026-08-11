@@ -20,8 +20,19 @@
  * pixel, and a plain coordinate list is something a test can read.
  */
 
+import {
+  fillSizeExpression,
+  ringSizeExpression,
+  shadowSizeExpression
+} from "./arcade";
 import { hexToRgb } from "./color";
+import { STALE_ACCENT } from "./classes";
 import type { ReservoirSymbol } from "./symbols";
+
+/* The size every overridden marker is authored at. The value never reaches
+ * the screen -- an override replaces it per feature -- but it has to be a
+ * sane number so the symbol is valid before the first expression runs. */
+const RING_PLACEHOLDER_PX = 20;
 
 /** Points around each circle. 64 keeps the widest ring smooth at 46px. */
 const CIRCLE_POINTS = 64;
@@ -75,6 +86,8 @@ export function circleRing(radius = FRAME_RADIUS): number[][] {
 
 interface CIMStroke {
   type: "CIMSolidStroke";
+  /** Names the stroke so a Color override can target it. */
+  primitiveName?: string;
   enable: true;
   width: number;
   color: CIMColor;
@@ -83,12 +96,16 @@ interface CIMStroke {
 
 interface CIMFill {
   type: "CIMSolidFill";
+  /** Names the fill so a Color override can target it. */
+  primitiveName?: string;
   enable: true;
   color: CIMColor;
 }
 
 export interface CIMVectorMarker {
   type: "CIMVectorMarker";
+  /** Names the layer so a primitive override can target it. */
+  primitiveName?: string;
   enable: true;
   size: number;
   offsetX?: number;
@@ -189,6 +206,129 @@ export function reservoirCIM(symbol: ReservoirSymbol): CIMSymbolReference {
         scaleSymbolsProportionally: false,
         respectFrame: true
       }
+    }
+  };
+}
+
+
+/* ------------------------------------------------------------------ */
+/* The data-driven symbol                                             */
+/* ------------------------------------------------------------------ */
+
+interface PrimitiveOverride {
+  type: "CIMPrimitiveOverride";
+  primitiveName: string;
+  propertyName: string;
+  valueExpressionInfo: {
+    type: "CIMExpressionInfo";
+    title: string;
+    expression: string;
+    returnType: "Default";
+  };
+}
+
+export interface CIMTemplateSymbol {
+  type: "cim";
+  data: {
+    type: "CIMSymbolReference";
+    symbol: {
+      type: "CIMPointSymbol";
+      symbolLayers: CIMVectorMarker[];
+      scaleSymbolsProportionally: false;
+      respectFrame: true;
+    };
+    primitiveOverrides: PrimitiveOverride[];
+  };
+}
+
+function override(
+  primitiveName: string, propertyName: string, title: string, expression: string
+): PrimitiveOverride {
+  return {
+    type: "CIMPrimitiveOverride",
+    primitiveName,
+    propertyName,
+    valueExpressionInfo: { type: "CIMExpressionInfo", title, expression, returnType: "Default" }
+  };
+}
+
+function named(layer: CIMVectorMarker, primitiveName: string): CIMVectorMarker {
+  return { ...layer, primitiveName };
+}
+
+/**
+ * One symbol for every reservoir, with the per-feature parts expressed as
+ * Arcade over the layer's own fields.
+ *
+ * This replaces a `UniqueValueRenderer` that held one composed symbol per
+ * feature. That renderer drew correctly but cost ~35ms to assign, because
+ * the SDK compiles every symbol -- and the month slider re-symbolises on
+ * every frame, so it could not afford that. Here the renderer is assigned
+ * once and the SDK re-reads attributes, which measures at about 4ms for the
+ * same 51 features.
+ *
+ * `late` stays a renderer-level distinction rather than an override: the
+ * dashed ring is a geometric effect on the stroke, not a scalar property,
+ * and there is no primitive override for "has a dash". Two symbols is still
+ * two, not fifty-one.
+ */
+export function reservoirCIMTemplate(
+  domain: number, late: boolean, color: string
+): CIMTemplateSymbol {
+  const strokeColor = late ? cimColor(STALE_ACCENT) : cimColor(color);
+  const ring = named(circleLayer(RING_PLACEHOLDER_PX, [{
+    type: "CIMSolidStroke",
+    /* The colour is on the stroke, not on the marker around it. An override
+     * naming the marker for "Color" does not merely miss -- it invalidates
+     * the whole symbol, and the SDK then draws nothing at all rather than
+     * complaining. That is how this first shipped as an empty map. */
+    primitiveName: "ringStroke",
+    enable: true,
+    width: late ? 1.5 : 1,
+    color: strokeColor,
+    ...(late ? {
+      effects: [{
+        type: "CIMGeometricEffectDashes" as const,
+        dashTemplate: [...LATE_DASH],
+        lineDashEnding: "NoConstraint" as const
+      }]
+    } : {})
+  }]), "ring");
+
+  const shadow = named(circleLayer(
+    RING_PLACEHOLDER_PX + SHADOW_SPREAD,
+    [{ type: "CIMSolidFill", enable: true, color: cimColor("#000000", SHADOW_ALPHA) }],
+    { x: SHADOW_OFFSET, y: -SHADOW_OFFSET }
+  ), "shadow");
+
+  const fill = named(circleLayer(RING_PLACEHOLDER_PX, [
+    { type: "CIMSolidFill", enable: true, color: cimColor(color) },
+    { type: "CIMSolidStroke", enable: true, width: 0.75, color: cimColor("#000000", 102) }
+  ]), "fill");
+
+  /* Size only. A `Color` override was tried here and does not work: pointed
+   * at the marker it invalidates the symbol, and pointed at the fill inside
+   * the marker graphic it still does -- either way the SDK draws nothing at
+   * all rather than reporting a problem, which is how this first shipped as
+   * an empty map. Colour is a renderer key instead, which is why this
+   * function takes one. */
+  const overrides: PrimitiveOverride[] = [
+    override("ring", "Size", "Capacity ring", ringSizeExpression(domain)),
+    override("shadow", "Size", "Shadow", shadowSizeExpression(domain, SHADOW_SPREAD)),
+    override("fill", "Size", "Storage fill", fillSizeExpression(domain))
+  ];
+
+  return {
+    type: "cim",
+    data: {
+      type: "CIMSymbolReference",
+      symbol: {
+        type: "CIMPointSymbol",
+        symbolLayers: [fill, ring, shadow],
+        scaleSymbolsProportionally: false,
+        respectFrame: true
+      },
+      primitiveOverrides: overrides
     }
   };
 }
