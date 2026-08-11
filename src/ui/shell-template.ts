@@ -16,11 +16,12 @@ function panelContents(suffix: string): string {
     <div class="panel-copy">
       <!-- The data state is a place for a problem to appear, not a receipt
            for a successful load: it carries the loading message and any
-           error, and takes itself out of the panel once the data is in. -->
-      <div class="data-state" data-suffix="${suffix}" role="status" aria-live="polite">
-        <calcite-loader inline label="Loading reservoir data" scale="s"></calcite-loader>
-        <span>Loading reservoir data&hellip;</span>
-      </div>
+           error, and takes itself out of the panel once the data is in.
+           Empty here on purpose: setDataState fills it from
+           describeDataState, so the words a reader sees have one source.
+           They used to be written here as well, which left the state
+           machine's own loading copy unreachable and free to drift. -->
+      <div class="data-state" data-suffix="${suffix}" role="status" aria-live="polite"></div>
       <p class="scope-copy" data-value="scope"></p>
       <section class="summary" aria-label="Current storage summary" hidden>
         <div class="summary-stat">

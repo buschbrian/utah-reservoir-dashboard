@@ -14,6 +14,7 @@
  * the point of the page.
  */
 
+import { fetchWithin } from "./fetch";
 import type { Point, Ring } from "./huc";
 
 export const MASK_FILL = "rgba(226,232,239,0.62)";
@@ -112,8 +113,7 @@ export function utahMaskRings(boundary: UtahBoundary = [[UTAH_RING.slice()]]): R
 export async function loadUtahBoundary(
   url = import.meta.env.DEV ? "./utah-boundary.geojson" : "./data/utah-boundary.geojson"
 ): Promise<UtahBoundary> {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+  const response = await fetchWithin(url);
   const boundary = parseUtahBoundary(await response.json() as unknown);
   if (!boundary) throw new Error(`Malformed Utah boundary in ${url}`);
   return boundary;
@@ -145,7 +145,6 @@ export function parseDrainageAreas(value: unknown): DrainageArea[] {
 export async function loadDrainageAreas(
   url = import.meta.env.DEV ? "./huc6.geojson" : "./data/huc6.geojson"
 ): Promise<DrainageArea[]> {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+  const response = await fetchWithin(url);
   return parseDrainageAreas(await response.json() as unknown);
 }

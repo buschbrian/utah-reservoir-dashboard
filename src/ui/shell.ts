@@ -94,6 +94,14 @@ export function wirePanels(): void {
   syncResponsiveShell();
 }
 
+/**
+ * The one place the data state is written, in words and in markup.
+ *
+ * The loading copy used to be hard-coded in the template as well, which
+ * meant `describeDataState`'s own `loading` branch was unreachable -- two
+ * statements of one fact, one of them dead and free to drift from the
+ * other.
+ */
 export function setDataState(state: DataState): void {
   const description = describeDataState(state);
   document.querySelectorAll<HTMLElement>(".data-state").forEach((element) => {
@@ -108,11 +116,22 @@ export function setDataState(state: DataState): void {
     }
     element.hidden = false;
     element.setAttribute("role", description.role);
+    const children: HTMLElement[] = [];
+    /* A spinner only while something is actually in flight. On an error it
+     * would be a promise the page cannot keep. */
+    if (state.kind === "loading") {
+      const loader = document.createElement("calcite-loader");
+      loader.setAttribute("inline", "");
+      loader.setAttribute("scale", "s");
+      loader.setAttribute("label", description.heading);
+      children.push(loader);
+    }
     const heading = document.createElement("strong");
     heading.textContent = description.heading;
     const detail = document.createElement("span");
     detail.textContent = description.detail;
-    element.replaceChildren(heading, detail);
+    children.push(heading, detail);
+    element.replaceChildren(...children);
   });
 }
 

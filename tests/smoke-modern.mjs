@@ -758,6 +758,68 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await context.close();
 }
 
+/* The data state, which nothing asserted on until now.
+ *
+ * "Replace loading copy with loader states *without hiding error
+ * explanations*" is only meaningful if a failure actually produces an
+ * explanation. Two failures are worth separating: a file that answers with
+ * an error, and a file that never answers at all. The second used to be a
+ * spinner forever -- there was no deadline on the data path, so the promise
+ * never settled and the panel never left "Loading reservoir data". */
+for (const failure of [
+  { name: "data refused", fulfil: { status: 503, body: "" } },
+  { name: "data never answers", hang: true }
+]) {
+  const context = await browser.newContext({ viewport: VIEWPORTS[0] });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+
+  await tab.route(/reservoirs\.json/i, async (route) => {
+    if (failure.hang) return; // never fulfilled, never aborted: a hang
+    return route.fulfill(failure.fulfil);
+  });
+
+  const label = `Phase 2 shell (${failure.name})`;
+  console.log(`\n=== ${label}`);
+  try {
+    await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const ready = await tab.evaluate(() => window.__dashboardReady);
+    console.log("  ready:", JSON.stringify(ready));
+
+    check(ready.drawn === 0, `${label}: drew ${ready.drawn} reservoirs from a failed load`);
+
+    const state = await tab.evaluate(() => {
+      const element = document.querySelector("#start-panel .data-state");
+      if (!element) return null;
+      return {
+        hidden: element.hidden,
+        role: element.getAttribute("role"),
+        text: element.textContent.trim(),
+        // A spinner on an error is a promise the page cannot keep.
+        spinner: element.querySelectorAll("calcite-loader").length
+      };
+    });
+    check(state !== null, `${label}: the data state element is gone`);
+    check(state?.hidden === false, `${label}: the failure is hidden from the reader`);
+    check(state?.role === "alert",
+      `${label}: the failure is announced as "${state?.role}", expected an alert`);
+    check(Boolean(state?.text) && /unavailable/i.test(state?.text ?? ""),
+      `${label}: no explanation on screen, only "${state?.text}"`);
+    check(state?.spinner === 0,
+      `${label}: still spinning after the load failed`);
+
+    // The map is a separate path and must survive a data failure.
+    check(await tab.locator("arcgis-map").count() === 1,
+      `${label}: the map was removed along with the data`);
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
+  await context.close();
+}
+
 await browser.close();
 server.close();
 

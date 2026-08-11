@@ -160,7 +160,7 @@ surfaces at once. The scope control, the storage classes, the opening extent
 and the analysis controls each took a pass to bring back into line after one
 engine moved first.
 
-### 3.5 Loading and release gates — next
+### 3.5 Loading and release gates — in progress
 
 - Replace remaining loading copy with Calcite loader/skeleton states without
   hiding error explanations.
@@ -168,6 +168,57 @@ engine moved first.
   all-basemap refusal.
 - Profile the final symbol and filter path on integrated graphics, then record
   the measured decision in the modernization plan.
+
+**The first bullet turned out to be mostly about the second half of its own
+sentence.** There were four paths where a loading state could never resolve,
+and a spinner that cannot resolve is not a loading state -- it is an error the
+reader is not being told about:
+
+- No deadline on any data fetch. A request that hangs never rejects, so
+  `setDataState` was never reached and the panel sat on "Loading reservoir
+  data" indefinitely. The basemap chain has had a deadline since the fallback
+  work; the data path had none. `src/data/fetch.ts` now gives every runtime
+  load one, and cancels the request rather than abandoning it.
+- The loading copy was hard-coded in the template *and* in
+  `describeDataState`, which left the state machine's own `loading` branch
+  unreachable and free to drift. The template no longer carries the words.
+- `#map-host` keeps `aria-busy="true"` if the view neither becomes ready nor
+  errors, after its visible loader has already been replaced by the map
+  element -- a screen reader told "busy" forever with nothing to read.
+- The overview clears chart `aria-busy` only on the winning revision, so a
+  superseded update leaves both hosts busy.
+
+The first two are done and gated. The last two are outstanding.
+
+#### Pre-registered decision rule for the profiling — written before any number
+
+Recorded here first so the result cannot be re-narrated afterwards.
+
+**Bloom is rejected on encoding grounds, not on cost.** Its only candidate job
+on this map is emphasising the hovered or selected reservoir, and 3.3 already
+gave that job to the layer view's named `temporary` highlight. An effect that
+is free but redundant still loses; recommendation 3 says "measured
+*enhancement*", not "enhancement if affordable". This is decidable now and does
+not need a measurement.
+
+**So the measurement's job is to confirm the baseline is affordable on
+integrated graphics, not to shop for an effect.** It passes when, on one
+machine in one session:
+
+- the 95th-percentile frame interval during a scripted pan stays within twice
+  the median idle frame interval measured on that same machine -- at most one
+  dropped frame at the tail;
+- the median frame interval with the reservoir layer present differs from the
+  same script with the layer removed by no more than a quarter of one frame;
+- no task over 50ms is attributable to applying `featureEffect`. 50ms is the
+  browser's own `longtask` threshold, borrowed rather than invented.
+
+Any difference smaller than the run-to-run spread of three repeated baseline
+runs is "no measurable difference", not a result.
+
+If the baseline fails, the response is to reduce cost -- drop the shadow layer,
+or halve `CIRCLE_POINTS` from 64, where `src/viz/cim.ts` records the polygon
+error as under a tenth of a pixel -- not to relax the threshold.
 
 ## Phase acceptance
 

@@ -74,10 +74,24 @@ describe("a data-only commit deploys on its own", () => {
   it("fetches the payload from a published path at runtime", async () => {
     const load = await read("src/data/load.ts");
     const boundaries = await read("src/data/boundaries.ts");
-    expect(load).toContain("fetch(");
+    /* Through the shared helper, which is where the deadline lives: a bare
+     * `fetch` here would be a runtime load that can hang forever, and a
+     * loading state that never resolves is an error nobody is told about. */
+    expect(load).toContain("fetchWithin(");
     expect(load).toContain("./data/reservoirs.json");
-    expect(boundaries).toContain("fetch(");
+    expect(boundaries).toContain("fetchWithin(");
     expect(boundaries).toContain("./data/huc6.geojson");
+    // The helper is still a fetch, which is the ADR-002 claim: the payload
+    // arrives at runtime and is never part of the module graph.
+    expect(await read("src/data/fetch.ts")).toContain("fetch(");
+  });
+
+  it("gives every runtime load a deadline", async () => {
+    for (const file of ["src/data/load.ts", "src/data/boundaries.ts"]) {
+      const source = await read(file);
+      expect(source, `${file} calls fetch directly, without a deadline`)
+        .not.toMatch(/[^a-zA-Z]fetch\(/);
+    }
   });
 
   it("still checks the published output for every current URL, the shell included", async () => {

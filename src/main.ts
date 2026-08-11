@@ -77,6 +77,9 @@ let lakePowell: LakePowellChoice = "exclude";
 let publishedAt = "";
 
 async function loadData(): Promise<readonly Reservoir[] | null> {
+  // The template no longer carries this copy, so the first state has to be
+  // announced rather than assumed.
+  setDataState({ kind: "loading" });
   try {
     const data = await loadReservoirs();
     if (data.reservoirs.length === 0) {
