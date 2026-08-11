@@ -22,6 +22,14 @@ const RUNTIME_DATA = [
 ];
 
 describe("a data-only commit deploys on its own", () => {
+  it("lets both browser gates use an installed Chromium executable", async () => {
+    for (const file of ["tests/smoke.mjs", "tests/smoke-modern.mjs"]) {
+      const smoke = await read(file);
+      expect(smoke, `${file} ignores PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`)
+        .toContain("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
+    }
+  });
+
   it("deploys every push to main, with no path filter to skip data commits", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     const trigger = workflow.slice(workflow.indexOf("\non:"), workflow.indexOf("\npermissions:"));

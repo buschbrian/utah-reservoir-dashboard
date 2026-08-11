@@ -17,6 +17,7 @@ import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../vi
 import { formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
+import { hoverPosition } from "./hover";
 import {
   NAME_FIELD,
   createDrainageLayer,
@@ -188,15 +189,13 @@ function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
     `Reading ${formatDate(reservoir.as_of)}`;
   card.replaceChildren(heading, summary);
   card.hidden = false;
-
-  requestAnimationFrame(() => {
-    const stage = card.parentElement;
-    if (!stage || card.hidden) return;
-    const left = Math.max(8, Math.min(point.x + 12, stage.clientWidth - card.offsetWidth - 8));
-    const top = Math.max(8, Math.min(point.y + 12, stage.clientHeight - card.offsetHeight - 8));
-    card.style.left = `${left}px`;
-    card.style.top = `${top}px`;
-  });
+  const stage = card.parentElement;
+  if (!stage) return;
+  const position = hoverPosition(point,
+    { width: stage.clientWidth, height: stage.clientHeight },
+    { width: card.offsetWidth, height: card.offsetHeight });
+  card.style.left = `${position.left}px`;
+  card.style.top = `${position.top}px`;
 }
 
 function wirePointerSelection(element: MapElement, selection: SelectionStore): void {

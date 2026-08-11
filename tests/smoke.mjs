@@ -85,7 +85,9 @@ const VIEWPORTS = [
 ];
 
 await new Promise((resolve) => server.listen(PORT, resolve));
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+  : {});
 
 for (const page of PAGES) {
  for (const viewport of VIEWPORTS) {
@@ -96,8 +98,9 @@ for (const page of PAGES) {
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
     // Basemap tile 404s and font warnings are the CDN's business, not ours.
-    if (/favicon|tile|sprite|font/i.test(msg.text())) return;
-    errors.push(`console: ${msg.text()}`);
+    const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
+    if (/favicon|tile|sprite|font/i.test(diagnostic)) return;
+    errors.push(`console: ${diagnostic}`);
   });
 
   const label = `${page.name} (${viewport.name})`;

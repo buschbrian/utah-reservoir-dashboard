@@ -130,8 +130,9 @@ for (const viewport of VIEWPORTS) {
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
-    if (/favicon|tile|sprite|font/i.test(msg.text())) return;
-    errors.push(`console: ${msg.text()}`);
+    const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
+    if (/favicon|tile|sprite|font/i.test(diagnostic)) return;
+    errors.push(`console: ${diagnostic}`);
   });
 
   const label = `Phase 2 shell (${viewport.name})`;
@@ -476,8 +477,9 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
   tab.on("console", (msg) => {
-    if (msg.type() === "error" && !/favicon/i.test(msg.text())) {
-      errors.push(`console: ${msg.text()}`);
+    const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
+    if (msg.type() === "error" && !/favicon/i.test(diagnostic)) {
+      errors.push(`console: ${diagnostic}`);
     }
   });
   const label = `Modern overview (${viewport.name})`;
