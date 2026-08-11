@@ -12,17 +12,51 @@
  * but *where* to go is a decision, and a decision is worth testing.
  */
 
-/** Provisional (ADR-009 / Phase 1.5): it stops making sense once the
- * connected out-of-state reservoirs land, at which point the region should
- * be computed from the sites and boundaries actually on the map. */
+/**
+ * The bounding box of the committed drainage-area polygons.
+ *
+ * The drainage areas are the primary source, so the map's geography comes
+ * from them. A constant rather than a computation because the navigation
+ * constraint is needed when the view is constructed, before any boundary
+ * file has been fetched -- and a constraint that arrives late is a map that
+ * can be panned away in the meantime. `extent.test.ts` recomputes it from
+ * `huc6.geojson`, so it cannot drift from the file it describes.
+ */
+export const HUC6_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
+  [[-115.706, 35.109], [-105.627, 43.451]];
+
+/** A bounding box scaled about its own centre. Two is one zoom level. */
+export function expandBounds(
+  bounds: readonly [readonly [number, number], readonly [number, number]],
+  factor: number
+): [[number, number], [number, number]] {
+  const [[west, south], [east, north]] = bounds;
+  const midX = (west + east) / 2;
+  const midY = (south + north) / 2;
+  const halfX = ((east - west) / 2) * factor;
+  const halfY = ((north - south) / 2) * factor;
+  return [[midX - halfX, midY - halfY], [midX + halfX, midY + halfY]];
+}
+
+/**
+ * Where the map opens, and the furthest out it goes -- the same box, one
+ * zoom level out from the drainage areas. Opening on the polygons exactly
+ * puts them against the edges of the canvas; one level out gives them the
+ * middle of it with the surrounding geography for context, and there is
+ * nothing useful further out than that for a dashboard about these
+ * drainage areas.
+ */
 export const MAP_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
-  [[-117.55, 33.90], [-105.55, 45.10]];
+  expandBounds(HUC6_BOUNDS, 2);
 
 /** Keeps a Utah dashboard from becoming a world map, while leaving the
  * connected Colorado River and Great Basin context visible. */
 export const MAP_MIN_ZOOM = 4;
 
 export const MAP_CENTER: readonly [number, number] = [-111.55, 39.50];
+
+/** The closest any of the maps will zoom. Deep enough to read a dam. */
+export const MAP_MAX_ZOOM = 23;
 
 /**
  * How close selecting a reservoir gets. Chosen so the neighbours stay on

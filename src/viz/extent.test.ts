@@ -3,13 +3,17 @@
  * about where selecting a reservoir takes the view -- decisions, not
  * geometry, and asserted over the published reservoirs rather than over a
  * literal coordinate. */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadLegacyApi } from "../data/legacy-harness";
 import { readPayload } from "../data/payload-fixture";
 import {
+  HUC6_BOUNDS,
   MAP_BOUNDS,
   MAP_CENTER,
+  MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
+  expandBounds,
   SELECTION_ZOOM,
   regionExtent,
   selectionTarget,
@@ -23,6 +27,7 @@ describe("the navigable region", () => {
   it("is the region both production maps already use", () => {
     expect(MAP_BOUNDS.map((corner) => [...corner])).toEqual(legacy.MAP_BOUNDS.map((c) => [...c]));
     expect(MAP_MIN_ZOOM).toBe(legacy.MAP_MIN_ZOOM);
+    expect(MAP_MAX_ZOOM).toBe(legacy.MAP_MAX_ZOOM);
     expect([...MAP_CENTER]).toEqual([...legacy.MAP_CENTER]);
   });
 
@@ -49,54 +54,81 @@ describe("the navigable region", () => {
   });
 });
 
-/* Where the map opens, which the two production pages take from the shared
- * module and the modern map takes from its own layer's extent. The three
- * have to agree or the engines stop being comparable (ADR-007), so this
- * holds the shared answer against the reservoirs it is computed from
- * rather than against a written-down box. */
-describe("where the map opens", () => {
-  const opening = legacy.reservoirBounds(reservoirs);
+/* The map's geography is derived from the drainage-area polygons, which are
+ * the primary source. HUC6_BOUNDS is written down because both engines need
+ * their navigation constraint when the view is constructed, before any
+ * boundary file has been fetched -- so the file it describes is read here
+ * and the constant held against it. */
+describe("the drainage-area extent the map is built from", () => {
+  const huc6 = JSON.parse(
+    readFileSync(new URL("../../huc6.geojson", import.meta.url), "utf8")
+  ) as { features: { geometry: { coordinates: unknown } }[] };
 
-  it("contains every reservoir it was computed from", () => {
+  function boundsOf(features: typeof huc6.features): [[number, number], [number, number]] {
+    let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    const walk = (node: unknown): void => {
+      if (!Array.isArray(node)) return;
+      if (typeof node[0] === "number" && typeof node[1] === "number") {
+        west = Math.min(west, node[0]); east = Math.max(east, node[0]);
+        south = Math.min(south, node[1]); north = Math.max(north, node[1]);
+        return;
+      }
+      for (const child of node) walk(child);
+    };
+    for (const feature of features) walk(feature.geometry.coordinates);
+    return [[west, south], [east, north]];
+  }
+
+  it("matches the committed drainage-area polygons", () => {
+    const measured = boundsOf(huc6.features);
+    // To the same three decimals the constant is written at: the file is
+    // published to five, and rounding is what makes the constant readable.
+    expect(HUC6_BOUNDS[0][0]).toBeCloseTo(measured[0][0], 3);
+    expect(HUC6_BOUNDS[0][1]).toBeCloseTo(measured[0][1], 3);
+    expect(HUC6_BOUNDS[1][0]).toBeCloseTo(measured[1][0], 3);
+    expect(HUC6_BOUNDS[1][1]).toBeCloseTo(measured[1][1], 3);
+  });
+
+  it("contains every drainage-area polygon", () => {
+    const measured = boundsOf(huc6.features);
+    expect(HUC6_BOUNDS[0][0]).toBeLessThanOrEqual(measured[0][0] + 0.001);
+    expect(HUC6_BOUNDS[0][1]).toBeLessThanOrEqual(measured[0][1] + 0.001);
+    expect(HUC6_BOUNDS[1][0]).toBeGreaterThanOrEqual(measured[1][0] - 0.001);
+    expect(HUC6_BOUNDS[1][1]).toBeGreaterThanOrEqual(measured[1][1] - 0.001);
+  });
+
+  it("is the shared module's, so the three maps use one geography", () => {
+    expect(HUC6_BOUNDS.map((corner) => [...corner]))
+      .toEqual(legacy.HUC6_BOUNDS.map((corner) => [...corner]));
+  });
+});
+
+describe("one zoom level out", () => {
+  it("doubles the box about its centre", () => {
+    expect(expandBounds([[-10, -10], [10, 10]], 2)).toEqual([[-20, -20], [20, 20]]);
+    expect(expandBounds([[0, 0], [10, 20]], 2)).toEqual([[-5, -10], [15, 30]]);
+  });
+
+  it("leaves a box alone at a factor of one", () => {
+    expect(expandBounds([[-3, -4], [5, 6]], 1)).toEqual([[-3, -4], [5, 6]]);
+  });
+
+  it("is what the opening extent is, measured from the drainage areas", () => {
+    expect(MAP_BOUNDS.map((corner) => [...corner]))
+      .toEqual(expandBounds(HUC6_BOUNDS, 2).map((corner) => [...corner]));
+  });
+
+  it("contains the drainage areas it was expanded from", () => {
+    expect(MAP_BOUNDS[0][0]).toBeLessThan(HUC6_BOUNDS[0][0]);
+    expect(MAP_BOUNDS[0][1]).toBeLessThan(HUC6_BOUNDS[0][1]);
+    expect(MAP_BOUNDS[1][0]).toBeGreaterThan(HUC6_BOUNDS[1][0]);
+    expect(MAP_BOUNDS[1][1]).toBeGreaterThan(HUC6_BOUNDS[1][1]);
+  });
+
+  it("still contains every reservoir the map draws", () => {
     for (const reservoir of reservoirs) {
-      expect(reservoir.lon, reservoir.name).toBeGreaterThanOrEqual(opening[0][0]);
-      expect(reservoir.lon, reservoir.name).toBeLessThanOrEqual(opening[1][0]);
-      expect(reservoir.lat, reservoir.name).toBeGreaterThanOrEqual(opening[0][1]);
-      expect(reservoir.lat, reservoir.name).toBeLessThanOrEqual(opening[1][1]);
+      expect(withinRegion(reservoir.lon, reservoir.lat), reservoir.name).toBe(true);
     }
-  });
-
-  it("never opens outside the region navigation is held inside", () => {
-    expect(opening[0][0]).toBeGreaterThanOrEqual(MAP_BOUNDS[0][0]);
-    expect(opening[0][1]).toBeGreaterThanOrEqual(MAP_BOUNDS[0][1]);
-    expect(opening[1][0]).toBeLessThanOrEqual(MAP_BOUNDS[1][0]);
-    expect(opening[1][1]).toBeLessThanOrEqual(MAP_BOUNDS[1][1]);
-  });
-
-  it("is tighter than the region, which is the whole point", () => {
-    const span = (box: readonly (readonly [number, number])[]): number =>
-      ((box[1]?.[0] ?? 0) - (box[0]?.[0] ?? 0)) * ((box[1]?.[1] ?? 0) - (box[0]?.[1] ?? 0));
-    expect(span(opening)).toBeLessThan(span(MAP_BOUNDS));
-  });
-
-  it("gives an empty payload the region rather than a box with no width", () => {
-    expect(legacy.reservoirBounds([]).map((corner) => [...corner]))
-      .toEqual(MAP_BOUNDS.map((corner) => [...corner]));
-    expect(legacy.reservoirBounds(null).map((corner) => [...corner]))
-      .toEqual(MAP_BOUNDS.map((corner) => [...corner]));
-  });
-
-  it("keeps a usable box around a single reservoir", () => {
-    const one = legacy.reservoirBounds([{ lon: -111.5, lat: 39.5 }]);
-    expect(one[1][0]).toBeGreaterThan(one[0][0]);
-    expect(one[1][1]).toBeGreaterThan(one[0][1]);
-  });
-
-  it("ignores a record with no usable position", () => {
-    const withJunk = legacy.reservoirBounds([
-      ...reservoirs, { lon: Number.NaN, lat: Number.NaN }, { lon: null, lat: null }
-    ]);
-    expect(withJunk.map((corner) => [...corner])).toEqual(opening.map((corner) => [...corner]));
   });
 });
 

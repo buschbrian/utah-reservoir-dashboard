@@ -13,7 +13,7 @@ import { resolveBasemap } from "../arcgis/basemaps";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { Reservoir } from "../types";
-import { MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
+import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
 import { formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
@@ -101,6 +101,7 @@ type MapElement = HTMLElement & {
   zoom?: number;
   goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
     Promise<unknown>;
+  extent?: unknown;
   view?: {
     whenLayerView(layer: unknown): Promise<unknown>;
     ready?: boolean;
@@ -304,8 +305,12 @@ export async function loadMap(
   map.add(maskLayer);
 
   const element = document.createElement("arcgis-map") as MapElement;
-  element.setAttribute("center", "-111.7,39.4");
-  element.setAttribute("zoom", "6");
+  /* The opening view is the derived region: one zoom level out from the
+   * drainage-area polygons, the same box the two production pages open at.
+   * Set here rather than eased into after the layer loads -- the target is a
+   * fixed box, not something that has to be measured from the data, so
+   * there is nothing to wait for and no race to lose. */
+  element.extent = { type: "extent", ...regionExtent() };
   /* Both production maps already refuse to leave this region. Without it a
    * reader could pan a Utah dashboard into the middle of the Pacific and
    * find an empty basemap with no way back except reloading. `snapToZoom`
@@ -314,6 +319,8 @@ export async function loadMap(
   element.constraints = {
     snapToZoom: false,
     minZoom: MAP_MIN_ZOOM,
+    // Deep enough to read an individual dam.
+    maxZoom: MAP_MAX_ZOOM,
     geometry: { type: "extent", ...regionExtent() }
   };
   element.setAttribute("aria-label", "Interactive map of Utah and connected drainage areas");
@@ -338,7 +345,6 @@ export async function loadMap(
     if (!element.view?.ready) return;
     elementById("map-host").setAttribute("aria-busy", "false");
     syncPadding();
-    if (pendingFrame) frameReservoirs(pendingFrame);
     if (pendingSelection) easeToSelection(pendingSelection);
   });
   element.addEventListener("arcgisViewReadyError", () => {
@@ -436,39 +442,6 @@ export async function loadMap(
       : { filter: { where }, excludedEffect: EXCLUDED_EFFECT };
   }
 
-  /**
-   * Frames the reservoirs the map actually has, once.
-   *
-   * The starting extent used to be a written-down centre and zoom, marked
-   * provisional because it stops making sense as soon as the connected
-   * out-of-state reservoirs land -- which they have. This asks the layer
-   * where its features are instead. Skipped when the reader arrived with a
-   * reservoir already selected: a shared link asked for a particular view
-   * and should not be overruled by the default one.
-   */
-  let framed = false;
-  let pendingFrame: FeatureLayer | null = null;
-  function frameReservoirs(layer: FeatureLayer): void {
-    if (framed || selection.get()) return;
-    /* Not marked done until it actually moves. `drawReservoirs` runs as soon
-     * as the data resolves, which is routinely before the view is ready --
-     * and a `framed = true` set on the attempt rather than the outcome is
-     * how the first version of this silently left the map at its written-down
-     * starting extent. The ready handler replays whatever is pending. */
-    pendingFrame = layer;
-    const view = element.view;
-    const move = element.goTo?.bind(element) ?? view?.goTo?.bind(view);
-    if (!view?.ready || !move) return;
-    void layer.when(() => {
-      const extent = layer.fullExtent;
-      if (!extent) return undefined;
-      syncPadding();
-      framed = true;
-      pendingFrame = null;
-      return move(extent.clone().expand(1.2) as unknown as GoToTarget, { animate: false });
-    }).catch(() => undefined);
-  }
-
   return {
     status,
     drawReservoirs(reservoirs) {
@@ -487,7 +460,6 @@ export async function loadMap(
       if (!map.layers.includes(highlightLayer)) map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
       status.reservoirSymbols = result.symbols;
-      frameReservoirs(result.layer);
       if (pendingFilter !== null) applyFilter(pendingFilter);
       /* The layer view is what the hover highlight needs, and it only ever
        * arrives in a browser that is actually painting: `whenLayerView` is

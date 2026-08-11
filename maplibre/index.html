@@ -181,7 +181,11 @@
       location.search = next.toString();
     });
 
-    const mapBounds = ReservoirViz.MAP_BOUNDS || [[-117.55, 33.90], [-105.55, 45.10]];
+    /* One zoom level out from the drainage areas, derived from them in the
+       shared module rather than written down here. It is both where the map
+       opens and the furthest out it goes: there is nothing useful beyond the
+       polygons this dashboard is about. */
+    const mapBounds = ReservoirViz.MAP_BOUNDS;
 
     // On a phone the title card covers the top of the map, so the fit has to
     // hold room for it. Measured from the card once it exists rather than
@@ -198,6 +202,8 @@
       bounds: mapBounds,
       fitBoundsOptions: { padding: fitPadding() },
       minZoom: ReservoirViz.MAP_MIN_ZOOM || 4,
+      // Deep enough to read an individual dam. The default stops at 22.
+      maxZoom: ReservoirViz.MAP_MAX_ZOOM || 23,
       maxBounds: mapBounds
     });
 
@@ -673,15 +679,8 @@
           const titleDiv = document.getElementById("titleDiv");
           titleDiv.insertBefore(slider.element, titleDiv.querySelector(".map-links"));
 
-          /* The card is taller now, so the fit has to follow it -- and the
-             fit is to the reservoirs rather than to `mapBounds`. That
-             constant is the region navigation is held inside; it reaches
-             well past Utah on every side because the connected drainage
-             areas do, so opening at it spent most of the canvas on Nevada
-             and Wyoming. `reservoirBounds` asks the published reservoirs
-             where they are, and clamps the answer back inside the region. */
-          map.fitBounds(ReservoirViz.reservoirBounds(reservoirs, mapBounds),
-                        { padding: fitPadding(), duration: 0 });
+          // The card is taller now, so the fit has to follow it.
+          map.fitBounds(mapBounds, { padding: fitPadding(), duration: 0 });
 
 
           // Popup only on the front-most (current-storage) layer -- the

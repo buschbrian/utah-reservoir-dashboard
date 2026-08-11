@@ -173,61 +173,44 @@
   // the starting extent should be computed from the sites and boundaries
   // actually on the map, not written down here. See Phase 1.5 in
   // MODERNIZATION_PLAN.md.
-  var MAP_BOUNDS = [[-117.55, 33.90], [-105.55, 45.10]];
+  /* The drainage areas are the primary source, so the map's geography is
+   * derived from them rather than written down beside them.
+   *
+   * HUC6_BOUNDS is the bounding box of the polygons in the committed
+   * `huc6.geojson`. It is a constant because both engines need their
+   * navigation constraint at construction, before any boundary file has
+   * been fetched -- and a constraint that arrives late is a map that could
+   * be panned away in the meantime. `extent.test.ts` recomputes it from the
+   * committed file, so the moment the drainage areas change and this is not
+   * regenerated, the build says so.
+   */
+  var HUC6_BOUNDS = [[-115.706, 35.109], [-105.627, 43.451]];
+
+  /** A bounding box scaled about its own centre. Two is one zoom level. */
+  function expandBounds(bounds, factor) {
+    var west = bounds[0][0], south = bounds[0][1];
+    var east = bounds[1][0], north = bounds[1][1];
+    var midX = (west + east) / 2, midY = (south + north) / 2;
+    var halfX = ((east - west) / 2) * factor, halfY = ((north - south) / 2) * factor;
+    return [[midX - halfX, midY - halfY], [midX + halfX, midY + halfY]];
+  }
+
+  /* Where the map opens, and the furthest out it goes -- the same box, one
+   * zoom level out from the drainage areas. Opening at the polygons exactly
+   * puts them against the edges of the canvas; one level out gives them the
+   * middle of it, with the surrounding geography for context, and there is
+   * nothing useful further out than that for a dashboard about these
+   * drainage areas. */
+  var MAP_BOUNDS = expandBounds(HUC6_BOUNDS, 2);
+
+  /** The closest any of the maps will zoom. Deep enough to read a dam. */
+  var MAP_MAX_ZOOM = 23;
+
   // Keeps a Utah dashboard from becoming a world map while leaving the
   // connected Colorado River and Great Basin context visible.
   var MAP_MIN_ZOOM = 4;
   var MAP_CENTER = [-111.55, 39.50];
 
-  /* Where the map should open, which is a different question from where it
-   * is allowed to go.
-   *
-   * MAP_BOUNDS is the second: the region navigation is held inside, which
-   * reaches well past Utah on every side because the connected drainage
-   * areas do. Opening at it spends most of the canvas on Nevada, Wyoming
-   * and Arizona and draws the reservoirs small in the middle. This asks the
-   * published reservoirs where they actually are.
-   *
-   * The margin keeps the outermost reservoirs off the edge of the canvas.
-   * The result is clamped back into MAP_BOUNDS so the opening view can
-   * never sit outside the region the same map then refuses to pan to.
-   *
-   * Returns the fallback -- MAP_BOUNDS, normally -- when nothing usable is
-   * published, which is the honest answer for an empty payload rather than
-   * a degenerate zero-width box.
-   */
-  function reservoirBounds(reservoirs, fallback) {
-    var back = fallback || MAP_BOUNDS;
-    if (!reservoirs || !reservoirs.length) return back;
-    var west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
-    for (var i = 0; i < reservoirs.length; i++) {
-      var record = reservoirs[i] || {};
-      /* Null is checked before the conversion because `Number(null)` is 0,
-       * not NaN: a record with no position would otherwise read as a
-       * reservoir off the coast of Africa and stretch the opening view to
-       * the whole region -- which is exactly the view this replaces. */
-      if (record.lon === null || record.lon === undefined) continue;
-      if (record.lat === null || record.lat === undefined) continue;
-      var lon = Number(record.lon);
-      var lat = Number(record.lat);
-      if (!isFinite(lon) || !isFinite(lat)) continue;
-      if (lon < west) west = lon;
-      if (lon > east) east = lon;
-      if (lat < south) south = lat;
-      if (lat > north) north = lat;
-    }
-    if (!isFinite(west) || !isFinite(south)) return back;
-
-    // A tenth of the span on each side, and a floor for the case where every
-    // reservoir sits at nearly one point -- without it a single reservoir
-    // would open the map at a box with no width at all.
-    var padX = Math.max((east - west) * 0.1, 0.15);
-    var padY = Math.max((north - south) * 0.1, 0.15);
-    return [
-      [Math.max(back[0][0], west - padX), Math.max(back[0][1], south - padY)],
-      [Math.min(back[1][0], east + padX), Math.min(back[1][1], north + padY)]
-    ];
-  }
   var HUC_FILL = "rgba(226,232,239,0.22)";
   var HUC_LINE = "#6f8498";
 
@@ -1900,7 +1883,9 @@
     MAP_BOUNDS: MAP_BOUNDS,
     MAP_MIN_ZOOM: MAP_MIN_ZOOM,
     MAP_CENTER: MAP_CENTER,
-    reservoirBounds: reservoirBounds,
+    MAP_MAX_ZOOM: MAP_MAX_ZOOM,
+    HUC6_BOUNDS: HUC6_BOUNDS,
+    expandBounds: expandBounds,
     UTAH_RING: UTAH_RING,
     parseUtahBoundary: parseUtahBoundary,
     loadUtahBoundary: loadUtahBoundary,

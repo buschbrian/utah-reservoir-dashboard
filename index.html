@@ -270,7 +270,10 @@
       });
       map.add(hucLayer);
 
-      const initialBounds = ReservoirViz.MAP_BOUNDS || [[-117.55, 33.90], [-105.55, 45.10]];
+      /* One zoom level out from the drainage areas, derived from them in the
+         shared module rather than written down here. It is both where the
+         map opens and the furthest out it goes. */
+      const initialBounds = ReservoirViz.MAP_BOUNDS;
 
       const view = new MapView({
         container: "viewDiv",
@@ -286,6 +289,8 @@
         constraints: {
           snapToZoom: false,
           minZoom: ReservoirViz.MAP_MIN_ZOOM || 4,
+          // Deep enough to read an individual dam.
+          maxZoom: ReservoirViz.MAP_MAX_ZOOM || 23,
           geometry: {
             type: "extent",
             xmin: initialBounds[0][0], ymin: initialBounds[0][1],
@@ -947,24 +952,6 @@
           // can only assert "no exception was thrown", which is not the same
           // as "the reservoirs actually rendered".
           return view.when().then(() => {
-            /* Open on the reservoirs, not on the region. `MAP_BOUNDS` is
-               where navigation is held, and it reaches well past Utah on
-               every side because the connected drainage areas do -- opening
-               at it spent most of the canvas on Nevada and Wyoming.
-               `reservoirBounds` asks the published reservoirs where they
-               are and clamps the answer back inside the region, so both map
-               engines open on the same box. Inside `view.when` because
-               `goTo` rejects outright on a view that is not ready. */
-            const opening = ReservoirViz.reservoirBounds(reservoirs);
-            view.goTo({
-              target: {
-                type: "extent",
-                xmin: opening[0][0], ymin: opening[0][1],
-                xmax: opening[1][0], ymax: opening[1][1],
-                spatialReference: { wkid: 4326 }
-              }
-            }, { animate: false }).catch(() => {});
-
             // --- Shared selection <-> popup <-> URL ---
             //
             // The store in shared/reservoir-viz.js is the only thing that

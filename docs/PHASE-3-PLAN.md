@@ -139,6 +139,27 @@ the shared module, held against it character for character, including the
 reservoirs means five clicks, and the address bar describes the current view
 rather than logging how the reader reached it.
 
+### Still to decide, before the phases that need it
+
+Two questions are open and are not 3.5's to answer. They change what the map
+is *of*, so they want deciding before more UI is built on top of the current
+answer:
+
+- **The reservoirs outside the current scope.** The payload publishes more
+  than the map draws. What the out-of-scope records are for -- context,
+  comparison, or nothing -- decides whether they need a scope control of
+  their own beside Lake Powell's, or simply stay out.
+- **The snow telemetry sites.** They are a different kind of thing from a
+  reservoir: a point measurement of what is going to arrive rather than a
+  volume that is already there. Whether they belong on this map at all, on
+  a layer of their own, or on a separate view, is a question about the
+  dashboard's subject rather than about symbology.
+
+Whatever is decided, the answer has to reach all three engines and both
+surfaces at once. The scope control, the storage classes, the opening extent
+and the analysis controls each took a pass to bring back into line after one
+engine moved first.
+
 ### 3.5 Loading and release gates — next
 
 - Replace remaining loading copy with Calcite loader/skeleton states without

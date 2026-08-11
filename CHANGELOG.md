@@ -15,12 +15,12 @@ and is not listed here.
   overlap was first found there, and the control stays in its corner. The
   browser test measured this on the ArcGIS page only, which is why it went
   unnoticed; it now checks both engines.
-- **Both map pages opened on the whole region instead of on the
-  reservoirs.** The region reaches well past Utah on every side because the
-  connected drainage areas do, so the opening view spent most of the canvas
-  on Nevada and Wyoming. Both now open on a box computed from the published
-  reservoirs and clamped back inside the region, so the two engines and the
-  modern map open the same way.
+- **All three maps opened on a hand-drawn box.** The map's geography now
+  comes from the drainage-area polygons it draws (ADR-017): every map opens
+  one zoom level out from them, which is also the furthest out any of them
+  goes, so the watersheds get the middle of the canvas instead of a third of
+  it. Nothing caps the way in any more — the maps zoom to level 23, deep
+  enough to read an individual dam.
 - **The modern map could be panned out of the region entirely.** Both
   production maps have constrained navigation to the drainage areas around
   Utah since that fix landed; the modern shell had no constraints at all, so

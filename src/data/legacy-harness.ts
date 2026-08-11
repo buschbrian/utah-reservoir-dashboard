@@ -73,11 +73,13 @@ export interface LegacyApi {
   MAP_BOUNDS: readonly (readonly [number, number])[];
   MAP_MIN_ZOOM: number;
   MAP_CENTER: readonly [number, number];
-  /** Where the map opens, computed from the published reservoirs. */
-  reservoirBounds(
-    reservoirs: readonly unknown[] | null | undefined,
-    fallback?: readonly (readonly [number, number])[]
-  ): readonly [readonly [number, number], readonly [number, number]];
+  MAP_MAX_ZOOM: number;
+  /** The bounding box of the committed drainage-area polygons. */
+  HUC6_BOUNDS: readonly (readonly [number, number])[];
+  expandBounds(
+    bounds: readonly (readonly [number, number])[],
+    factor: number
+  ): [[number, number], [number, number]];
   HUC6_WHERE: string;
   MASK_FILL: string;
   MASK_LINE: string;
