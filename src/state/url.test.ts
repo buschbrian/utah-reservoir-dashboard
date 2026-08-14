@@ -160,4 +160,5 @@ describe("the rest of the view in the link", () => {
     expect(searchWithState({ reporting: "late" }, "?basemap=streets"))
       .toBe("?reporting=late&basemap=streets");
   });
+
 });

@@ -4,7 +4,6 @@ import "@esri/calcite-components/components/calcite-action";
 import "@esri/calcite-components/components/calcite-button";
 import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
-import "@esri/calcite-components/components/calcite-navigation-logo";
 
 import { loadReservoirs } from "./data/load";
 import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
@@ -22,6 +21,7 @@ import {
   type OverviewSort
 } from "./overview-model";
 import type { Reservoir } from "./types";
+import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import "./styles/overview.css";
@@ -32,12 +32,8 @@ if (!root) throw new Error("Missing #overview-app root");
 
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
-    <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
-      description="ArcGIS Maps SDK for JavaScript" heading-level="2" icon="water-drop"></calcite-navigation-logo>
-    <calcite-button slot="content-end" href="./" appearance="transparent"
-      kind="neutral" icon-start="home" label="Return to ArcGIS map"><span class="overview-link-text">Map</span></calcite-button>
-    <calcite-button slot="content-end" href="./explore.html" appearance="transparent"
-      kind="neutral" label="Open legacy comparison"><span class="overview-link-text">Legacy comparison</span></calcite-button>
+    ${brandMarkup(2)}
+    ${pageLinksMarkup("overview")}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
@@ -46,6 +42,24 @@ root.innerHTML = `
       <div><p class="eyebrow">Decision workspace</p><h1>Utah reservoir conditions</h1></div>
       <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is large enough to hide local conditions in a combined total, so it starts excluded and can be added back at any time.</p>
     </header>
+    <!-- These three pages are published on every deploy, and until now the
+         only way to reach any of them was to already know its address. They
+         are not in the navigation bar because that bar clips rather than
+         scrolls: four links plus the theme control measured 408px against a
+         360px viewport, which does not shorten the row, it amputates the end
+         of it. Here they also get to say what they are for, which is what
+         ADR-007 actually asks of a comparison. -->
+    <nav class="overview-views" aria-label="Other views of this data">
+      <h2>Other views</h2>
+      <ul>
+        <li><a id="legacy-link" href="./legacy/"><b>Legacy map</b>
+          <span>The same reservoirs drawn by ArcGIS Maps SDK 4.34, kept for comparison.</span></a></li>
+        <li><a id="maplibre-link" href="./maplibre/"><b>MapLibre map</b>
+          <span>The second rendering engine, and the view to use if the Esri services are unreachable.</span></a></li>
+        <li><a id="explore-link" href="./explore.html"><b>Statewide overview</b>
+          <span>Charts and rankings for every reservoir, without a map.</span></a></li>
+      </ul>
+    </nav>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
   </main>`;
 wireTheme();

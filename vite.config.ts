@@ -59,6 +59,7 @@ export default defineConfig({
         index: resolve(root, "index.html"),
         modern: resolve(root, "modern.html"),
         overview: resolve(root, "overview.html"),
+        methods: resolve(root, "methods.html"),
         explore: resolve(root, "explore.html")
       }
     }

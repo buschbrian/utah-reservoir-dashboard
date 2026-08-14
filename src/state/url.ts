@@ -39,6 +39,7 @@ const SELECTION_PARAMS = {
   geography: "reservoirs",
   month: "month"
 } as const;
+
 type SelectionField = keyof typeof SELECTION_PARAMS;
 const SELECTION_FIELDS = Object.keys(SELECTION_PARAMS) as SelectionField[];
 

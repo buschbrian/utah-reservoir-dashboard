@@ -155,7 +155,68 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .summary-stat strong { margin-block: .25rem; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
 .summary-stat small { color: var(--app-muted); font-size: .75rem; line-height: 1.35; }
 
-.reservoir-list { margin-block-start: 1rem; }
+/* The map key. Two lists: the storage classes, which are a scale and read
+ * as one block, and the three symbols that are not a class, which each need
+ * a sentence. Both are generated in legend.ts from the class table. */
+.legend h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.legend-classes,
+.legend-notes { margin: 0; padding: 0; list-style: none; }
+.legend-classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+}
+.legend-classes li,
+.legend-notes li {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  min-width: 0;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.legend-notes {
+  margin-block-start: .5rem;
+  display: grid;
+  gap: .3rem;
+}
+/* The same circle the list rows use, so a swatch means one thing on this
+ * panel. */
+.legend-swatch {
+  flex: 0 0 auto;
+  width: .75rem;
+  height: .75rem;
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 50%;
+}
+.legend-swatch-late { border-style: dashed; border-width: 2px; background: transparent; }
+/* Three circles at the sizes the map actually draws, aligned on their
+ * centres so the row reads as one growing mark rather than three marks. */
+.legend-sizes {
+  flex: 0 0 auto;
+  display: flex;
+  gap: .2rem;
+  align-items: center;
+  width: 2.6rem;
+}
+.legend-size {
+  border: 1px solid var(--app-muted);
+  border-radius: 50%;
+  background: transparent;
+}
+/* The background control shares this section with the key, so it needs the
+ * gap the section stack gives everything else. Without it the label sat
+ * directly under the last note and read as a fourth note. */
+.legend calcite-label { margin-block-start: .9rem; }
+.basemap-note {
+  margin: .4rem 0 0;
+  color: var(--app-terracotta);
+  font-size: .8125rem;
+  line-height: 1.45;
+}
+.basemap-note[hidden] { display: none; }
+
 .reservoir-list h3 { margin: 0; font-size: 1rem; }
 .list-hint {
   margin: .25rem 0 .5rem;
@@ -230,9 +291,74 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 .detail-rows dt { color: var(--app-muted); }
 .detail-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
+/* A fall, in the panel and in the table. Not colour alone: the value it
+ * marks already carries a minus sign, so this is emphasis on a fact the
+ * reader can also read. */
+.detail-down, .trend-down { color: var(--app-terracotta); }
+.trend-up { color: var(--app-accent); }
 
-.filters { margin-block-start: 1rem; margin-block-end: 1.25rem; }
-.reservoir-list { margin-block-start: 1.25rem; }
+/* The twelve-month history, which the details panel did not carry until the
+ * comparison with the legacy popup. */
+.detail-subhead {
+  margin: 1.25rem 0 .5rem;
+  font-size: .9375rem;
+}
+.trend-chart { display: block; width: 100%; height: auto; overflow: visible; }
+/* The parts of the chart that are not data take their colour from the theme.
+ * The legacy popup wrote a light grey and a navy into the markup, which is
+ * invisible and near-invisible respectively on this build's dark theme. */
+.trend-grid { stroke: var(--app-border); stroke-width: 1; }
+.trend-axis { fill: var(--app-muted); font-size: 9px; }
+.trend-normal { fill: none; stroke: var(--app-accent); stroke-width: 1.6; stroke-dasharray: 4 3; }
+.trend-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .6rem;
+  align-items: center;
+  margin: .4rem 0 0;
+  color: var(--app-muted);
+  font-size: .75rem;
+  line-height: 1.4;
+}
+.trend-key-entry { display: inline-flex; gap: .3rem; align-items: center; min-width: 0; }
+.trend-key-bar, .trend-key-line { flex: 0 0 auto; width: .85rem; }
+.trend-key-bar { height: .6rem; border-radius: .0625rem; background: var(--app-muted); }
+.trend-key-line { height: 0; border-block-start: .125rem dashed var(--app-accent); }
+.trend-details { margin-block-start: .75rem; font-size: .8125rem; }
+.trend-details summary { cursor: pointer; color: var(--app-muted); }
+.trend-details summary:focus-visible { outline: .15rem solid #00619b; outline-offset: .1rem; }
+/* The table has four columns of numbers in a 20rem panel: it scrolls inside
+ * its own box rather than widening the panel, and the page behind it. */
+.trend-table-scroll { overflow-x: auto; margin-block-start: .5rem; }
+.trend-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.trend-table th, .trend-table td { padding: .25rem .4rem; text-align: start; white-space: nowrap; }
+.trend-table thead th {
+  border-block-end: 1px solid var(--app-border);
+  color: var(--app-muted);
+  font-size: .75rem;
+  font-weight: 600;
+}
+.trend-table tbody th { font-weight: 400; }
+.trend-table tbody tr + tr th,
+.trend-table tbody tr + tr td { border-block-start: 1px solid var(--app-surface); }
+.trend-num { text-align: end; }
+.trend-note, .detail-note {
+  margin: .5rem 0 0;
+  color: var(--app-muted);
+  font-size: .75rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.detail-note { margin-block-start: 1.25rem; }
+
+/* One gap between panel sections, set once. These carried 1rem, 1.25rem and
+ * a second 1rem for `.reservoir-list` further up the file that the later
+ * rule silently won -- so the rhythm down the panel was 16px, 20px, 20px,
+ * and editing the visible declaration moved nothing. `> * + *` because the
+ * spacing belongs to the stack, not to whichever section happens to be
+ * next: the legend was added between two of them without touching this. */
+.panel-copy:not(.detail-copy) > * + * { margin-block-start: 1.25rem; }
+.filters { margin-block-end: 0; }
 .filters h3,
 .detail-placeholder h2 { margin: 0; font-size: 1rem; }
 .filter-summary,
@@ -284,9 +410,8 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
     --calcite-sheet-max-height: 82vh;
   }
   /* The header clips rather than scrolls, so everything here is about
-   * keeping the three actions on its end inside the viewport. */
-  calcite-navigation-logo { max-width: 10rem; }
-  .overview-link-text { display: none; }
+   * keeping the four actions on its end inside the viewport. */
+  #brand { max-width: 13rem; }
   /* A list that is 18rem tall inside a sheet leaves no room for anything
    * under it. Against the viewport instead, so the panel keeps its shape on
    * a short phone in landscape as well as a tall one. */
@@ -301,30 +426,60 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
  * name (ADR-016), the scope the reader chose, and the publication date.
  * Hidden below 48rem, where the bar has no room to spare -- the panel and
  * the sheet carry the same facts there. */
-#header-facts {
+/* The brand block: mark, then the product name with the SDK name stacked
+ * under it. Centred as a unit against the 64px bar rather than each line
+ * finding its own alignment -- the arrangement this replaces put the SDK
+ * name in its own horizontal slot, where it both consumed ~180px of a bar
+ * that clips and sat at the top edge while the title beside it centred. */
+#brand {
   display: flex;
-  align-items: baseline;
-  gap: .75rem;
+  gap: .625rem;
+  align-items: center;
   min-width: 0;
-  padding-inline-start: .5rem;
+  block-size: 100%;
+  padding-inline: 1rem .5rem;
+  color: var(--app-text);
+}
+#brand calcite-icon { flex: 0 0 auto; color: var(--app-accent); }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  /* The two lines set their own leading. Left to the bar's line-height they
+   * drifted apart by the difference between two font sizes. */
+  justify-content: center;
+  gap: .0625rem;
+  min-width: 0;
+}
+#brand-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+#brand-title,
+#sdk-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sdk-name {
   color: var(--app-muted);
   font-size: .75rem;
   line-height: 1.2;
 }
-#header-facts > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#header-facts > span + span::before {
-  content: "·";
-  margin-inline-end: .75rem;
-  color: var(--app-border);
-}
 
+/* The links are buttons on a wide bar and one menu on a narrow one. Below
+ * 64rem the two link buttons plus three actions plus the brand did not fit,
+ * and this bar amputates what does not fit rather than wrapping it. */
+#page-menu { display: none; }
+@media (max-width: 63.99rem) {
+  #page-menu { display: block; }
+  #overview-link, #methods-link { display: none; }
+}
 @media (max-width: 47.99rem) {
-  #header-facts { display: none; }
+  #sdk-name { display: none; }
+  #brand { padding-inline-start: .75rem; }
 }
 
 /* The twelve-month slider. Sits between the analysis controls and the list,
- * because it changes what the list is showing. */
-.months { margin-block-start: 1.25rem; }
+ * because it changes what the list is showing. Its gap comes from the
+ * `.panel-copy > * + *` rule with every other section's. */
 .months h3 { margin: 0; font-size: 1rem; }
 .month-current {
   margin: .25rem 0 .35rem;

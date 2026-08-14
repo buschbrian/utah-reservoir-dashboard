@@ -12,11 +12,12 @@ import "@esri/calcite-components/components/calcite-select";
 import "@esri/calcite-components/components/calcite-slider";
 import "@esri/calcite-components/components/calcite-switch";
 import "@esri/calcite-components/components/calcite-navigation";
-import "@esri/calcite-components/components/calcite-navigation-logo";
 import "@esri/calcite-components/components/calcite-panel";
 import "@esri/calcite-components/components/calcite-sheet";
 import "@esri/calcite-components/components/calcite-shell";
 import "@esri/calcite-components/components/calcite-shell-panel";
+
+import { brandMarkup, pageLinksMarkup } from "./page-header";
 
 function panelContents(suffix: string): string {
   return `
@@ -39,6 +40,14 @@ function panelContents(suffix: string): string {
           <span>Reservoirs</span><strong data-value="count">—</strong>
           <small data-value="updated">—</small>
         </div>
+      </section>
+      <!-- The key to the map, above the controls that change it: a reader
+           meeting the circles for the first time needs to know what they
+           mean before being asked to filter them. Filled by renderLegend
+           from the class table, never written out here (ADR-008). -->
+      <section class="legend" aria-labelledby="legend-${suffix}">
+        <h3 id="legend-${suffix}">What the circles mean</h3>
+        <div class="legend-host" data-legend="${suffix}"></div>
       </section>
       <!-- Before the list, not after it. The list scrolls inside its own
            box, so controls placed below it sat behind a nested scroller --
@@ -128,29 +137,16 @@ export function renderShell(root: HTMLElement): void {
     <a class="skip-link" href="#map-host">Skip to the reservoir map</a>
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
-        <!-- The product name is a sibling of the logo rather than the logo's
-             own description attribute (ADR-016 still requires the official
-             name in the navigation). Calcite lays that description out
-             against the full 64px bar, which left an 11px gap under the
-             heading and put the subtitle hard on the bottom edge. -->
-        <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
-          heading-level="1" icon="water-drop"></calcite-navigation-logo>
-        <!-- Only the product name here. The scope and the publication date
-             went in too and pushed the theme control to x=1366 in a 1280
-             viewport: this bar clips rather than scrolls, so anything that
-             does not fit is not merely ugly, it is unreachable. -->
-        <div id="header-facts" slot="content-start">
-          <span id="sdk-name">ArcGIS Maps SDK for JavaScript</span>
-        </div>
-        <calcite-button id="overview-link" slot="content-end" href="./overview.html"
-          appearance="transparent" kind="neutral" icon-start="table"
-          label="Open reservoir table and charts">
-          <span class="overview-link-text">Table and charts</span>
-        </calcite-button>
+        ${brandMarkup(1)}
+        ${pageLinksMarkup("map")}
+        <!-- Icon only. With their text these were 152px and 145px in a bar
+             whose contents have to fit inside the viewport, spent on two
+             words each that the panel they open repeats as its own heading.
+             The label attribute is what a screen reader announces either way. -->
         <calcite-action id="controls-toggle" slot="content-end" text="Storage summary"
-          text-enabled icon="sliders-horizontal" active></calcite-action>
+          icon="sliders-horizontal" label="Show or hide the storage summary" active></calcite-action>
         <calcite-action id="detail-toggle" slot="content-end" text="Reservoir details"
-          text-enabled icon="information"></calcite-action>
+          icon="information" label="Show or hide the reservoir details"></calcite-action>
         <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
           icon="brightness" label="Change color theme"></calcite-action>
       </calcite-navigation>

@@ -34,6 +34,51 @@ body {
 }
 .overview-intro h1 { margin: 0; font-size: clamp(1.85rem, 3vw, 2.8rem); line-height: 1.05; }
 .overview-intro > p { max-width: 45rem; margin: 0; color: var(--app-muted); line-height: 1.5; }
+/* The routes to the other published pages. `auto-fit` with a `1fr` maximum
+ * rather than a column count, for the same reason the filter bar is flex:
+ * the layout should not have to know how many links there are. `minmax(0, …)`
+ * because the description is prose and would otherwise set a floor that
+ * widens the page at 360px. */
+.overview-views { margin-block-end: 1.25rem; }
+.overview-views h2 {
+  margin: 0 0 .5rem;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--app-muted);
+}
+.overview-views ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: .6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.overview-views a {
+  display: block;
+  min-width: 0;
+  height: 100%;
+  padding: .7rem .85rem;
+  background: color-mix(in srgb, var(--app-surface-raised) 94%, var(--app-sand));
+  border: 1px solid var(--app-border);
+  border-radius: .65rem;
+  text-decoration: none;
+  color: inherit;
+}
+.overview-views a:hover, .overview-views a:focus-visible {
+  border-color: var(--app-accent, currentcolor);
+  background: var(--app-surface-raised);
+}
+.overview-views b { display: block; font-size: .95rem; }
+.overview-views span {
+  display: block;
+  margin-block-start: .15rem;
+  font-size: .82rem;
+  line-height: 1.4;
+  color: var(--app-muted);
+}
+
 /* Flex, not a hand-written track list. The grid this replaces named exactly
  * five columns for what was then five children, so adding the Lake Powell
  * control silently pushed "Reset filters" onto a second row underneath the
@@ -186,7 +231,6 @@ body {
   .card-heading { flex-wrap: wrap; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
-  .overview-link-text { display: none; }
 }
 
 /* The chart legend, built from the storage class table so the bars, the map

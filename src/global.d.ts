@@ -53,4 +53,8 @@ interface Window {
     charts: number;
     lakePowellExcluded: boolean;
   };
+  /* The methods page settles whether or not the payload can be read: the
+   * rules on it do not depend on the data. This reports that it finished,
+   * which is the fact a test needs to know the page is not still waiting. */
+  __methodsReady?: { published: boolean };
 }

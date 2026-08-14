@@ -264,6 +264,14 @@ export function createReservoirLayer(
     // selection. An SDK popup would open a second, unstyled description of
     // the same reservoir over the map.
     popupEnabled: false,
+    /* Draw order, so a large reservoir cannot bury a small neighbour it
+     * happens to be listed before. The circles are proportional and they
+     * overlap wherever reservoirs are close together -- Deer Creek sits
+     * inside Jordanelle's ring at the opening extent -- and without an
+     * explicit order the winner is whichever the source array names last,
+     * which is alphabetical and therefore arbitrary. Smallest on top: the
+     * small circle is the one that can be completely covered. */
+    orderBy: [{ field: "size_basis", order: "descending" }],
     /* The SDK's own CIM property types mark every optional member
      * `T | null | undefined`, where ours are `T | undefined` under
      * `exactOptionalPropertyTypes`, so the two shapes never unify even

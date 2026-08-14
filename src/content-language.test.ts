@@ -19,7 +19,16 @@ const userTextFiles = [
   // the filter is doing are written here, not in the template.
   "src/state/filters.ts",
   "src/ui/shell.ts",
-  "src/ui/shell-template.ts"
+  "src/ui/shell-template.ts",
+  // The map key and the twelve-month history: both were written against the
+  // legacy popup, which is where several of the retired terms were coined.
+  "src/ui/legend.ts",
+  "src/viz/trend.ts",
+  // The page that explains the pipeline, which is where the retired
+  // vocabulary is native: the script it describes calls things by their
+  // acronyms throughout.
+  "src/methods.ts",
+  "src/ui/page-header.ts"
 ];
 
 const oldUnexplainedTerms = [

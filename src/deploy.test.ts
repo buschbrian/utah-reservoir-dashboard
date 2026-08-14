@@ -108,7 +108,8 @@ describe("a data-only commit deploys on its own", () => {
 
   it("still checks the published output for every current URL, the shell included", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
-    for (const path of ["index.html", "modern.html", "legacy/index.html", "explore.html",
+    for (const path of ["index.html", "modern.html", "legacy/index.html",
+      "overview.html", "methods.html", "explore.html",
       "maplibre/index.html", "data/reservoirs.json", "data/reference.json",
       "data/huc6.geojson", "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
@@ -129,5 +130,20 @@ describe("a data-only commit deploys on its own", () => {
     expect(legacyEntry).toContain("https://js.arcgis.com/4.34/");
     expect(config).toContain('index: resolve(root, "index.html")');
     expect(config).toContain('resolve(root, "legacy", "index.html")');
+  });
+
+  /* Copying a page into `dist/` keeps it published; it does not keep it
+   * reachable. The root cut-over moved the 4.34 page into `legacy/` with
+   * every test above still passing, and left no link to it from anywhere in
+   * the typed stack -- ADR-007 asks for two engines a reader can compare,
+   * and a URL you have to already know is not a comparison. The primary
+   * application's header clips rather than scrolls and carries one outbound
+   * link, so the overview bar is where these have to live. */
+  it("routes a reader to every published page it preserves", async () => {
+    const overview = await read("src/overview.ts");
+    for (const href of ["./legacy/", "./maplibre/", "./explore.html"]) {
+      expect(overview, `nothing links to ${href}, so no reader can reach it`)
+        .toContain(`href="${href}"`);
+    }
   });
 });

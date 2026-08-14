@@ -1,4 +1,6 @@
 import "@esri/calcite-components/components/calcite-notice";
+import "@arcgis/map-components/components/arcgis-basemap-gallery";
+import "@arcgis/map-components/components/arcgis-expand";
 import "@arcgis/map-components/components/arcgis-fullscreen";
 import "@arcgis/map-components/components/arcgis-home";
 import "@arcgis/map-components/components/arcgis-map";
@@ -35,6 +37,11 @@ export interface MapStatus {
   basemap: boolean;
   /** True when a preferred background failed and a later candidate served. */
   basemapDegraded: boolean;
+  /* Added, never replacing `basemap`: that field says whether the map has a
+   * background at all, this says which one, and one field cannot answer
+   * both without the readiness signal making two claims about one word. */
+  basemapName: string | null;
+
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
@@ -376,9 +383,19 @@ export async function loadMap(
    * button was reachable. Zoom is included because the component set does
    * not add one -- `view.ui.components` is empty for a map component, so
    * without this there is no way to zoom but the scroll wheel. */
+  /* The SDK's own basemap gallery, in the SDK's own expand, rather than a
+   * select in the storage summary: the background belongs to the map, and a
+   * second control panel inside the panel that holds the analysis controls
+   * made the reader look in two places for map settings. The gallery also
+   * brings its own list, so the four backgrounds this shell used to name by
+   * hand are no longer a list that can go stale against the SDK. */
   element.innerHTML = `
     <arcgis-zoom slot="top-right"></arcgis-zoom>
     <arcgis-home slot="top-right"></arcgis-home>
+    <arcgis-expand slot="top-right" id="basemap-expand" close-on-esc
+      expand-icon="basemap" expand-tooltip="Map background">
+      <arcgis-basemap-gallery></arcgis-basemap-gallery>
+    </arcgis-expand>
     <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
     <arcgis-scale-bar slot="bottom-right" unit="dual"></arcgis-scale-bar>`;
   element.addEventListener("arcgisViewReadyChange", () => {
@@ -431,6 +448,7 @@ export async function loadMap(
   const status: MapStatus = {
     basemap: resolution.resource !== null,
     basemapDegraded: resolution.degraded,
+    basemapName: resolution.resource ? resolution.name : null,
     masked: map.layers.includes(maskLayer),
     boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
       sum + (polygon[0]?.length ?? 0), 0),

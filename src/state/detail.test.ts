@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readPayload } from "../data/payload-fixture";
 import { storageColor } from "../viz/classes";
 import { headlinePercent } from "../viz/symbols";
-import { describeReservoir, lateMessage, providerName } from "./detail";
+import { describeReservoir, lateMessage, monthlyDetail, providerName } from "./detail";
 import { createSelectionStore, findReservoir, normalizeSelectionValue } from "./selection";
 import { loadLegacyApi } from "../data/legacy-harness";
 
@@ -26,7 +26,12 @@ describe("the details a reader sees", () => {
   it("never shows a retired term for any published reservoir", () => {
     const offenders: string[] = [];
     for (const view of views) {
-      const text = [view.name, view.percent, view.basis, view.late ?? "",
+      /* The note and the month labels are read here too. They arrived with
+       * the twelve-month history, which was ported from the legacy popup --
+       * the one place on the old pages where "seasonal percentile" and the
+       * provider acronyms were still written out in full. */
+      const text = [view.name, view.percent, view.basis, view.late ?? "", view.note,
+        ...view.months.map((month) => month.label),
         ...view.rows.flatMap((row) => [row.label, row.value])].join(" | ");
       for (const term of RETIRED) {
         if (term.test(text)) offenders.push(`${view.name}: ${String(term)}`);
@@ -80,6 +85,49 @@ describe("the details a reader sees", () => {
   it("takes the headline colour from the shared class table", () => {
     for (const [index, view] of views.entries()) {
       expect(view.color).toBe(legacy.colorFor(legacy.headlinePct(reservoirs[index])));
+    }
+  });
+
+  /* The panel is the 5.1 replacement for the legacy popup, and the cut-over
+   * to the root made it the only place most readers will ever see these
+   * numbers. It shipped with five rows against that popup's eleven. */
+  it("carries every reading the legacy popup carried", () => {
+    for (const view of views) {
+      expect(view.rows.map((row) => row.label)).toEqual(expect.arrayContaining([
+        "Stored now", "Normal for this week", "History rank", "Change in 30 days",
+        "Change in 1 year", "Highest value this year", "Reading date",
+        "Update schedule", "Measured by"
+      ]));
+    }
+  });
+
+  it("signs a change and marks a fall, so a drop cannot read as a rise", () => {
+    const falling = reservoirs.find((candidate) =>
+      (candidate.change_30d_af ?? 0) < 0);
+    expect(falling, "the fixture has no falling reservoir to check").toBeDefined();
+    if (falling) {
+      const row = describeReservoir(falling, "#000").rows
+        .find((entry) => entry.label === "Change in 30 days");
+      expect(row?.value.startsWith("-")).toBe(true);
+      expect(row?.negative).toBe(true);
+    }
+    const rising = reservoirs.find((candidate) => (candidate.change_30d_af ?? 0) > 0);
+    if (rising) {
+      const row = describeReservoir(rising, "#000").rows
+        .find((entry) => entry.label === "Change in 30 days");
+      expect(row?.value.startsWith("+")).toBe(true);
+      expect(row?.negative).toBe(false);
+    }
+  });
+
+  /* The chart under the circle must not answer the question the circle
+   * answered with a different denominator: both divide by `sizeBasis`. */
+  it("colours each month by the same denominator the map uses", () => {
+    for (const reservoir of reservoirs) {
+      for (const month of monthlyDetail(reservoir)) {
+        expect(month.color).toBe(storageColor(month.percent));
+        expect(month.percent).toBe(legacy.monthPct(reservoir, month.key));
+      }
     }
   });
 });

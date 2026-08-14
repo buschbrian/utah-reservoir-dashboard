@@ -1,5 +1,6 @@
 import type { DetailView } from "../state/detail";
 import { describeDataState, type DataState } from "../state/shell";
+import { renderTrendChart, renderTrendTable } from "../viz/trend";
 import { elementById } from "./dom";
 
 const mobileQuery = window.matchMedia("(max-width: 47.99rem)");
@@ -52,8 +53,11 @@ function syncResponsiveShell(): void {
   const detailPanel = elementById<ToggleSurface>("detail-panel");
   const startSheet = elementById<ToggleSurface>("start-sheet");
   const detailSheet = elementById<ToggleSurface>("detail-sheet");
-  elementById("controls-toggle").toggleAttribute("text-enabled", !mobileQuery.matches);
-  elementById("detail-toggle").toggleAttribute("text-enabled", !mobileQuery.matches);
+  /* The two panel toggles are icon-only at every width now. With their text
+   * they measured 152px and 145px in a bar that has to fit inside the
+   * viewport, spent on words the panel each one opens repeats as its own
+   * heading. Their label attributes carry the same words to a screen
+   * reader, which is where they were doing real work. */
   if (mobileQuery.matches) {
     setOpen(startPanel, false);
     setOpen(detailPanel, false);
@@ -409,16 +413,59 @@ export function setDetail(view: DetailView | null): void {
       term.textContent = row.label;
       const definition = document.createElement("dd");
       definition.textContent = row.value;
+      if (row.negative) definition.classList.add("detail-down");
       rows.append(term, definition);
     }
 
-    const children: HTMLElement[] = [heading, headline, rows];
+    const children: (HTMLElement | SVGElement)[] = [heading, headline, rows];
     if (view.late) {
       const late = document.createElement("p");
       late.className = "detail-late";
       late.textContent = view.late;
       children.splice(2, 0, late);
     }
+
+    /* The history the legacy popup carried and this panel did not. Both
+     * pieces return null when the reservoir has no monthly values, so a
+     * reservoir that has only ever reported once gets no empty chart frame
+     * and no heading over nothing. */
+    const chart = renderTrendChart(view.months, view.name);
+    const table = renderTrendTable(view.months);
+    if (chart || table) {
+      const heading12 = document.createElement("h3");
+      heading12.className = "detail-subhead";
+      heading12.textContent = "The last 12 months";
+      children.push(heading12);
+      if (chart) {
+        children.push(chart);
+        /* Each mark and its words are one element, so a wrap puts the whole
+         * pair on the next line. Flat children wrapped between the dash and
+         * "Normal value", which reads as a bar chart with a stray dash. */
+        const key = document.createElement("p");
+        key.className = "trend-key";
+        for (const [markClass, text] of [
+          ["trend-key-bar", "Average storage for each month"],
+          ["trend-key-line", "Normal value"]
+        ] as const) {
+          const entry = document.createElement("span");
+          entry.className = "trend-key-entry";
+          const mark = document.createElement("span");
+          mark.className = markClass;
+          const words = document.createElement("span");
+          words.textContent = text;
+          entry.append(mark, words);
+          key.append(entry);
+        }
+        children.push(key);
+      }
+      if (table) children.push(table);
+    }
+
+    const note = document.createElement("p");
+    note.className = "detail-note";
+    note.textContent = view.note;
+    children.push(note);
+
     host.replaceChildren(...children);
   });
 }

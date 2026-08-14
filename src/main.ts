@@ -32,6 +32,7 @@ import {
 import { createSelectionStore, findReservoir } from "./state/selection";
 import { connectSelectionToUrl, stateFromSearch, writeUrlState } from "./state/url";
 import { supportsDashboard } from "./state/shell";
+import { renderLegend } from "./ui/legend";
 import { loadMap, type MapController } from "./ui/map";
 import {
   browserCapabilities,
@@ -201,6 +202,7 @@ function viewState(): {
   };
 }
 
+
 /** The drainage areas the map currently has, as the control's choices. The
  * areas follow the scope: `connected` brings two more reservoirs, and one of
  * them may be the only reservoir in its area. */
@@ -312,6 +314,10 @@ if (!supportsDashboard(browserCapabilities())) {
   renderShell(root);
   wirePanels();
   wireTheme();
+  /* Before the data, not after it: the key describes the symbol table, which
+   * is fixed, so it has no reason to wait on a fetch that may fail. A reader
+   * looking at the loading state can already read what the map will mean. */
+  document.querySelectorAll<HTMLElement>("[data-legend]").forEach(renderLegend);
 
   const boundary = loadUtahBoundary().catch((error: unknown) => {
     console.warn("The authoritative Utah boundary is unavailable; using the fallback mask:", error);

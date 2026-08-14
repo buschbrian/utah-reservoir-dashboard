@@ -245,10 +245,34 @@ for (const viewport of VIEWPORTS) {
     const credentialUi = await tab.evaluate(FIND_CREDENTIAL_UI);
     check(credentialUi.length === 0,
       `${label}: a credential prompt exists (${credentialUi.join(", ")})`);
-    const overviewLink = tab.locator("#overview-link");
-    check(await overviewLink.isVisible(), `${label}: the table and charts link is not visible`);
-    check(await overviewLink.getAttribute("href") === "./overview.html",
-      `${label}: the table and charts link has the wrong destination`);
+    /* The page links are buttons on a wide bar and one menu on a narrow one,
+     * because this bar clips rather than wraps. Exactly one of the two has
+     * to be showing: both is a duplicated control, neither is a page with no
+     * way out. The menu carries every link either way, so it is the one that
+     * has to hold the full set. */
+    const pageLinks = await tab.evaluate(() => {
+      const shown = (selector) => {
+        const element = document.querySelector(selector);
+        return Boolean(element) && getComputedStyle(element).display !== "none";
+      };
+      return {
+        menu: shown("#page-menu"),
+        buttons: ["#overview-link", "#methods-link"].filter(shown),
+        menuItems: [...document.querySelectorAll("#page-menu calcite-dropdown-item")]
+          .map((item) => item.getAttribute("href")),
+        buttonHrefs: ["#overview-link", "#methods-link"]
+          .map((selector) => document.querySelector(selector)?.getAttribute("href"))
+      };
+    });
+    const wideBar = viewport.width >= 1024;
+    check(pageLinks.menu === !wideBar,
+      `${label}: the page menu is ${pageLinks.menu ? "showing" : "hidden"} at ${viewport.width}px`);
+    check(pageLinks.buttons.length === (wideBar ? 2 : 0),
+      `${label}: ${pageLinks.buttons.length} page link buttons are showing at ${viewport.width}px`);
+    check(pageLinks.menuItems.join(",") === "./,./overview.html,./methods.html",
+      `${label}: the page menu offers ${pageLinks.menuItems.join(", ")}`);
+    check(pageLinks.buttonHrefs.join(",") === "./overview.html,./methods.html",
+      `${label}: the page link buttons point at ${pageLinks.buttonHrefs.join(", ")}`);
     check(await tab.locator(".map-stage > .map-alternative").count() === 0,
       `${label}: the old table and charts overlay still covers the map`);
 
@@ -487,10 +511,53 @@ for (const viewport of VIEWPORTS) {
     const detailHost = tab.locator(detailSelector);
     check(await detailHost.isVisible(), `${label}: the active detail surface is not visible`);
     const detail = (await detailHost.innerText()).trim();
-    for (const expected of [firstName, "%", "Stored now", "Reading date", "Measured by"]) {
+    /* The readings the legacy popup carried. The panel replaced that popup
+     * when 5.1 went to the root, and shipped with five of these -- so the
+     * reader lost the comparison with a normal year, the two change figures
+     * and the history entirely. */
+    for (const expected of [firstName, "%", "Stored now", "Reading date", "Measured by",
+      "Normal for this week", "History rank", "Change in 30 days", "Change in 1 year",
+      "Highest value this year", "Update schedule", "The last 12 months"]) {
       check(detail.includes(expected),
         `${label}: the details panel does not report ${expected}`);
     }
+    const history = await tab.evaluate((selector) => {
+      const host = document.querySelector(selector);
+      const chart = host?.querySelector(".trend-chart");
+      return {
+        bars: host?.querySelectorAll(".trend-chart rect").length ?? 0,
+        rows: host?.querySelectorAll(".trend-table tbody tr").length ?? 0,
+        // A chart with no accessible name is a picture of numbers that a
+        // reader who cannot see it is simply not given.
+        chartLabel: chart?.getAttribute("aria-label") ?? "",
+        // The table is the text alternative, so it has to be reachable
+        // rather than merely present in the markup.
+        summary: host?.querySelector(".trend-details summary")?.textContent ?? ""
+      };
+    }, detailSelector);
+    check(history.bars > 0, `${label}: the twelve-month chart drew no bars`);
+    check(history.rows > 0, `${label}: the twelve-month table has no rows`);
+    check(history.chartLabel.includes(firstName),
+      `${label}: the twelve-month chart has no accessible name`);
+    check(history.summary.length > 0,
+      `${label}: the twelve-month table has no control to open it`);
+
+    /* The map key, which the 5.1 application shipped without. Generated from
+     * the class table, so the count is the assertion that matters: a sixth
+     * class added to that table with no legend entry would mean the map
+     * draws a colour the key does not explain. */
+    const legend = await tab.evaluate((selector) => ({
+      entries: document.querySelectorAll(`${selector} .legend-classes li`).length,
+      colors: [...document.querySelectorAll(`${selector} .legend-classes .legend-swatch`)]
+        .map((swatch) => getComputedStyle(swatch).backgroundColor),
+      notes: document.querySelectorAll(`${selector} .legend-notes li`).length
+    }), mobile ? "#start-sheet" : "#start-panel");
+    check(legend.entries === 5,
+      `${label}: the map key has ${legend.entries} storage classes, not 5`);
+    check(legend.notes === 3,
+      `${label}: the map key does not explain size, late data and no data`);
+    check(new Set(legend.colors).size === 5,
+      `${label}: the map key repeats a colour across its classes`);
 
     const layout = await tab.evaluate(() => {
       const rect = (selector) => {
@@ -503,7 +570,6 @@ for (const viewport of VIEWPORTS) {
         // The map's own controls sit in the component's shadow root; the
         // alternative link and the navigation are the light-DOM surfaces
         // that have covered them before.
-        overviewLink: rect("#overview-link"),
         navigation: rect("calcite-navigation"),
         home: rect("arcgis-home"),
         fullscreen: rect("arcgis-fullscreen")
@@ -519,7 +585,15 @@ for (const viewport of VIEWPORTS) {
      * reservoir details and theme controls fully off screen with nothing to
      * reveal them. Every control in the bar is measured against the viewport. */
     const navControls = await tab.evaluate(() => {
-      const ids = ["overview-link", "controls-toggle", "detail-toggle", "theme-toggle"];
+      /* Whatever is actually on the bar at this width. The link buttons
+       * swap for the menu below 64rem, so naming a fixed set here would
+       * measure a control that is display:none and pass on a zero box. */
+      const ids = ["brand", "page-menu", "overview-link", "methods-link",
+        "controls-toggle", "detail-toggle", "theme-toggle"]
+        .filter((id) => {
+          const element = document.getElementById(id);
+          return element && getComputedStyle(element).display !== "none";
+        });
       return ids.map((id) => {
         const box = document.getElementById(id)?.getBoundingClientRect();
         return {
@@ -553,10 +627,6 @@ for (const viewport of VIEWPORTS) {
     }, controls);
     check(controlsBeforeList === true,
       `${label}: the analysis controls are not before the reservoir list`);
-    check(layout.overviewLink &&
-      layout.overviewLink.left >= 0 &&
-      layout.overviewLink.right <= layout.viewport + 1,
-      `${label}: the table and charts link extends outside the header`);
     check(layout.navigation && layout.navigation.right <= layout.viewport + 1,
       `${label}: the navigation is clipped`);
     for (const [control, box] of [["Home", layout.home], ["Fullscreen", layout.fullscreen]]) {
@@ -647,6 +717,47 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: page overflows horizontally (${layout.scroll}px in ${layout.viewport}px)`);
     check(layout.nav?.left >= 0 && layout.nav?.right <= layout.viewport + 1,
       `${label}: navigation is clipped`);
+
+    /* This page is the only route to the second rendering engine (ADR-007)
+     * and to the 4.34 map, both of which the root cut-over left published
+     * and unreachable. The header clips rather than scrolls, so its own
+     * bounding box cannot prove its contents fit -- and it is why the three
+     * outbound links sit in the page rather than in the bar. Measure all of
+     * them, and require each to point where its label says. */
+    const navLinks = {
+      "theme-toggle": null,
+      "legacy-link": "./legacy/",
+      "maplibre-link": "./maplibre/",
+      "explore-link": "./explore.html",
+      // The header's own links swap for the menu below 64rem, so only
+      // whichever is actually showing at this width is measured.
+      ...(viewport.width >= 1024
+        ? { "map-link": "./", "methods-link": "./methods.html" }
+        : { "page-menu-trigger": null })
+    };
+    const navControls = await tab.evaluate((ids) => ids.map((id) => {
+      const element = document.getElementById(id);
+      const box = element?.getBoundingClientRect();
+      return {
+        id,
+        href: element?.getAttribute("href") ?? null,
+        left: box ? Math.round(box.left) : null,
+        right: box ? Math.round(box.right) : null,
+        width: box ? Math.round(box.width) : 0
+      };
+    }), Object.keys(navLinks));
+    for (const control of navControls) {
+      check(control.width > 0, `${label}: the ${control.id} control has no size`);
+      check(control.left !== null && control.left >= -1 &&
+        control.right !== null && control.right <= layout.viewport + 1,
+      `${label}: the ${control.id} control sits at ${control.left}-${control.right}, ` +
+      `outside the ${layout.viewport}px viewport`);
+      const expected = navLinks[control.id];
+      if (expected !== null) {
+        check(control.href === expected,
+          `${label}: the ${control.id} control points at ${control.href}, not ${expected}`);
+      }
+    }
     check(layout.chart?.left >= 0 && layout.chart?.right <= layout.viewport + 1,
       `${label}: chart card is clipped`);
     await tab.screenshot({ path: `screenshots/overview-${viewport.name}.png`, fullPage: false });

@@ -66,6 +66,7 @@ jobs:
         run: |
           missing=0
           for path in index.html modern.html legacy/index.html \
+                      overview.html methods.html \
                       explore.html maplibre/index.html \
                       shared/reservoir-viz.js reservoirs.json capacities.json \
                       huc6.geojson utah-boundary.geojson reference.json \
