@@ -59,6 +59,13 @@ describe("user text", () => {
     expect(found).toEqual([]);
   });
 
+  it("keeps the reservoir comparison period and window visible", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    expect(methods).toMatch(/from 2015 through the year before the current\s+reading/);
+    expect(methods).toMatch(/within seven days before or after/);
+    expect(methods).toContain("dry-period normal");
+  });
+
   it("defines each required technical term", async () => {
     const overview = await readFile(resolve(root, "explore.html"), "utf8");
     for (const term of [

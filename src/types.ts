@@ -76,9 +76,17 @@ export interface ReservoirSource {
   cadence: string;
 }
 
+export interface NormalPeriod {
+  start_year: number;
+  end_year: number;
+}
+
 export interface ReservoirPayload {
   generated_at: string;
   start_date: string;
+  /** Optional while payloads generated before the disclosure remain readable. */
+  normal_period?: NormalPeriod;
+  normal_window_days?: number;
   stale_after_days: number;
   stale_after_days_by_cadence: Record<DataFrequency, number>;
   source: string;

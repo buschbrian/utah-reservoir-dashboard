@@ -46,6 +46,7 @@ import watershed_scopes
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
 AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 START_DATE = "20150101"
+SEASONAL_WINDOW_DAYS = 7
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
@@ -378,7 +379,8 @@ def fetch_awdb_series(station_triplet: str, cadence: str,
               [["date", "storage_af"]].reset_index(drop=True))
 
 
-def seasonal_window(series: pd.Series, ref_date: pd.Timestamp, window_days: int = 7) -> pd.Series:
+def seasonal_window(series: pd.Series, ref_date: pd.Timestamp,
+                    window_days: int = SEASONAL_WINDOW_DAYS) -> pd.Series:
     """Every observation within +/- window_days of ref_date's day-of-year, any year.
 
     IMPROVEMENT: the wrap-around uses a fixed 365, so in leap years the
@@ -401,8 +403,16 @@ def prior_years(series: pd.Series, ref_date: pd.Timestamp) -> pd.Series:
     return series[series.index.year < ref_date.year]
 
 
+def normal_period(run_date: pd.Timestamp) -> dict[str, int]:
+    """Calendar years that can contribute to a prior-year comparison."""
+    return {
+        "start_year": dt.datetime.strptime(START_DATE, "%Y%m%d").year,
+        "end_year": int(run_date.year) - 1,
+    }
+
+
 def seasonal_percentile(series: pd.Series, ref_date: pd.Timestamp, current: float,
-                        window_days: int = 7) -> float:
+                        window_days: int = SEASONAL_WINDOW_DAYS) -> float:
     """Where `current` ranks against *prior years'* values in the day-of-year window.
 
     The comparison population is prior years only. It used to include the
@@ -984,6 +994,8 @@ def main() -> int:
     payload = {
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "start_date": dt.datetime.strptime(START_DATE, "%Y%m%d").date().isoformat(),
+        "normal_period": normal_period(today),
+        "normal_window_days": SEASONAL_WINDOW_DAYS,
         "stale_after_days": STALE_AFTER_DAYS,
         "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
                                          "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},
@@ -1026,6 +1038,11 @@ def main() -> int:
     emit_ci_signals(records)
 
     if args.dry_run:
+        print("\nPayload comparison metadata:")
+        print(json.dumps({
+            "normal_period": payload["normal_period"],
+            "normal_window_days": payload["normal_window_days"],
+        }, indent=2))
         print("\n--dry-run: not writing reservoirs.json")
         return 0
 

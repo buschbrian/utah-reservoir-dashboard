@@ -109,6 +109,20 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
   if (typeof value.generated_at !== "string" || typeof value.start_date !== "string") {
     throw new Error("reservoirs.json is missing generation metadata");
   }
+  const normalPeriod = value.normal_period;
+  if (normalPeriod !== undefined &&
+      (!isObject(normalPeriod) ||
+       !Number.isInteger(normalPeriod.start_year) ||
+       !Number.isInteger(normalPeriod.end_year) ||
+       (normalPeriod.start_year as number) > (normalPeriod.end_year as number))) {
+    throw new Error("reservoirs.json has invalid normal period metadata");
+  }
+  if (value.normal_window_days !== undefined &&
+      (!hasNumber(value.normal_window_days) ||
+       !Number.isInteger(value.normal_window_days) ||
+       value.normal_window_days < 0)) {
+    throw new Error("reservoirs.json has invalid normal window metadata");
+  }
   const cadenceThresholds = value.stale_after_days_by_cadence;
   const sourceCounts = value.source_counts;
   if (!hasNumber(value.stale_after_days) ||

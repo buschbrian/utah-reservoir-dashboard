@@ -161,6 +161,22 @@ def test_seasonal_window_wraps_correctly_across_a_leap_year():
     }
 
 
+def test_seasonal_window_default_comes_from_the_published_constant():
+    idx = pd.date_range("2025-06-01", "2025-06-30", freq="D")
+    series = pd.Series(1.0, index=idx)
+    default_window = R.seasonal_window(series, pd.Timestamp("2026-06-15"))
+    explicit_window = R.seasonal_window(
+        series, pd.Timestamp("2026-06-15"), R.SEASONAL_WINDOW_DAYS)
+    pd.testing.assert_series_equal(default_window, explicit_window)
+
+
+def test_normal_period_follows_the_configured_start_and_run_year():
+    assert R.normal_period(pd.Timestamp("2026-08-14")) == {
+        "start_year": pd.Timestamp(R.START_DATE).year,
+        "end_year": 2025,
+    }
+
+
 def test_local_today_is_mountain_time():
     """days_stale is compared against local dates, so today must be local too."""
     expected = pd.Timestamp.now(R.LOCAL_TZ).normalize().tz_localize(None)
