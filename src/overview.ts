@@ -51,14 +51,18 @@ if (!root) throw new Error("Missing #overview-app root");
 
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
-    ${brandMarkup(2)}
+    <!-- The brand is this page's only heading of the first rank. The page
+         used to carry its own "Utah reservoir conditions" below the bar,
+         which said the same thing twice at two sizes; with that gone the
+         bar has to be the h1, or the page has none at all. The map shell
+         has always done it this way. -->
+    ${brandMarkup(1)}
     ${pageLinksMarkup("overview")}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
   <main class="overview-main">
     <header class="overview-intro">
-      <div><p class="eyebrow">Decision workspace</p><h1>Utah reservoir conditions</h1></div>
       <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is large enough to hide local conditions in a combined total, so it starts excluded and can be added back at any time.</p>
     </header>
     <!-- These three pages are published on every deploy, and until now the
@@ -75,8 +79,12 @@ root.innerHTML = `
           <span>The same reservoirs drawn by ArcGIS Maps SDK 4.34, kept for comparison.</span></a></li>
         <li><a id="maplibre-link" href="./maplibre/"><b>MapLibre map</b>
           <span>The second rendering engine, and the view to use if the Esri services are unreachable.</span></a></li>
-        <li><a id="explore-link" href="./explore.html"><b>Statewide overview</b>
-          <span>Charts and rankings for every reservoir, without a map.</span></a></li>
+        <!-- "Statewide overview" read as a link to somewhere else on a page
+             that is itself the statewide overview. It is named for what it
+             is: the earlier build of this page, kept beside the two earlier
+             maps. -->
+        <li><a id="explore-link" href="./explore.html"><b>Legacy overview</b>
+          <span>The earlier version of this page, with its own charts and rankings.</span></a></li>
       </ul>
     </nav>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
@@ -137,14 +145,31 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const watershedChoices = watershedOptions(
     overviewScope(allReservoirs, { geography: "connected", lakePowell: "include" }));
   content.innerHTML = `
+    <!-- Two rows, and each row is one kind of thing: what this section is
+         and how to undo it, then the controls themselves. They used to share
+         a single wrapping flex line, so the heading competed with the four
+         selects for the same space and "Reset filters" was pushed wherever
+         the last control left room -- a different place at every width. -->
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
-      <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
-      <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
-      <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
-      <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
-      <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
-      <label class="switch-label" for="lake-powell-toggle">Include Lake Powell<input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
-      <button id="reset-filters" class="reset-button" type="button">Reset filters</button>
+      <!-- Lake Powell rides with the heading rather than in the row of
+           selects below it. It is not the same kind of question they are:
+           they narrow the set the reader is studying, and this one decides
+           whether a single reservoir big enough to move every headline
+           number on the page is in the total at all. Sat fifth in the row
+           it read as one more narrowing filter. -->
+      <div class="filterbar-head">
+        <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
+        <div class="filterbar-head-actions">
+          <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
+          <button id="reset-filters" class="reset-button" type="button">Reset filters</button>
+        </div>
+      </div>
+      <div class="filterbar-controls">
+        <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
+        <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
+        <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
+        <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
+      </div>
     </section>
     <p id="filter-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Filtered storage summary">
@@ -165,7 +190,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     <div class="overview-chart-grid">
       <section class="overview-card" aria-labelledby="capacity-heading">
         <div class="card-heading">
-          <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Hold Ctrl to compare several.</p></div>
+          <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Your choice appears in the search box above, and clearing it brings the rest back.</p></div>
           <span class="sdk-badge">ArcGIS Chart</span>
         </div>
         <!-- The chart's own controls, above the chart for the same reason
@@ -189,12 +214,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         <div id="trend-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="normal-heading">
-        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the fitted line hold less than their size would usually predict for this date.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the dashed line hold less than they usually do on this date. The reservoirs get larger to the right, in tenfold steps, so the small ones are as readable as Flaming Gorge.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
         <div id="normal-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="distribution-heading">
-        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs per ten-point band, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="spread-heading">
@@ -375,16 +400,18 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
           still,
           {
             measure,
+            categoryTitle: "Reservoir",
             /* The bar becomes the filter. Clearing the selection clears the
              * search rather than leaving the reader in a view they cannot
              * see the cause of. */
             onSelect: (labels) => {
-              search.value = labels.length === 1 ? labels[0] ?? "" : "";
+              search.value = labels[0] ?? "";
               void update();
             }
           }),
         renderArcgisBarChart(watershedHost, watershedRecords(visible),
           "Combined percent full by drainage area in the filtered view", still, {
+            categoryTitle: "Drainage area",
             onSelect: (labels) => {
               const chosen = watershedChoices.find((choice) => choice.label === labels[0]);
               watershed.value = chosen?.code ?? "all";
@@ -395,10 +422,11 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
           "Combined storage for the filtered reservoirs over the last twelve months",
           still, measure),
         renderArcgisNormalChart(normalHost, normalComparison(visible),
-          "Stored now against the normal value for this date, one point per reservoir",
+          "Percent of the usual storage for this date against how large that usual "
+          + "storage is, one point per reservoir",
           still),
         renderArcgisDistributionChart(distributionHost, values,
-          "How many reservoirs fall in each ten-point band of percent full", still),
+          "How many reservoirs fall in each of ten equal bands of percent full", still),
         renderArcgisSpreadChart(spreadHost, values,
           "The spread of percent full within each drainage area", still)
       ]);

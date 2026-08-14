@@ -19,12 +19,63 @@ import type {
   TrendPoint
 } from "./overview-model";
 import { STORAGE_CLASSES } from "./viz/classes";
+import { hexToRgb } from "./viz/color";
 
 export interface BarChartOptions {
   measure?: ChartMeasure;
+  /**
+   * What the category axis is a list of.
+   *
+   * The two bar charts are drawn from one layer builder, so both took their
+   * axis title from that layer's field alias and both announced "Reservoir
+   * or drainage area" -- the name of a column, offered to a reader as the
+   * name of an axis. Each chart says which of the two it is showing.
+   */
+  categoryTitle?: string;
   /** Given the labels the reader clicked. Turns the chart into a filter. */
   onSelect?: (labels: string[]) => void;
 }
+
+/**
+ * A colour from the class table, as channels the renderer keeps.
+ *
+ * The renderer used to be handed the hex string and let the SDK decide the
+ * alpha. Bar *fills* are painted at the series alpha of 70% whatever this
+ * says -- that is the SDK's, and setting the series colour to full alpha
+ * before colour matching does not survive the match -- but outlines and
+ * scatter markers are drawn at the alpha they are given. So the class colour
+ * is stated exactly once per mark, at full strength, and a reader can hold a
+ * bar's edge or a dot against the key without the two disagreeing (ADR-008).
+ */
+function classColorRgba(hex: string): [number, number, number, number] {
+  const [red, green, blue] = hexToRgb(hex);
+  return [red, green, blue, 255];
+}
+
+/**
+ * The colours for the marks that are *not* a storage class.
+ *
+ * A count of reservoirs, a month of history and a quartile box are not
+ * levels, and the SDK drew all three in its default orange -- the same
+ * orange the class table gives to 50-75%. A reader comparing a histogram
+ * bar against the key below it was being invited to read a frequency as a
+ * storage level. Teal is the app's accent and appears nowhere in the class
+ * ramp, so it can only mean "this mark is not a class".
+ *
+ * These are fixed rather than read from the theme: the values are chosen to
+ * hold their contrast on both the light and the dark page, and a chart
+ * redrawn on every theme change would be a second, slower way for the
+ * palette to drift.
+ */
+const CHART_INK = {
+  /** Counts, history and quartile boxes. */
+  measure: [63, 138, 143, 255] as [number, number, number, number],
+  /** The same, translucent, for a box that has whiskers drawn through it. */
+  measureSoft: [63, 138, 143, 150] as [number, number, number, number],
+  mean: [166, 93, 67, 235] as [number, number, number, number],
+  median: [92, 79, 140, 235] as [number, number, number, number],
+  guide: [128, 122, 110, 190] as [number, number, number, number]
+} as const;
 
 /**
  * How long to wait for the SDK to say it finished drawing.
@@ -79,14 +130,22 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
         symbol: {
           type: "simple-marker",
           style: "circle",
-          color: record.classColor,
-          outline: { color: record.classColor, width: 0 }
+          color: classColorRgba(record.classColor),
+          /* A visible edge, not the hairline this used to be. Colour
+           * matching paints the bar body at the SDK's own 70% series alpha
+           * whatever the renderer asks for, which over the dark page turned
+           * the 50-75% orange into a brown that matched nothing in the key
+           * beside it. The outline is the one part drawn at full strength,
+           * so every bar states its class colour exactly once (ADR-008). */
+          outline: { color: classColorRgba(record.classColor), width: 1.2 }
         }
       }))
     },
     fields: [
       { name: "ObjectID", alias: "Object ID", type: "oid" },
-      { name: "label", alias: "Reservoir or drainage area", type: "string" },
+      /* The axis title is set per chart from `BarChartOptions.categoryTitle`,
+       * because one alias cannot be true of both charts that read this. */
+      { name: "label", alias: "Name", type: "string" },
       { name: "percent", alias: "Percent full", type: "double" },
       { name: "storage_af", alias: "Current storage (acre-feet)", type: "double" },
       { name: "capacity_af", alias: "Capacity (acre-feet)", type: "double" },
@@ -143,6 +202,12 @@ async function mountChart(
   // rendering avoids one appearing blank while the SDK animates another.
   chart.animationEnabled = false;
   chart.actionMode = actionMode;
+  /* Off by default, and the selection payload is empty without it. This is
+   * what made the two filtering charts inert: a click selected the bar, the
+   * SDK reported the selection with no object ids in it, and the handler had
+   * nothing to map back to a reservoir. The ids are the only thing that
+   * connects a bar to the record it was drawn from. */
+  chart.returnSelectionOIDs = true;
   chart.aria = {
     label: ariaLabel,
     description: "Use the chart toolbar to zoom, reset, download an image, or export the data."
@@ -204,6 +269,7 @@ export async function renderArcgisBarChart(
   // The class legend is rendered beside the chart from the same table.
   model.legendVisibility = false;
   model.setSortOrder(SerialChartDataSortingKinds.yAxisDesc);
+  model.setAxisTitleText(options.categoryTitle ?? "Name", 0);
 
   if (options.measure === "storage") {
     /* Acre-feet have no fixed ceiling, so the axis has to scale itself here.
@@ -234,20 +300,40 @@ export async function renderArcgisBarChart(
   /* Selection mode rather than zoom when the caller wants clicks: the SDK
    * cannot do both, and a chart whose bars filter the page is worth more
    * than one that can be rubber-band zoomed -- the toolbar still offers
-   * zoom as an explicit action either way. */
-  /* Ctrl-click to add rather than plain multi-select: a plain click then
-   * means "show me this one", which is what a reader expects a bar to do,
-   * and holding ctrl builds a comparison. */
+   * zoom as an explicit action either way.
+   *
+   * One bar at a time. The mode used to be `MultiSelectionWithCtrlKey` and
+   * the card promised "hold Ctrl to compare several", but the handler below
+   * narrows to a single name and threw a multiple selection away -- so
+   * ctrl-clicking a second bar cleared the filter instead of adding to it.
+   * A control that does the opposite of what it says is worse than one that
+   * does less, and the page's one selection is the search box (see
+   * state/overview-url.ts), which holds one name. */
   const chart = await mountChart(host, layer, model, ariaLabel,
-    options.onSelect ? ActionModes.MultiSelectionWithCtrlKey : ActionModes.Zoom);
+    options.onSelect ? ActionModes.MonoSelection : ActionModes.Zoom);
 
   if (options.onSelect) {
     /* The SDK reports the selection as object IDs against the layer it was
      * given, which is the one built from these records a few lines up, so
-     * the id maps straight back to a label without a query. */
+     * the id maps straight back to a label without a query.
+     *
+     * The ids arrive under `detail.selectionData`, not on `detail` itself.
+     * Read one level too high they were always `undefined`, so every click
+     * selected nothing, called back with an empty list and left the page
+     * exactly as it was: six charts, two of them documented as filters,
+     * and clicking any bar did nothing at all. */
+    let hadSelection = false;
     chart.addEventListener("arcgisSelectionComplete", (event: Event) => {
-      const detail = (event as CustomEvent<{ selectionOIDs?: number[] }>).detail;
-      const ids = detail?.selectionOIDs ?? [];
+      const detail = (event as CustomEvent<{
+        selectionData?: { selectionOIDs?: (number | string)[] };
+      }>).detail;
+      const ids = (detail?.selectionData?.selectionOIDs ?? []).map(Number);
+      /* An empty selection clears the filter, but only once the reader has
+       * actually chosen something here first: the SDK also reports an empty
+       * selection while a freshly mounted chart settles, and acting on that
+       * would wipe the search a shared link had just restored. */
+      if (ids.length === 0 && !hadSelection) return;
+      hadSelection = ids.length > 0;
       const chosen = records.filter((record) => ids.includes(record.id));
       options.onSelect?.(chosen.map((record) => record.label));
     });
@@ -350,6 +436,13 @@ export async function renderArcgisTrendChart(
     model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);
   }
   model.setSeriesName(measure === "storage" ? "Acre-feet stored" : "Percent full", 0);
+  /* Colour matching reads a layer renderer, and the month layer has none --
+   * left on it discards the series colour below and falls back to the SDK's
+   * default orange, which is the colour the class table gives to 50-75%. A
+   * line drawn in a class colour invites the reader to read its height off
+   * the key beside the other charts. */
+  model.colorMatch = false;
+  model.setSeriesColor([...CHART_INK.measure], 0);
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
 }
 
@@ -382,7 +475,7 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
           type: "simple-marker",
           style: "circle",
           size: 9,
-          color: point.classColor,
+          color: classColorRgba(point.classColor),
           outline: { color: [255, 255, 255, 200], width: 0.7 }
         }
       }))
@@ -390,23 +483,42 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
     fields: [
       { name: "ObjectID", alias: "Object ID", type: "oid" },
       { name: "label", alias: "Reservoir", type: "string" },
-      { name: "normal_af", alias: "Normal for this week (acre-feet)", type: "double" },
+      { name: "normal_af", alias: "Usual storage for this date (acre-feet)", type: "double" },
       { name: "storage_af", alias: "Stored now (acre-feet)", type: "double" },
-      { name: "percent_of_normal", alias: "Percent of normal", type: "double" }
+      { name: "percent_of_normal", alias: "Percent of the usual storage", type: "double" }
     ]
   });
 }
 
 /**
- * Stored now against normal for the date, one dot per reservoir.
+ * How each reservoir compares with its own normal for the date, against how
+ * large that normal is.
  *
  * The question this answers is the one percent-full cannot: a reservoir at
- * 60% in April and one at 60% in September are not the same news. Dots below
- * the diagonal are holding less than usual for the time of year.
+ * 60% in April and one at 60% in September are not the same news.
  *
- * Both axes are logarithmic-free but start at zero, and the point colours
- * come from the storage class table (ADR-008) through the layer renderer, so
- * a dot's colour here means what the same colour means on the map.
+ * WHY THE HORIZONTAL AXIS IS LOGARITHMIC. Utah's reservoirs run from Flaming
+ * Gorge at millions of acre-feet to Lost Lake at a few hundred -- more than
+ * four orders of magnitude. Spread linearly, the two largest set the range
+ * and every other reservoir in the state collapsed into one smudge against
+ * the origin, so a chart whose whole purpose is per-reservoir comparison
+ * could be read for no reservoir except the biggest. A logarithmic axis
+ * spends the same width on each tenfold step, which is the only arrangement
+ * that holds a 400 acre-foot reservoir and an 11,000,000 acre-foot one and
+ * says something about both.
+ *
+ * WHY THE VERTICAL AXIS IS A RATIO AND NOT ACRE-FEET. Making both axes
+ * logarithmic fixed the crowding and destroyed the meaning: the SDK's fitted
+ * line is computed in linear space and drawn as a straight segment between
+ * its endpoints, so on logarithmic axes it left the cloud entirely and hung
+ * along the right-hand edge -- and "dots below the line" is the whole claim
+ * of the chart. Percent of normal answers that claim directly and needs no
+ * fit: 100 is the level, it is the same 100 for every reservoir whatever its
+ * size, and it can be drawn as an actual line across the plot.
+ *
+ * The point colours come from the storage class table (ADR-008) through the
+ * layer renderer, so a dot's colour here means what the same colour means on
+ * the map.
  */
 export async function renderArcgisNormalChart(
   host: HTMLElement,
@@ -425,21 +537,39 @@ export async function renderArcgisNormalChart(
   const model = await createModel({ layer, chartType: ModelTypes.Scatterplot });
   if (!isCurrent()) return;
   model.xAxisField = "normal_af";
-  model.yAxisField = "storage_af";
+  model.yAxisField = "percent_of_normal";
   model.chartTitleVisibility = false;
   model.legendVisibility = false;
-  model.setAxisTitleText("Normal for this week, in acre-feet", 0);
-  model.setAxisTitleText("Stored now, in acre-feet", VALUE_AXIS);
+  model.setAxisTitleText("Usual storage for this date, in acre-feet", 0);
+  model.setAxisTitleText("Percent of the usual storage", VALUE_AXIS);
 
-  /* The line of best fit through the cloud. The SDK computes it, so this is
-   * the real regression rather than a drawn approximation of one -- and it
-   * is the whole reason this is a scatterplot: read against the axes, a
-   * trend line shallower than 1:1 says the reservoirs that are normally
-   * largest are the ones furthest below normal now. */
-  model.showLinearTrend = true;
-  model.linearTrendSymbol = {
-    type: "esriSLS", style: "esriSLSDash", width: 1.6, color: [166, 93, 67, 220]
-  };
+  /* Axis 0 is the horizontal one. See the note above the function. */
+  model.setLogarithmic(true, 0);
+  /* A logarithmic axis cannot show zero, and does not have to: a reservoir
+   * with no usual value for the date is not on this chart at all. */
+  model.setMinBound(null as unknown as number, 0);
+  /* The ratio axis starts at zero -- it is a percentage of something, and a
+   * bottom that floats with the data would move the reference line's height
+   * every time the filter changed. The top is left free: a reservoir above
+   * twice its usual level is real, and clipping it would hide the one dot
+   * most worth looking at. */
+  model.setMinBound(0, VALUE_AXIS);
+
+  /* The line the chart is read against, drawn rather than fitted. */
+  model.addYAxisGuide("At the usual level");
+  model.setGuideStart(100, 0, "y");
+  model.setGuideEnd(null, 0, "y");
+  model.setGuideLabelText("Usual level for this date", 0, "y");
+  model.setGuideStyle({
+    type: "esriSLS", style: "esriSLSDash", width: 1.6, color: [...CHART_INK.mean]
+  }, 0, "y");
+  model.setGuideVisibility(true, 0, "y");
+  model.showLinearTrend = false;
+
+  /* Two logarithmic decades of horizontal position cannot be read back as a
+   * number by eye, and the acre-feet are what says whether a dot below the
+   * line matters. */
+  model.additionalTooltipField = "storage_af";
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
   model.colorMatch = true;
 }
@@ -503,15 +633,43 @@ export async function renderArcgisDistributionChart(
   if (!isCurrent()) return;
   model.numericField = "value";
   model.chartTitleVisibility = false;
-  /* Ten bins across 0-100, so each bar is a ten-point band and the reader
-   * can map a bar straight onto the class colours beside it. Left to choose,
-   * the SDK bins to the data's own range, which moves the boundaries every
-   * time the filter changes. */
+  /* Ten bins. NOT ten-point bands: the SDK divides the range the data
+   * actually covers, and axis bounds do not move the bin edges -- setting
+   * them to 0 and 100 left the config saying 0-100 and the chart still
+   * drawn from 3.3 to 96. The card says "ten equal bands" for that reason,
+   * and the axis labels print the edges the reader is actually looking at. */
   model.binCount = 10;
+  /* Colour matching takes a chart's colours from the layer's renderer, and
+   * this layer has none -- it is a list of values, not of classified
+   * features. Left on, it discarded `binSymbol` and painted the bars in the
+   * SDK's default orange, which is the class table's own 50-75% colour
+   * sitting directly above a key that says so. */
+  model.colorMatch = false;
   model.showMeanOverlay = true;
   model.showMedianOverlay = true;
   model.showStandardDevOverlay = true;
   model.showNormalDistOverlay = true;
+  /* A count of reservoirs is not a storage level, so the bars are drawn in
+   * the app's teal rather than the SDK's default orange -- which is the
+   * class table's 50-75% colour, sitting directly above a key that says so.
+   * The overlays get palette colours for the same reason: the defaults are
+   * a saturated blue and magenta that belong to nothing else on the page. */
+  model.binSymbol = {
+    type: "esriSFS", style: "esriSFSSolid", color: [...CHART_INK.measureSoft],
+    outline: { type: "esriSLS", style: "esriSLSSolid", width: 1, color: [...CHART_INK.measure] }
+  };
+  model.meanSymbol = {
+    type: "esriSLS", style: "esriSLSSolid", width: 1.6, color: [...CHART_INK.mean]
+  };
+  model.medianSymbol = {
+    type: "esriSLS", style: "esriSLSDash", width: 1.6, color: [...CHART_INK.median]
+  };
+  model.standardDevSymbol = {
+    type: "esriSLS", style: "esriSLSDot", width: 1, color: [...CHART_INK.guide]
+  };
+  model.normalDistSymbol = {
+    type: "esriSLS", style: "esriSLSSolid", width: 1.4, color: [...CHART_INK.guide]
+  };
   model.setAxisTitleText("Percent full", 0);
   model.setAxisTitleText("Reservoirs", VALUE_AXIS);
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
@@ -551,6 +709,12 @@ export async function renderArcgisSpreadChart(
    * reservoir far below its neighbours is the one to go and look at. */
   model.showOutliers = true;
   model.showMeanLines = true;
+  /* Quartiles are not a storage level either, so the boxes carry the same
+   * teal the histogram and the trend line do rather than the SDK's grey,
+   * which on the dark page was very nearly the page itself. */
+  model.meanLinesBoxColor = [...CHART_INK.measureSoft];
+  model.setSeriesColor([...CHART_INK.measureSoft], 0);
+  model.setAxisTitleText("Drainage area", 0);
   model.setAxisTitleText("Percent full", VALUE_AXIS);
   model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
   model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);

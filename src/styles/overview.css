@@ -25,15 +25,22 @@ body {
   margin-inline: auto;
   padding: 1.5rem 0 4rem;
 }
+/* A lead paragraph, and nothing else. This used to carry a display-sized
+ * "Utah reservoir conditions" beside it, one line under a bar already
+ * reading "Utah Reservoir Dashboard" -- the same claim twice, the second
+ * one three times the size, pushing the controls a screen further down. The
+ * bar carries the name and the h1 with it (see brandMarkup in overview.ts). */
 .overview-intro {
-  display: flex;
-  gap: 1.5rem;
-  align-items: end;
-  justify-content: space-between;
-  margin-block-end: 1rem;
+  margin-block: .25rem 1rem;
+  max-width: 58rem;
 }
-.overview-intro h1 { margin: 0; font-size: clamp(1.85rem, 3vw, 2.8rem); line-height: 1.05; }
-.overview-intro > p { max-width: 45rem; margin: 0; color: var(--app-muted); line-height: 1.5; }
+.overview-intro > p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
 /* The routes to the other published pages. `auto-fit` with a `1fr` maximum
  * rather than a column count, for the same reason the filter bar is flex:
  * the layout should not have to know how many links there are. `minmax(0, …)`
@@ -79,29 +86,54 @@ body {
   color: var(--app-muted);
 }
 
-/* Flex, not a hand-written track list. The grid this replaces named exactly
- * five columns for what was then five children, so adding the Lake Powell
- * control silently pushed "Reset filters" onto a second row underneath the
- * title -- the layout knew how many controls there were, which is a fact it
- * should not have had to know. */
+/* Two stacked rows rather than one wrapping line. Everything used to be a
+ * single flex flow -- heading, five controls and the reset button competing
+ * for the same wrap -- so the heading stole width from the controls at every
+ * size, the switch sat at a different height from the selects beside it, and
+ * "Reset filters" landed in a different place at every width because it was
+ * simply whatever the last wrap left over. Splitting the section into "what
+ * this is" and "the controls" lets each row solve one problem.
+ *
+ * A named track list is still wrong for the second row, for the reason the
+ * flex version was written down: a grid of exactly five columns is a layout
+ * that knows how many controls there are, and adding a sixth would break it
+ * silently. `auto-fit` with a floor knows only how narrow a control may get. */
 .dashboard-filterbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .75rem;
-  align-items: end;
-  padding: .9rem;
+  display: grid;
+  gap: .85rem 1rem;
+  padding: 1rem;
   background: color-mix(in srgb, var(--app-surface-raised) 94%, var(--app-sand));
   border: 1px solid var(--app-border);
   border-radius: .65rem;
   box-shadow: 0 .35rem 1.3rem rgb(62 48 35 / 8%);
 }
+.filterbar-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.filterbar-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.25rem;
+  align-items: center;
+}
+.filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
-/* Each control takes an equal share of what is left, down to a floor that
- * fits its longest option; below that they wrap rather than shrink into
- * something unreadable. `min-width: 0` because a select sizes itself to its
- * longest option and would otherwise refuse to shrink at all. */
-.dashboard-filterbar > label { flex: 1 1 11rem; min-width: 0; }
-.filterbar-title { flex: 1 1 14rem; min-width: 0; }
+/* Every control gets the same share of the row and the same floor, so they
+ * reflow together instead of one long select dragging the rest around.
+ * `min(…, 100%)` keeps the floor from setting a page-widening minimum at
+ * 360px, and `min-width: 0` on the children because a select sizes itself to
+ * its longest option and would otherwise refuse to shrink at all. */
+.filterbar-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12.5rem, 100%), 1fr));
+  gap: .75rem 1rem;
+  align-items: end;
+}
+.filterbar-controls > label { min-width: 0; }
 .dashboard-filterbar .reset-button { flex: 0 0 auto; }
 
 .dashboard-filterbar label, .sort-control {
@@ -263,16 +295,16 @@ body {
 .overview-error { padding: 2rem; border-inline-start: .3rem solid var(--app-terracotta); background: var(--app-surface-raised); }
 
 @media (max-width: 72rem) {
-  /* The title takes its own line, so the controls share the full width
-     rather than competing with it. */
-  .filterbar-title { flex-basis: 100%; }
   .overview-chart-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 42rem) {
   .overview-main { width: min(100% - .8rem, 92rem); padding-block-start: .75rem; }
-  .overview-intro { display: grid; gap: .5rem; }
-  .dashboard-filterbar > label { flex-basis: 100%; }
-  .dashboard-filterbar .reset-button { flex: 1 1 100%; }
+  /* One control per row on a phone. The switch and the reset button take
+     the whole width together rather than sitting in a corner of the
+     heading row, where they would each be a third of a 360px line. */
+  .filterbar-controls { grid-template-columns: 1fr; }
+  .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
+  .dashboard-filterbar .reset-button { flex: 0 1 auto; }
   /* The headline gets its own line on a phone; the rest pair up. */
   .overview-kpi { flex-basis: 9rem; }
   .overview-kpi-primary { flex-basis: 100%; }
@@ -345,14 +377,26 @@ body {
 }
 
 /* Lake Powell is one yes-or-no question, so it is a switch rather than a
- * two-option dropdown a reader has to open to answer. */
-.switch-label {
+ * two-option dropdown a reader has to open to answer.
+ *
+ * It is the one control in the row whose label reads beside its input rather
+ * than above it, which left it floating at the top of its cell while the
+ * four selects lined up along the bottom. Matching the height of a select
+ * and sitting on the same edge puts all five controls on one line. */
+/* In the heading row the caption reads beside the switch, not above it: it
+   is sharing a line with a button and a title rather than a row of stacked
+   controls. The selector carries two classes because `.dashboard-filterbar
+   label` is one class plus one type, and a bare `.switch-label` loses to it
+   -- which is how this control ended up stacked and floating above the
+   selects it used to sit among. */
+.filterbar-head .switch-label {
   display: flex;
+  gap: .55rem;
   align-items: center;
-  gap: .5rem;
-  flex: 0 1 auto;
-  white-space: nowrap;
+  min-height: 2.5rem;
+  min-width: 0;
 }
+.switch-label > span { min-width: 0; line-height: 1.25; }
 .switch-label input[type="checkbox"] {
   width: 2.4rem;
   height: 1.35rem;
