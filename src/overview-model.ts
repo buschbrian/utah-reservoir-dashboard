@@ -1,4 +1,5 @@
 import type { Reservoir } from "./types";
+import { monthKeys, monthLabel, monthlyRollup } from "./data/months";
 import {
   isLate,
   reservoirInScope,
@@ -122,21 +123,179 @@ export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/**
+ * What a bar's length means.
+ *
+ * The colour is always the storage class (ADR-008), so a reader switching to
+ * acre-feet still sees which reservoirs are low -- the two encodings answer
+ * different questions and only one of them changes here.
+ */
+export type ChartMeasure = "percent" | "storage";
+
+/** How the bars are ordered. Separate from the table's sort, which sorts rows. */
+export type ChartRank = "capacity" | "storage" | "percent" | "name";
+
+export interface ChartOptions {
+  limit?: number;
+  measure?: ChartMeasure;
+  rank?: ChartRank;
+}
+
+function rankReservoirs(reservoirs: readonly Reservoir[], rank: ChartRank): Reservoir[] {
+  const ordered = [...reservoirs];
+  if (rank === "name") return ordered.sort((a, b) => a.name.localeCompare(b.name));
+  if (rank === "storage") return ordered.sort((a, b) => b.current_storage_af - a.current_storage_af);
+  if (rank === "percent") {
+    return ordered.sort((a, b) =>
+      numberOrLast(b.pct_of_capacity) - numberOrLast(a.pct_of_capacity));
+  }
+  return ordered.sort((a, b) => numberOrLast(b.capacity_af) - numberOrLast(a.capacity_af));
+}
+
 export function largestReservoirRecords(
-  reservoirs: readonly Reservoir[], limit = 15
+  reservoirs: readonly Reservoir[], options: number | ChartOptions = {}
 ): OverviewChartRecord[] {
-  return reservoirs
-    .filter((reservoir) => reservoir.capacity_af !== null && reservoir.pct_of_capacity !== null)
-    .sort((a, b) => (b.capacity_af ?? 0) - (a.capacity_af ?? 0))
+  /* A bare number is still the limit. This function was called that way from
+   * two places and from a test before it grew options, and quietly changing
+   * what the second argument means is how a chart ends up ranked by
+   * something nobody chose. */
+  const settings: ChartOptions = typeof options === "number" ? { limit: options } : options;
+  const limit = settings.limit ?? 15;
+  const measure = settings.measure ?? "percent";
+  return rankReservoirs(
+    reservoirs.filter((reservoir) =>
+      reservoir.capacity_af !== null && reservoir.pct_of_capacity !== null),
+    settings.rank ?? "capacity"
+  )
     .slice(0, limit)
     .map((reservoir, index) => ({
       id: index + 1,
       label: reservoir.name,
-      percent: reservoir.pct_of_capacity ?? 0,
+      /* `percent` is the bar's length, so it carries whichever measure the
+       * reader chose. The class -- and therefore the colour -- is always
+       * taken from the percentage, never from the length. */
+      percent: measure === "storage"
+        ? reservoir.current_storage_af
+        : reservoir.pct_of_capacity ?? 0,
       storageAf: reservoir.current_storage_af,
       capacityAf: reservoir.capacity_af ?? 0,
       ...classOf(reservoir.pct_of_capacity ?? 0)
     }));
+}
+
+/** One point per month in the payload, oldest first. */
+export interface TrendPoint {
+  id: number;
+  month: string;
+  label: string;
+  /**
+   * The label the category axis uses, year first.
+   *
+   * A category axis sorts its values, and month names sort alphabetically:
+   * the axis read April, August, February, July, March -- every month
+   * present and none in the order they happened. A temporal axis fixed the
+   * order but chose its own tick interval, which for thirteen months came
+   * out as 2025, 2026, 2027: three ticks, one of them past the end of the
+   * data. Year-first text sorts chronologically as text, which is the one
+   * arrangement that needs nothing from the axis at all.
+   */
+  axisLabel: string;
+  percent: number;
+  storageAf: number;
+  /** Reservoirs that reported anything for this month. */
+  reporting: number;
+}
+
+/**
+ * Combined storage across the last twelve months, for whatever the filters
+ * currently include.
+ *
+ * The denominator is each month's own reporting set rather than the whole
+ * scope, which is `monthlyRollup`'s rule already: a reservoir that did not
+ * report in November must not be counted as empty in November.
+ */
+export function monthlyTrend(reservoirs: readonly Reservoir[]): TrendPoint[] {
+  return monthKeys(reservoirs).map((month, index) => {
+    const rollup = monthlyRollup(reservoirs, month);
+    return {
+      id: index + 1,
+      month,
+      label: monthLabel(month),
+      axisLabel: month,
+      percent: Number((rollup.percentFull ?? 0).toFixed(1)),
+      storageAf: rollup.storageAf,
+      reporting: rollup.reporting
+    };
+  });
+}
+
+/**
+ * One value per reservoir, with the group it belongs to.
+ *
+ * The shape the distribution and spread charts both take: a histogram bins
+ * the values and a box plot splits them by the group, so the same rows serve
+ * "how is the state doing" and "how does each drainage area vary inside
+ * itself" without deriving the set twice.
+ */
+export interface ValuePoint {
+  id: number;
+  label: string;
+  value: number;
+  group: string;
+}
+
+export function percentFullValues(reservoirs: readonly Reservoir[]): ValuePoint[] {
+  return reservoirs
+    .map((reservoir) => ({
+      reservoir,
+      percent: reservoir.pct_of_capacity ?? reservoir.pct_of_record_max
+    }))
+    /* A reservoir with no readable percentage is left out rather than
+     * counted as zero: a histogram is a claim about how many reservoirs sit
+     * in each band, and "we do not know" is not a band. */
+    .filter((entry): entry is { reservoir: Reservoir; percent: number } =>
+      entry.percent !== null && Number.isFinite(entry.percent))
+    .map((entry, index) => ({
+      id: index + 1,
+      label: entry.reservoir.name,
+      value: Number(entry.percent.toFixed(1)),
+      group: entry.reservoir.huc6_name ?? "Not assigned"
+    }));
+}
+
+/** One reservoir's storage against what is normal for the date. */
+export interface NormalPoint {
+  id: number;
+  label: string;
+  storageAf: number;
+  normalAf: number;
+  /** Above 100 is wetter than usual for the date, below is drier. */
+  percentOfNormal: number;
+  classLabel: string;
+  classColor: string;
+}
+
+/**
+ * Storage against the normal value for this date, per reservoir.
+ *
+ * Only reservoirs that have a normal at all: it is the median of readings
+ * near the same date in earlier years, and a reservoir with too little
+ * history has none. Plotting those at zero would invent a drought.
+ */
+export function normalComparison(reservoirs: readonly Reservoir[]): NormalPoint[] {
+  return reservoirs
+    .filter((reservoir) =>
+      reservoir.seasonal_normal_af !== null && reservoir.seasonal_normal_af > 0)
+    .map((reservoir, index) => ({
+      id: index + 1,
+      label: reservoir.name,
+      storageAf: reservoir.current_storage_af,
+      normalAf: reservoir.seasonal_normal_af ?? 0,
+      percentOfNormal: Number((reservoir.pct_of_seasonal_normal
+        ?? (reservoir.current_storage_af / (reservoir.seasonal_normal_af ?? 1)) * 100).toFixed(1)),
+      ...classOf(reservoir.pct_of_capacity ?? reservoir.pct_of_record_max ?? 0)
+    }))
+    .sort((a, b) => a.percentOfNormal - b.percentOfNormal);
 }
 
 export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChartRecord[] {

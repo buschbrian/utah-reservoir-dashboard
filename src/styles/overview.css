@@ -169,7 +169,54 @@ body {
 .overview-kpi span { font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .overview-kpi strong { display: block; margin-block: .15rem; font-size: clamp(1.25rem, 2vw, 1.75rem); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .overview-kpi small { font-size: .7rem; line-height: 1.35; }
-.overview-chart-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: .75rem; }
+/* Six charts now, not two. `auto-fit` with a floor rather than a named
+ * column count, for the same reason the filter bar is flex: the layout
+ * should not have to know how many charts there are, and adding the fifth
+ * and sixth to a two-column track list is what would have left a hole. */
+.overview-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
+  gap: .75rem;
+}
+/* The two charts that read as a ranked list keep the wider column when the
+ * grid has room for an odd one out. */
+.overview-chart-grid > :first-child { grid-column: span 1; }
+
+/* A chart's own controls: what it shows, not what the page shows. Visually
+ * lighter than the filter bar above, because these narrow one card while
+ * that one narrows everything. */
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .75rem;
+  margin-block-end: .6rem;
+}
+.chart-controls label {
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+  min-width: 0;
+  color: var(--app-muted);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.chart-controls select {
+  min-width: 0;
+  padding: .25rem .4rem;
+  color: var(--app-text);
+  background: var(--app-surface-raised);
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+  font: 400 .8rem "Avenir Next", Avenir, sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.chart-controls select:focus-visible {
+  outline: .15rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
+  outline-offset: .1rem;
+}
 .overview-card { min-width: 0; padding: .9rem; }
 .card-heading { display: flex; gap: 1rem; align-items: start; justify-content: space-between; }
 .card-heading h2 { margin: 0; font-size: 1.05rem; }

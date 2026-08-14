@@ -8,15 +8,32 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { loadReservoirs } from "./data/load";
 import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
+import {
+  overviewStateFromSearch,
+  writeOverviewUrl,
+  type OverviewUrlState
+} from "./state/overview-url";
 import { STORAGE_CLASSES } from "./viz/classes";
-import { renderArcgisBarChart, storageLegendEntries } from "./overview-charts";
+import {
+  renderArcgisBarChart,
+  renderArcgisDistributionChart,
+  renderArcgisNormalChart,
+  renderArcgisSpreadChart,
+  renderArcgisTrendChart,
+  storageLegendEntries
+} from "./overview-charts";
 import {
   filterAndSort,
   filterOverview,
   largestReservoirRecords,
+  monthlyTrend,
+  normalComparison,
   overviewScope,
+  percentFullValues,
   watershedOptions,
   watershedRecords,
+  type ChartMeasure,
+  type ChartRank,
   type OverviewCadence,
   type OverviewSort
 } from "./overview-model";
@@ -144,8 +161,44 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       <div class="class-bar" data-classes role="group" aria-labelledby="class-heading"></div>
     </section>
     <div class="overview-chart-grid">
-      <section class="overview-card" aria-labelledby="capacity-heading"><div class="card-heading"><div><h2 id="capacity-heading">Largest reservoirs</h2><p>Percent of conservation capacity for the 15 largest reservoirs in the current view.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="capacity-chart" class="chart-host" aria-busy="true"></div><div class="chart-legend" data-legend></div></section>
-      <section class="overview-card" aria-labelledby="watershed-heading"><div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each drainage area.</p></div><span class="sdk-badge">ArcGIS Chart</span></div><div id="watershed-chart" class="chart-host" aria-busy="true"></div><div class="chart-legend" data-legend></div></section>
+      <section class="overview-card" aria-labelledby="capacity-heading">
+        <div class="card-heading">
+          <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Hold Ctrl to compare several.</p></div>
+          <span class="sdk-badge">ArcGIS Chart</span>
+        </div>
+        <!-- The chart's own controls, above the chart for the same reason
+             the analysis controls sit above the reservoir list: a control
+             under a thing it changes is a control the reader finds second. -->
+        <div class="chart-controls">
+          <label>Show<select id="chart-limit"><option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="25">Top 25</option><option value="0">All</option></select></label>
+          <label>Measure<select id="chart-measure"><option value="percent">Percent full</option><option value="storage">Acre-feet stored</option></select></label>
+          <label>Rank by<select id="chart-rank"><option value="capacity">Capacity</option><option value="storage">Storage</option><option value="percent">Percent full</option><option value="name">Name</option></select></label>
+        </div>
+        <div id="capacity-chart" class="chart-host" aria-busy="true"></div>
+        <div class="chart-legend" data-legend></div>
+      </section>
+      <section class="overview-card" aria-labelledby="watershed-heading">
+        <div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each area. Click a bar to filter to it.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div id="watershed-chart" class="chart-host" aria-busy="true"></div>
+        <div class="chart-legend" data-legend></div>
+      </section>
+      <section class="overview-card" aria-labelledby="trend-heading">
+        <div class="card-heading"><div><h2 id="trend-heading">The last 12 months</h2><p>Combined storage for the reservoirs in view, month by month. The only chart here that shows direction.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div id="trend-chart" class="chart-host" aria-busy="true"></div>
+      </section>
+      <section class="overview-card" aria-labelledby="normal-heading">
+        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the fitted line hold less than their size would usually predict for this date.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div id="normal-chart" class="chart-host" aria-busy="true"></div>
+        <div class="chart-legend" data-legend></div>
+      </section>
+      <section class="overview-card" aria-labelledby="distribution-heading">
+        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs per ten-point band, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
+      </section>
+      <section class="overview-card" aria-labelledby="spread-heading">
+        <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div id="spread-chart" class="chart-host" aria-busy="true"></div>
+      </section>
     </div>
     <section class="overview-card table-card" aria-labelledby="table-heading">
       <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label></div>
@@ -194,8 +247,24 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const status = document.querySelector<HTMLElement>("#filter-status");
   const capacityHost = document.querySelector<HTMLElement>("#capacity-chart");
   const watershedHost = document.querySelector<HTMLElement>("#watershed-chart");
+  const trendHost = document.querySelector<HTMLElement>("#trend-chart");
+  const normalHost = document.querySelector<HTMLElement>("#normal-chart");
+  const distributionHost = document.querySelector<HTMLElement>("#distribution-chart");
+  const spreadHost = document.querySelector<HTMLElement>("#spread-chart");
+  const chartLimit = document.querySelector<HTMLSelectElement>("#chart-limit");
+  const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
+  const chartRank = document.querySelector<HTMLSelectElement>("#chart-rank");
   if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
-      || !capacityHost || !watershedHost || !lakePowell || !geography) return;
+      || !capacityHost || !watershedHost || !trendHost || !normalHost
+      || !distributionHost || !spreadHost
+      || !chartLimit || !chartMeasure || !chartRank
+      || !lakePowell || !geography) return;
+
+  /* Every chart host, so busy state and failure handling are written once.
+   * Six hosts named individually in three places is five chances to add a
+   * seventh chart and leave it announcing itself as loading forever. */
+  const chartHosts = [capacityHost, watershedHost, trendHost, normalHost,
+    distributionHost, spreadHost];
 
   /**
    * The distribution across the storage classes, drawn as one bar.
@@ -237,6 +306,23 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     host.setAttribute("data-chosen", chosen ? chosen.label : "");
   };
 
+  /* Everything the address bar carries, read from the controls themselves
+   * rather than from a parallel copy. One function, so the writer cannot go
+   * stale as controls are added -- the map shell keeps `viewState` for the
+   * same reason. */
+  const currentUrlState = (): OverviewUrlState => ({
+    query: search.value,
+    drainageArea: watershed.value,
+    reporting: cadence.value as OverviewCadence,
+    geography: geography.value as ReservoirGeography,
+    lakePowell: lakePowell.checked ? "include" : "exclude",
+    storageClass: storageClassFilter,
+    sort: sort.value as OverviewSort,
+    measure: chartMeasure.value as ChartMeasure,
+    limit: Number(chartLimit.value),
+    rank: chartRank.value as ChartRank
+  });
+
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
@@ -263,16 +349,49 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +
       `${geography.value === "connected" ? "All connected" : "Utah waterbodies"} · Lake Powell ` +
       `${lakePowell.checked ? "included" : "excluded"}${chosenClass}`;
-    capacityHost.setAttribute("aria-busy", "true");
-    watershedHost.setAttribute("aria-busy", "true");
+    for (const host of chartHosts) host.setAttribute("aria-busy", "true");
+    const still = (): boolean => currentRevision === revision;
+    const measure = chartMeasure.value as ChartMeasure;
+    const limit = Number(chartLimit.value) || visible.length;
+    const values = percentFullValues(visible);
     try {
       await Promise.all([
-        renderArcgisBarChart(capacityHost, largestReservoirRecords(visible),
-          "Percent full for the largest reservoirs in the filtered view",
-          () => currentRevision === revision),
+        renderArcgisBarChart(capacityHost,
+          largestReservoirRecords(visible, {
+            limit, measure, rank: chartRank.value as ChartRank
+          }),
+          measure === "storage"
+            ? "Acre-feet stored by the largest reservoirs in the filtered view"
+            : "Percent full for the largest reservoirs in the filtered view",
+          still,
+          {
+            measure,
+            /* The bar becomes the filter. Clearing the selection clears the
+             * search rather than leaving the reader in a view they cannot
+             * see the cause of. */
+            onSelect: (labels) => {
+              search.value = labels.length === 1 ? labels[0] ?? "" : "";
+              void update();
+            }
+          }),
         renderArcgisBarChart(watershedHost, watershedRecords(visible),
-          "Combined percent full by drainage area in the filtered view",
-          () => currentRevision === revision)
+          "Combined percent full by drainage area in the filtered view", still, {
+            onSelect: (labels) => {
+              const chosen = watershedChoices.find((choice) => choice.label === labels[0]);
+              watershed.value = chosen?.code ?? "all";
+              void update();
+            }
+          }),
+        renderArcgisTrendChart(trendHost, monthlyTrend(visible),
+          "Combined storage for the filtered reservoirs over the last twelve months",
+          still, measure),
+        renderArcgisNormalChart(normalHost, normalComparison(visible),
+          "Stored now against the normal value for this date, one point per reservoir",
+          still),
+        renderArcgisDistributionChart(distributionHost, values,
+          "How many reservoirs fall in each ten-point band of percent full", still),
+        renderArcgisSpreadChart(spreadHost, values,
+          "The spread of percent full within each drainage area", still)
       ]);
     } catch (error) {
       /* A chart that throws used to leave both hosts reporting `aria-busy`
@@ -281,7 +400,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
        * stop claiming to be busy; the table below still has every value. */
       console.error("A chart could not be drawn:", error);
       if (currentRevision === revision) {
-        for (const host of [capacityHost, watershedHost]) {
+        for (const host of chartHosts) {
           host.setAttribute("aria-busy", "false");
           if (host.childElementCount === 0) {
             const failed = document.createElement("p");
@@ -298,16 +417,21 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     // Only the winning revision owns these: a superseded run clearing them
     // would report "not busy" while its successor is still drawing.
     if (currentRevision !== revision) return;
-    capacityHost.setAttribute("aria-busy", "false");
-    watershedHost.setAttribute("aria-busy", "false");
+    for (const host of chartHosts) host.setAttribute("aria-busy", "false");
+    /* The address bar last, once the view it describes is actually on
+     * screen: written earlier it would advertise a state the page was still
+     * drawing, and a reader who copied it mid-render would send a link to
+     * something they had not seen yet. */
+    writeOverviewUrl(currentUrlState());
     window.__overviewReady = {
       reservoirs: scoped.length,
       visible: visible.length,
-      charts: 2,
+      charts: chartHosts.length,
       lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
     };
   };
-  for (const control of [search, watershed, cadence, sort, lakePowell, geography]) {
+  for (const control of [search, watershed, cadence, sort, lakePowell, geography,
+    chartLimit, chartMeasure, chartRank]) {
     const event = control instanceof HTMLSelectElement
       || (control instanceof HTMLInputElement && control.type === "checkbox")
       ? "change"
@@ -321,10 +445,36 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     sort.value = "capacity";
     lakePowell.checked = false;
     geography.value = "utah";
+    chartLimit.value = "15";
+    chartMeasure.value = "percent";
+    chartRank.value = "capacity";
     storageClassFilter = null;
     void update();
     search.focus();
   });
+
+  /* Restore the whole view a link describes before the first draw, so the
+   * page renders once into the state it was asked for rather than drawing
+   * the default and then redrawing. Six charts make that difference
+   * visible. A drainage area the current scope does not contain falls back
+   * to every area, which is why this runs after the options are filled. */
+  const wanted = overviewStateFromSearch(window.location.search);
+  search.value = wanted.query;
+  watershed.value = watershedChoices.some((choice) => choice.code === wanted.drainageArea)
+    ? wanted.drainageArea : "all";
+  cadence.value = wanted.reporting;
+  geography.value = wanted.geography;
+  lakePowell.checked = wanted.lakePowell === "include";
+  sort.value = wanted.sort;
+  chartMeasure.value = wanted.measure;
+  chartRank.value = wanted.rank;
+  /* Only a limit the control actually offers. A link asking for the top 7
+   * would otherwise leave the select showing nothing at all. */
+  chartLimit.value = [...chartLimit.options].some((option) =>
+    Number(option.value) === wanted.limit) ? String(wanted.limit) : "15";
+  storageClassFilter = wanted.storageClass !== null
+    && wanted.storageClass < STORAGE_CLASSES.length ? wanted.storageClass : null;
+
   await update();
 }
 
