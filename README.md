@@ -11,15 +11,16 @@ legacy comparisons:
 
 | View | Purpose |
 |---|---|
-| [ArcGIS dashboard](modern.html) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
+| [ArcGIS dashboard](./) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
 | [ArcGIS data workspace](overview.html) | Cross-filtered KPIs, ArcGIS charts, and an accessible exact-value table. |
-| [Legacy ArcGIS map](index.html) | Retained ArcGIS 4.34 comparison. |
+| [Legacy ArcGIS map](legacy/) | Retained ArcGIS 4.34 comparison. |
 | [Legacy MapLibre map](maplibre/) | Retained MapLibre GL JS and CARTO comparison. |
 | [Legacy overview](explore.html) | Retained no-SDK analysis page for experiments and historical comparison. |
 
-`modern.html` is the ArcGIS Maps SDK for JavaScript application, not a preview.
-The legacy pages stay available so renderer behavior, accessibility, and
-performance can be compared without holding the primary dashboard back.
+The root page and its stable `modern.html` alias are the ArcGIS Maps SDK for
+JavaScript application. The legacy pages stay available so renderer behavior,
+accessibility, and performance can be compared without holding the primary
+dashboard back.
 
 ## Use the dashboard
 
@@ -53,7 +54,7 @@ npm run dev
 ```
 
 Vite opens the ArcGIS dashboard. Open `/overview.html` for the data workspace,
-or `/index.html`, `/maplibre/`, and `/explore.html` for the legacy comparisons.
+or `/legacy/`, `/maplibre/`, and `/explore.html` for the legacy comparisons.
 The ArcGIS pages need network access for SDK assets and basemap services.
 
 ### Commands
@@ -70,7 +71,7 @@ The ArcGIS pages need network access for SDK assets and basemap services.
 | `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
 | `node scripts/fetch-huc6.mjs --dry-run` | Rebuild drainage-area boundaries without writing. |
 | `python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run` | Validate all Upper Colorado HUC6 boundaries without replacing the dashboard scope. |
-| `python tools/audit_awdb_stations.py --scope upper-colorado` | Audit RISE-compatible AWDB storage stations across the configured Upper Colorado HUC6 scope. |
+| `python tools/audit_awdb_stations.py --scope upper-colorado` | Audit AWDB storage stations across the configured Upper Colorado HUC6 scope. |
 | `npm run boundary:utah -- --dry-run` | Check the authoritative Utah boundary without writing. |
 
 The browser smoke test expects a current `dist/` directory and an existing
@@ -121,6 +122,8 @@ GeoJSON batches. The script refuses missing, duplicate, out-of-region, or
 partial results. Its report uses pandas to normalize ArcGIS attributes and
 NumPy to summarize geometry size; no broader-scope file is loaded by the
 dashboard until a separate product decision changes that contract.
+The measured scope and current candidate baseline are recorded in
+[`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md).
 
 ### Sources
 
@@ -199,9 +202,9 @@ kept as comparison fixtures, not parallel product targets.
 
 | Path | Role |
 |---|---|
-| `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application. |
+| `index.html`, `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application; `modern.html` is a stable alias. |
 | `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
-| `index.html` | CDN-loaded ArcGIS 4.34 legacy comparison; copied into `dist/`. |
+| `legacy/index.html` | CDN-loaded ArcGIS 4.34 comparison; copied into `dist/`. |
 | `maplibre/index.html` | CDN-loaded MapLibre legacy comparison; copied into `dist/`. |
 | `explore.html` | Legacy no-SDK overview. |
 | `shared/reservoir-viz.js` | Shared behavior retained by the legacy views. |
@@ -235,8 +238,9 @@ refuses to publish a broadly failed refresh, and maintains the `stale-feed`
 issue. A changed `reservoirs.json` is committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
-`dist/`. Vite copies `reservoirs.json`, `capacities.json`, `huc6.geojson`,
-`utah-boundary.geojson`, the shared module, and the legacy pages into the artifact. The workflow checks
+`dist/` after direct pushes to `main` and after successful scheduled refreshes.
+Vite copies `reservoirs.json`, `reference.json`, the source reference files,
+the shared module, and the legacy pages into the artifact. The workflow checks
 that every public URL exists and that the data payload did not leak into a
 JavaScript bundle.
 
@@ -249,11 +253,12 @@ current payload; tests do not hard-code values that change in the daily feed.
 
 Phases 0, 1, and 1.5 are complete: the build and deploy pipeline, strict data
 types and runtime validation, tested rollups, drainage-area enrichment, and
-the modernization workbench are in place. The connected-reservoir audit added
+the typed application foundation are in place. The connected-reservoir audit added
 Fontenelle; snowpack and drought context remain research tracks.
 
 Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
-`modern.html`, with its ArcGIS Charts workspace at `overview.html`.
+the root and at its stable `modern.html` alias, with its ArcGIS Charts
+workspace at `overview.html`.
 Phase 3 has begun with pointer hover and corrected map-click selection. Its
 ordered increments and gates are in [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md);
 the completed shell contract remains in

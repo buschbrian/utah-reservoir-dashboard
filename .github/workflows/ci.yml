@@ -75,10 +75,10 @@ jobs:
         run: |
           mkdir -p screenshots
           node tests/smoke.mjs
-      # Separate step, and separate file: this one covers the Phase 2 shell,
-      # which is still changing. When it goes red the step name says the
-      # workbench broke, not the three pages people have bookmarked.
-      - name: Load the Phase 2 shell in a real browser
+      # Separate step, and separate file: this one covers the primary ArcGIS
+      # application. When it goes red the step name distinguishes it from
+      # the three retained comparison pages.
+      - name: Load the primary ArcGIS application in a real browser
         run: node tests/smoke-modern.mjs
       # Uploaded on failure *and* success: when a map breaks, the picture is
       # usually the fastest explanation, and when it doesn't, it is the only

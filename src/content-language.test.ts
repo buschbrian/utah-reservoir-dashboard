@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const userTextFiles = [
   "index.html",
+  "legacy/index.html",
   "maplibre/index.html",
   "explore.html",
   "modern.html",

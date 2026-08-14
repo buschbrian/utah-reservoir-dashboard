@@ -1,10 +1,8 @@
 /*
- * Browser smoke test for the Phase 2 shell at modern.html.
+ * Browser smoke test for the production ArcGIS 5.1 application at the root.
  *
- * Separate from tests/smoke.mjs on purpose. That file is the production
- * contract for three pages whose markup is frozen; this one covers a page
- * that is still being built, and mixing them would mean every change to the
- * workbench edits the test protecting production.
+ * Separate from tests/smoke.mjs on purpose. That file protects the three
+ * retained comparison pages; this one protects the primary application.
  *
  * What only a real browser can answer here:
  *
@@ -66,7 +64,7 @@ const expectedReservoirs = payload.reservoirs.filter((reservoir) =>
 const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
 
-const URL = `http://127.0.0.1:${PORT}/modern.html`;
+const URL = `http://127.0.0.1:${PORT}/`;
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -135,7 +133,7 @@ for (const viewport of VIEWPORTS) {
     errors.push(`console: ${diagnostic}`);
   });
 
-  const label = `Phase 2 shell (${viewport.name})`;
+  const label = `Primary ArcGIS application (${viewport.name})`;
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -595,7 +593,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       errors.push(`console: ${diagnostic}`);
     }
   });
-  const label = `Modern overview (${viewport.name})`;
+  const label = `ArcGIS data workspace (${viewport.name})`;
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(`http://127.0.0.1:${PORT}/overview.html`,
@@ -682,7 +680,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     });
   });
 
-  const label = "Phase 2 shell (first basemap refused)";
+  const label = "Primary ArcGIS application (first basemap refused)";
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -750,7 +748,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     });
   });
 
-  const label = "Phase 2 shell (all basemaps refused)";
+  const label = "Primary ArcGIS application (all basemaps refused)";
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -805,7 +803,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     reservoir.intersects_utah === true &&
     reservoir.name.trim().toLowerCase() !== "lake powell" &&
     reservoir.name.includes(" "));
-  const label = `Phase 2 shell (shared link to ${wanted?.name})`;
+  const label = `Primary ArcGIS application (shared link to ${wanted?.name})`;
   console.log(`\n=== ${label}`);
   try {
     check(Boolean(wanted), `${label}: no two-word reservoir to build a link from`);
@@ -927,7 +925,7 @@ for (const failure of [
     return route.fulfill(failure.fulfil);
   });
 
-  const label = `Phase 2 shell (${failure.name})`;
+  const label = `Primary ArcGIS application (${failure.name})`;
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -975,5 +973,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`\nThe Phase 2 shell rendered cleanly at ${VIEWPORTS.length} viewport sizes, ` +
+console.log(`\nThe primary ArcGIS application rendered cleanly at ${VIEWPORTS.length} viewport sizes, ` +
   "kept local data when every basemap was refused, and never asked for credentials.");

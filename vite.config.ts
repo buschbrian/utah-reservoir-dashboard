@@ -14,6 +14,7 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
     apply: "build",
     async closeBundle() {
       await mkdir(resolve(outDir, "data"), { recursive: true });
+      await mkdir(resolve(outDir, "legacy"), { recursive: true });
       await mkdir(resolve(outDir, "maplibre"), { recursive: true });
       await cp(resolve(root, "shared"), resolve(outDir, "shared"), { recursive: true });
 
@@ -34,7 +35,8 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));
       }
-      await copyFile(resolve(root, "index.html"), resolve(outDir, "index.html"));
+      await copyFile(resolve(root, "legacy", "index.html"),
+        resolve(outDir, "legacy", "index.html"));
       await copyFile(resolve(root, "maplibre", "index.html"),
         resolve(outDir, "maplibre", "index.html"));
     }
@@ -54,6 +56,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        index: resolve(root, "index.html"),
         modern: resolve(root, "modern.html"),
         overview: resolve(root, "overview.html"),
         explore: resolve(root, "explore.html")

@@ -34,7 +34,7 @@ root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
     <calcite-navigation-logo slot="logo" heading="Utah Reservoir Dashboard"
       description="ArcGIS Maps SDK for JavaScript" heading-level="2" icon="water-drop"></calcite-navigation-logo>
-    <calcite-button slot="content-end" href="./modern.html" appearance="transparent"
+    <calcite-button slot="content-end" href="./" appearance="transparent"
       kind="neutral" icon-start="home" label="Return to ArcGIS map"><span class="overview-link-text">Map</span></calcite-button>
     <calcite-button slot="content-end" href="./explore.html" appearance="transparent"
       kind="neutral" label="Open legacy comparison"><span class="overview-link-text">Legacy comparison</span></calcite-button>

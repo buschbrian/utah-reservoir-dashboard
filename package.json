@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --open /modern.html",
+    "dev": "vite --open /",
     "build": "tsc --noEmit && vitest run && npm run budget:sdk && vite build",
     "budget:sdk": "node scripts/check-sdk-bundle.mjs",
     "typecheck": "tsc --noEmit",
