@@ -17,7 +17,7 @@ import "@esri/calcite-components/components/calcite-dropdown-group";
 import "@esri/calcite-components/components/calcite-dropdown-item";
 import "@esri/calcite-components/components/calcite-icon";
 
-export type PageId = "map" | "overview" | "methods";
+export type PageId = "map" | "overview" | "methods" | "data";
 
 interface PageLink {
   id: PageId;

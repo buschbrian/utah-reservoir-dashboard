@@ -71,6 +71,11 @@ and is not listed here.
 
 ### Added
 
+- **The dashboard data now has a documented public API.** Stable `/api/` paths publish
+  reservoir, snow and reference JSON from the same files the site uses. A new documentation
+  page lists every field, refresh and failure behavior, browser access, code examples and
+  plain terms of use.
+
 - **All 217 snow monitoring sites in the published drainage areas are now
   verified and refreshed independently.** The inventory uses full-resolution
   federal watershed geometry for sites near a divide, records the official

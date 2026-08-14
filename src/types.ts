@@ -77,6 +77,7 @@ export interface ReservoirSource {
 }
 
 export interface ReservoirPayload {
+  schema_version?: number;
   generated_at: string;
   start_date: string;
   stale_after_days: number;

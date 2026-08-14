@@ -28,6 +28,9 @@ const userTextFiles = [
   // vocabulary is native: the script it describes calls things by their
   // acronyms throughout.
   "src/methods.ts",
+  // API field names are exact machine identifiers under ADR-026, but all
+  // surrounding explanations on the page still follow ADR-006.
+  "src/data-docs.ts",
   "src/ui/page-header.ts"
 ];
 

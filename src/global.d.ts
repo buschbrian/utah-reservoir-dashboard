@@ -59,4 +59,8 @@ interface Window {
    * rules on it do not depend on the data. This reports that it finished,
    * which is the fact a test needs to know the page is not still waiting. */
   __methodsReady?: { published: boolean };
+  /** The public data page rendered its three file cards and every field
+   * group. These counts distinguish a loaded shell from complete reference
+   * documentation. */
+  __dataDocsReady?: { files: number; groups: number };
 }

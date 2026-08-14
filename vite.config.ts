@@ -14,6 +14,7 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
     apply: "build",
     async closeBundle() {
       await mkdir(resolve(outDir, "data"), { recursive: true });
+      await mkdir(resolve(outDir, "api"), { recursive: true });
       await mkdir(resolve(outDir, "legacy"), { recursive: true });
       await mkdir(resolve(outDir, "maplibre"), { recursive: true });
       await cp(resolve(root, "shared"), resolve(outDir, "shared"), { recursive: true });
@@ -37,6 +38,11 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
       ]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));
+      }
+      // Stable public API aliases. These are second copies of the same
+      // runtime files, never imports and never a second source of truth.
+      for (const file of ["reservoirs.json", "snowpack.json", "reference.json"]) {
+        await copyFile(resolve(root, file), resolve(outDir, "api", file));
       }
       await copyFile(resolve(root, "legacy", "index.html"),
         resolve(outDir, "legacy", "index.html"));
@@ -63,6 +69,7 @@ export default defineConfig({
         modern: resolve(root, "modern.html"),
         overview: resolve(root, "overview.html"),
         methods: resolve(root, "methods.html"),
+        data: resolve(root, "data.html"),
         explore: resolve(root, "explore.html")
       }
     }

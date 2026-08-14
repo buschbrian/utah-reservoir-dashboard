@@ -70,8 +70,8 @@ describe("a data-only commit deploys on its own", () => {
     // The application graph, entries included. A test fixture may read the
     // payload from disk; nothing that ships may import it.
     const sources = await Promise.all(
-      ["src/main.ts", "src/data/load.ts", "src/data/boundaries.ts", "index.html",
-        "modern.html"]
+      ["src/main.ts", "src/data/load.ts", "src/data/boundaries.ts", "src/data-docs.ts",
+        "index.html", "modern.html", "data.html"]
         .map(async (file) => ({ file, text: await read(file) })));
 
     /* An import of the file, not a mention of its name: `load.ts` names
@@ -111,6 +111,7 @@ describe("a data-only commit deploys on its own", () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     for (const path of ["index.html", "modern.html", "legacy/index.html",
       "overview.html", "methods.html", "explore.html",
+      "data.html", "api/reservoirs.json", "api/snowpack.json", "api/reference.json",
       "maplibre/index.html", "data/reservoirs.json", "data/snow_sites.json",
       "data/snowpack.json", "data/reference.json",
       "data/huc6.geojson", "data/utah-boundary.geojson"]) {
@@ -119,6 +120,22 @@ describe("a data-only commit deploys on its own", () => {
     // The rule that makes a data-only deploy meaningful, checked in CI as
     // well as here: the payload must not appear inside the built assets.
     expect(workflow).toContain("dist/assets");
+  });
+
+  it("publishes stable API aliases as copies outside the module graph", async () => {
+    const config = await read("vite.config.ts");
+    expect(config).toContain('resolve(outDir, "api")');
+    for (const file of ["reservoirs.json", "snowpack.json", "reference.json"]) {
+      expect(config).toContain(`resolve(outDir, "api", file)`);
+    }
+    expect(config).toContain('data: resolve(root, "data.html")');
+  });
+
+  it("links readers to the public data reference", async () => {
+    for (const file of ["src/methods.ts", "src/ui/shell-template.ts", "README.md"]) {
+      expect(await read(file), `${file} does not link to the public data reference`)
+        .toContain("data.html");
+    }
   });
 
   it("publishes ArcGIS 5.1 at the root and preserves the old ArcGIS page", async () => {

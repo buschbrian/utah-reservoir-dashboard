@@ -109,6 +109,10 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
   if (typeof value.generated_at !== "string" || typeof value.start_date !== "string") {
     throw new Error("reservoirs.json is missing generation metadata");
   }
+  if (value.schema_version !== undefined &&
+      (!hasNumber(value.schema_version) || !Number.isInteger(value.schema_version))) {
+    throw new Error("reservoirs.json has an invalid schema version");
+  }
   const cadenceThresholds = value.stale_after_days_by_cadence;
   const sourceCounts = value.source_counts;
   if (!hasNumber(value.stale_after_days) ||
