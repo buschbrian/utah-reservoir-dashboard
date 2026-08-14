@@ -3,11 +3,12 @@
  * the translucent mask over everything outside Utah, and the drainage-area
  * outlines.
  *
- * Both are fetched or built at runtime, never imported (ADR-002). The
- * boundaries come from the committed `huc6.geojson` rather than from the
- * live national service, so the outlines cannot disagree with the drainage
- * assignments already in `reservoirs.json`, and a service outage cannot
- * blank the map.
+ * Both are fetched or built at runtime, never imported (ADR-002). Both
+ * arrive in `reference.json`, which repackages the committed `huc6.geojson`
+ * and `utah-boundary.geojson` unchanged (ADR-018) -- committed boundaries
+ * rather than the live national service, so the outlines cannot disagree
+ * with the drainage assignments already in `reservoirs.json`, and a service
+ * outage cannot blank the map.
  *
  * Failure here is deliberately soft. A missing or malformed boundary file
  * costs the reader context; it must not cost them the reservoirs, which are
@@ -22,8 +23,8 @@ export const MASK_LINE = "#8fa3b8";
 export const DRAINAGE_FILL = "rgba(226,232,239,0.22)";
 export const DRAINAGE_LINE = "#6f8498";
 
-/* Last-resort approximation only. Production loads `utah-boundary.geojson`,
- * the maintained UGRC polygon; retaining a tiny fallback means a
+/* Last-resort approximation only. Production loads the maintained UGRC
+ * polygon from the reference export; retaining a tiny fallback means a
  * damaged context file cannot take the reservoir map down with it. */
 const UTAH_W = -114.052;
 const UTAH_E = -109.041;
@@ -110,11 +111,74 @@ export function utahMaskRings(boundary: UtahBoundary = [[UTAH_RING.slice()]]): R
   return [SURROUND_RING.slice(), ...stateOuters.map((ring) => ring.slice())];
 }
 
-export async function loadUtahBoundary(
-  url = import.meta.env.DEV ? "./utah-boundary.geojson" : "./data/utah-boundary.geojson"
-): Promise<UtahBoundary> {
-  const response = await fetchWithin(url);
-  const boundary = parseUtahBoundary(await response.json() as unknown);
+/** Where the reference export is published (ADR-018). */
+const REFERENCE_URL = import.meta.env.DEV ? "./reference.json" : "./data/reference.json";
+
+/**
+ * The export shape this build understands.
+ *
+ * Checked rather than assumed. A payload written to a later shape is not a
+ * payload with a few unfamiliar keys in it -- it is one whose outlines may
+ * live somewhere else entirely, and drawing whatever happens to parse out of
+ * it is how a map ends up confidently wrong. An unrecognised version reads
+ * as no boundaries, which is a case both callers already handle.
+ */
+export const REFERENCE_SCHEMA_VERSION = 1;
+
+export interface ReferenceGeography {
+  /** The state outline, in the collection shape `parseUtahBoundary` reads. */
+  state: unknown;
+  /** The published scope's boundaries, for `parseDrainageAreas`. */
+  drainage: unknown;
+}
+
+/**
+ * The two collections the maps draw, taken from the reference export.
+ *
+ * Which scope is the published one is the export's answer to give, not this
+ * module's: it names it in `default_scope`, and the research scopes travel
+ * in the same file without being drawn (ADR-018). Reading the scope by name
+ * from a constant here would be a second place deciding the dashboard's
+ * geography, and the two would eventually disagree.
+ */
+export function referenceGeography(value: unknown): ReferenceGeography | null {
+  if (!isObject(value) || value.schema_version !== REFERENCE_SCHEMA_VERSION) return null;
+  const geography = isObject(value.geography) ? value.geography : null;
+  if (!geography) return null;
+  const watersheds = isObject(geography.watersheds) ? geography.watersheds : null;
+  const scopes = watersheds && isObject(watersheds.scopes) ? watersheds.scopes : null;
+  const published = watersheds?.default_scope;
+  const scope = scopes && typeof published === "string" && isObject(scopes[published])
+    ? scopes[published]
+    : null;
+  return { state: geography.state, drainage: scope ? scope.boundaries : null };
+}
+
+/* One request, not one per caller. The mask and the outlines are loaded from
+ * two independent places in `main.ts` so that either can fail without the
+ * other, and both now want the same file -- so the request is shared while
+ * the failure is not. Each caller still decides on its own what to do
+ * without its boundaries. Keyed by URL so a test can ask for a different
+ * file without being handed the previous answer. */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/** The reference export, fetched once per URL for as long as the page lives. */
+export function loadReference(url = REFERENCE_URL): Promise<unknown> {
+  let request = inFlight.get(url);
+  if (!request) {
+    request = fetchWithin(url).then((response) => response.json() as Promise<unknown>);
+    inFlight.set(url, request);
+  }
+  return request;
+}
+
+/** Test seam: drop the shared request so the next load asks again. */
+export function forgetReference(): void {
+  inFlight.clear();
+}
+
+export async function loadUtahBoundary(url = REFERENCE_URL): Promise<UtahBoundary> {
+  const boundary = parseUtahBoundary(referenceGeography(await loadReference(url))?.state);
   if (!boundary) throw new Error(`Malformed Utah boundary in ${url}`);
   return boundary;
 }
@@ -142,9 +206,6 @@ export function parseDrainageAreas(value: unknown): DrainageArea[] {
   return areas;
 }
 
-export async function loadDrainageAreas(
-  url = import.meta.env.DEV ? "./huc6.geojson" : "./data/huc6.geojson"
-): Promise<DrainageArea[]> {
-  const response = await fetchWithin(url);
-  return parseDrainageAreas(await response.json() as unknown);
+export async function loadDrainageAreas(url = REFERENCE_URL): Promise<DrainageArea[]> {
+  return parseDrainageAreas(referenceGeography(await loadReference(url))?.drainage);
 }

@@ -41,12 +41,14 @@ import pandas as pd
 import requests
 
 import huc
+import watershed_scopes
 
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
 AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 START_DATE = "20150101"
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
+EXPORT_PATH = Path(__file__).parent / "reference.json"
 
 # A reservoir whose newest observation is older than this many days is
 # flagged is_stale and called out in the run log and in the dashboards.
@@ -54,6 +56,11 @@ CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 # so anything past "yesterday, plus a day of slack" is a real signal.
 STALE_AFTER_DAYS = 2
 AWDB_MONTHLY_STALE_AFTER_DAYS = 45
+
+# Version of the reference export's shape, not of the numbers in it. It is
+# here so a reader that finds a payload it does not understand can say so
+# instead of quietly rendering half of it.
+EXPORT_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -620,6 +627,93 @@ def attach_watersheds(records: list[dict]) -> dict:
         "assigned": len(records) - len(unassigned),
         "unassigned": len(unassigned),
         "assigned_by_dam": by_dam,
+    }
+
+
+def load_capacity_catalog() -> dict:
+    """capacities.json whole, provenance included.
+
+    `load_capacities()` returns only the per-reservoir table, because the
+    daily refresh needs nothing but the denominators. The export carries the
+    file's header too -- which National Inventory of Dams layer the numbers
+    came from, when it was retrieved, and which of the several storage
+    figures the denominator is. A capacity without that is a number the
+    reader has no way to check.
+
+    Unreadable is fatal here, unlike in `load_capacities()`. Skipping the
+    capacities costs the daily refresh one derived field; skipping them in a
+    file whose whole purpose is to carry them ships something that looks
+    complete and is not.
+    """
+    return json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
+
+
+def _feature_collection(path: Path) -> dict:
+    """Read a committed boundary file, refusing an empty or wrong-shaped one."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("type") != "FeatureCollection" or not payload.get("features"):
+        raise ValueError(f"{path.name} is not a populated FeatureCollection")
+    return payload
+
+
+def build_watershed_sections() -> dict:
+    """Every named scope's boundaries, validated, plus which one is published.
+
+    All of them, not just the published one: the scopes exist to be compared
+    (docs/UPPER-COLORADO-PIPELINE.md), and a research scope that ships only
+    as a file on disk cannot be compared against anything. `default_scope`
+    is what keeps that from changing the dashboard -- the extra scopes are
+    available, and one of them is still the accepted geography.
+
+    A scope that is missing, short, duplicated or out of region raises rather
+    than exporting quietly. This is reference data assembled from committed
+    files, not a network fetch that might come back thin; there is no
+    partial answer here that is better than a loud failure.
+    """
+    scopes = {}
+    for name, scope in sorted(watershed_scopes.SCOPES.items()):
+        boundaries = _feature_collection(watershed_scopes.ROOT / scope.output)
+        codes = watershed_scopes.validate_huc6_codes(
+            [feature["properties"]["huc6"] for feature in boundaries["features"]],
+            scope.region)
+        if scope.expected_count is not None and len(codes) != scope.expected_count:
+            raise ValueError(f"expected {scope.expected_count} units for {name}, "
+                             f"received {len(codes)}")
+        scopes[name] = {
+            "name": scope.name,
+            "description": scope.description,
+            "source_file": scope.output,
+            "unit_count": len(codes),
+            "huc6": codes,
+            "boundaries": boundaries,
+        }
+    return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
+
+
+def build_export_sections() -> dict:
+    """The reference half of the dashboard's data, in one payload.
+
+    Capacity and geography are the parts that change on the order of never,
+    and they are the parts every surface needs before it can draw anything:
+    a percentage needs its denominator, and a map needs its outlines. Today
+    they are four separate committed files that each page fetches by name, so
+    every new surface re-learns which files exist and what shape each one is
+    in, and a reader has no single thing to check for whether the reference
+    data is the version it expects -- which is what `schema_version` is for.
+
+    Deliberately separate from reservoirs.json, which is the other half: that
+    file is rewritten every morning and its commit is the deploy (ADR-002).
+    Folding never-changing geometry into a daily payload would put a megabyte
+    of unchanged polygons in every day's diff and make the storage numbers
+    harder to review, which is the one thing that diff is for.
+    """
+    return {
+        "schema_version": EXPORT_SCHEMA_VERSION,
+        "capacity_catalog": load_capacity_catalog(),
+        "geography": {
+            "state": _feature_collection(huc.UTAH_BOUNDARY_PATH),
+            "watersheds": build_watershed_sections(),
+        },
     }
 
 

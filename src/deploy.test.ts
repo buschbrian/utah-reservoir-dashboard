@@ -18,7 +18,8 @@ const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
 const RUNTIME_DATA = [
-  "reservoirs.json", "capacities.json", "huc6.geojson", "utah-boundary.geojson"
+  "reservoirs.json", "reference.json", "capacities.json",
+  "huc6.geojson", "utah-boundary.geojson"
 ];
 
 describe("a data-only commit deploys on its own", () => {
@@ -80,7 +81,7 @@ describe("a data-only commit deploys on its own", () => {
     expect(load).toContain("fetchWithin(");
     expect(load).toContain("./data/reservoirs.json");
     expect(boundaries).toContain("fetchWithin(");
-    expect(boundaries).toContain("./data/huc6.geojson");
+    expect(boundaries).toContain("./data/reference.json");
     // The helper is still a fetch, which is the ADR-002 claim: the payload
     // arrives at runtime and is never part of the module graph.
     expect(await read("src/data/fetch.ts")).toContain("fetch(");
@@ -97,7 +98,8 @@ describe("a data-only commit deploys on its own", () => {
   it("still checks the published output for every current URL, the shell included", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     for (const path of ["index.html", "explore.html", "maplibre/index.html", "modern.html",
-      "data/reservoirs.json", "data/huc6.geojson", "data/utah-boundary.geojson"]) {
+      "data/reservoirs.json", "data/reference.json", "data/huc6.geojson",
+      "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }
     // The rule that makes a data-only deploy meaningful, checked in CI as
