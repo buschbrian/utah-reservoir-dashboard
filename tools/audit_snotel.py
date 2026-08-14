@@ -2,8 +2,9 @@
 
 The published Phase 1.6 plan records live measurements. This tool makes the
 station count and geographic assignment reproducible. Coordinates are scoped
-with the committed HUC6 polygons; provider HUC metadata is retained only as
-disagreement evidence, following ADR-009.
+with full-resolution federal HUC6 polygons because several sites are closer
+to a drainage divide than the map boundary's generalization tolerance.
+Provider HUC metadata is retained only as disagreement evidence.
 
     python tools/audit_snotel.py
     python tools/audit_snotel.py --scope upper-colorado
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import assign_huc  # noqa: E402
 from tools.audit_awdb_stations import AWDB_STATIONS, get_json  # noqa: E402
-from watershed_scopes import load_scope_units  # noqa: E402
+from tools.build_snotel_inventory import fetch_precise_units  # noqa: E402
 
 
 def select_snotel(stations, units):
@@ -56,7 +57,7 @@ def main() -> int:
                         default="utah-connected")
     args = parser.parse_args()
 
-    units = load_scope_units(args.scope)
+    units = fetch_precise_units(args.scope)
     stations = get_json(AWDB_STATIONS, {
         "stationTriplets": "*:*:SNTL",
         "elements": "WTEQ",
@@ -86,7 +87,7 @@ def main() -> int:
         return 0
 
     print(f"{len(stations)} active SNOTEL sites with WTEQ returned nationally")
-    print(f"{len(selected)} fall inside the committed drainage-area polygons")
+    print(f"{len(selected)} fall inside the full-resolution drainage-area polygons")
     print(f"{disagreements} provider-HUC disagreements retained for review\n")
     for unit in units:
         print(f"  {unit['huc6']}  {unit['name']:<32} {by_huc[unit['huc6']]:>3}")

@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from admission import admit_all, positive  # noqa: E402
 from tools.audit_awdb_stations import find_candidates  # noqa: E402
+from watershed_scopes import load_scope_units  # noqa: E402
 
 AWDB_DATA = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
@@ -166,11 +167,13 @@ def fetch_dams(layer_url: str, fields: dict, where: str) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="print the evidence as JSON")
+    parser.add_argument("--scope", choices=("utah-connected", "upper-colorado"),
+                        default="utah-connected")
     args = parser.parse_args()
 
     # The same list audit_awdb_stations.py prints, so the two tools cannot
     # disagree about what a candidate is.
-    candidates, info = find_candidates()
+    candidates, info = find_candidates(load_scope_units(args.scope))
     if not candidates:
         print("no candidates", file=sys.stderr)
         return 1

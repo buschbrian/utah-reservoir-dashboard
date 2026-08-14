@@ -48,6 +48,7 @@ AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 START_DATE = "20150101"
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
+CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
 
 # A reservoir whose newest observation is older than this many days is
@@ -121,7 +122,7 @@ RESERVOIRS = {
 # Morehouse currently publish a current daily series; the other stations are
 # derived monthly values and are deliberately labeled/aged as monthly data.
 # name -> (station triplet, lat, lon, capacity af, cadence)
-AWDB_RESERVOIRS = {
+BASE_AWDB_RESERVOIRS = {
     "Bear Lake": ("10055500:ID:BOR", 42.11667, -111.30000, 1302000.0, "monthly"),
     "Big Sand Wash": ("09UTBSWR:UT:BOR", 40.30006, -110.22139, 25700.0, "monthly"),
     "Cleveland": ("09UTCLEV:UT:BOR", 39.57758, -111.23896, 5400.0, "monthly"),
@@ -149,6 +150,55 @@ AWDB_RESERVOIRS = {
     "Yuba": ("10218500:UT:BOR", 39.37218, -112.03327, 236000.0, "monthly"),
 }
 
+
+def load_connected_reservoirs(path: Path = CONNECTED_RESERVOIRS_PATH) -> dict[str, dict]:
+    """Load the reviewed out-of-state stations that fill empty drainage areas.
+
+    Candidate discovery remains live and read-only. Publication is a separate,
+    reviewable decision, so the selected station, update frequency and capacity
+    evidence are committed together instead of being copied into Python tuples.
+    """
+    document = json.loads(path.read_text(encoding="utf-8"))
+    rows = document.get("reservoirs")
+    if not isinstance(rows, dict) or not rows:
+        raise ValueError(f"{path.name} must contain a non-empty reservoirs object")
+
+    required_capacity = {
+        "capacity_af", "capacity_basis", "nid_id", "nid_dam_name",
+        "dam_lon", "dam_lat", "match_distance_km", "match_confirmed_by",
+    }
+    for name, row in rows.items():
+        if not isinstance(name, str) or not name or not isinstance(row, dict):
+            raise ValueError(f"invalid reservoir entry in {path.name}")
+        station = row.get("station_triplet")
+        if not isinstance(station, str) or station.count(":") != 2:
+            raise ValueError(f"{name}: invalid station triplet")
+        if row.get("cadence") not in {"daily", "monthly"}:
+            raise ValueError(f"{name}: cadence must be daily or monthly")
+        if not isinstance(row.get("lat"), (int, float)) or not isinstance(
+                row.get("lon"), (int, float)):
+            raise ValueError(f"{name}: coordinates are required")
+        capacity = row.get("capacity")
+        if not isinstance(capacity, dict) or not required_capacity <= capacity.keys():
+            raise ValueError(f"{name}: incomplete capacity evidence")
+        if not isinstance(capacity.get("capacity_af"), (int, float)) \
+                or capacity["capacity_af"] <= 0:
+            raise ValueError(f"{name}: capacity must be positive")
+    return rows
+
+
+CONNECTED_RESERVOIRS = load_connected_reservoirs()
+AWDB_RESERVOIRS = {
+    **BASE_AWDB_RESERVOIRS,
+    **{
+        name: (
+            row["station_triplet"], row["lat"], row["lon"],
+            row["capacity"]["capacity_af"], row["cadence"],
+        )
+        for name, row in CONNECTED_RESERVOIRS.items()
+    },
+}
+
 ALL_RESERVOIR_NAMES = set(RESERVOIRS) | set(AWDB_RESERVOIRS)
 
 
@@ -161,22 +211,24 @@ LOCAL_TZ = "America/Denver"  # every reservoir here is on Mountain Time
 
 
 def load_capacities() -> dict[str, dict]:
-    """Reservoir capacities from capacities.json, or {} if it isn't there.
+    """Committed National Inventory of Dams capacity records by reservoir.
 
-    Built separately by tools/build_capacity_table.py from the National
-    Inventory of Dams, because RISE publishes no capacity at all. Kept as a
-    committed, reviewable file rather than fetched at refresh time: it
-    changes on the order of never, it comes from a different agency, and a
-    denominator that silently changes under you is worse than a stale one.
+    The original Reclamation table is built by tools/build_capacity_table.py.
+    Reviewed connected-site evidence lives beside its station configuration
+    in connected_reservoirs.json. Both are committed rather than fetched at
+    refresh time because a denominator must not change silently.
     """
-    if not CAPACITY_PATH.exists():
-        return {}
+    capacities = {}
     try:
-        return json.loads(CAPACITY_PATH.read_text()).get("capacities", {})
+        if CAPACITY_PATH.exists():
+            capacities = json.loads(CAPACITY_PATH.read_text()).get("capacities", {})
     except (ValueError, AttributeError):
         print(f"WARNING: {CAPACITY_PATH.name} is unreadable; "
-              "percent-of-capacity will be omitted")
-        return {}
+              "its percent-full values will be omitted")
+    return {
+        **capacities,
+        **{name: row["capacity"] for name, row in CONNECTED_RESERVOIRS.items()},
+    }
 
 
 def local_today() -> pd.Timestamp:
@@ -645,7 +697,13 @@ def load_capacity_catalog() -> dict:
     file whose whole purpose is to carry them ships something that looks
     complete and is not.
     """
-    return json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
+    catalog = json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
+    catalog["capacities"] = load_capacities()
+    catalog["connected_reservoirs"] = CONNECTED_RESERVOIRS_PATH.name
+    catalog["dam_points"]["count"] = sum(
+        1 for entry in catalog["capacities"].values()
+        if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)
+    return catalog
 
 
 def _feature_collection(path: Path) -> dict:
@@ -806,7 +864,8 @@ def main() -> int:
     end = (today + pd.Timedelta(days=1)).strftime("%Y%m%d")
     previous = load_previous(OUTPUT_PATH)
     capacities = load_capacities()
-    print(f"NID capacities available for {len(capacities)}/{len(RESERVOIRS)} RISE reservoirs")
+    print(f"NID capacity records available: {len(capacities)} "
+          f"({len(RESERVOIRS)} Reclamation, {len(CONNECTED_RESERVOIRS)} connected)")
 
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
@@ -864,10 +923,13 @@ def main() -> int:
 
         stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
                        if cadence == "monthly" else STALE_AFTER_DAYS)
+        capacity = (CONNECTED_RESERVOIRS.get(name) or {}).get("capacity") or {
+            "capacity_af": capacity_af,
+            "capacity_basis": "awdb_reservoir_metadata",
+        }
         records.append(summarize(
             name, None, lat, lon, df, today,
-            {"capacity_af": capacity_af,
-             "capacity_basis": "awdb_reservoir_metadata"},
+            capacity,
             source_key="awdb", source_label="USDA NRCS AWDB",
             source_url="https://wcc.sc.egov.usda.gov/awdbWebService/",
             data_frequency=cadence, stale_after_days=stale_after,

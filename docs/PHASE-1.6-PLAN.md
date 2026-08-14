@@ -243,15 +243,15 @@ published total means:
 | Question | Answer (2026-08-10) |
 |---|---|
 | Stations carrying `WTEQ`, active | 2,175 nationally |
-| Of those, automated SNOTEL (`SNTL`) | 884 |
-| **SNOTEL inside our fourteen drainage areas** | **216** |
+| Of those, automated SNOTEL (`SNTL`) | 883 on 2026-08-14 |
+| **SNOTEL inside our fourteen drainage areas** | **217, using full-resolution boundaries** |
 | Areas with at least four | all fourteen |
 | Elements available daily per station | `WTEQ`, `SNWD`, `PREC` |
-| Cost of one call for all 216 stations, one day | ~9 s, one URL of 4 KB |
+| Cost of one call for all 217 stations, one day | ~9 s, one URL of 4 KB |
 | Cost of one station, full water year, three elements | ~0.6 s |
 
 Per area: Escalante Desert-Sevier Lake 33, Colorado Headwaters 31, Lower Green
-24, Upper Green 21, Jordan 20, Lower Bear 16, White-Yampa 15, Weber 15, Upper
+24, Upper Green 21, Jordan 19, Lower Bear 16, White-Yampa 16, Weber 16, Upper
 Colorado-Dolores 10, Lower Colorado-Lake Mead 10, Upper Colorado-Dirty Devil 7,
 Great Salt Lake 6, Lower San Juan 4, Upper Bear 4.
 
@@ -283,16 +283,16 @@ That is worth having for its own sake: "the snow peaked at 9 inches around
 March 12 in a normal year" is a sentence a reader understands, and it is
 published rather than derived.
 
-**One open question before any of it is shown:** AWDB defines the returned
-value as a **30-year median**, but the response does not identify the exact
-30-year window. Verify that window — compare the API's median against one
-computed locally from the station's full record and against 1991–2020 — before
-writing comparison wording. The page must say what the comparison is against,
-per ADR-006.
+**The comparison period is resolved.** The Natural Resources Conservation
+Service identifies the current official normals as 1991–2020 medians, updated
+once per decade. The response does not repeat the years, so `snow_sites.json`
+records them beside the source URL and `snowpack.json` carries them forward.
+The page must say what the comparison is against, per ADR-006.
 
-`tools/audit_snotel.py` now makes the station query and point-in-polygon counts
-reproducible, with network-free scope tests. The median-series shortfall and
-future area rollup still need fixtures and assertions before publication.
+`tools/build_snotel_inventory.py` makes the full-resolution station query and
+point-in-polygon counts reproducible. `refresh_snowpack.py` asserts complete
+station coverage, retries a missing site on its own, writes the area rollups,
+and has network-free fixtures for the short-response case.
 
 **One inconsistency to handle, not ignore:** a batch request for 216 triplets
 returned 215 series. Requesting *n* stations and receiving *n−1* has to be an
@@ -363,8 +363,8 @@ No new provider, no key, and no new geography is required for either part.
 3. **Decide Lake Mead** (and, with it, whether "connected" needs the same
    two-dimension treatment Lake Powell has).
 4. **Land the sites in one change**, before-and-after totals stated.
-5. **Snowpack fetch and `snowpack.json`**, with the median-period question
-   answered first and the station-count shortfall asserted.
+5. **Snowpack fetch and `snowpack.json`** — complete. The 1991–2020 period is
+   recorded and a station-count shortfall stops publication.
 6. **Snowpack in the page**, seasonal series by drainage area, in the shell
    that Phase 2 built.
 

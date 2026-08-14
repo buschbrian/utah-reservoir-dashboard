@@ -234,13 +234,15 @@ The rationale and rejected alternatives are in the
 
 The scheduled [refresh workflow](.github/workflows/refresh-data.yml) runs the
 Python pipeline, retains good previous records when individual feeds fail,
-refuses to publish a broadly failed refresh, and maintains the `stale-feed`
-issue. A changed `reservoirs.json` is committed to `main`.
+refuses to publish a broadly failed reservoir refresh, and maintains the
+late-data issue. Snow measurements refresh independently, so a provider
+failure keeps the last complete `snowpack.json` without blocking reservoir
+updates. Changed runtime data is committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
 `dist/` after direct pushes to `main` and after successful scheduled refreshes.
-Vite copies `reservoirs.json`, `reference.json`, the source reference files,
-the shared module, and the legacy pages into the artifact. The workflow checks
+Vite copies the reservoir, snow, reference, and boundary files, the shared
+module, and the legacy pages into the artifact. The workflow checks
 that every public URL exists and that the data payload did not leak into a
 JavaScript bundle.
 
@@ -253,8 +255,12 @@ current payload; tests do not hard-code values that change in the daily feed.
 
 Phases 0, 1, and 1.5 are complete: the build and deploy pipeline, strict data
 types and runtime validation, tested rollups, drainage-area enrichment, and
-the typed application foundation are in place. The connected-reservoir audit added
-Fontenelle; snowpack and drought context remain research tracks.
+the typed application foundation are in place. The connected-site inventory
+now covers every published drainage area. Current U.S. Drought Monitor
+polygons are downloaded as verified GeoJSON. The independent snow pipeline
+publishes all 217 full-resolution-verified monitoring sites and their
+1991–2020 comparisons; displaying drought and snow remains separate interface
+work.
 
 Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
 the root and at its stable `modern.html` alias, with its ArcGIS Charts
@@ -287,8 +293,8 @@ and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.
 - Monthly sources cannot support a meaningful 7-day change.
 - The ArcGIS application depends on third-party SDK assets and basemap services;
   the legacy overview remains the no-SDK comparison.
-- Automated accessibility auditing, snowpack context, and drought context are
-  not complete.
+- Automated accessibility auditing, displaying snow measurements, and drought
+  context are not complete.
 - ArcGIS map pixels render blank in headless Chromium even when the map and
   reservoir layers are ready, so smoke tests assert runtime state as well as
   capturing screenshots.

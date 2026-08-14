@@ -197,7 +197,7 @@ def test_committed_capacity_table_covers_every_reservoir():
     path = Path(__file__).resolve().parent.parent / "capacities.json"
     payload = json.loads(path.read_text())
     caps = payload["capacities"]
-    assert set(caps) == set(R.RESERVOIRS), "capacity table and RESERVOIRS disagree"
+    assert set(R.RESERVOIRS) <= set(caps), "capacity table does not cover every RISE site"
     assert "National Inventory of Dams" in payload["source"]
 
     published = R.load_previous(R.OUTPUT_PATH)
@@ -216,14 +216,37 @@ def test_committed_capacity_table_covers_every_reservoir():
 
 
 def test_awdb_inventory_has_traceable_capacity_and_cadence():
-    assert len(R.AWDB_RESERVOIRS) == 25
+    assert len(R.BASE_AWDB_RESERVOIRS) == 25
+    assert len(R.CONNECTED_RESERVOIRS) == 15
+    assert len(R.AWDB_RESERVOIRS) == 40
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
     for name, (triplet, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
         assert triplet.count(":") == 2
-        assert 36 <= lat <= 43 and -114.5 <= lon <= -109
+        assert 36 <= lat <= 43 and -115 <= lon <= -105
         assert capacity > 0
         assert cadence in {"daily", "monthly"}
+
+    for name, row in R.CONNECTED_RESERVOIRS.items():
+        evidence = row["capacity"]
+        assert evidence["nid_id"], f"{name} has no dam inventory identifier"
+        assert evidence["nid_dam_name"], f"{name} has no matched dam name"
+        assert evidence["match_distance_km"] <= 25
+        assert evidence["match_confirmed_by"] in {"position", "name and position"}
+        assert evidence["capacity_basis"] in {
+            "normal_storage", "max_storage", "nid_storage"
+        }
+
+
+def test_connected_inventory_fills_exactly_the_previously_empty_areas():
+    by_huc = {}
+    units = R.huc.load_units()
+    for name, row in R.CONNECTED_RESERVOIRS.items():
+        by_huc[row["huc6"]] = by_huc.get(row["huc6"], 0) + 1
+        capacity = row["capacity"]
+        assigned = R.huc.assign_huc((capacity["dam_lon"], capacity["dam_lat"]), units)
+        assert assigned and assigned["huc6"] == row["huc6"], name
+    assert by_huc == {"140100": 10, "140500": 4, "140802": 1}
 
 
 # --- degenerate inputs ----------------------------------------------------

@@ -65,11 +65,29 @@ jobs:
           echo "::error title=Refresh failed::All 3 attempts failed; reservoirs.json left untouched"
           exit 1
 
+      # The Drought Monitor changes weekly. A service interruption must not
+      # block current reservoir readings, so keep the last verified polygons
+      # when this independent download fails.
+      - name: Pull current drought polygons
+        run: |
+          if ! python tools/fetch_drought_monitor.py; then
+            echo "::warning title=Drought download failed::Keeping the last verified GeoJSON"
+          fi
+
+      # Snow measurements have their own payload and failure mode. The
+      # reviewed inventory is committed; a short provider response is retried
+      # one station at a time and never replaces the last complete file.
+      - name: Pull current snow measurements
+        run: |
+          if ! python refresh_snowpack.py; then
+            echo "::warning title=Snow download failed::Keeping the last complete snow payload"
+          fi
+
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reservoirs.json
+          git add reservoirs.json snow_sites.json snowpack.json data/drought/usdm-current.geojson
           if git diff --cached --quiet; then
             echo "No data changes today."
             exit 0

@@ -107,9 +107,14 @@ def location_fields(name: str, lat: float, lon: float) -> dict:
     }
 
 
-def load_units(path: Path | None = None) -> list[dict]:
-    """The committed hydrologic units, normalized to one polygon list each."""
-    payload = json.loads((path or BOUNDARY_PATH).read_text())
+def units_from_collection(payload: dict) -> list[dict]:
+    """Normalize a GeoJSON feature collection to the assignment shape.
+
+    Most callers use :func:`load_units` with a committed file. Research tools
+    also need to classify divide-adjacent points against an un-generalized
+    federal response without writing that much larger geometry to the
+    repository first.
+    """
     units = []
     for feature in payload["features"]:
         geometry = feature["geometry"]
@@ -121,6 +126,12 @@ def load_units(path: Path | None = None) -> list[dict]:
             "polygons": coordinates if geometry["type"] == "MultiPolygon" else [coordinates],
         })
     return sorted(units, key=lambda unit: unit["huc6"])
+
+
+def load_units(path: Path | None = None) -> list[dict]:
+    """The committed hydrologic units, normalized to one polygon list each."""
+    payload = json.loads((path or BOUNDARY_PATH).read_text())
+    return units_from_collection(payload)
 
 
 def assign_huc(point: Point, units) -> dict | None:

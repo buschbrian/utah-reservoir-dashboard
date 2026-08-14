@@ -2,8 +2,9 @@
 
 ## Status
 
-Configured for research and candidate audits. It does not change the
-dashboard's accepted 14-unit Utah-connected geography or its published totals.
+The broader ten-unit scope remains available for research. The published
+14-unit Utah-connected geography is unchanged, but the three drainage areas
+that had no tracked reservoir now have reviewed sites. See ADR-023.
 
 ## Named scope
 
@@ -62,6 +63,25 @@ This is discovery evidence, not admission. AWDB does not provide the capacity
 denominator required for percent-full totals. Each candidate must still pass
 the existing National Inventory of Dams identity/capacity rules before it can
 enter a refresh configuration.
+
+## Published empty-area additions
+
+The August 14, 2026 review promoted 15 sites that passed the position-first
+dam and capacity rules: ten in Colorado Headwaters, four in White-Yampa, and
+one in Lower San Juan. Their station identifiers, update schedules, dam
+coordinates, National Inventory of Dams identifiers, and capacity values are
+committed together in `connected_reservoirs.json`.
+
+`tools/audit_candidate_capacity.py --scope upper-colorado` now applies the
+same capacity audit to the broader research scope. Earlier it always loaded
+the default geography, even after discovery had been run with
+`--scope upper-colorado`; that mismatch was one reason the research output
+could not flow into a reviewable capacity result.
+
+The current U.S. Drought Monitor polygons are independent of reservoir
+admission. `tools/fetch_drought_monitor.py` downloads the official nationwide
+ArcGIS feature layer as checked GeoJSON at
+`data/drought/usdm-current.geojson`.
 
 ## Source roles
 

@@ -17,6 +17,8 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
       await mkdir(resolve(outDir, "legacy"), { recursive: true });
       await mkdir(resolve(outDir, "maplibre"), { recursive: true });
       await cp(resolve(root, "shared"), resolve(outDir, "shared"), { recursive: true });
+      await cp(resolve(root, "data", "drought"), resolve(outDir, "data", "drought"),
+        { recursive: true });
 
       // Boundary GeoJSON joins the runtime data for the same reason as the
       // other files: it is fetched, never imported. It is also what lets the pages
@@ -29,7 +31,8 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
       // the reviewed sources, and the two legacy map pages still read the
       // Utah outline directly.
       for (const file of [
-        "reservoirs.json", "reference.json", "capacities.json",
+        "reservoirs.json", "snow_sites.json", "snowpack.json",
+        "reference.json", "capacities.json",
         "huc6.geojson", "utah-boundary.geojson"
       ]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
