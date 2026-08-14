@@ -10,10 +10,11 @@
  *
  * Nothing here imports the SDK. The symbol is a plain property object the
  * renderer autocasts, which keeps this file's arithmetic testable in the
- * same node environment as `symbols.ts` -- and the radii it is built from
+ * same node environment as `symbols.ts` -- and the diameters it is built from
  * are the ones `symbols.test.ts` already holds against
  * `shared/reservoir-viz.js`. This file must not re-derive a size; it only
- * arranges the sizes it is given.
+ * arranges the sizes it is given and converts their CSS pixels to the points
+ * CIM requires.
  *
  * Circles are polygons, not curves. A CIM curve ring is exact and a ring of
  * points is not, but the difference at these radii is under a tenth of a
@@ -28,6 +29,7 @@ import {
 import { hexToRgb } from "./color";
 import { STALE_ACCENT } from "./classes";
 import type { ReservoirSymbol } from "./symbols";
+import { cssPixelsToPoints } from "./units";
 
 /* The size every overridden marker is authored at. The value never reaches
  * the screen -- an override replaces it per feature -- but it has to be a
@@ -37,7 +39,7 @@ const RING_PLACEHOLDER_PX = 20;
 /** Points around each circle. 64 keeps the widest ring smooth at 36px. */
 const CIRCLE_POINTS = 64;
 
-/** The frame every marker graphic is drawn in; `size` scales it to pixels. */
+/** The frame every marker graphic is drawn in; CIM `size` scales it in points. */
 const FRAME_RADIUS = 5;
 
 /** Alpha for the shadow under the ring, and how far it is offset. */
@@ -132,8 +134,8 @@ export interface CIMSymbolReference {
 }
 
 /**
- * One circle, sized in pixels. `size` is the diameter, matching what
- * `simple-marker` meant by size, so the tested radii carry over unchanged.
+ * One circle, sized in points. CIM numeric sizes do not accept CSS pixels;
+ * callers convert the pixel-based application dimensions at this boundary.
  */
 function circleLayer(
   size: number,
@@ -164,7 +166,7 @@ function circleLayer(
  */
 export function reservoirCIM(symbol: ReservoirSymbol): CIMSymbolReference {
   const late = symbol.accent !== null;
-  const ring: CIMVectorMarker = circleLayer(symbol.ringPx, [{
+  const ring: CIMVectorMarker = circleLayer(cssPixelsToPoints(symbol.ringPx), [{
     type: "CIMSolidStroke",
     enable: true,
     width: late ? 1.5 : 1,
@@ -181,16 +183,19 @@ export function reservoirCIM(symbol: ReservoirSymbol): CIMSymbolReference {
   }]);
 
   const shadow = circleLayer(
-    symbol.ringPx + SHADOW_SPREAD,
+    cssPixelsToPoints(symbol.ringPx + SHADOW_SPREAD),
     [{ type: "CIMSolidFill", enable: true, color: cimColor("#000000", SHADOW_ALPHA) }],
-    { x: SHADOW_OFFSET, y: -SHADOW_OFFSET }
+    {
+      x: cssPixelsToPoints(SHADOW_OFFSET),
+      y: -cssPixelsToPoints(SHADOW_OFFSET)
+    }
   );
 
   /* No fill at all when the percentage cannot be read. `fillSize` already
    * returns 0 there, and an empty circle would claim the reservoir is empty
    * rather than unreported. */
   const fill: CIMVectorMarker[] = symbol.fillPx > 0
-    ? [circleLayer(symbol.fillPx, [
+    ? [circleLayer(cssPixelsToPoints(symbol.fillPx), [
       { type: "CIMSolidFill", enable: true, color: cimColor(symbol.color) },
       { type: "CIMSolidStroke", enable: true, width: 0.75, color: cimColor("#000000", 102) }
     ])]
@@ -276,7 +281,7 @@ export function reservoirCIMTemplate(
   domain: number, late: boolean, color: string
 ): CIMTemplateSymbol {
   const strokeColor = late ? cimColor(STALE_ACCENT) : cimColor(color);
-  const ring = named(circleLayer(RING_PLACEHOLDER_PX, [{
+  const ring = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [{
     type: "CIMSolidStroke",
     /* The colour is on the stroke, not on the marker around it. An override
      * naming the marker for "Color" does not merely miss -- it invalidates
@@ -296,12 +301,15 @@ export function reservoirCIMTemplate(
   }]), "ring");
 
   const shadow = named(circleLayer(
-    RING_PLACEHOLDER_PX + SHADOW_SPREAD,
+    cssPixelsToPoints(RING_PLACEHOLDER_PX + SHADOW_SPREAD),
     [{ type: "CIMSolidFill", enable: true, color: cimColor("#000000", SHADOW_ALPHA) }],
-    { x: SHADOW_OFFSET, y: -SHADOW_OFFSET }
+    {
+      x: cssPixelsToPoints(SHADOW_OFFSET),
+      y: -cssPixelsToPoints(SHADOW_OFFSET)
+    }
   ), "shadow");
 
-  const fill = named(circleLayer(RING_PLACEHOLDER_PX, [
+  const fill = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [
     { type: "CIMSolidFill", enable: true, color: cimColor(color) },
     { type: "CIMSolidStroke", enable: true, width: 0.75, color: cimColor("#000000", 102) }
   ]), "fill");

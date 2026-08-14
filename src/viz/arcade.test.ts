@@ -17,6 +17,7 @@ import {
 import { STALE_COLOR, STORAGE_CLASSES } from "./classes";
 import { hexToRgb } from "./color";
 import { RING_MAX_PX, RING_MIN_PX } from "./symbols";
+import { POINTS_PER_CSS_PIXEL } from "./units";
 
 const DOMAIN = 5000;
 const rgb = (hex: string): string => {
@@ -68,6 +69,13 @@ describe("the size expressions", () => {
     expect(ring).toContain(String(RING_MAX_PX - RING_MIN_PX));
     expect(ring).toContain(`$feature.${SIZE_BASIS_FIELD}`);
     expect(ring).toContain(String(DOMAIN));
+  });
+
+  it("converts the pixel arithmetic to the points CIM expects", () => {
+    for (const expression of [ringSizeExpression(DOMAIN), fillSizeExpression(DOMAIN),
+      shadowSizeExpression(DOMAIN, 2)]) {
+      expect(expression).toContain(`* ${POINTS_PER_CSS_PIXEL}`);
+    }
   });
 
   it("float the domain in, because it belongs to the drawn set", () => {

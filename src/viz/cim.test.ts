@@ -7,6 +7,7 @@ import { readPayload } from "../data/payload-fixture";
 import { STALE_ACCENT } from "./classes";
 import { LATE_DASH, cimColor, circleRing, reservoirCIM } from "./cim";
 import { reservoirSymbol, sizeDomain } from "./symbols";
+import { cssPixelsToPoints } from "./units";
 
 const reservoirs = readPayload().reservoirs;
 const domain = sizeDomain(reservoirs);
@@ -61,7 +62,7 @@ describe("the composed reservoir symbol", () => {
       const layers = layersOf(reservoirCIM(symbol));
       const ring = layers.find((layer) => layer.markerGraphics[0]?.symbol
         .symbolLayers.some((part) => part.type === "CIMSolidStroke" && part.width >= 1));
-      expect(ring?.size).toBe(symbol.ringPx);
+      expect(ring?.size).toBe(cssPixelsToPoints(symbol.ringPx));
     }
   });
 
@@ -85,7 +86,7 @@ describe("the composed reservoir symbol", () => {
 
     for (const symbol of withFill) {
       const [fill] = layersOf(reservoirCIM(symbol));
-      expect(fill?.size).toBe(symbol.fillPx);
+      expect(fill?.size).toBe(cssPixelsToPoints(symbol.fillPx));
       const solid = fill?.markerGraphics[0]?.symbol.symbolLayers[0];
       expect(solid).toEqual({
         type: "CIMSolidFill",
@@ -99,7 +100,7 @@ describe("the composed reservoir symbol", () => {
     const symbol = { ringPx: 20, fillPx: 0, color: "#9e9e9e", accent: null };
     const layers = layersOf(reservoirCIM(symbol));
     expect(layers).toHaveLength(2);
-    expect(layers.some((layer) => layer.size < 20)).toBe(false);
+    expect(layers.some((layer) => layer.size < cssPixelsToPoints(20))).toBe(false);
   });
 
   it("dashes the ring in the late-data accent, and only then", () => {

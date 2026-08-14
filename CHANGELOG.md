@@ -7,6 +7,13 @@ and is not listed here.
 
 ### Fixed
 
+- **The primary map now draws the symbol sizes its code specifies.** CIM
+  marker dimensions are points, but the renderer passed CSS-pixel diameters
+  into them unchanged, making every reservoir circle one third wider than
+  intended. The renderer now converts units at its boundary. Drainage-area
+  names are eligible at the opening scale and use a stronger white halo, so
+  they remain readable over boundaries, circles and varied map backgrounds.
+
 - **The weekly storage comparison now states its basis.** Reservoir details say how many
   earlier years support the value. The methods page explains that the comparison uses
   readings from 2015 through the preceding year within a seven-day window, and warns that

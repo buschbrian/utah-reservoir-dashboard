@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DrainageArea } from "../data/boundaries";
+import { cssPixelsToPoints } from "../viz/units";
 import {
   DRAINAGE_LABEL_MIN_SCALE,
+  DRAINAGE_LABEL_HALO_PX,
   DRAINAGE_NAME_FIELD,
   createDrainageLayer
 } from "./layers";
@@ -48,5 +50,10 @@ describe("the drainage-area layer", () => {
     expect(labels).toHaveLength(1);
     expect(label?.labelExpressionInfo?.expression).toBe(`$feature.${DRAINAGE_NAME_FIELD}`);
     expect(label?.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
+    expect(label?.allowOverrun).toBe(true);
+    expect(label?.deconflictionStrategy).toBe("static");
+    expect(label?.symbol?.type).toBe("text");
+    expect((label?.symbol as { haloSize?: number } | undefined)?.haloSize)
+      .toBe(cssPixelsToPoints(DRAINAGE_LABEL_HALO_PX));
   });
 });

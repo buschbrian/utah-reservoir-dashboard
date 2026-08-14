@@ -50,7 +50,8 @@ export const DRAINAGE_OBJECT_ID_FIELD = "objectid";
 /* Deliberately not the reservoir layer's `name` field: pointer hit testing
  * treats that field as selectable reservoir identity. */
 export const DRAINAGE_NAME_FIELD = "area_name";
-export const DRAINAGE_LABEL_MIN_SCALE = 10_000_000;
+export const DRAINAGE_LABEL_MIN_SCALE = 25_000_000;
+export const DRAINAGE_LABEL_HALO_PX = 2;
 
 const WGS84 = { wkid: 4326 };
 
@@ -125,14 +126,16 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
     labelingInfo: [{
       labelExpressionInfo: { expression: `$feature.${DRAINAGE_NAME_FIELD}` },
       labelPlacement: "always-horizontal",
+      allowOverrun: true,
+      deconflictionStrategy: "static",
       minScale: DRAINAGE_LABEL_MIN_SCALE,
       maxScale: 0,
       symbol: {
         type: "text",
-        color: "#43576a",
-        haloColor: "rgba(255,255,255,0.92)",
-        haloSize: 1.25,
-        font: { family: "sans-serif", size: 10, weight: "bold" }
+        color: "#263f52",
+        haloColor: "rgba(255,255,255,0.98)",
+        haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
+        font: { family: "sans-serif", size: "11px", weight: "bold" }
       }
     }] as never
   });
@@ -357,7 +360,7 @@ export function showHighlight(
       type: "simple-marker",
       style: "circle",
       color: TRANSPARENT,
-      size: symbol.ringPx + 14,
+      size: `${symbol.ringPx + 14}px`,
       outline: { color: "#1b2b34", width: 2.5 }
     }
   }));

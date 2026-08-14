@@ -20,6 +20,7 @@
 import { STALE_COLOR, STORAGE_CLASSES } from "./classes";
 import { hexToRgb } from "./color";
 import { RING_MAX_PX, RING_MIN_PX } from "./symbols";
+import { POINTS_PER_CSS_PIXEL } from "./units";
 
 /** The attribute names the expressions read. Kept beside the expressions so
  * a field rename breaks here rather than silently drawing nothing. */
@@ -32,7 +33,9 @@ function colorLiteral(hex: string, alpha = 255): string {
 }
 
 /**
- * The ring diameter, in the same square-root domain `ringSize` uses.
+ * The ring diameter, in the same square-root domain `ringSize` uses. The
+ * arithmetic stays in CSS pixels until the return value, where it is
+ * converted to the points required by a CIM `Size` property.
  *
  * `domain` is baked in as a literal because it is one number for the whole
  * drawn set -- it changes only when the set does, and the renderer is
@@ -42,9 +45,9 @@ export function ringSizeExpression(domain: number): string {
   const span = RING_MAX_PX - RING_MIN_PX;
   return [
     `var basis = $feature.${SIZE_BASIS_FIELD};`,
-    `if (IsEmpty(basis) || basis <= 0) { return ${RING_MIN_PX}; }`,
+    `if (IsEmpty(basis) || basis <= 0) { return ${RING_MIN_PX} * ${POINTS_PER_CSS_PIXEL}; }`,
     `var share = Min(1, Sqrt(basis) / ${domain});`,
-    `return ${RING_MIN_PX} + share * ${span};`
+    `return (${RING_MIN_PX} + share * ${span}) * ${POINTS_PER_CSS_PIXEL};`
   ].join("\n");
 }
 
@@ -64,7 +67,7 @@ export function fillSizeExpression(domain: number): string {
     `if (!IsEmpty(basis) && basis > 0) {`,
     `  ring = ${RING_MIN_PX} + Min(1, Sqrt(basis) / ${domain}) * ${span};`,
     "}",
-    "return ring * Sqrt(Min(100, Max(0, pct)) / 100);"
+    `return ring * Sqrt(Min(100, Max(0, pct)) / 100) * ${POINTS_PER_CSS_PIXEL};`
   ].join("\n");
 }
 
@@ -76,10 +79,13 @@ export function fillSizeExpression(domain: number): string {
  * hairline, and around a circle at the floor it reads as a second ring.
  */
 export function shadowSizeExpression(domain: number, spread: number): string {
-  return ringSizeExpression(domain).replace(
-    `return ${RING_MIN_PX} + share * ${RING_MAX_PX - RING_MIN_PX};`,
-    `return ${RING_MIN_PX} + share * ${RING_MAX_PX - RING_MIN_PX} + ${spread};`
-  );
+  const span = RING_MAX_PX - RING_MIN_PX;
+  return [
+    `var basis = $feature.${SIZE_BASIS_FIELD};`,
+    `if (IsEmpty(basis) || basis <= 0) { return (${RING_MIN_PX} + ${spread}) * ${POINTS_PER_CSS_PIXEL}; }`,
+    `var share = Min(1, Sqrt(basis) / ${domain});`,
+    `return (${RING_MIN_PX} + share * ${span} + ${spread}) * ${POINTS_PER_CSS_PIXEL};`
+  ].join("\n");
 }
 
 /**
