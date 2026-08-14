@@ -82,6 +82,7 @@ export interface NormalPeriod {
 }
 
 export interface ReservoirPayload {
+  schema_version?: number;
   generated_at: string;
   start_date: string;
   /** Optional while payloads generated before the disclosure remain readable. */

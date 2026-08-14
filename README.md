@@ -13,6 +13,7 @@ legacy comparisons:
 |---|---|
 | [ArcGIS dashboard](./) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
 | [ArcGIS data workspace](overview.html) | Cross-filtered KPIs, ArcGIS charts, and an accessible exact-value table. |
+| [Public data API](data.html) | Stable JSON downloads, field definitions, and code examples. |
 | [Legacy ArcGIS map](legacy/) | Retained ArcGIS 4.34 comparison. |
 | [Legacy MapLibre map](maplibre/) | Retained MapLibre GL JS and CARTO comparison. |
 | [Legacy overview](explore.html) | Retained no-SDK analysis page for experiments and historical comparison. |
@@ -84,6 +85,10 @@ node tests/smoke.mjs
 ```
 
 ## Data and methods
+
+The [public data API documentation](data.html) describes stable paths for the reservoir,
+snow and reference payloads, their complete field definitions, and browser and Python
+examples.
 
 [`reservoirs.json`](reservoirs.json) is the published data contract. The daily
 pipeline rebuilds it from observations dating to 2015 and preserves the last

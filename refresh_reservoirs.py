@@ -63,6 +63,7 @@ AWDB_MONTHLY_STALE_AFTER_DAYS = 45
 # here so a reader that finds a payload it does not understand can say so
 # instead of quietly rendering half of it.
 EXPORT_SCHEMA_VERSION = 1
+RESERVOIR_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -992,6 +993,7 @@ def main() -> int:
                                 -(r.get("capacity_af") or 0), r.get("name", "")))
 
     payload = {
+        "schema_version": RESERVOIR_SCHEMA_VERSION,
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "start_date": dt.datetime.strptime(START_DATE, "%Y%m%d").date().isoformat(),
         "normal_period": normal_period(today),

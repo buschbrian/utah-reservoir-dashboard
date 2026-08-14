@@ -22,6 +22,13 @@ import refresh_reservoirs as R  # noqa: E402
 TODAY = R.local_today()
 
 
+def test_committed_payload_uses_the_current_structure_version():
+    """The checked file and the writer must advertise the same contract."""
+    root = Path(__file__).resolve().parent.parent
+    payload = json.loads((root / "reservoirs.json").read_text())
+    assert payload["schema_version"] == R.RESERVOIR_SCHEMA_VERSION
+
+
 def synthetic_series(stale_days: int = 0, start: str = "2015-01-01",
                      seed: int = 7, with_nulls: bool = False) -> pd.DataFrame:
     """A seasonal, gently declining daily storage series through today-stale_days."""

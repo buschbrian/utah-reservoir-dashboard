@@ -47,6 +47,8 @@ root.innerHTML = `
         down below. Nothing here is modelled, predicted or smoothed.</p>
       <p class="methods-status" id="methods-status" role="status" aria-live="polite"
         aria-busy="true">Reading the published data&hellip;</p>
+      <p><a href="./data.html">Use the public data API</a> to download the published
+        reservoir, snow and reference files directly.</p>
     </header>
 
     <nav class="methods-toc" aria-label="On this page">

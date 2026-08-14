@@ -929,6 +929,54 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   await context.close();
 }
 
+/* The public data reference is a build entry, not part of the map runtime.
+ * Its readiness counts protect against a page that paints the shared shell
+ * but silently loses one file or a section of field documentation. */
+for (const viewport of VIEWPORTS) {
+  const context = await browser.newContext({ viewport });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
+  });
+  const label = `Public data reference (${viewport.name} ${viewport.width}px)`;
+  console.log(`\n=== ${label}`);
+  try {
+    await tab.goto(`${URL}data.html`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dataDocsReady !== undefined", { timeout: 60000 });
+    const state = await tab.evaluate(() => ({
+      ready: window.__dataDocsReady,
+      files: document.querySelectorAll(".api-file").length,
+      groups: document.querySelectorAll(".api-field-group").length,
+      links: [...document.querySelectorAll(".api-file a")]
+        .map((link) => link.getAttribute("href")),
+      text: document.querySelector("#access")?.textContent ?? "",
+      viewport: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth
+    }));
+    console.log("  ready:", JSON.stringify(state.ready));
+    check(state.ready?.files === 3 && state.files === 3,
+      `${label}: rendered ${state.files} file cards, readiness reported ${state.ready?.files}`);
+    check(state.ready?.groups === state.groups && state.groups >= 20,
+      `${label}: rendered ${state.groups} field groups, readiness reported ${state.ready?.groups}`);
+    check(JSON.stringify(state.links) === JSON.stringify([
+      "./api/reservoirs.json", "./api/snowpack.json", "./api/reference.json"
+    ]), `${label}: stable API links are ${JSON.stringify(state.links)}`);
+    check(state.text.includes("Access-Control-Allow-Origin: *"),
+      `${label}: cross-origin browser access is not disclosed`);
+    check(state.text.includes("10 minutes") && state.text.includes("no uptime guarantee"),
+      `${label}: cache or availability terms are missing`);
+    check(state.scroll <= state.viewport + 1,
+      `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
+    await tab.screenshot({ path: `screenshots/data-${viewport.name}.png`, fullPage: false });
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
+  await context.close();
+}
+
 /*
  * The basemap fallback, with the first choice answering 401.
  *

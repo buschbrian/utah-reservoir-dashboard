@@ -5,6 +5,7 @@ import { validateReservoirPayload } from "./validate";
 
 function validPayload(): Record<string, unknown> {
   return {
+    schema_version: 1,
     generated_at: "2026-08-09T12:00:00Z",
     start_date: "2015-01-01",
     normal_period: { start_year: 2015, end_year: 2025 },
@@ -88,6 +89,7 @@ describe("reservoir payload validation", () => {
   it("accepts a complete payload", () => {
     const payload = validateReservoirPayload(validPayload());
     expect(payload.reservoir_count).toBe(1);
+    expect(payload.schema_version).toBe(1);
     expect(payload.normal_period).toEqual({ start_year: 2015, end_year: 2025 });
     expect(payload.normal_window_days).toBe(7);
   });
@@ -108,6 +110,12 @@ describe("reservoir payload validation", () => {
     const other = validPayload();
     other.normal_window_days = 7.5;
     expect(() => validateReservoirPayload(other)).toThrow("normal window metadata");
+  });
+
+  it("rejects a non-integer structure version", () => {
+    const payload = validPayload();
+    payload.schema_version = 1.5;
+    expect(() => validateReservoirPayload(payload)).toThrow("invalid schema version");
   });
 
   it("rejects a reservoir missing a field used by statewide totals", () => {

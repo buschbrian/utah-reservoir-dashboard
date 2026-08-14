@@ -66,7 +66,7 @@ jobs:
         run: |
           missing=0
           for path in index.html modern.html legacy/index.html \
-                      overview.html methods.html \
+                      overview.html methods.html data.html \
                       explore.html maplibre/index.html \
                       shared/reservoir-viz.js reservoirs.json capacities.json \
                       snow_sites.json snowpack.json \
@@ -77,6 +77,12 @@ jobs:
                       data/reference.json data/drought/usdm-current.geojson; do
             if [ ! -s "dist/$path" ]; then
               echo "::error title=Missing from dist::$path"
+              missing=1
+            fi
+          done
+          for path in api/reservoirs.json api/snowpack.json api/reference.json; do
+            if [ ! -s "dist/$path" ]; then
+              echo "::error title=Missing API alias::$path"
               missing=1
             fi
           done
