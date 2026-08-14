@@ -1,0 +1,209 @@
+/*
+ * The overview page's view, as a link.
+ *
+ * The page had no URL state at all: every filter, every chart control and
+ * the cross-filter selection lived only in the DOM, so a reader who found
+ * something could not hand it to anybody. Six charts made that worse rather
+ * than better -- the more a view can say, the more it is worth sending.
+ *
+ * Five of the parameters are the map's own, by name and by meaning, so a
+ * link carries between the two pages: `area`, `powell`, `reservoirs`,
+ * `storage` and `reporting`. That is deliberate reuse, not coincidence --
+ * both pages are filtering the same reservoirs by the same questions, and a
+ * reader who narrows the map to one drainage area and then opens the table
+ * should find the table narrowed the same way.
+ *
+ * `reporting` is the one whose value sets differ: this page offers daily and
+ * monthly as well as late, the map offers current. Each page validates what
+ * it understands and falls back to "all" for the rest, which is what makes
+ * sharing a name safe -- a link is honoured as far as the receiving page can
+ * honour it, and never rejected.
+ *
+ * The remaining five belong to this page alone. They are written here rather
+ * than added to `SELECTION_PARAMS` in url.ts because that table is the set
+ * the map *strips and rewrites*: a chart measure listed there would be
+ * deleted from any link that passed through the map, and `searchWithState`
+ * is held byte-for-byte against the shared module besides.
+ *
+ * No browser API in the parsing half, for the same reason url.ts has none:
+ * the awkward cases are a name with a space in it and a hand-edited link,
+ * and both are only testable if the functions take a string and return one.
+ */
+
+import type { ReservoirGeography, LakePowellChoice } from "../data/rollup";
+import type { ChartMeasure, ChartRank, OverviewCadence, OverviewSort } from "../overview-model";
+
+/** Field -> query parameter. The map owns the first five names (see url.ts). */
+const OVERVIEW_PARAMS = {
+  query: "q",
+  drainageArea: "area",
+  reporting: "reporting",
+  geography: "reservoirs",
+  lakePowell: "powell",
+  storageClass: "storage",
+  sort: "sort",
+  measure: "measure",
+  limit: "top",
+  rank: "rank"
+} as const;
+
+type OverviewField = keyof typeof OVERVIEW_PARAMS;
+const OVERVIEW_FIELDS = Object.keys(OVERVIEW_PARAMS) as OverviewField[];
+
+export interface OverviewUrlState {
+  query: string;
+  /** A drainage-area code the payload carries, or "all". */
+  drainageArea: string;
+  reporting: OverviewCadence;
+  geography: ReservoirGeography;
+  lakePowell: LakePowellChoice;
+  /** An index into the storage class table, or null for every class. */
+  storageClass: number | null;
+  sort: OverviewSort;
+  measure: ChartMeasure;
+  /** How many reservoirs the ranked chart shows. Zero means all of them. */
+  limit: number;
+  rank: ChartRank;
+}
+
+export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
+  query: "",
+  drainageArea: "all",
+  reporting: "all",
+  geography: "utah",
+  lakePowell: "exclude",
+  storageClass: null,
+  sort: "capacity",
+  measure: "percent",
+  limit: 15,
+  rank: "capacity"
+};
+
+/**
+ * `URLSearchParams` is deliberately not used, matching url.ts: it writes a
+ * space as `+` where the overview page's own links write `%20`, so a round
+ * trip through it would quietly change the shape of every link the site
+ * produces. Reading accepts both.
+ */
+function decodeQueryPart(text: string): string | null {
+  try {
+    return decodeURIComponent(text.replace(/\+/g, "%20"));
+  } catch {
+    // A truncated escape throws rather than returning something wrong. A
+    // broken link reads as "no filter", it does not take the page down.
+    return null;
+  }
+}
+
+function parseQuery(search: string | null | undefined): [string, string][] {
+  const pairs: [string, string][] = [];
+  for (const chunk of String(search ?? "").replace(/^\?/, "").split("&")) {
+    if (!chunk) continue;
+    const equals = chunk.indexOf("=");
+    const key = decodeQueryPart(equals < 0 ? chunk : chunk.slice(0, equals));
+    const value = equals < 0 ? "" : decodeQueryPart(chunk.slice(equals + 1));
+    if (key === null || value === null) continue;
+    pairs.push([key, value]);
+  }
+  return pairs;
+}
+
+function oneOf<T extends string>(value: string, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(value) ? value as T : fallback;
+}
+
+/**
+ * A query string to the view it describes.
+ *
+ * Every value is validated and falls back to its default rather than
+ * throwing. A hand-edited link, or one from the map carrying a `reporting`
+ * value this page does not offer, opens the page -- it does not break it.
+ */
+export function overviewStateFromSearch(search: string | null | undefined): OverviewUrlState {
+  const state: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE };
+  for (const [key, value] of parseQuery(search)) {
+    if (key === OVERVIEW_PARAMS.query) state.query = value.trim();
+    else if (key === OVERVIEW_PARAMS.drainageArea) {
+      /* Shape only, as the map does: whether this area is in the current
+       * scope is the page's business, and it falls back to every area. */
+      state.drainageArea = /^[0-9]{1,12}$/.test(value) ? value : "all";
+    } else if (key === OVERVIEW_PARAMS.reporting) {
+      state.reporting = oneOf(value, ["all", "daily", "monthly", "late"] as const, "all");
+    } else if (key === OVERVIEW_PARAMS.geography) {
+      state.geography = oneOf(value, ["utah", "connected"] as const, "utah");
+    } else if (key === OVERVIEW_PARAMS.lakePowell) {
+      state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
+    } else if (key === OVERVIEW_PARAMS.storageClass) {
+      const index = Number.parseInt(value, 10);
+      state.storageClass = Number.isInteger(index) && index >= 0 ? index : null;
+    } else if (key === OVERVIEW_PARAMS.sort) {
+      state.sort = oneOf(value,
+        ["capacity", "name", "storage", "percent", "updated"] as const, "capacity");
+    } else if (key === OVERVIEW_PARAMS.measure) {
+      state.measure = oneOf(value, ["percent", "storage"] as const, "percent");
+    } else if (key === OVERVIEW_PARAMS.limit) {
+      const limit = Number.parseInt(value, 10);
+      /* Zero is "all of them" and is a real choice, so it is kept. A
+       * negative or unparseable value is not, and falls back. */
+      state.limit = Number.isInteger(limit) && limit >= 0 ? limit : DEFAULT_OVERVIEW_STATE.limit;
+    } else if (key === OVERVIEW_PARAMS.rank) {
+      state.rank = oneOf(value, ["capacity", "storage", "percent", "name"] as const, "capacity");
+    }
+  }
+  return state;
+}
+
+/**
+ * The view back to a query string, keeping every parameter this page does
+ * not own.
+ *
+ * Defaults are written as absence, so an untouched page has a clean address
+ * and a link says exactly what was changed to produce it. The query goes
+ * first, because it is the readable part of a shared link.
+ */
+export function searchWithOverviewState(
+  state: Partial<OverviewUrlState>,
+  currentSearch?: string | null
+): string {
+  const full: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE, ...state };
+  const parts: string[] = [];
+  const write = (field: OverviewField, value: string): void => {
+    parts.push(`${OVERVIEW_PARAMS[field]}=${encodeURIComponent(value)}`);
+  };
+
+  if (full.query.trim() !== "") write("query", full.query.trim());
+  if (full.drainageArea !== "all") write("drainageArea", full.drainageArea);
+  if (full.reporting !== "all") write("reporting", full.reporting);
+  if (full.geography !== "utah") write("geography", full.geography);
+  if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
+  if (full.storageClass !== null) write("storageClass", String(full.storageClass));
+  if (full.sort !== DEFAULT_OVERVIEW_STATE.sort) write("sort", full.sort);
+  if (full.measure !== DEFAULT_OVERVIEW_STATE.measure) write("measure", full.measure);
+  if (full.limit !== DEFAULT_OVERVIEW_STATE.limit) write("limit", String(full.limit));
+  if (full.rank !== DEFAULT_OVERVIEW_STATE.rank) write("rank", full.rank);
+
+  /* Anything this page does not own is carried through untouched -- the
+   * map's `month` and the legacy pages' `basemap` among them. Both writers
+   * on this site keep what they do not own, which is what lets a link
+   * survive being opened on one page and copied from another. */
+  for (const [key, existing] of parseQuery(currentSearch)) {
+    const owned = OVERVIEW_FIELDS.some((field) => key === OVERVIEW_PARAMS[field]);
+    if (owned) continue;
+    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(existing)}`);
+  }
+  return parts.length ? `?${parts.join("&")}` : "";
+}
+
+/**
+ * Keeps the address bar showing what the reader is looking at.
+ *
+ * `replaceState`, never `pushState`, for the reason url.ts gives: comparing
+ * five drainage areas means five clicks, and the back button should leave
+ * the page rather than walk back through all of them.
+ */
+export function writeOverviewUrl(state: Partial<OverviewUrlState>): void {
+  const search = searchWithOverviewState(state, window.location.search);
+  if (search === window.location.search) return;
+  window.history.replaceState(
+    null, "", `${window.location.pathname}${search}${window.location.hash}`);
+}

@@ -8,6 +8,11 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { loadReservoirs } from "./data/load";
 import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
+import {
+  overviewStateFromSearch,
+  writeOverviewUrl,
+  type OverviewUrlState
+} from "./state/overview-url";
 import { STORAGE_CLASSES } from "./viz/classes";
 import {
   renderArcgisBarChart,
@@ -301,6 +306,23 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     host.setAttribute("data-chosen", chosen ? chosen.label : "");
   };
 
+  /* Everything the address bar carries, read from the controls themselves
+   * rather than from a parallel copy. One function, so the writer cannot go
+   * stale as controls are added -- the map shell keeps `viewState` for the
+   * same reason. */
+  const currentUrlState = (): OverviewUrlState => ({
+    query: search.value,
+    drainageArea: watershed.value,
+    reporting: cadence.value as OverviewCadence,
+    geography: geography.value as ReservoirGeography,
+    lakePowell: lakePowell.checked ? "include" : "exclude",
+    storageClass: storageClassFilter,
+    sort: sort.value as OverviewSort,
+    measure: chartMeasure.value as ChartMeasure,
+    limit: Number(chartLimit.value),
+    rank: chartRank.value as ChartRank
+  });
+
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
@@ -396,6 +418,11 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     // would report "not busy" while its successor is still drawing.
     if (currentRevision !== revision) return;
     for (const host of chartHosts) host.setAttribute("aria-busy", "false");
+    /* The address bar last, once the view it describes is actually on
+     * screen: written earlier it would advertise a state the page was still
+     * drawing, and a reader who copied it mid-render would send a link to
+     * something they had not seen yet. */
+    writeOverviewUrl(currentUrlState());
     window.__overviewReady = {
       reservoirs: scoped.length,
       visible: visible.length,
@@ -418,10 +445,36 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     sort.value = "capacity";
     lakePowell.checked = false;
     geography.value = "utah";
+    chartLimit.value = "15";
+    chartMeasure.value = "percent";
+    chartRank.value = "capacity";
     storageClassFilter = null;
     void update();
     search.focus();
   });
+
+  /* Restore the whole view a link describes before the first draw, so the
+   * page renders once into the state it was asked for rather than drawing
+   * the default and then redrawing. Six charts make that difference
+   * visible. A drainage area the current scope does not contain falls back
+   * to every area, which is why this runs after the options are filled. */
+  const wanted = overviewStateFromSearch(window.location.search);
+  search.value = wanted.query;
+  watershed.value = watershedChoices.some((choice) => choice.code === wanted.drainageArea)
+    ? wanted.drainageArea : "all";
+  cadence.value = wanted.reporting;
+  geography.value = wanted.geography;
+  lakePowell.checked = wanted.lakePowell === "include";
+  sort.value = wanted.sort;
+  chartMeasure.value = wanted.measure;
+  chartRank.value = wanted.rank;
+  /* Only a limit the control actually offers. A link asking for the top 7
+   * would otherwise leave the select showing nothing at all. */
+  chartLimit.value = [...chartLimit.options].some((option) =>
+    Number(option.value) === wanted.limit) ? String(wanted.limit) : "15";
+  storageClassFilter = wanted.storageClass !== null
+    && wanted.storageClass < STORAGE_CLASSES.length ? wanted.storageClass : null;
+
   await update();
 }
 

@@ -780,6 +780,41 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     const filtered = await tab.locator("#reservoir-rows tr").count();
     check(filtered > 0 && filtered < expectedReservoirs,
       `${label}: drainage-area search did not filter the table`);
+
+    /* The link. This page carried no URL state at all, so no view of it
+     * could be handed to anybody -- and the more the six charts can say,
+     * the more a view is worth sending. The assertion is the whole promise:
+     * open the address the page produced, get the view back. */
+    await tab.waitForFunction(() => window.location.search.includes("q="),
+      null, { timeout: 30000 });
+    const shared = await tab.evaluate(() => window.location.href);
+    check(shared.includes("q=Jordan"),
+      `${label}: the filtered view is not in the address (${shared})`);
+
+    const recipient = await context.newPage();
+    try {
+      await recipient.goto(shared, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await recipient.waitForFunction((expected) =>
+        window.__overviewReady?.charts === expected, CHART_HOSTS.length, { timeout: 120000 });
+      const restored = await recipient.evaluate(() => ({
+        rows: document.querySelectorAll("#reservoir-rows tr").length,
+        query: document.querySelector("#reservoir-search")?.value ?? "",
+        search: window.location.search
+      }));
+      check(restored.query === "Jordan",
+        `${label}: a shared link did not restore the search (${restored.query})`);
+      check(restored.rows === filtered,
+        `${label}: a shared link restored ${restored.rows} rows, not ${filtered}`);
+      /* Restoring must not rewrite the address. A link that changes the
+         moment it is opened is a link that cannot be shared twice.
+         `URL` is a string constant at the top of this file, so the query is
+         taken off the href directly rather than parsed. */
+      const sharedQuery = shared.slice(shared.indexOf("?"));
+      check(restored.search === sharedQuery,
+        `${label}: opening a shared link rewrote ${sharedQuery} to ${restored.search}`);
+    } finally {
+      await recipient.close();
+    }
     const layout = await tab.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth,
