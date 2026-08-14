@@ -132,6 +132,7 @@ describe("the details a reader sees", () => {
       const row = describeReservoir(falling, "#000").rows
         .find((entry) => entry.label === "Change in 30 days");
       expect(row?.value.startsWith("-")).toBe(true);
+      expect(row?.value).toContain("%");
       expect(row?.negative).toBe(true);
     }
     const rising = reservoirs.find((candidate) => (candidate.change_30d_af ?? 0) > 0);
@@ -139,8 +140,19 @@ describe("the details a reader sees", () => {
       const row = describeReservoir(rising, "#000").rows
         .find((entry) => entry.label === "Change in 30 days");
       expect(row?.value.startsWith("+")).toBe(true);
+      expect(row?.value).toContain("%");
       expect(row?.negative).toBe(false);
     }
+  });
+
+  it("shows relative change for both comparison periods", () => {
+    const comparable = reservoirs.find((candidate) =>
+      candidate.change_30d_pct !== null && candidate.change_365d_pct !== null);
+    expect(comparable).toBeDefined();
+    if (!comparable) return;
+    const rows = describeReservoir(comparable, "#000").rows;
+    expect(rows.find((row) => row.label === "Change in 30 days")?.value).toContain("%");
+    expect(rows.find((row) => row.label === "Change in 1 year")?.value).toContain("%");
   });
 
   /* The chart under the circle must not answer the question the circle

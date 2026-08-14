@@ -75,6 +75,13 @@ function formatSignedAcreFeet(value: number | null): string {
   return `${rounded > 0 ? "+" : ""}${rounded.toLocaleString("en-US")} acre-feet`;
 }
 
+/** A movement in both absolute and relative terms, so small and large reservoirs compare. */
+function formatChange(amount: number | null, percent: number | null): string {
+  const acreFeet = formatSignedAcreFeet(amount);
+  if (acreFeet === "—" || percent === null || !Number.isFinite(percent)) return acreFeet;
+  return `${acreFeet} (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
+}
+
 /**
  * A reference value, and where the reservoir sits against it.
  *
@@ -159,15 +166,14 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
           reservoir.seasonal_sample_years
         )
       },
-      { label: "History rank", value: formatPercent(reservoir.seasonal_percentile) },
       {
         label: "Change in 30 days",
-        value: formatSignedAcreFeet(reservoir.change_30d_af),
+        value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct),
         negative: (reservoir.change_30d_af ?? 0) < 0
       },
       {
         label: "Change in 1 year",
-        value: formatSignedAcreFeet(reservoir.change_365d_af),
+        value: formatChange(reservoir.change_365d_af, reservoir.change_365d_pct),
         negative: (reservoir.change_365d_af ?? 0) < 0
       },
       {
@@ -177,6 +183,7 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
           : `${formatAcreFeet(reservoir.peak_this_year_af)} acre-feet${
             reservoir.peak_this_year_date ? ` (${formatDate(reservoir.peak_this_year_date)})` : ""}`
       },
+      { label: "History rank", value: formatPercent(reservoir.seasonal_percentile) },
       { label: "Reading date", value: formatDate(reservoir.as_of) },
       {
         label: "Update schedule",

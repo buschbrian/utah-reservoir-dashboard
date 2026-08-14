@@ -96,6 +96,7 @@ export function renderTrendChart(months: readonly DetailMonth[], name: string): 
     if (month.storageAf === null) return;
     const barTop = y(month.storageAf);
     const bar = element("rect", {
+      class: "trend-bar",
       x: (x(index) - barWidth / 2).toFixed(1),
       y: barTop.toFixed(1),
       width: barWidth.toFixed(1),

@@ -40,12 +40,16 @@
   // the same red, so the map couldn't distinguish "low" from "nearly
   // empty" exactly where the story is. Sequential red -> green, ordered
   // worst-first, colorblind-safe (RdYlGn, ColorBrewer).
+  /* Five equal storage bands. This is ColorBrewer's colorblind-safe,
+   * five-class RdYlBu palette, ordered low-storage red to high-storage blue.
+   * The pale centre is always drawn with an outline; no text relies on the
+   * fill alone for contrast. See ADR-028. */
   var CLASSES = [
-    { min: 0,  color: "#a50026", label: "Under 25%" },
-    { min: 25, color: "#d73027", label: "25–50%" },
-    { min: 50, color: "#fdae61", label: "50–75%" },
-    { min: 75, color: "#a6d96a", label: "75–90%" },
-    { min: 90, color: "#1a9850", label: "Over 90%" }
+    { min: 0,  color: "#d7191c", label: "Under 20%" },
+    { min: 20, color: "#fdae61", label: "20–40%" },
+    { min: 40, color: "#ffffbf", label: "40–60%" },
+    { min: 60, color: "#abd9e9", label: "60–80%" },
+    { min: 80, color: "#2c7bb6", label: "80% and over" }
   ];
 
   var STALE_COLOR = "#9e9e9e";
@@ -1178,8 +1182,7 @@
       var vsNormal = (m.normal_af && m.mean_af !== null && m.mean_af !== undefined)
         ? ((m.mean_af - m.normal_af) / m.normal_af) * 100 : null;
       var cls = vsNormal === null ? "" : (vsNormal < 0 ? " rv-neg" : " rv-pos");
-      var pct = r.record_max_af && m.mean_af !== null && m.mean_af !== undefined
-        ? (m.mean_af / r.record_max_af) * 100 : null;
+      var pct = monthPct(r, m.month);
       return "<tr><td>" + esc(fmtMonth(m.month)) + "</td>" +
         "<td class='rv-num'>" + esc(fmtAf(m.mean_af)) + "</td>" +
         "<td class='rv-num'>" + esc(fmtPct(pct)) + "</td>" +
@@ -1191,7 +1194,7 @@
     return "<details class='rv-details'><summary>Values for the last 12 months</summary>" +
       "<table class='rv-table'><thead><tr>" +
       "<th>Month</th><th class='rv-num'>Average acre-feet</th>" +
-      "<th class='rv-num'>% of highest</th><th class='rv-num'>Change from normal</th>" +
+      "<th class='rv-num'>% of full level</th><th class='rv-num'>Change from normal</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>" +
       "<p class='rv-note'>Normal is the middle value for the same month in earlier years. " +
       "The first years do not have earlier values for this comparison.</p></details>";
@@ -1264,7 +1267,9 @@
         (r.change_30d_pct === null || r.change_30d_pct === undefined ? "" :
           " <em>(" + (r.change_30d_pct > 0 ? "+" : "") + fmtPct(r.change_30d_pct) + ")</em>"),
         r.change_30d_af < 0 ? "rv-neg" : "") +
-      statRow("Change in 1 year", fmtSigned(r.change_365d_af) + " acre-feet",
+      statRow("Change in 1 year", fmtSigned(r.change_365d_af) + " acre-feet" +
+        (r.change_365d_pct === null || r.change_365d_pct === undefined ? "" :
+          " <em>(" + (r.change_365d_pct > 0 ? "+" : "") + fmtPct(r.change_365d_pct) + ")</em>"),
         r.change_365d_af < 0 ? "rv-neg" : "") +
       statRow("Highest value this year", fmtAf(r.peak_this_year_af) + " acre-feet" +
         (r.peak_this_year_date ? " <em>(" + esc(r.peak_this_year_date) + ")</em>" : "")) +
@@ -1698,10 +1703,13 @@
   // The two grays became #5f6368 (6.0:1) and the blue became #0b6198
   // (6.6:1), which is still the same blue family the SDK uses for its own
   // links. The five class colors are untouched: they are a data ramp with
-  // a unit test pinning them, and the two that fail as *text* -- #fdae61
-  // and #a6d96a -- are only ever drawn as fills behind no text at all.
+  // a unit test pinning them. Pale classes are only ever fills with a visible
+  // edge; no text uses a class colour as its background.
   var INK_MUTED = "#5f6368";
   var LINK = "#0b6198";
+  var CLASS_RAMP = "linear-gradient(90deg," + CLASSES.map(function (entry) {
+    return entry.color;
+  }).join(",") + ")";
   // One focus color for all three pages. Dark enough to read as a ring on
   // every surface here, including the amber warning panel and the color
   // classes' own fills, so a focused chart bar is visible on green as well
@@ -1745,15 +1753,15 @@
     // Chrome and Firefox and ignored by older WebKit, while a stroke is
     // drawn everywhere but sits inside the shape and can be lost against a
     // dark class color. Together one of them is always visible.
-    ".rv-bar{cursor:default;}",
+    ".rv-bar{cursor:default;stroke:" + INK_MUTED + ";stroke-width:.6;}",
     ".rv-bar:focus{outline:3px solid " + FOCUS + ";outline-offset:1px;",
       "stroke:" + FOCUS + ";stroke-width:2;}",
     ".rv-bar:focus:not(:focus-visible){outline:none;stroke:none;}",
     ".rv-bar:focus-visible{outline:3px solid " + FOCUS + ";outline-offset:1px;",
       "stroke:" + FOCUS + ";stroke-width:2;}",
     ".rv-chart-key{font-size:10.5px;color:" + INK_MUTED + ";margin:2px 0 6px;line-height:1.4;}",
-    ".rv-swatch-bar{display:inline-block;width:9px;height:9px;background:#d73027;",
-      "border-radius:1px;vertical-align:-1px;margin-right:2px;}",
+    ".rv-swatch-bar{display:inline-block;width:12px;height:9px;background:" + CLASS_RAMP + ";",
+      "border:1px solid " + INK_MUTED + ";border-radius:1px;vertical-align:-1px;margin-right:2px;}",
     ".rv-swatch-line{display:inline-block;width:14px;border-top:1.6px dashed #31527a;",
       "vertical-align:4px;margin:0 2px 0 8px;}",
     ".rv-empty{font-size:11.5px;color:" + INK_MUTED + ";margin:4px 0 8px;}",

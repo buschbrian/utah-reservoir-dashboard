@@ -6,13 +6,12 @@ export interface StorageClass {
   color: string;
 }
 
-/* Ported verbatim from `shared/reservoir-viz.js`. Five classes instead of
- * the original three: the old ramp put every reservoir under 50% into one
- * bucket, which in a drought year is most of the state -- Lake Powell at
- * 34% and Meeks Cabin at 13% rendered the same red, so the map could not
- * distinguish "low" from "nearly empty" exactly where the story is.
- * Sequential red -> green, ordered worst-first, colorblind-safe (RdYlGn,
- * ColorBrewer).
+/* Ported verbatim from `shared/reservoir-viz.js`. Five equal 20-point bands
+ * keep the legend predictable and distribute the published reservoirs more
+ * evenly than the former 25/25/25/15/10 split. ColorBrewer's colorblind-safe
+ * five-class RdYlBu palette runs from low-storage red through pale yellow to
+ * high-storage blue. The direction is deliberate: a full reservoir should
+ * not carry the warning colour.
  *
  * The values are asserted against the legacy table in classes.test.ts.
  * Both map engines, the legend, the charts and the table read their colors
@@ -21,11 +20,11 @@ export interface StorageClass {
  * palette drifted a full class lighter during the first port.
  */
 export const STORAGE_CLASSES: readonly StorageClass[] = [
-  { min: 0, label: "Under 25%", color: "#a50026" },
-  { min: 25, label: "25–50%", color: "#d73027" },
-  { min: 50, label: "50–75%", color: "#fdae61" },
-  { min: 75, label: "75–90%", color: "#a6d96a" },
-  { min: 90, label: "Over 90%", color: "#1a9850" }
+  { min: 0, label: "Under 20%", color: "#d7191c" },
+  { min: 20, label: "20–40%", color: "#fdae61" },
+  { min: 40, label: "40–60%", color: "#ffffbf" },
+  { min: 60, label: "60–80%", color: "#abd9e9" },
+  { min: 80, label: "80% and over", color: "#2c7bb6" }
 ] as const;
 
 /** Grey for a reservoir whose headline percentage cannot be computed. */

@@ -74,7 +74,9 @@ const CHART_INK = {
   measureSoft: [63, 138, 143, 150] as [number, number, number, number],
   mean: [166, 93, 67, 235] as [number, number, number, number],
   median: [92, 79, 140, 235] as [number, number, number, number],
-  guide: [128, 122, 110, 190] as [number, number, number, number]
+  guide: [128, 122, 110, 190] as [number, number, number, number],
+  /** Neutral edge that keeps the pale yellow and blue visible on white. */
+  edge: [55, 65, 70, 230] as [number, number, number, number]
 } as const;
 
 /**
@@ -131,13 +133,10 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
           type: "simple-marker",
           style: "circle",
           color: classColorRgba(record.classColor),
-          /* A visible edge, not the hairline this used to be. Colour
-           * matching paints the bar body at the SDK's own 70% series alpha
-           * whatever the renderer asks for, which over the dark page turned
-           * the 50-75% orange into a brown that matched nothing in the key
-           * beside it. The outline is the one part drawn at full strength,
-           * so every bar states its class colour exactly once (ADR-008). */
-          outline: { color: classColorRgba(record.classColor), width: 1.2 }
+          /* The SDK paints the body at 70% alpha. A neutral full-strength
+           * edge keeps the pale centre of the ramp visible on its white
+           * chart surface; the fill and direct value still state the class. */
+          outline: { color: [...CHART_INK.edge], width: 1.2 }
         }
       }))
     },
@@ -476,7 +475,7 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
           style: "circle",
           size: 9,
           color: classColorRgba(point.classColor),
-          outline: { color: [255, 255, 255, 200], width: 0.7 }
+          outline: { color: [...CHART_INK.edge], width: 0.9 }
         }
       }))
     },

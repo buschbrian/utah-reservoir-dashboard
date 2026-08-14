@@ -16,6 +16,7 @@ import {
   type OverviewUrlState
 } from "./state/overview-url";
 import { STORAGE_CLASSES } from "./viz/classes";
+import { contrastingTextColor } from "./viz/color";
 import {
   renderArcgisBarChart,
   renderArcgisDistributionChart,
@@ -322,6 +323,10 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       // and the button stays clickable.
       button.style.flexGrow = String(Math.max(entry.count, total === 0 ? 1 : 0.12));
       button.style.background = entry.color;
+      /* Counts sit on the data colour. The red and dark-blue ends need white
+       * text; the three pale middle classes need dark text. Compute it from
+       * the same fill rather than maintaining a second five-item table. */
+      button.style.color = contrastingTextColor(entry.color);
       button.setAttribute("aria-pressed", String(storageClassFilter === index));
       button.setAttribute("aria-label",
         `${entry.label}: ${entry.count} of ${total} reservoirs`);

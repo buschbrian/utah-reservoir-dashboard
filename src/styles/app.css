@@ -267,7 +267,11 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 
 .detail-copy h2 { margin: 0 0 .5rem; font-size: 1.25rem; line-height: 1.25; }
-.detail-headline { margin: 0 0 .75rem; }
+.detail-headline {
+  margin: 0 0 .75rem;
+  padding-inline-start: .65rem;
+  border-inline-start: .3rem solid var(--detail-class-color, var(--app-border));
+}
 .detail-headline strong {
   display: block;
   font-size: 2.25rem;
@@ -310,6 +314,7 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
  * invisible and near-invisible respectively on this build's dark theme. */
 .trend-grid { stroke: var(--app-border); stroke-width: 1; }
 .trend-axis { fill: var(--app-muted); font-size: 9px; }
+.trend-bar { stroke: var(--app-text); stroke-width: .65; stroke-opacity: .65; }
 .trend-normal { fill: none; stroke: var(--app-accent); stroke-width: 1.6; stroke-dasharray: 4 3; }
 .trend-key {
   display: flex;

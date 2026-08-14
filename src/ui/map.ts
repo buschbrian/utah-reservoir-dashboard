@@ -16,7 +16,7 @@ import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
-import { formatDate, formatPercent } from "../viz/format";
+import { formatAcreFeet, formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
 import { hoverPosition } from "./hover";
@@ -245,8 +245,13 @@ function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
   heading.textContent = reservoir.name;
   const summary = document.createElement("span");
   summary.textContent = `${formatPercent(headlinePercent(reservoir))} full · ` +
-    `Reading ${formatDate(reservoir.as_of)}`;
-  card.replaceChildren(heading, summary);
+    `${formatAcreFeet(reservoir.current_storage_af)} acre-feet`;
+  const context = document.createElement("span");
+  const change = reservoir.change_30d_pct === null
+    ? "" : `30 days: ${reservoir.change_30d_pct > 0 ? "+" : ""}${
+      formatPercent(reservoir.change_30d_pct)} · `;
+  context.textContent = `${change}Reading ${formatDate(reservoir.as_of)}`;
+  card.replaceChildren(heading, summary, context);
   card.hidden = false;
   const stage = card.parentElement;
   if (!stage) return;

@@ -17,3 +17,17 @@ export function hexToRgb(hex: string): [number, number, number] {
   }
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
+
+/** Black or white text, whichever has the stronger WCAG contrast with a fill. */
+export function contrastingTextColor(hex: string): "#1c1c1c" | "#ffffff" {
+  const luminance = hexToRgb(hex)
+    .map((channel) => channel / 255)
+    .map((channel) => channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, channel, index) => sum + channel * ([0.2126, 0.7152, 0.0722][index] ?? 0), 0);
+  /* 0.179 is the point where black and white have equal contrast. Choosing
+   * the stronger of the two also gives every colour in the pinned ramp at
+   * least 4.5:1 for the counts placed on the overview's class strip. */
+  return luminance > 0.179 ? "#1c1c1c" : "#ffffff";
+}

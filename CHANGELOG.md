@@ -5,6 +5,20 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Storage colours now use an accessible red-to-blue scale and regular
+  intervals.** Five equal 20-point bands replace the uneven red-to-green
+  classes. Low storage is red, high storage is blue, and the pale middle
+  colours have visible edges on map and chart marks. Overview counts choose
+  dark or light text from their background colour instead of assuming one
+  foreground works across the scale.
+- **Reservoir summaries now make changes comparable across reservoir sizes.**
+  The details panel and comparison-map popup show both acre-feet and percentage
+  change for 30 days and one year. The primary-map hover summary also includes
+  current storage and the 30-day percentage change. Monthly comparison tables
+  use the same full-level basis as their map symbols.
+
 ### Fixed
 
 - **The primary map now draws the symbol sizes its code specifies.** CIM

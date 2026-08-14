@@ -35,8 +35,8 @@ color-vision simulation, lightness-order checks and non-text contrast review.
 5. Add CSV export and URL-backed filters after the displayed values have
    browser and accessibility coverage.
 
-Steps 1–4 are implemented. Search, drainage-area, and reporting filters now
+Steps 1–5 are implemented. Search, drainage-area, and reporting filters now
 cross-filter the KPI strip, two ArcGIS bar charts, and exact-value table. The
-chart action bars expose interactive inspection and export. Step 5 remains:
-URL-backed filter state and a dashboard-level CSV export. `explore.html` and
-the legacy map pages remain unchanged.
+chart action bars expose interactive inspection and export. Filter state is
+stored in the URL, and the dashboard exports the filtered table as a CSV file.
+`explore.html` and the legacy map pages remain available for comparison.

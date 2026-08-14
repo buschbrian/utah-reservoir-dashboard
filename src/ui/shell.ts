@@ -420,9 +420,9 @@ export function setDetail(view: DetailView | null, onExport?: () => void): void 
 
     const headline = document.createElement("p");
     headline.className = "detail-headline";
+    headline.style.setProperty("--detail-class-color", view.color);
     const value = document.createElement("strong");
     value.textContent = view.percent;
-    value.style.color = view.color;
     const basis = document.createElement("span");
     basis.textContent = view.basis;
     headline.append(value, basis);

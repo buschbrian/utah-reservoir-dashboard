@@ -1,15 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { loadLegacyApi } from "../data/legacy-harness";
 import { STALE_COLOR, STORAGE_CLASSES, storageClass, storageColor } from "./classes";
+import { contrastingTextColor } from "./color";
 
 const legacy = loadLegacyApi();
 
 describe("storage classes", () => {
   it.each([
-    [0, "Under 25%"], [24.99, "Under 25%"], [25, "25–50%"],
-    [50, "50–75%"], [75, "75–90%"], [90, "Over 90%"]
+    [0, "Under 20%"], [19.99, "Under 20%"], [20, "20–40%"],
+    [40, "40–60%"], [60, "60–80%"], [80, "80% and over"],
+    [104, "80% and over"]
   ])("classifies %s at the shared boundary", (percent, label) => {
     expect(storageClass(percent)?.label).toBe(label);
+  });
+
+  it("pins the accessible palette and regular 20-point breaks", () => {
+    expect(STORAGE_CLASSES).toEqual([
+      { min: 0, label: "Under 20%", color: "#d7191c" },
+      { min: 20, label: "20–40%", color: "#fdae61" },
+      { min: 40, label: "40–60%", color: "#ffffbf" },
+      { min: 60, label: "60–80%", color: "#abd9e9" },
+      { min: 80, label: "80% and over", color: "#2c7bb6" }
+    ]);
+    expect(STORAGE_CLASSES.map((entry) => contrastingTextColor(entry.color)))
+      .toEqual(["#ffffff", "#1c1c1c", "#1c1c1c", "#1c1c1c", "#1c1c1c"]);
   });
 
   it("does not invent a class for missing data", () => {

@@ -1,9 +1,11 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status (2026-08-13):** Phases 0, 1, 1.5, 2, and 3 are complete. The inventory
+**Status (2026-08-14):** Phases 0, 1, 1.5, 2, and 3 are complete. The inventory
 portion of Phase 1.6 added Fontenelle; snowpack and drought context are not
-implemented. Phase 4 is next. The ArcGIS 5.1 application is the root
-production view, and the earlier pages remain available as comparisons.
+implemented. Phase 4 is underway: the chart workspace is live, and its class
+colours, storage bands and reservoir summaries have completed their first
+accessibility pass. The ArcGIS 5.1 application is the root production view,
+and the earlier pages remain available as comparisons.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
@@ -30,7 +32,7 @@ are not part of the frontend rewrite.
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
 | Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
 | Symbology and interaction | One feature layer, composed symbols, hover, selection, filter effects and shareable state are live and measured affordable on integrated graphics. |
-| Next application work | Phase 4 charts, once the two open questions about the map's subject are answered. |
+| Next application work | Finish Phase 4 chart integration and interaction parity in the unified shell. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
