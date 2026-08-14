@@ -541,6 +541,21 @@ for (const viewport of VIEWPORTS) {
       check(detail.includes(expected),
         `${label}: the details panel does not report ${expected}`);
     }
+    const detailExport = detailHost.locator("[data-export-reservoir]");
+    check(await detailExport.count() === 1,
+      `${label}: reservoir details have no CSV file control`);
+    check(await detailExport.evaluate((element) => {
+      const target = element.shadowRoot?.querySelector("button");
+      return Boolean(target && target.tabIndex >= 0 && !target.disabled);
+    }),
+      `${label}: reservoir CSV file control is not keyboard reachable`);
+    const [detailDownload] = await Promise.all([
+      tab.waitForEvent("download", { timeout: 5000 }),
+      detailExport.click()
+    ]);
+    const detailCsv = await readFile(await detailDownload.path(), "utf8");
+    check(detailCsv.includes(firstName) && detailCsv.includes("History month"),
+      `${label}: reservoir CSV file does not contain the selected record and history`);
     const history = await tab.evaluate((selector) => {
       const host = document.querySelector(selector);
       const chart = host?.querySelector(".trend-chart");
@@ -767,6 +782,14 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: table does not match the map scope`);
     check(!(await tab.locator("#reservoir-rows").innerText()).includes("Lake Powell"),
       `${label}: Lake Powell appears in the default overview table`);
+    const overviewExport = tab.locator("#download-overview-csv");
+    check(await overviewExport.count() === 1,
+      `${label}: filtered overview has no CSV file control`);
+    check(await overviewExport.evaluate((element) => {
+      const target = element.shadowRoot?.querySelector("button");
+      return Boolean(target && target.tabIndex >= 0 && !target.disabled);
+    }),
+      `${label}: filtered overview CSV file control is not keyboard reachable`);
     // A chart host that finished drawing must stop announcing itself busy.
     for (const host of CHART_HOSTS) {
       check(await tab.getAttribute(host, "aria-busy") === "false",
@@ -800,6 +823,16 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     const filtered = await tab.locator("#reservoir-rows tr").count();
     check(filtered > 0 && filtered < expectedReservoirs,
       `${label}: drainage-area search did not filter the table`);
+    const [overviewDownload] = await Promise.all([
+      tab.waitForEvent("download", { timeout: 5000 }),
+      overviewExport.click()
+    ]);
+    const overviewCsv = await readFile(await overviewDownload.path(), "utf8");
+    const overviewCsvRows = overviewCsv.trim().split(/\r?\n/);
+    check(overviewCsvRows.length === filtered + 1,
+      `${label}: filtered CSV file has ${overviewCsvRows.length - 1} rows, expected ${filtered}`);
+    check(overviewCsvRows[0]?.startsWith("Reservoir,Drainage area,Full (percent)"),
+      `${label}: filtered CSV file columns do not match the table`);
 
     /* The link. This page carried no URL state at all, so no view of it
      * could be handed to anybody -- and the more the six charts can say,

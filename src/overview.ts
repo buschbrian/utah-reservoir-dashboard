@@ -6,6 +6,8 @@ import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
 
 import { loadReservoirs } from "./data/load";
+import { downloadCsv } from "./data/download";
+import { overviewCsv, overviewCsvFilename } from "./data/export";
 import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import {
@@ -201,7 +203,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       </section>
     </div>
     <section class="overview-card table-card" aria-labelledby="table-heading">
-      <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label></div>
+      <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><div class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div></div>
       <div class="table-scroll"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
     </section>`;
 
@@ -254,11 +256,17 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const chartLimit = document.querySelector<HTMLSelectElement>("#chart-limit");
   const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
   const chartRank = document.querySelector<HTMLSelectElement>("#chart-rank");
+  const exportButton = document.querySelector<HTMLElement>("#download-overview-csv");
   if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
       || !capacityHost || !watershedHost || !trendHost || !normalHost
       || !distributionHost || !spreadHost
       || !chartLimit || !chartMeasure || !chartRank
-      || !lakePowell || !geography) return;
+      || !lakePowell || !geography || !exportButton) return;
+
+  let exportRows: readonly Reservoir[] = [];
+  exportButton.addEventListener("click", () => {
+    downloadCsv(overviewCsv(exportRows), overviewCsvFilename(generatedAt));
+  });
 
   /* Every chart host, so busy state and failure handling are written once.
    * Six hosts named individually in three places is five chances to add a
@@ -343,7 +351,8 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       : matching.filter((reservoir) => classIndexOf(reservoir) === storageClassFilter);
     updateKpis(visible);
     renderClassStrip(matching);
-    renderRows(tbody, filterAndSort(visible, "", sort.value as OverviewSort));
+    exportRows = filterAndSort(visible, "", sort.value as OverviewSort);
+    renderRows(tbody, exportRows);
     const chosenClass = storageClassFilter === null
       ? "" : ` · ${STORAGE_CLASSES[storageClassFilter]?.label ?? ""}`;
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +

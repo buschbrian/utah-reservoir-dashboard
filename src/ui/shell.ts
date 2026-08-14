@@ -374,7 +374,7 @@ export function markSelectedInList(name: string | null): void {
   });
 }
 
-export function setDetail(view: DetailView | null): void {
+export function setDetail(view: DetailView | null, onExport?: () => void): void {
   document.querySelectorAll<HTMLElement>("[data-detail]").forEach((host) => {
     const suffix = host.dataset.detail ?? "desktop";
     if (!view) {
@@ -423,6 +423,18 @@ export function setDetail(view: DetailView | null): void {
       late.className = "detail-late";
       late.textContent = view.late;
       children.splice(2, 0, late);
+    }
+
+    if (onExport) {
+      const exportButton = document.createElement("calcite-button");
+      exportButton.className = "detail-export";
+      exportButton.dataset.exportReservoir = view.name;
+      exportButton.setAttribute("appearance", "outline");
+      exportButton.setAttribute("icon-start", "export");
+      exportButton.setAttribute("width", "full");
+      exportButton.textContent = "Download this reservoir (CSV file)";
+      exportButton.addEventListener("click", onExport);
+      children.push(exportButton);
     }
 
     /* The history the legacy popup carried and this panel did not. Both
