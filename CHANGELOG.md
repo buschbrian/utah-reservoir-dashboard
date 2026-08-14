@@ -76,6 +76,11 @@ and is not listed here.
 
 ### Added
 
+- **The primary map and data workspace can export CSV files.** The workspace export follows
+  the current filters and table order. Reservoir details export the current record and its
+  12-month history. Both exports keep raw numbers and include provider, identifier,
+  observation date, full-level source and drainage area.
+
 - **All 217 snow monitoring sites in the published drainage areas are now
   verified and refreshed independently.** The inventory uses full-resolution
   federal watershed geometry for sites near a divide, records the official

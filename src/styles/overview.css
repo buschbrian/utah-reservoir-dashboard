@@ -250,6 +250,7 @@ body {
 }
 .chart-empty { display: grid; place-items: center; height: 100%; margin: 0; color: var(--app-muted); }
 .table-card { margin-block-start: .75rem; }
+.table-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; justify-content: end; min-width: 0; }
 .sort-control { min-width: 10rem; }
 .table-scroll { max-height: 32rem; overflow: auto; border-block-start: 1px solid var(--app-border); }
 .overview-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
@@ -276,6 +277,8 @@ body {
   .overview-kpi { flex-basis: 9rem; }
   .overview-kpi-primary { flex-basis: 100%; }
   .card-heading { flex-wrap: wrap; }
+  .table-actions { width: 100%; justify-content: stretch; }
+  .table-actions calcite-button { flex: 1 1 auto; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
 }

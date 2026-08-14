@@ -4,6 +4,8 @@ import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
+import { downloadCsv } from "./data/download";
+import { reservoirCsvFilename, reservoirHistoryCsv } from "./data/export";
 import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
 import {
   isLate,
@@ -292,9 +294,12 @@ function wireSelection(): void {
   selection.subscribe((name) => {
     const reservoir = findReservoir(inScope, name);
     markSelectedInList(reservoir?.name ?? null);
-    setDetail(reservoir
-      ? describeReservoir(reservoir, storageColor(headlinePercent(reservoir)))
-      : null);
+    setDetail(
+      reservoir ? describeReservoir(reservoir, storageColor(headlinePercent(reservoir))) : null,
+      reservoir ? () => downloadCsv(
+        reservoirHistoryCsv(reservoir), reservoirCsvFilename(reservoir.name, publishedAt)
+      ) : undefined
+    );
     if (reservoir) revealDetail();
     // The readiness signal is written once, after the first draw; the
     // selection keeps changing after that, so the field is kept current

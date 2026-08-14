@@ -11,6 +11,7 @@ const userTextFiles = [
   "modern.html",
   "shared/reservoir-viz.js",
   "src/main.ts",
+  "src/data/export.ts",
   // The shell's own visible text, and the words the details panel puts
   // around a reservoir -- the provider names in the payload are written as
   // acronyms, so this is where one is most likely to reach a reader.
