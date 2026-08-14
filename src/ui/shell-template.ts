@@ -95,6 +95,9 @@ function panelContents(suffix: string): string {
           width="full" hidden>
           Show all reservoirs
         </calcite-button>
+        <calcite-button data-share="copy" appearance="outline" width="full">
+          Copy link to this view
+        </calcite-button>
       </section>
       <!-- The twelve months already in the payload. A Calcite slider rather
            than the SDK's time slider: that component drives time-enabled

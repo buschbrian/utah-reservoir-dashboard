@@ -6,12 +6,11 @@
  * something could not hand it to anybody. Six charts made that worse rather
  * than better -- the more a view can say, the more it is worth sending.
  *
- * Five of the parameters are the map's own, by name and by meaning, so a
- * link carries between the two pages: `area`, `powell`, `reservoirs`,
- * `storage` and `reporting`. That is deliberate reuse, not coincidence --
- * both pages are filtering the same reservoirs by the same questions, and a
- * reader who narrows the map to one drainage area and then opens the table
- * should find the table narrowed the same way.
+ * Five filter concepts are shared with the map, so a link carries between
+ * the two pages. The overview retains its original `area`, `storage` and
+ * `reporting` names and also reads the map's documented `drainage`, `class`
+ * and `late` names. Both pages are filtering the same reservoirs by the same
+ * questions, and each writer canonicalises the aliases it reads.
  *
  * `reporting` is the one whose value sets differ: this page offers daily and
  * monthly as well as late, the map offers current. Each page validates what
@@ -32,6 +31,7 @@
 
 import type { ReservoirGeography, LakePowellChoice } from "../data/rollup";
 import type { ChartMeasure, ChartRank, OverviewCadence, OverviewSort } from "../overview-model";
+import { STORAGE_CLASSES } from "../viz/classes";
 
 /** Field -> query parameter. The map owns the first five names (see url.ts). */
 const OVERVIEW_PARAMS = {
@@ -47,8 +47,21 @@ const OVERVIEW_PARAMS = {
   rank: "rank"
 } as const;
 
+/* The map's documented names. The overview keeps its older names when it
+ * writes because reporting has more than the map's late/current choices,
+ * but it accepts and canonicalises every map link it can represent. */
+const MAP_FILTER_PARAMS = {
+  drainageArea: "drainage",
+  reporting: "late",
+  storageClass: "class"
+} as const;
+
 type OverviewField = keyof typeof OVERVIEW_PARAMS;
 const OVERVIEW_FIELDS = Object.keys(OVERVIEW_PARAMS) as OverviewField[];
+const OVERVIEW_OWNED_PARAMS = new Set<string>([
+  ...OVERVIEW_FIELDS.map((field) => OVERVIEW_PARAMS[field]),
+  ...Object.values(MAP_FILTER_PARAMS)
+]);
 
 export interface OverviewUrlState {
   query: string;
@@ -123,19 +136,21 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
   const state: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE };
   for (const [key, value] of parseQuery(search)) {
     if (key === OVERVIEW_PARAMS.query) state.query = value.trim();
-    else if (key === OVERVIEW_PARAMS.drainageArea) {
+    else if (key === OVERVIEW_PARAMS.drainageArea || key === MAP_FILTER_PARAMS.drainageArea) {
       /* Shape only, as the map does: whether this area is in the current
        * scope is the page's business, and it falls back to every area. */
       state.drainageArea = /^[0-9]{1,12}$/.test(value) ? value : "all";
     } else if (key === OVERVIEW_PARAMS.reporting) {
       state.reporting = oneOf(value, ["all", "daily", "monthly", "late"] as const, "all");
+    } else if (key === MAP_FILTER_PARAMS.reporting) {
+      state.reporting = value === "true" ? "late" : "all";
     } else if (key === OVERVIEW_PARAMS.geography) {
       state.geography = oneOf(value, ["utah", "connected"] as const, "utah");
     } else if (key === OVERVIEW_PARAMS.lakePowell) {
       state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
-    } else if (key === OVERVIEW_PARAMS.storageClass) {
-      const index = Number.parseInt(value, 10);
-      state.storageClass = Number.isInteger(index) && index >= 0 ? index : null;
+    } else if (key === OVERVIEW_PARAMS.storageClass || key === MAP_FILTER_PARAMS.storageClass) {
+      const index = /^\d+$/.test(value) ? Number(value) : -1;
+      state.storageClass = index >= 0 && index < STORAGE_CLASSES.length ? index : null;
     } else if (key === OVERVIEW_PARAMS.sort) {
       state.sort = oneOf(value,
         ["capacity", "name", "storage", "percent", "updated"] as const, "capacity");
@@ -187,8 +202,7 @@ export function searchWithOverviewState(
    * on this site keep what they do not own, which is what lets a link
    * survive being opened on one page and copied from another. */
   for (const [key, existing] of parseQuery(currentSearch)) {
-    const owned = OVERVIEW_FIELDS.some((field) => key === OVERVIEW_PARAMS[field]);
-    if (owned) continue;
+    if (OVERVIEW_OWNED_PARAMS.has(key)) continue;
     parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(existing)}`);
   }
   return parts.length ? `?${parts.join("&")}` : "";

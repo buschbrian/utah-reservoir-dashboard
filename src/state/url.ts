@@ -18,6 +18,7 @@
 import type { LakePowellChoice, ReservoirGeography } from "../data/rollup";
 import type { Reporting } from "./filters";
 import { normalizeSelectionValue, type SelectionStore } from "./selection";
+import { STORAGE_CLASSES } from "../viz/classes";
 
 /**
  * Field -> query parameter. The table is what the shared module's own
@@ -26,22 +27,34 @@ import { normalizeSelectionValue, type SelectionStore } from "./selection";
  *
  * `reservoir` keeps its spelling because links are interchangeable with the
  * three production pages (`url.test.ts` holds that against the shared
- * module). The others are this shell's own: the legacy pages have their own
- * filter controls and do not read these, but they *preserve* them, because
- * both writers keep parameters they do not own.
+ * module). The filter names are the public map contract. Older overview
+ * spellings remain accepted below, so a saved link does not expire.
  */
 const SELECTION_PARAMS = {
   reservoir: "reservoir",
-  storageClass: "storage",
-  reporting: "reporting",
-  drainageArea: "area",
+  storageClass: "class",
+  reporting: "late",
+  drainageArea: "drainage",
   lakePowell: "powell",
   geography: "reservoirs",
   month: "month"
 } as const;
 
+/* Links written before the public URL contract used the overview page's
+ * parameter names. Keep reading them indefinitely; the canonical writer
+ * below removes both spellings and emits only the documented one. */
+const LEGACY_FILTER_PARAMS = {
+  storageClass: "storage",
+  reporting: "reporting",
+  drainageArea: "area"
+} as const;
+
 type SelectionField = keyof typeof SELECTION_PARAMS;
 const SELECTION_FIELDS = Object.keys(SELECTION_PARAMS) as SelectionField[];
+const OWNED_PARAMS = new Set<string>([
+  ...SELECTION_FIELDS.map((field) => SELECTION_PARAMS[field]),
+  ...Object.values(LEGACY_FILTER_PARAMS)
+]);
 
 /**
  * Everything a shared link carries.
@@ -105,17 +118,25 @@ function parseQuery(search: string | null | undefined): [string, string][] {
   return pairs;
 }
 
+function lastValue(pairs: readonly [string, string][], key: string): string | undefined {
+  let found: string | undefined;
+  for (const [candidate, value] of pairs) if (candidate === key) found = value;
+  return found;
+}
+
+function classIndex(value: string | undefined): number | null {
+  if (value === undefined || !/^\d+$/.test(value)) return null;
+  const index = Number(value);
+  return index < STORAGE_CLASSES.length ? index : null;
+}
+
 /**
  * A query string to the reservoir it names. Unknown parameters are ignored
  * rather than read: `maplibre/index.html` carries its own `basemap`, and a
  * selection must not be confused by it.
  */
 export function selectionFromSearch(search: string | null | undefined): string | null {
-  let found: string | null = null;
-  for (const [key, value] of parseQuery(search)) {
-    if (key === SELECTION_PARAMS.reservoir) found = normalizeSelectionValue(value);
-  }
-  return found;
+  return normalizeSelectionValue(lastValue(parseQuery(search), SELECTION_PARAMS.reservoir));
 }
 
 /**
@@ -127,31 +148,35 @@ export function selectionFromSearch(search: string | null | undefined): string |
  */
 export function stateFromSearch(search: string | null | undefined): DashboardUrlState {
   const state: DashboardUrlState = { ...DEFAULT_URL_STATE };
-  for (const [key, value] of parseQuery(search)) {
-    if (key === SELECTION_PARAMS.reservoir) {
-      state.reservoir = normalizeSelectionValue(value);
-    } else if (key === SELECTION_PARAMS.storageClass) {
-      const index = Number.parseInt(value, 10);
-      state.storageClass = Number.isInteger(index) && index >= 0 ? index : null;
-    } else if (key === SELECTION_PARAMS.reporting) {
-      state.reporting = value === "late" || value === "current" ? value : "all";
-    } else if (key === SELECTION_PARAMS.drainageArea) {
-      /* Only the shape is checked, as with the month: whether the map
-       * currently has this area is the page's business, and it falls back
-       * to every area when the scope does not contain it. */
-      state.drainageArea = /^[0-9]{1,12}$/.test(value) ? value : null;
-    } else if (key === SELECTION_PARAMS.lakePowell) {
-      state.lakePowell = value === "include" ? "include" : "exclude";
-    } else if (key === SELECTION_PARAMS.geography) {
-      state.geography = value === "connected" ? "connected" : "utah";
-    } else if (key === SELECTION_PARAMS.month) {
-      /* Only the shape is checked here. Whether the payload actually has
-       * this month is the page's business, and it falls back to the newest
-       * reading if not -- a link to a month that has aged out of the
-       * twelve should still open. */
-      state.month = /^\d{4}-\d{2}$/.test(value) ? value : null;
-    }
-  }
+  const pairs = parseQuery(search);
+  state.reservoir = normalizeSelectionValue(lastValue(pairs, SELECTION_PARAMS.reservoir));
+
+  const canonicalClass = lastValue(pairs, SELECTION_PARAMS.storageClass);
+  state.storageClass = classIndex(canonicalClass ??
+    lastValue(pairs, LEGACY_FILTER_PARAMS.storageClass));
+
+  const canonicalLate = lastValue(pairs, SELECTION_PARAMS.reporting);
+  const oldReporting = lastValue(pairs, LEGACY_FILTER_PARAMS.reporting);
+  state.reporting = canonicalLate !== undefined
+    ? canonicalLate === "true" ? "late" : canonicalLate === "false" ? "current" : "all"
+    : oldReporting === "late" || oldReporting === "current" ? oldReporting : "all";
+
+  const drainage = lastValue(pairs, SELECTION_PARAMS.drainageArea) ??
+    lastValue(pairs, LEGACY_FILTER_PARAMS.drainageArea);
+  /* Only the shape is checked, as with the month: whether the map currently
+   * has this area is the page's business, and it falls back to every area
+   * when the scope does not contain it. */
+  state.drainageArea = drainage !== undefined && /^[0-9]{1,12}$/.test(drainage)
+    ? drainage : null;
+
+  state.lakePowell = lastValue(pairs, SELECTION_PARAMS.lakePowell) === "include"
+    ? "include" : "exclude";
+  state.geography = lastValue(pairs, SELECTION_PARAMS.geography) === "connected"
+    ? "connected" : "utah";
+  const month = lastValue(pairs, SELECTION_PARAMS.month);
+  /* Whether the payload actually has this month is the page's business. A
+   * link to a month that has aged out opens on the newest reading. */
+  state.month = month !== undefined && /^\d{4}-\d{2}$/.test(month) ? month : null;
   return state;
 }
 
@@ -174,13 +199,14 @@ export function searchWithState(
   if (reservoir !== null) {
     parts.push(`${SELECTION_PARAMS.reservoir}=${encodeURIComponent(reservoir)}`);
   }
-  if (full.storageClass !== null) {
-    parts.push(`${SELECTION_PARAMS.storageClass}=${full.storageClass}`);
+  const storageClass = full.storageClass === null ? null : classIndex(String(full.storageClass));
+  if (storageClass !== null) {
+    parts.push(`${SELECTION_PARAMS.storageClass}=${storageClass}`);
   }
   if (full.reporting !== "all") {
-    parts.push(`${SELECTION_PARAMS.reporting}=${full.reporting}`);
+    parts.push(`${SELECTION_PARAMS.reporting}=${full.reporting === "late" ? "true" : "false"}`);
   }
-  if (full.drainageArea !== null) {
+  if (full.drainageArea !== null && /^[0-9]{1,12}$/.test(full.drainageArea)) {
     parts.push(`${SELECTION_PARAMS.drainageArea}=${encodeURIComponent(full.drainageArea)}`);
   }
   if (full.lakePowell !== "exclude") {
@@ -194,8 +220,7 @@ export function searchWithState(
   }
 
   for (const [key, existing] of parseQuery(currentSearch)) {
-    const owned = SELECTION_FIELDS.some((field) => key === SELECTION_PARAMS[field]);
-    if (owned) continue;
+    if (OWNED_PARAMS.has(key)) continue;
     parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(existing)}`);
   }
   return parts.length ? `?${parts.join("&")}` : "";

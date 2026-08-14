@@ -33,7 +33,8 @@ The ArcGIS dashboard provides these map controls:
   reservoirs remain visible in gray to preserve geographic context.
 - Move or play the month slider to compare the last 12 months.
 - Open the reservoir list to reach every site with a keyboard.
-- Share a selection with `?reservoir=Deer+Creek`.
+- Copy a link to the complete view. The address can carry `?reservoir=`,
+  `?drainage=`, `?class=`, `?late=`, and `?month=` together.
 
 The ArcGIS data workspace answers comparison questions that a map cannot. Its
 search, drainage-area, and reporting filters update the KPI strip, both ArcGIS

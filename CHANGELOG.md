@@ -86,6 +86,12 @@ and is not listed here.
   page lists every field, refresh and failure behavior, browser access, code examples and
   plain terms of use.
 
+- **A shared map link now has a visible copy control and public filter names.** The
+  map writes drainage area, storage class, late-data choice and month as
+  `?drainage=`, `?class=`, `?late=` and `?month=`. Older links using `?area=`,
+  `?storage=` and `?reporting=` still open correctly. The copy button confirms
+  success without adding another repeating announcement.
+
 - **All 217 snow monitoring sites in the published drainage areas are now
   verified and refreshed independently.** The inventory uses full-resolution
   federal watershed geometry for sites near a divide, records the official

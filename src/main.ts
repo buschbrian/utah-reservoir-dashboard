@@ -53,6 +53,7 @@ import {
   setScopeControl,
   setScopeValue,
   setSummary,
+  wireCopyViewLinks,
   wirePanels
 } from "./ui/shell";
 import { renderShell } from "./ui/shell-template";
@@ -318,6 +319,7 @@ if (!supportsDashboard(browserCapabilities())) {
   });
   renderShell(root);
   wirePanels();
+  wireCopyViewLinks();
   wireTheme();
   /* Before the data, not after it: the key describes the symbol table, which
    * is fixed, so it has no reason to wait on a fetch that may fail. A reader
