@@ -383,6 +383,42 @@ def test_one_export_contains_capacity_and_every_visualization_geography():
     assert watersheds["scopes"]["upper-colorado"]["unit_count"] == 10
 
 
+def test_the_committed_reference_export_matches_the_files_it_is_built_from():
+    """The published copy is derived data, and derived data drifts.
+
+    reference.json is committed so the deploy needs no Python step, which
+    means a change to capacities.json or a boundary file leaves a published
+    file describing the previous version of the geography until someone
+    remembers to re-run the generator. This is the reminder: it fails until
+    the export is rebuilt in the same commit.
+    """
+    from tools.build_reference_export import render
+
+    committed = R.EXPORT_PATH.read_text(encoding="utf-8")
+    assert committed == render(R.build_export_sections()), (
+        "reference.json no longer matches its sources; "
+        "re-run python tools/build_reference_export.py")
+
+
+def test_the_export_publishes_the_committed_boundaries_unchanged():
+    """One geography, not a second copy of it that can disagree.
+
+    Two files drawing the same outlines is how the maps come to disagree
+    about where a drainage area is. The export is a repackaging of the
+    committed boundaries and must stay byte-for-byte the same geometry.
+    """
+    geography = R.build_export_sections()["geography"]
+    root = Path(__file__).resolve().parent.parent
+
+    assert geography["state"] == json.loads(
+        (root / "utah-boundary.geojson").read_text())
+    scopes = geography["watersheds"]["scopes"]
+    assert scopes["utah-connected"]["boundaries"] == json.loads(
+        (root / "huc6.geojson").read_text())
+    assert scopes["upper-colorado"]["boundaries"] == json.loads(
+        (root / "data/watersheds/upper-colorado-huc6.geojson").read_text())
+
+
 # --- watershed enrichment -------------------------------------------------
 
 def test_every_record_gets_a_watershed_and_the_summary_agrees():

@@ -20,11 +20,14 @@ supersedes the old one — the history is the point.
 | [ADR-009](ADR-009-geography-is-drainage-areas-that-touch-utah.md) | The dashboard's geography is drainage areas that intersect Utah | Superseded by ADR-010 |
 | [ADR-010](ADR-010-colorado-and-great-basin-systems-only.md) | Narrow the geography to the Colorado and Great Basin systems | Accepted |
 | [ADR-011](ADR-011-separate-location-scope-from-lake-powell.md) | Separate reservoir location from Lake Powell inclusion | Superseded by ADR-013 |
-| [ADR-012](ADR-012-build-phase-2-beside-production.md) | Build the Phase 2 shell beside the production pages | Accepted |
+| [ADR-012](ADR-012-build-phase-2-beside-production.md) | Build the Phase 2 shell beside the production pages | Superseded by ADR-019 |
 | [ADR-013](ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md) | Count reservoirs whose waterbody intersects Utah | Accepted |
 | [ADR-014](ADR-014-use-the-ugrc-utah-state-boundary.md) | Use the maintained UGRC Utah state boundary | Accepted |
 | [ADR-015](ADR-015-confirm-a-dam-by-position-before-name.md) | Confirm a reservoir's dam by position before name | Accepted |
-| [ADR-016](ADR-016-arcgis-is-the-primary-application.md) | Make ArcGIS the primary application and keep legacy pages for comparison | Accepted |
+| [ADR-016](ADR-016-arcgis-is-the-primary-application.md) | Make ArcGIS the primary application and keep legacy pages for comparison | Superseded by ADR-019 |
+| [ADR-017](ADR-017-map-geography-comes-from-the-drainage-areas.md) | The map's geography is derived from the drainage areas | Accepted |
+| [ADR-018](ADR-018-reference-data-ships-as-one-versioned-export.md) | Capacity and geography ship as one versioned reference export | Accepted |
+| [ADR-019](ADR-019-cut-over-the-root-and-chain-refresh-deploys.md) | Put ArcGIS 5.1 at the root and deploy successful refreshes | Accepted |
 
 ## Relationship to the modernization plan
 

@@ -15,13 +15,16 @@ name: Deploy to Pages
 # rather than against literals from one day's payload. A data refresh cannot
 # turn this workflow red on its own.
 #
-# NOTE: inert until the repository's Pages source is switched to "GitHub
-# Actions" (Settings -> Pages -> Build and deployment -> Source). Until
-# then Pages keeps serving whatever it serves today and this workflow's
-# deploy job fails without changing the live site.
-
 on:
   push:
+    branches: ["main"]
+  # The refresh workflow pushes with GITHUB_TOKEN. GitHub deliberately does
+  # not create a second workflow run from that push, so a push-only Pages
+  # trigger leaves the published data behind. Chain from the successful
+  # refresh run as the explicit, non-recursive handoff.
+  workflow_run:
+    workflows: ["Refresh reservoir data"]
+    types: [completed]
     branches: ["main"]
   workflow_dispatch: {}
 
@@ -40,6 +43,9 @@ concurrency:
 jobs:
   build:
     name: Build the published site
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -52,18 +58,20 @@ jobs:
       - name: Build
         run: npm run build
 
-      # The legacy pages are the production contract: their URLs are what
-      # people have bookmarked, and they stay live until the unified
-      # dashboard replaces them. Asserted here rather than trusted, because
-      # the copy happens in a closeBundle hook that no other job exercises.
+      # The ArcGIS 5.1 application is the root production page. The previous
+      # ArcGIS implementation and the other comparison pages keep explicit
+      # URLs. Asserted here rather than trusted, because those copies happen
+      # in a closeBundle hook that no other job exercises.
       - name: Verify the published output still serves every current URL
         run: |
           missing=0
-          for path in index.html explore.html maplibre/index.html \
+          for path in index.html modern.html legacy/index.html \
+                      explore.html maplibre/index.html \
                       shared/reservoir-viz.js reservoirs.json capacities.json \
-                      huc6.geojson utah-boundary.geojson data/reservoirs.json \
-                      data/capacities.json data/huc6.geojson \
-                      data/utah-boundary.geojson modern.html; do
+                      huc6.geojson utah-boundary.geojson reference.json \
+                      data/reservoirs.json data/capacities.json \
+                      data/huc6.geojson data/utah-boundary.geojson \
+                      data/reference.json; do
             if [ ! -s "dist/$path" ]; then
               echo "::error title=Missing from dist::$path"
               missing=1

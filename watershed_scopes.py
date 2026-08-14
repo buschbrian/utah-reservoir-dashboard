@@ -42,6 +42,13 @@ SCOPES = {
 }
 
 
+# The scope whose boundaries the published dashboard draws. Named here rather
+# than repeated at each call site: which geography is the accepted one is a
+# product decision (ADR-009), and a second copy of that decision is a second
+# thing to forget when it changes.
+DEFAULT_SCOPE = "utah-connected"
+
+
 def get_scope(name: str) -> WatershedScope:
     try:
         return SCOPES[name]

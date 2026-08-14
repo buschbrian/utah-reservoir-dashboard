@@ -4,14 +4,17 @@ import {
   DRAINAGE_LINE,
   MASK_FILL,
   MASK_LINE,
+  REFERENCE_SCHEMA_VERSION,
   parseDrainageAreas,
   parseUtahBoundary,
+  referenceGeography,
   utahMaskRings
 } from "./boundaries";
 import { loadLegacyApi } from "./legacy-harness";
 import {
   readDrainageGeoJson,
   readPayload,
+  readReferenceExport,
   readUtahBoundaryGeoJson
 } from "./payload-fixture";
 
@@ -106,5 +109,56 @@ describe("drainage-area boundaries", () => {
     });
     expect(parsed[0]?.polygons).toHaveLength(2);
     expect(parsed[0]?.name).toBe("Split area");
+  });
+});
+
+describe("the reference export", () => {
+  const sections = referenceGeography(readReferenceExport());
+
+  it("hands the parsers the same geometry the standalone files hold", () => {
+    /* The export is a repackaging, not a second copy with a life of its
+     * own. If these ever differ, two pages drawing from two files disagree
+     * about where a drainage area is -- and the maps exist to be compared
+     * (ADR-007), so a difference would read as an engine difference. */
+    expect(sections?.state).toEqual(readUtahBoundaryGeoJson());
+    expect(sections?.drainage).toEqual(readDrainageGeoJson());
+  });
+
+  it("draws the scope the export names, not one written down here", () => {
+    const published = parseDrainageAreas(sections?.drainage);
+    const assigned = new Set(readPayload().reservoirs
+      .map((reservoir) => reservoir.huc6)
+      .filter((huc6): huc6 is string => typeof huc6 === "string"));
+    const drawn = new Set(published.map((area) => area.huc6));
+    expect([...assigned].filter((huc6) => !drawn.has(huc6))).toEqual([]);
+    // The research scopes travel in the same file and must stay undrawn.
+    expect(published).toHaveLength((readDrainageGeoJson() as { features: unknown[] })
+      .features.length);
+  });
+
+  it("reads a payload from a later shape as no boundaries at all", () => {
+    /* Not a best effort at parsing it: a later shape may put the outlines
+     * somewhere else, and half-understanding one is how a map draws the
+     * wrong geography while looking like it worked. */
+    const later = { ...(readReferenceExport() as object), schema_version: 99 };
+    expect(referenceGeography(later)).toBeNull();
+    expect(REFERENCE_SCHEMA_VERSION).toBe(1);
+  });
+
+  it.each([
+    ["a null payload", null],
+    ["an error document", { error: { code: 500 } }],
+    ["no version at all", { geography: { state: {}, watersheds: {} } }],
+    ["no geography", { schema_version: 1 }],
+    ["a scope name nothing matches", {
+      schema_version: 1,
+      geography: { state: {}, watersheds: { default_scope: "gone", scopes: {} } }
+    }]
+  ])("survives %s without throwing", (_label, value) => {
+    const parsed = referenceGeography(value);
+    // Either no sections at all, or sections whose halves parse as empty --
+    // both are the soft failure the callers already handle.
+    expect(parseDrainageAreas(parsed?.drainage)).toEqual([]);
+    expect(parseUtahBoundary(parsed?.state)).toBeNull();
   });
 });

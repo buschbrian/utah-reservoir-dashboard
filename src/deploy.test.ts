@@ -18,7 +18,8 @@ const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
 const RUNTIME_DATA = [
-  "reservoirs.json", "capacities.json", "huc6.geojson", "utah-boundary.geojson"
+  "reservoirs.json", "reference.json", "capacities.json",
+  "huc6.geojson", "utah-boundary.geojson"
 ];
 
 describe("a data-only commit deploys on its own", () => {
@@ -40,6 +41,16 @@ describe("a data-only commit deploys on its own", () => {
     expect(trigger).not.toMatch(/^\s*paths(-ignore)?:/m);
   });
 
+  it("deploys after the refresh workflow that writes with GITHUB_TOKEN", async () => {
+    /* GitHub suppresses push-triggered workflow runs for commits made with
+     * GITHUB_TOKEN. The explicit workflow_run handoff is what makes the
+     * refresh commit a deploy instead of a main-branch-only update. */
+    const workflow = await read(".github/workflows/deploy-pages.yml");
+    expect(workflow).toContain("workflow_run:");
+    expect(workflow).toContain('workflows: ["Refresh reservoir data"]');
+    expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
+  });
+
   it("commits the payload that the deploy publishes", async () => {
     const refresh = await read(".github/workflows/refresh-data.yml");
     expect(refresh).toContain("git add reservoirs.json");
@@ -58,7 +69,8 @@ describe("a data-only commit deploys on its own", () => {
     // The application graph, entries included. A test fixture may read the
     // payload from disk; nothing that ships may import it.
     const sources = await Promise.all(
-      ["src/main.ts", "src/data/load.ts", "src/data/boundaries.ts", "modern.html"]
+      ["src/main.ts", "src/data/load.ts", "src/data/boundaries.ts", "index.html",
+        "modern.html"]
         .map(async (file) => ({ file, text: await read(file) })));
 
     /* An import of the file, not a mention of its name: `load.ts` names
@@ -80,7 +92,7 @@ describe("a data-only commit deploys on its own", () => {
     expect(load).toContain("fetchWithin(");
     expect(load).toContain("./data/reservoirs.json");
     expect(boundaries).toContain("fetchWithin(");
-    expect(boundaries).toContain("./data/huc6.geojson");
+    expect(boundaries).toContain("./data/reference.json");
     // The helper is still a fetch, which is the ADR-002 claim: the payload
     // arrives at runtime and is never part of the module graph.
     expect(await read("src/data/fetch.ts")).toContain("fetch(");
@@ -96,12 +108,26 @@ describe("a data-only commit deploys on its own", () => {
 
   it("still checks the published output for every current URL, the shell included", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
-    for (const path of ["index.html", "explore.html", "maplibre/index.html", "modern.html",
-      "data/reservoirs.json", "data/huc6.geojson", "data/utah-boundary.geojson"]) {
+    for (const path of ["index.html", "modern.html", "legacy/index.html", "explore.html",
+      "maplibre/index.html", "data/reservoirs.json", "data/reference.json",
+      "data/huc6.geojson", "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }
     // The rule that makes a data-only deploy meaningful, checked in CI as
     // well as here: the payload must not appear inside the built assets.
     expect(workflow).toContain("dist/assets");
+  });
+
+  it("publishes ArcGIS 5.1 at the root and preserves the old ArcGIS page", async () => {
+    const rootEntry = await read("index.html");
+    const modernEntry = await read("modern.html");
+    const legacyEntry = await read("legacy/index.html");
+    const config = await read("vite.config.ts");
+
+    expect(rootEntry).toContain('src="/src/main.ts"');
+    expect(modernEntry).toContain('src="/src/main.ts"');
+    expect(legacyEntry).toContain("https://js.arcgis.com/4.34/");
+    expect(config).toContain('index: resolve(root, "index.html")');
+    expect(config).toContain('resolve(root, "legacy", "index.html")');
   });
 });

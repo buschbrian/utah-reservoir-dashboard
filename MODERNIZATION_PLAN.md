@@ -1,9 +1,9 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status (2026-08-10):** Phases 0, 1, and 1.5 are complete. The inventory
+**Status (2026-08-13):** Phases 0, 1, 1.5, and 2 are complete. The inventory
 portion of Phase 1.6 added Fontenelle; snowpack and drought context are not
-implemented. Phase 2, the unified dashboard shell, is the next application
-milestone. The three production views remain live.
+implemented. Phase 3 is underway. The ArcGIS 5.1 application is the root
+production view, and the earlier pages remain available as comparisons.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
@@ -18,18 +18,18 @@ are not part of the frontend rewrite.
 |---|---|
 | Build step | **Yes.** Vite + npm + TypeScript. The zero-build constraint is retired. |
 | Visual scope | Polished 2D + micro-interactions, plus a real charting upgrade. 3D scenes and deck.gl are **out of scope** for this pass (parked in [Deferred](#deferred)). |
-| First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. The three existing views remain live until it lands. |
+| First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. It now runs at the root; the existing views remain as explicit comparisons. |
 | User text | **Use ASD-STE100 Simplified Technical English.** Use short sentences. Use one term for one item. Replace specialist terms when possible. Define each required water or file term. |
 
 ### Current snapshot
 
 | Area | State |
 |---|---|
-| Production views | ArcGIS map, MapLibre parity map, and no-map-SDK overview remain stable at their existing URLs. |
-| Build and deploy | Vite, strict TypeScript, Vitest, runtime-data copying, GitHub Pages deployment, and the SDK bundle budget are live. |
+| Production views | The ArcGIS 5.1 application runs at the root. ArcGIS 4.34, MapLibre, and the earlier overview remain at comparison URLs. |
+| Build and deploy | Vite, strict TypeScript, Vitest, runtime-data copying, GitHub Pages deployment after direct pushes and successful refreshes, and the SDK bundle budget are live. |
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
 | Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
-| Next application work | Phase 2: the ArcGIS 5.1 and Calcite 5 unified shell. |
+| Next application work | Phase 3 interaction and analysis increments. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
@@ -744,16 +744,18 @@ Relevant to us specifically from the 5.x line:
 
 ```
 utah-reservoir-dashboard/
-├── index.html                     # current ArcGIS 4.34 production URL
+├── index.html                     # primary ArcGIS 5.1 production URL
+├── legacy/index.html              # retained ArcGIS 4.34 comparison
 ├── explore.html                   # current overview and Vite entry
 ├── maplibre/index.html            # current parity URL; rebuilt in Phase 6
-├── modern.html                    # unified dashboard entry during development
+├── modern.html                    # stable alias for the primary application
 ├── shared/reservoir-viz.js        # shared current-page behavior until consolidation
 ├── refresh_reservoirs.py          # daily storage artifact and enrichment pipeline
 ├── huc.py                         # drainage-area assignment and rollups
 ├── reservoirs.json                # daily runtime artifact
 ├── capacities.json                # committed capacity table
 ├── huc6.geojson                   # committed generalized boundaries
+├── reference.json                 # versioned capacity and geography export
 ├── package.json                   # Vite + TypeScript + SDK dependencies
 ├── vite.config.ts
 ├── tsconfig.json
@@ -818,8 +820,8 @@ and a build failure silently freezes the dashboard.
 - The typed app fetches `./data/reservoirs.json` with `cache: "no-store"`.
 - The Pages build copies `reservoirs.json`, `capacities.json`, and
   `huc6.geojson` into both `dist/` and `dist/data/`; it never imports them.
-- The deploy workflow runs on every push to `main`, including a data-only
-  refresh commit, and verifies that the payload did not enter `dist/assets`.
+- The deploy workflow runs on direct pushes to `main` and after a successful
+  refresh workflow, and verifies that the payload did not enter `dist/assets`.
 - Root file paths remain available for the production pages while the typed
   application uses the `data/` copies.
 

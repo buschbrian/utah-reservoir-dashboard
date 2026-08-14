@@ -1,5 +1,5 @@
 /*
- * Browser smoke test for all three dashboard pages.
+ * Browser smoke test for the three retained comparison pages.
  *
  * This exists because the dashboards' most damaging failure mode is silent:
  * a page that loads, paints a basemap, and renders no reservoirs at all.
@@ -21,8 +21,10 @@
  * panels and controls that previously covered most of a mobile viewport.
  *
  * This serves the production build, not source files: the overview now uses
- * Observable Plot from the Vite bundle. The two map pages still pull their
- * SDK from a CDN, while the overview remains independent of either map SDK.
+ * Observable Plot from the Vite bundle. The two comparison maps still pull
+ * their SDK from a CDN, while the overview remains independent of either map
+ * SDK. The root ArcGIS 5.1 application has its own contract in
+ * smoke-modern.mjs.
  */
 
 import { chromium } from "playwright";
@@ -59,7 +61,7 @@ function check(condition, message) {
 }
 
 const PAGES = [
-  { name: "ArcGIS Maps SDK", url: `http://127.0.0.1:${PORT}/index.html`, engine: "arcgis", map: true },
+  { name: "Legacy ArcGIS Maps SDK", url: `http://127.0.0.1:${PORT}/legacy/index.html`, engine: "arcgis", map: true },
   { name: "MapLibre GL JS", url: `http://127.0.0.1:${PORT}/maplibre/index.html`, engine: "maplibre", map: true },
   { name: "Statewide overview", url: `http://127.0.0.1:${PORT}/explore.html`, engine: "explore", map: false }
 ];
