@@ -54,7 +54,7 @@ function panelContents(suffix: string): string {
         <calcite-label>
           Reporting
           <calcite-select data-filter="reporting"
-            label="Filter reservoirs by reporting state"></calcite-select>
+            label="Filter reservoirs by reporting status"></calcite-select>
         </calcite-label>
         <!-- Scope, not a filter, and separated from the two above because of
              that: the filters grey reservoirs the map still draws, while these

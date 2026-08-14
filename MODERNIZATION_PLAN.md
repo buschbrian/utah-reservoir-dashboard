@@ -1117,24 +1117,19 @@ with per-month tooltips.
    Lake Powell inclusion are independent dimensions.** The default is Utah
    reservoirs without Lake Powell; the connected comparison includes all
    published reservoirs (ADR-011).
-7. **The reservoirs outside the current scope.** The payload publishes more
-   reservoirs than the map draws. Whether the out-of-scope records are there
-   for context, for comparison, or for nothing decides whether they need a
-   scope control of their own beside Lake Powell's, or simply stay out.
-   Raised by Phase 3.5 and carried here because it changes what the map is
-   *of*, not how it draws. Answer it before Phase 4 builds charts on the
-   current answer.
-8. **The snow telemetry sites.** They are a different kind of thing from a
-   reservoir: a point measurement of what is going to arrive, rather than a
-   volume that is already there. Whether they belong on this map, on a layer
-   of their own, or on a separate view is a question about the dashboard's
-   subject. It gates the snowpack half of Phase 1.6 and the deferred snowpack
-   context item.
-
-   Whatever is decided for 7 and 8 has to reach all three engines and both
-   surfaces in the same pass. The scope control, the storage classes, the
-   opening extent and the analysis controls each took a follow-up pass to
-   bring back into line after one engine moved first.
+7. ~~**The reservoirs outside the current scope**~~ — **resolved 2026-08-13:
+   the reader reaches them through the existing controls, and no third
+   dimension is added (ADR-020).** Raised by Phase 3.5 on the morning of
+   2026-08-11 and answered by code that afternoon, when both of ADR-011's
+   dimensions became the reader's: `connected` plus `include` puts all 54
+   published reservoirs on screen. What the record adds is the obligation —
+   publishing a reservoir commits the interface to a way of reaching it, and a
+   test now asserts it against the committed payload.
+8. ~~**The snow telemetry sites**~~ — **resolved 2026-08-13: a view of their
+   own, not a layer on the reservoir map (ADR-021).** Snow water equivalent
+   has no capacity and no percent full, so a layer would put a second class
+   table and a second unit on a map that keeps one of each. Snowpack
+   ingestion stays Phase 1.6 data work; only its destination is settled.
 
 ## 6. Deferred
 

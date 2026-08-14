@@ -139,7 +139,17 @@ the shared module, held against it character for character, including the
 reservoirs means five clicks, and the address bar describes the current view
 rather than logging how the reader reached it.
 
-### Still to decide, before the phases that need it
+### Still to decide, before the phases that need it — both decided 2026-08-13
+
+**Answered, after the fact for the first one.** The out-of-scope reservoirs are
+reached through the two controls that already exist, and no third dimension is
+added (ADR-020) -- the question was written on the morning of 2026-08-11 and
+the code answered it that afternoon, when both scope dimensions became the
+reader's; a test now holds the property. Snow telemetry gets a view of its own
+rather than a layer on this map (ADR-021), which is what let Phase 3 close
+without a second quantity arriving to reopen the symbology.
+
+The questions as they stood:
 
 Two questions are open and are not 3.5's to answer. They change what the map
 is *of*, so they want deciding before more UI is built on top of the current

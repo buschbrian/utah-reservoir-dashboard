@@ -16,6 +16,23 @@ describe("modern overview model", () => {
     expect(overviewScope([outside, powell, included])).toEqual([included]);
   });
 
+  /* ADR-020. Publishing a reservoir the reader cannot reach by any choice of
+   * the two controls is a refresh paying every morning for a record nobody can
+   * see. This asserts reachability, not a count, so a morning that adds a
+   * reservoir cannot fail it -- only a morning that adds an unreachable one. */
+  it("leaves no published reservoir unreachable by some scope choice", () => {
+    const published = readPayload().reservoirs;
+    const reachable = new Set<string>();
+    for (const geography of ["utah", "connected"] as const) {
+      for (const lakePowell of ["include", "exclude"] as const) {
+        for (const shown of overviewScope(published, { geography, lakePowell })) {
+          reachable.add(shown.name);
+        }
+      }
+    }
+    expect(published.filter((item) => !reachable.has(item.name))).toEqual([]);
+  });
+
   it("filters by reservoir or drainage-area name", () => {
     const bear = reservoir({ name: "Bear Lake", huc6_name: "Upper Bear" });
     const deer = reservoir({ name: "Deer Creek", huc6_name: "Jordan" });

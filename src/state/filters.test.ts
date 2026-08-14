@@ -97,7 +97,7 @@ describe("the where clause", () => {
       .toBe(`fill_percent >= ${STORAGE_CLASSES[top]?.min}`);
   });
 
-  it("combines a storage class with a reporting state", () => {
+  it("combines a storage class with a reporting status", () => {
     expect(filterWhere({ storageClass: 2, reporting: "late" }))
       .toBe(`late = 1 AND fill_percent >= ${STORAGE_CLASSES[2]?.min} ` +
         `AND fill_percent < ${STORAGE_CLASSES[3]?.min}`);

@@ -113,7 +113,7 @@ export function storageLabel(index: number | null): string {
 export function reportingLabel(reporting: Reporting): string {
   if (reporting === "late") return "Late data only";
   if (reporting === "current") return "Current data only";
-  return "All reporting states";
+  return "All reporting status";
 }
 
 /**
