@@ -5,6 +5,17 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Added
+
+- **A reservoir table under the map, with its own CSV file.** The header now
+  carries a table control that opens a panel below the map listing every
+  reservoir the analysis controls match, with its storage, full level,
+  drainage area and reading date. Any column can be sorted, and the values
+  follow the month slider the way the map and the storage summary do. The
+  download button writes exactly the rows on screen, in the order they are
+  shown. A shared link carries the table's order and whether it is open, so a
+  sorted view can be sent to somebody else.
+
 ### Changed
 
 - **Storage colours now use an accessible red-to-blue scale and regular
@@ -20,6 +31,15 @@ and is not listed here.
   use the same full-level basis as their map symbols.
 
 ### Fixed
+
+- **Clicking a reservoir on the primary map now selects it straight away.**
+  The map answered a click with a reservoir that carried no name, so the click
+  cleared the details panel instead of opening it. It only affected the map as
+  first drawn: changing which reservoirs are shown built the layer again, and
+  from then on every click worked, which is why the fault looked intermittent.
+  The map now asks for every field it reads. The ring around the selected
+  reservoir also stayed above the circles only until the reservoirs were
+  redrawn, and now stays above them.
 
 - **The primary map now draws the symbol sizes its code specifies.** CIM
   marker dimensions are points, but the renderer passed CSS-pixel diameters

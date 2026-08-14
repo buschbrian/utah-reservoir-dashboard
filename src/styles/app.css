@@ -405,7 +405,14 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 
 @media (max-width: 47.99rem) {
-  calcite-shell-panel { display: none; }
+  /* The side panels become sheets here; the bottom one does not, and the
+     exception is the reason the rule exists. A 20rem panel beside a 360px
+     map leaves no map, which is what forced the sheets. A panel docked
+     across the bottom is already the full width a phone wants, so turning
+     it into a third sheet would cost a duplicate copy of its markup and
+     buy nothing -- and hiding it outright would make a shared table=open
+     link do nothing on the device most links are opened on. */
+  calcite-shell-panel:not(#table-row) { display: none; }
   /* `--calcite-sheet-height` is the one that sets the height; the max-height
    * only caps it, so on its own it left the sheet at the `height="m"` preset
    * -- 365px of a 812px phone, with the analysis controls 815px down inside
@@ -417,8 +424,28 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
     --calcite-sheet-max-height: 82vh;
   }
   /* The header clips rather than scrolls, so everything here is about
-   * keeping the four actions on its end inside the viewport. */
-  #brand { max-width: 13rem; }
+   * keeping the actions on its end inside the viewport.
+   *
+   * The cap is measured against the viewport rather than written down as a
+   * constant. A flat 13rem fitted the bar exactly until a fourth action was
+   * added, at which point the theme control sat 8px outside a 360px
+   * viewport -- not scrolled off, amputated, which nothing about the page
+   * looked wrong for. Subtracting the end controls' lane means the title
+   * gives up characters to an ellipsis instead, which is visible. */
+  #brand { max-width: min(13rem, calc(100vw - 11rem)); }
+  /* The `height="m"` preset leaves about two rows on a phone, which is a
+     table only in the sense that it has a heading.
+
+     Both properties, and that is the whole point: the preset carries a
+     max-height as well as a height (30vh for `m`), so setting the height
+     alone leaves the panel clamped exactly where it was. This is the mirror
+     of the sheet trap noted above -- there max-height alone does nothing
+     because height wins, here height alone does nothing because max-height
+     clamps. Neither one moves a Calcite panel on its own. */
+  #table-row {
+    --calcite-shell-panel-height: 45vh;
+    --calcite-shell-panel-max-height: 45vh;
+  }
   /* A list that is 18rem tall inside a sheet leaves no room for anything
    * under it. Against the viewport instead, so the panel keeps its shape on
    * a short phone in landscape as well as a tall one. */
@@ -497,3 +524,125 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 .months calcite-slider { display: block; width: 100%; min-width: 0; }
 .months calcite-button[hidden] { display: none; }
+
+/* The reservoir table, in the shell panel below the map.
+ *
+ * The columns cannot be made to fit 360px, so the table gets its own
+ * horizontal scroller rather than the page getting one -- no page here may
+ * scroll sideways at any of the three tested widths. The scroller is
+ * focusable and labelled, because a region that scrolls has to be reachable
+ * from the keyboard to be usable at all.
+ */
+#table-row { --calcite-shell-panel-min-height: 4rem; }
+.table-copy {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  min-width: 0;
+  /* The panel is the scroller for the row as a whole; this fills it so the
+     rows below the tools get the remaining height rather than a share. */
+  block-size: 100%;
+  box-sizing: border-box;
+}
+/* The caption and the export control on one line while there is room for
+   them, and stacked when there is not. `min-width: 0` on the caption because
+   it is a flex child holding an unbreakable sentence, which is the same rule
+   the panel's selects need. */
+.table-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.table-caption {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 12rem;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.table-scroll {
+  overflow: auto;
+  min-width: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+  background: var(--app-surface-raised);
+}
+.table-scroll:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+.reservoir-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .8125rem;
+}
+.reservoir-table th,
+.reservoir-table td {
+  padding: .375rem .625rem;
+  text-align: start;
+  white-space: nowrap;
+  border-block-end: 1px solid var(--app-border);
+}
+.reservoir-table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--app-surface);
+  font-weight: 700;
+}
+/* The heading is the sort control, so the button fills the cell and carries
+ * the padding -- a target the size of the word alone is a target a reader
+ * has to aim at. */
+.table-sort {
+  display: flex;
+  gap: .25rem;
+  align-items: center;
+  width: 100%;
+  padding: .375rem .625rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.table-number,
+.reservoir-table .table-number { text-align: end; font-variant-numeric: tabular-nums; }
+.table-number .table-sort { justify-content: flex-end; }
+.table-arrow { color: var(--app-accent); font-size: .625rem; }
+.table-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.table-name:hover { text-decoration: underline; }
+.reservoir-table tbody tr:hover { background: var(--app-surface); }
+.table-row-selected { background: var(--app-surface); }
+.table-row-selected th[scope="row"] { box-shadow: inset .1875rem 0 0 var(--app-accent); }
+.table-late {
+  margin-inline-start: .375rem;
+  padding: .0625rem .3125rem;
+  border-radius: .625rem;
+  background: #b45309;
+  color: #fff;
+  font-size: .6875rem;
+  font-weight: 700;
+}
+.table-reading { color: var(--app-muted); }
+.table-empty { margin: 0; padding: .75rem; color: var(--app-muted); font-size: .8125rem; }
+.table-sort:focus-visible,
+.table-name:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}

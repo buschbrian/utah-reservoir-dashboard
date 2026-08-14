@@ -314,6 +314,21 @@ export function createReservoirLayer(
     objectIdField: OBJECT_ID_FIELD,
     geometryType: "point",
     spatialReference: WGS84,
+    /* Every field, on the layer view as well as in the source.
+     *
+     * Without this the SDK materializes only the fields it can prove it
+     * needs -- the renderer's `symbol_key`, `size_basis` and `fill_percent`,
+     * plus the object id -- and `hitTest` hands back a graphic with no
+     * `name` on it, so pointer selection and the hover card both look for a
+     * reservoir that the answer does not identify. It went unnoticed because
+     * it is only true of the *first* layer view: redrawing for a scope
+     * change produced a graphic carrying all seven fields, so clicking
+     * started working the moment the reader touched the scope control and
+     * never failed again. There is no fetch here to economize on -- the
+     * source is already in memory -- so the fields the interface reads are
+     * declared rather than inferred.
+     */
+    outFields: ["*"],
     // The details panel is the page's own surface and is already wired to
     // selection. An SDK popup would open a second, unstyled description of
     // the same reservoir over the map.

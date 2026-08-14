@@ -37,6 +37,7 @@ supersedes the old one — the history is the point.
 | [ADR-026](ADR-026-quote-machine-identifiers-in-api-documentation.md) | Quote machine identifiers in API documentation | Accepted |
 | [ADR-027](ADR-027-use-css-pixels-for-map-symbols-and-opening-labels.md) | Use CSS pixels for map symbols and opening labels | Accepted |
 | [ADR-028](ADR-028-use-equal-bands-and-a-colorblind-safe-ramp.md) | Use equal storage bands and a colorblind-safe ramp | Accepted |
+| [ADR-029](ADR-029-the-table-narrows-where-the-map-dims.md) | The table narrows where the map dims | Accepted |
 
 ## Relationship to the modernization plan
 

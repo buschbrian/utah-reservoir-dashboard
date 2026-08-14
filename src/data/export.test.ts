@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { readPayload } from "./payload-fixture";
+import { ALL_RESERVOIRS } from "../state/filters";
+import { DEFAULT_SORT, tableRows } from "../state/table";
+import { headlinePercent } from "../viz/symbols";
 import {
   OVERVIEW_COLUMNS,
+  TABLE_COLUMNS,
   overviewCsv,
   overviewCsvFilename,
   reservoirCsvFilename,
   reservoirHistoryCsv,
-  serializeCsv
+  serializeCsv,
+  tableCsv
 } from "./export";
 
 describe("CSV serialization", () => {
@@ -18,6 +23,31 @@ describe("CSV serialization", () => {
     expect(header).toBe(OVERVIEW_COLUMNS.map((column) => column.header).join(","));
     expect(row).toContain(String(reservoir.current_storage_af));
     expect(row).not.toContain(reservoir.current_storage_af.toLocaleString("en-US"));
+  });
+
+  /**
+   * The promise the export button makes: the file is the rows on screen.
+   * Both are built from one `TableRow[]`, so this holds the count, the order
+   * and the reading against the array the renderer was handed rather than
+   * against a second query written to look the same.
+   */
+  it("writes the map table's rows in the order the reader put them in", () => {
+    const reservoirs = readPayload().reservoirs;
+    const rows = tableRows({
+      reservoirs, filter: ALL_RESERVOIRS, month: null, percentOf: headlinePercent,
+      sort: { key: "percent", direction: "desc" }
+    });
+    const lines = tableCsv(rows).trim().split("\r\n");
+
+    expect(lines[0]).toBe(TABLE_COLUMNS.map((column) => column.header).join(","));
+    expect(lines.slice(1)).toHaveLength(rows.length);
+    expect(lines.slice(1).map((line) => line.split(",")[0]?.replace(/^"|"$/g, "")))
+      .toEqual(rows.map((row) => row.name));
+    // Raw numbers, not the formatted ones the cells show.
+    const first = rows[0];
+    if (first?.storageAf !== null && first?.storageAf !== undefined) {
+      expect(lines[1]).toContain(String(first.storageAf));
+    }
   });
 
   it("quotes commas, quotes and newlines and leaves empty values empty", () => {

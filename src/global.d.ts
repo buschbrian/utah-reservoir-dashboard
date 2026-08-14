@@ -30,6 +30,16 @@ interface DashboardReady {
   filtered: boolean;
   /** Reservoirs the current filter includes. The rest stay on the map, greyed. */
   shown: number;
+  /** True while the selection ring is drawn over the reservoirs, on the
+   * first draw and on every redraw the scope control causes. */
+  selectionOnTop: boolean;
+  /** Rows the table under the map is holding. Not `shown`: that counts what
+   * the map effect includes, and the two surfaces answer separately. */
+  tableRows: number;
+  /** The table's order, as the column and the direction it is sorted by. */
+  tableSort: string;
+  /** True while the reader has the table open under the map. */
+  tableOpen: boolean;
   /** True when the map refuses to navigate outside the region. */
   navigationBounds: boolean;
   /** The closest the reader is allowed to zoom out. */

@@ -18,6 +18,7 @@
 import type { LakePowellChoice, ReservoirGeography } from "../data/rollup";
 import type { Reporting } from "./filters";
 import { normalizeSelectionValue, type SelectionStore } from "./selection";
+import { DEFAULT_SORT, sortFromToken, sortToken, type TableSort } from "./table";
 import { STORAGE_CLASSES } from "../viz/classes";
 
 /**
@@ -37,7 +38,13 @@ const SELECTION_PARAMS = {
   drainageArea: "drainage",
   lakePowell: "powell",
   geography: "reservoirs",
-  month: "month"
+  month: "month",
+  /* The bottom row's two facts, one parameter each. `table=open` is the row
+   * being open, `sort` is the order inside it -- a reader who sends a link
+   * to a table sorted by storage means both, and one parameter carrying two
+   * answers is how the second one goes missing. */
+  tableOpen: "table",
+  tableSort: "sort"
 } as const;
 
 /* Links written before the public URL contract used the overview page's
@@ -75,6 +82,11 @@ export interface DashboardUrlState {
   geography: ReservoirGeography;
   /** A month key the payload carries, or null for the newest reading. */
   month: string | null;
+  /** True when the reader has opened the table under the map. */
+  tableOpen: boolean;
+  /** The table's order. A separate fact from whether the table is open --
+   * a link can carry a sort the reader has to open the row to see. */
+  tableSort: TableSort;
 }
 
 export const DEFAULT_URL_STATE: DashboardUrlState = {
@@ -84,7 +96,9 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   drainageArea: null,
   lakePowell: "exclude",
   geography: "utah",
-  month: null
+  month: null,
+  tableOpen: false,
+  tableSort: DEFAULT_SORT
 };
 
 /**
@@ -177,6 +191,11 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
   /* Whether the payload actually has this month is the page's business. A
    * link to a month that has aged out opens on the newest reading. */
   state.month = month !== undefined && /^\d{4}-\d{2}$/.test(month) ? month : null;
+
+  state.tableOpen = lastValue(pairs, SELECTION_PARAMS.tableOpen) === "open";
+  /* An unrecognised sort opens the table in its default order rather than
+   * refusing the link -- the same rule every other parameter here follows. */
+  state.tableSort = sortFromToken(lastValue(pairs, SELECTION_PARAMS.tableSort) ?? null);
   return state;
 }
 
@@ -218,6 +237,9 @@ export function searchWithState(
   if (full.month !== null) {
     parts.push(`${SELECTION_PARAMS.month}=${encodeURIComponent(full.month)}`);
   }
+  if (full.tableOpen) parts.push(`${SELECTION_PARAMS.tableOpen}=open`);
+  const sort = sortToken(full.tableSort);
+  if (sort !== null) parts.push(`${SELECTION_PARAMS.tableSort}=${sort}`);
 
   for (const [key, existing] of parseQuery(currentSearch)) {
     if (OWNED_PARAMS.has(key)) continue;

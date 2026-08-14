@@ -102,6 +102,48 @@ export function wirePanels(): void {
   syncResponsiveShell();
 }
 
+/**
+ * The bottom row.
+ *
+ * A shell panel like the two beside the map, so it opens and closes through
+ * the same `collapsed` property they do rather than through a second
+ * mechanism that would have to be kept in step with them.
+ */
+export function wireTableRow(onToggle: (open: boolean) => void): void {
+  const row = (): ToggleSurface => elementById<ToggleSurface>("table-row");
+  const toggle = (open: boolean): void => {
+    setTableRowOpen(open);
+    onToggle(open);
+  };
+  elementById("table-toggle").addEventListener("click", () => {
+    toggle(!isOpen(row()));
+  });
+  elementById("table-close").addEventListener("click", () => {
+    toggle(false);
+    void elementById<CalciteFocusable>("table-toggle").setFocus();
+  });
+}
+
+export function setTableRowOpen(open: boolean): void {
+  setOpen(elementById<ToggleSurface>("table-row"), open);
+  /* The header action reports its own state. It is the only way back to a
+   * closed row, so a reader using a screen reader has to be able to tell
+   * which way pressing it goes. */
+  const toggle = elementById("table-toggle");
+  toggle.setAttribute("aria-pressed", String(open));
+  toggle.toggleAttribute("active", open);
+}
+
+export function setTableCaption(caption: string): void {
+  document.querySelectorAll<HTMLElement>('[data-table="caption"]')
+    .forEach((element) => { element.textContent = caption; });
+}
+
+export function wireTableExport(onExport: () => void): void {
+  document.querySelectorAll<HTMLElement>('[data-table="export"]')
+    .forEach((button) => { button.addEventListener("click", onExport); });
+}
+
 /** Copies the address after every control has written the current state.
  * Confirmation replaces the button's own text, so it is visible and
  * keyboard-accessible without adding another live region to the two copies

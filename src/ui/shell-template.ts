@@ -151,6 +151,8 @@ export function renderShell(root: HTMLElement): void {
           icon="sliders-horizontal" label="Show or hide the storage summary" active></calcite-action>
         <calcite-action id="detail-toggle" slot="content-end" text="Reservoir details"
           icon="information" label="Show or hide the reservoir details"></calcite-action>
+        <calcite-action id="table-toggle" slot="content-end" text="Reservoir table"
+          icon="table" label="Show or hide the reservoir table"></calcite-action>
         <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
           icon="brightness" label="Change color theme"></calcite-action>
       </calcite-navigation>
@@ -171,6 +173,44 @@ export function renderShell(root: HTMLElement): void {
         </div>
         <div id="map-hover" class="map-hover" aria-hidden="true" hidden></div>
       </section>
+
+      <!-- The numbers behind the circles, under the map rather than beside
+           it: the columns need the width, and the map keeps its height
+           whenever the row is closed. Closed is the default -- this is a map
+           first, and a reader who wants the table asks for it from the
+           header, or arrives on a link that already says table=open.
+
+           A shell panel laid out horizontally, not the shell center row the
+           Phase 2 sketch named: that component does not exist in Calcite 5.
+           The panel-bottom slot is what the shell publishes for this, and it
+           takes a shell panel like the two beside the map, which is why this
+           one collapses the same way they do rather than needing a rule of
+           its own. -->
+      <calcite-shell-panel id="table-row" slot="panel-bottom" layout="horizontal"
+        height="m" position="end" collapsed>
+        <calcite-panel heading="Reservoir table" heading-level="2">
+          <calcite-action id="table-close" slot="header-actions-end" icon="x"
+            text="Close reservoir table" label="Close reservoir table"></calcite-action>
+          <div class="table-copy">
+            <!-- Before the rows, not after them. The rows scroll inside
+                 their own box, so a control placed below them sits behind a
+                 nested scroller -- the same trap the analysis controls were
+                 moved out of above the reservoir list. -->
+            <div class="table-tools">
+              <p class="table-caption" data-table="caption" role="status" aria-live="polite"></p>
+              <calcite-button data-table="export" appearance="outline" icon-start="export"
+                scale="s">
+                Download these rows (CSV file)
+              </calcite-button>
+            </div>
+            <!-- Its own scroller. The page is tested at 360px and may not
+                 scroll sideways at any width, and six columns of numbers
+                 will not fit there however they are styled. -->
+            <div class="table-scroll" data-table="rows" tabindex="0" role="region"
+              aria-label="Reservoir table, scrolls sideways"></div>
+          </div>
+        </calcite-panel>
+      </calcite-shell-panel>
 
       <calcite-shell-panel id="detail-panel" slot="panel-end" width="m" collapsed>
         <calcite-panel heading="Reservoir details" heading-level="2">

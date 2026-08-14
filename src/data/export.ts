@@ -1,3 +1,4 @@
+import type { TableRow } from "../state/table";
 import type { MonthlyRecord, Reservoir, SourceKey } from "../types";
 
 export type CsvValue = string | number | boolean | null | undefined;
@@ -60,6 +61,30 @@ export const OVERVIEW_COLUMNS: readonly CsvColumn<Reservoir>[] = [
 
 export function overviewCsv(reservoirs: readonly Reservoir[]): string {
   return serializeCsv(reservoirs, OVERVIEW_COLUMNS);
+}
+
+/**
+ * The map's table, exported as it stands.
+ *
+ * Written from the same `TableRow[]` the renderer is handed, so the file
+ * cannot contain a different set of reservoirs, a different order or a
+ * different month from the rows the reader is looking at -- there is no
+ * second query here to get subtly wrong. `Reading` carries the date or the
+ * month the two storage columns describe, so a file exported from a past
+ * month is not mistaken for today's.
+ */
+export const TABLE_COLUMNS: readonly CsvColumn<TableRow>[] = [
+  { header: "Reservoir", value: (row) => row.name },
+  { header: "Drainage area", value: (row) => row.areaName },
+  { header: "Full (percent)", value: (row) => row.percent },
+  { header: "Storage (acre-feet)", value: (row) => row.storageAf },
+  { header: "Full level (acre-feet)", value: (row) => row.capacityAf },
+  { header: "Reading", value: (row) => row.reading },
+  { header: "Late data", value: (row) => (row.late ? "yes" : "no") }
+];
+
+export function tableCsv(rows: readonly TableRow[]): string {
+  return serializeCsv(rows, TABLE_COLUMNS);
 }
 
 interface HistoryRow {

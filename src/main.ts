@@ -5,7 +5,12 @@ import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { downloadCsv } from "./data/download";
-import { reservoirCsvFilename, reservoirHistoryCsv } from "./data/export";
+import {
+  overviewCsvFilename,
+  reservoirCsvFilename,
+  reservoirHistoryCsv,
+  tableCsv
+} from "./data/export";
 import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
 import {
   isLate,
@@ -32,6 +37,15 @@ import {
   type FilterState
 } from "./state/filters";
 import { createSelectionStore, findReservoir } from "./state/selection";
+import {
+  DEFAULT_SORT,
+  describeTable,
+  nextSort,
+  tableRows,
+  type SortKey,
+  type TableRow,
+  type TableSort
+} from "./state/table";
 import { connectSelectionToUrl, stateFromSearch, writeUrlState } from "./state/url";
 import { supportsDashboard } from "./state/shell";
 import { renderLegend } from "./ui/legend";
@@ -53,10 +67,15 @@ import {
   setScopeControl,
   setScopeValue,
   setSummary,
+  setTableCaption,
+  setTableRowOpen,
   wireCopyViewLinks,
-  wirePanels
+  wirePanels,
+  wireTableExport,
+  wireTableRow
 } from "./ui/shell";
 import { renderShell } from "./ui/shell-template";
+import { markSelectedInTable, renderTable } from "./ui/table";
 import { wireTheme } from "./ui/theme";
 import type { Reservoir } from "./types";
 import { STORAGE_CLASSES, storageColor } from "./viz/classes";
@@ -185,6 +204,15 @@ async function loadContext(map: MapController): Promise<void> {
 let filterState: FilterState = ALL_RESERVOIRS;
 let applyFilter: () => void = () => undefined;
 
+/* The bottom row. Its order and its open state are the reader's, so both
+ * reach the address bar; the rows themselves are derived and never stored
+ * as a second opinion about what the filter matched. */
+let tableSort: TableSort = { ...DEFAULT_SORT };
+let tableOpen = false;
+/** Exactly what the table is showing, and therefore exactly what the export
+ * button writes -- one array, two readers. */
+let shownRows: readonly TableRow[] = [];
+
 /* Everything the address bar carries except the selection, which the store
  * owns. One function, so the writer cannot go stale as controls are added. */
 function viewState(): {
@@ -194,6 +222,8 @@ function viewState(): {
   lakePowell: LakePowellChoice;
   geography: ReservoirGeography;
   month: string | null;
+  tableOpen: boolean;
+  tableSort: TableSort;
 } {
   return {
     storageClass: filterState.storageClass,
@@ -201,8 +231,52 @@ function viewState(): {
     drainageArea: filterState.drainageArea,
     lakePowell: scope.lakePowell,
     geography: scope.geography,
-    month: selectedMonth()
+    month: selectedMonth(),
+    tableOpen,
+    tableSort
   };
+}
+
+/**
+ * The table under the map, rebuilt from the state the map is already drawn
+ * from.
+ *
+ * Called from the filter's `apply`, which the scope and the month both run
+ * as well -- so there is one path to the table rather than three, and no
+ * combination of controls that leaves it describing a different view from
+ * the circles above it.
+ */
+function renderReservoirTable(): void {
+  const month = selectedMonth();
+  shownRows = tableRows({
+    reservoirs: inScope,
+    filter: filterState,
+    sort: tableSort,
+    month,
+    percentOf: percentShown
+  });
+  const host = document.querySelector<HTMLElement>('[data-table="rows"]');
+  if (host) {
+    renderTable(host, shownRows, tableSort, selection.get(), {
+      onSort: (key: SortKey) => {
+        tableSort = nextSort(tableSort, key);
+        renderReservoirTable();
+        writeUrlState({ ...viewState(), reservoir: selection.get() });
+        /* Focus is on the heading that was just pressed, and the rebuild
+         * replaced it. Put it back on the same column, or a reader sorting
+         * from the keyboard is returned to the top of the document. */
+        document.querySelector<HTMLElement>(`.table-sort[data-sort="${key}"]`)?.focus();
+      },
+      onSelect: (name: string) => selection.set(name, { source: "table" })
+    });
+  }
+  setTableCaption(describeTable(
+    shownRows.length, inScope.length, month, month === null ? "" : monthLabel(month)));
+  if (window.__dashboardReady) {
+    window.__dashboardReady.tableRows = shownRows.length;
+    window.__dashboardReady.tableSort = `${tableSort.key}-${tableSort.direction}`;
+    window.__dashboardReady.tableOpen = tableOpen;
+  }
 }
 
 
@@ -239,6 +313,9 @@ function wireFilters(map: MapController): void {
     filterStatus.filtered = isFiltered(filterState);
     filterStatus.shown = shown.length;
     filterStatus.drainageArea = filterState.drainageArea;
+    // The table lists what the filter matched, so it is rebuilt from the
+    // same `apply` the map effect and the panel sentence are written by.
+    renderReservoirTable();
     if (window.__dashboardReady) {
       window.__dashboardReady.filtered = filterStatus.filtered;
       window.__dashboardReady.shown = filterStatus.shown;
@@ -295,6 +372,7 @@ function wireSelection(): void {
   selection.subscribe((name) => {
     const reservoir = findReservoir(inScope, name);
     markSelectedInList(reservoir?.name ?? null);
+    markSelectedInTable(reservoir?.name ?? null);
     setDetail(
       reservoir ? describeReservoir(reservoir, storageColor(headlinePercent(reservoir))) : null,
       reservoir ? () => downloadCsv(
@@ -404,6 +482,15 @@ if (!supportsDashboard(browserCapabilities())) {
     };
 
     wireSelection();
+    wireTableRow((open) => {
+      tableOpen = open;
+      if (window.__dashboardReady) window.__dashboardReady.tableOpen = open;
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
+    });
+    /* Exactly the rows on screen, raw numbers -- the same array the renderer
+     * was handed, so the file cannot hold a different set, order or month. */
+    wireTableExport(() => downloadCsv(
+      tableCsv(shownRows), overviewCsvFilename(publishedAt)));
     wireFilters(map);
     setMonthControl(months, (index) => {
       monthIndex = Math.max(0, Math.min(months.length, index));
@@ -436,6 +523,9 @@ if (!supportsDashboard(browserCapabilities())) {
     // reading rather than on nothing.
     const askedFor = wanted.month === null ? -1 : months.indexOf(wanted.month);
     monthIndex = askedFor >= 0 ? askedFor : months.length;
+    tableSort = wanted.tableSort;
+    tableOpen = wanted.tableOpen;
+    setTableRowOpen(tableOpen);
     setScopeValue({
       geography: scope.geography,
       lakePowell: scope.lakePowell === "include"
@@ -479,6 +569,14 @@ if (!supportsDashboard(browserCapabilities())) {
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     filtered: filterStatus.filtered,
     shown: filterStatus.shown,
+    selectionOnTop: map.status.selectionOnTop,
+    /* Three facts, three fields. `tableRows` counts the rows the table is
+     * holding, which is `shown` today and would stop being `shown` the
+     * moment either surface changed what it lists -- which is the whole
+     * reason to report it separately rather than assume they agree. */
+    tableRows: shownRows.length,
+    tableSort: `${tableSort.key}-${tableSort.direction}`,
+    tableOpen,
     navigationBounds: map.status.navigationBounds,
     minZoom: map.status.minZoom,
     deepLink: deepLink?.name ?? null,

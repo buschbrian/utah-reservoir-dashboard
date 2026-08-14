@@ -52,6 +52,11 @@ export interface MapStatus {
   reservoirSymbols: number;
   /** True when the map is greying reservoirs the reader filtered out. */
   filtered: boolean;
+  /* True while the selection ring is drawn over the reservoirs rather than
+   * under them. A separate fact from `reservoirsDrawn`: the ring was added
+   * to the map once, so it sat above the opening layer and below every
+   * layer that replaced it, and nothing counted could tell. */
+  selectionOnTop: boolean;
   /** True when navigation is held inside the region (ADR-009). */
   navigationBounds: boolean;
   /** The closest the reader is allowed to zoom out. */
@@ -476,6 +481,7 @@ export async function loadMap(
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     filtered: false,
+    selectionOnTop: false,
     navigationBounds: (element.constraints as { geometry?: unknown } | undefined)
       ?.geometry !== undefined,
     minZoom: MAP_MIN_ZOOM
@@ -569,11 +575,22 @@ export async function loadMap(
       drawn = reservoirs;
       reservoirLayer = result.layer;
       map.add(result.layer);
-      // Added after the points so a selected reservoir is not covered by
-      // the reservoir drawn next to it.
-      if (!map.layers.includes(highlightLayer)) map.add(highlightLayer);
+      /* Added after the points so a selected reservoir is not covered by
+       * the reservoir drawn next to it -- and re-added on every draw, not
+       * only the first. Adding it once put it above the opening layer and
+       * below every layer that replaced it, so the invariant this line
+       * states held until the reader changed the scope and then silently
+       * stopped holding. Removing a layer that is not on the map is a
+       * no-op, and a graphics layer keeps its graphics across the move. */
+      map.remove(highlightLayer);
+      map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
       status.reservoirSymbols = result.symbols;
+      status.selectionOnTop =
+        map.layers.indexOf(highlightLayer) > map.layers.indexOf(result.layer);
+      if (window.__dashboardReady) {
+        window.__dashboardReady.selectionOnTop = status.selectionOnTop;
+      }
       if (pendingFilter !== null) applyFilter(pendingFilter);
       /* The layer view is what the hover highlight needs, and it only ever
        * arrives in a browser that is actually painting: `whenLayerView` is

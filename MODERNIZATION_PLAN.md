@@ -1,9 +1,9 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status (2026-08-14):** Phases 0, 1, 1.5, 2, and 3 are complete. The inventory
-portion of Phase 1.6 added Fontenelle; snowpack and drought context are not
-implemented. Phase 4 is underway: the chart workspace is live, and its class
-colours, storage bands and reservoir summaries have completed their first
+**Status (2026-08-14):** Phases 0, 1, 1.5, 2, 3, and 5 are complete. The
+inventory portion of Phase 1.6 added Fontenelle; snowpack and drought context
+are not implemented. Phase 4 is underway: the chart workspace is live, and its
+class colours, storage bands and reservoir summaries have completed their first
 accessibility pass. The ArcGIS 5.1 application is the root production view,
 and the earlier pages remain available as comparisons.
 
@@ -32,7 +32,8 @@ are not part of the frontend rewrite.
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
 | Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
 | Symbology and interaction | One feature layer, composed symbols, hover, selection, filter effects and shareable state are live and measured affordable on integrated graphics. |
-| Next application work | Finish Phase 4 chart integration and interaction parity in the unified shell. |
+| Bottom row | The sortable table and its CSV export are live under the map on the primary application, closing Phase 5's remainder. |
+| Next application work | Phase 4's layer-driven ranking chart, which now has a row to land in. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
@@ -980,6 +981,12 @@ calcite-shell
       tabbed: Ranking (all loaded reservoirs) | Table (sortable + CSV) | Sparklines
 ```
 
+**Correction:** there is no `calcite-shell-center-row` in Calcite 5. The bottom
+region is an ordinary `calcite-shell-panel` with `layout="horizontal"` in the
+shell's `panel-bottom` slot; the sortable table and its CSV landed there in
+Phase 5. The sketch is left as written because it is what the phase was planned
+against.
+
 - Calcite handles responsive collapse; on mobile the side panels become sheets. This closes the README's "mobile layout on the maps" item structurally rather than with media-query patches.
 - **Known ArcGIS phone-layout failure, confirmed in CI runs 27 and 28:** at a
   390-pixel screen width, the legacy title panel spans from 8 pixels inside the
@@ -1062,7 +1069,7 @@ rewrite — assert it in a test.
 `aria-label` and its table of the same numbers, and Plot marks become focusable
 with per-month tooltips.
 
-### Phase 5 — State, filters and deep links
+### Phase 5 — State, filters and deep links (complete)
 
 - One filter/selection state object; everything else derives from it — map `featureEffect`, layer `definitionExpression`, table rows, chart data, CSV export.
 - **Deep links on the map**, the README's open item: `?reservoir=Deer+Creek` selects and zooms; selecting updates the URL. Extend to filters and the active bottom tab so a filtered view is shareable.
@@ -1076,7 +1083,43 @@ address bar all derive from; `?reservoir=`, `?storage=`, `?reporting=`,
 the twelve months are a Calcite slider. The drainage-area filter joined them on
 2026-08-13 — a filter rather than a scope, so one basin is read against the
 state rather than instead of it, and the totals do not move when it changes.
-What is left here is the table, the CSV export and the bottom tab.
+
+**The bottom row landed 2026-08-14, and this phase is closed.** A sortable
+table under the map lists the reservoirs the filter matches, its values follow
+the month slider, and its download writes exactly those rows in exactly that
+order — one `TableRow[]` feeds the renderer and the CSV writer, so the promise
+is a property of the construction rather than two code paths agreeing. `?table=`
+and `?sort=` carry the row's open state and its order as separate parameters.
+
+Three things were found by building it, all worth carrying forward:
+
+- **`calcite-shell-center-row` does not exist in Calcite 5.** The Phase 2
+  layout sketch above names it, written before the packages were installed —
+  the same class of error as the `arcgis-placement` correction recorded in the
+  SDK structural decisions. The shell publishes a `panel-bottom` slot that
+  takes an ordinary `calcite-shell-panel` with `layout="horizontal"`, which is
+  better anyway: it opens and closes through the same `collapsed` property the
+  two side panels use rather than through a mechanism of its own.
+- **A Calcite panel needs its height and its max-height moved together.** The
+  `height="m"` preset carries both, so setting `--calcite-shell-panel-height`
+  alone leaves the panel clamped exactly where it was. This is the mirror of
+  the sheet trap already in CLAUDE.md, where `--calcite-sheet-max-height`
+  alone does nothing because the height preset wins. Neither property moves a
+  Calcite surface by itself.
+- **A fourth header action put the theme control 8px outside a 360px
+  viewport.** Not scrolled off — amputated, which is what that bar does. The
+  brand's cap was a flat `13rem` that happened to fit three actions; it is now
+  measured against the viewport, so the title gives up characters to an
+  ellipsis instead. The smoke test measures every control in the bar and this
+  is what it is for.
+
+[ADR-029](docs/decisions/ADR-029-the-table-narrows-where-the-map-dims.md)
+records the one real design decision: the table narrows where the map dims.
+The map greys excluded reservoirs because removing a circle removes the
+geography around it; a table has no geography to lose, and a sorted table with
+excluded rows interleaved through it defeats the sorting. The reservoir list
+keeps every reservoir in scope operable, which is where the keyboard path
+lives.
 
 ### Phase 6 — MapLibre parity page on v6
 

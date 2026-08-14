@@ -335,11 +335,18 @@ for (const viewport of VIEWPORTS) {
       return {
         drawn: window.__dashboardReady.drawn,
         geography: window.__dashboardReady.geography,
+        selectionOnTop: window.__dashboardReady.selectionOnTop,
         search: window.location.search
       };
     }, controls);
     check(wider.geography === "connected",
       `${label}: the geography control did not widen the scope`);
+    /* The selection ring is added over the reservoirs on the first draw and
+     * has to stay there through every redraw the scope control causes. It
+     * was added to the map once, so it sat above the opening layer and
+     * below each layer that replaced it, and no counted field could tell. */
+    check(wider.selectionOnTop,
+      `${label}: the selection ring fell beneath the reservoirs after a scope change`);
     check(wider.drawn > expectedReservoirs,
       `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
       `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);
@@ -351,6 +358,8 @@ for (const viewport of VIEWPORTS) {
       geography.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
       await new Promise((resolve) => { setTimeout(resolve, 900); });
     }, controls);
+    check(ready.selectionOnTop,
+      `${label}: the selection ring is beneath the reservoirs on the first draw`);
     check(ready.filtered === false,
       `${label}: the map starts filtered`);
     check(ready.shown === expectedReservoirs,
@@ -642,7 +651,7 @@ for (const viewport of VIEWPORTS) {
        * swap for the menu below 64rem, so naming a fixed set here would
        * measure a control that is display:none and pass on a zero box. */
       const ids = ["brand", "page-menu", "overview-link", "methods-link",
-        "controls-toggle", "detail-toggle", "theme-toggle"]
+        "controls-toggle", "detail-toggle", "table-toggle", "theme-toggle"]
         .filter((id) => {
           const element = document.getElementById(id);
           return element && getComputedStyle(element).display !== "none";
@@ -680,6 +689,91 @@ for (const viewport of VIEWPORTS) {
     }, controls);
     check(controlsBeforeList === true,
       `${label}: the analysis controls are not before the reservoir list`);
+    /* The table under the map.
+     *
+     * Its rows are the filter's answer rendered a third way, beside the map
+     * effect and the panel's sentence, so the assertion that matters is that
+     * all three agree -- a table quietly listing a different set from the
+     * circles above it is the failure this exists to catch. The export
+     * button writes the same array the rows were drawn from, so a count that
+     * agrees here is a file that agrees too. */
+    const table = await tab.evaluate(async () => {
+      const closedRows = document.querySelectorAll(".reservoir-table tbody tr").length;
+      const startedClosed = document.getElementById("table-row").collapsed === true;
+      document.getElementById("table-toggle").click();
+      await new Promise((resolve) => { setTimeout(resolve, 500); });
+
+      const heading = (index) =>
+        document.querySelectorAll(".reservoir-table thead th")[index];
+      const names = () => [...document.querySelectorAll(".reservoir-table tbody tr")]
+        .map((row) => row.dataset.reservoir);
+      const before = names();
+      // The second column is Full; two presses take it to descending.
+      heading(1).querySelector(".table-sort").click();
+      await new Promise((resolve) => { setTimeout(resolve, 200); });
+      heading(1).querySelector(".table-sort").click();
+      await new Promise((resolve) => { setTimeout(resolve, 200); });
+
+      const tools = document.querySelector(".table-tools");
+      const scroller = document.querySelector(".table-scroll");
+      return {
+        startedClosed,
+        closedRows,
+        openRows: names().length,
+        reordered: names().join("|") !== before.join("|"),
+        ariaSort: heading(1).getAttribute("aria-sort"),
+        unsortedAria: heading(0).getAttribute("aria-sort"),
+        sortInUrl: /sort=percent-desc/.test(window.location.search),
+        openInUrl: /table=open/.test(window.location.search),
+        toolsBeforeRows: Boolean(tools && scroller &&
+          (tools.compareDocumentPosition(scroller) & Node.DOCUMENT_POSITION_FOLLOWING)),
+        // The scroller owns the sideways overflow; the page may not have any.
+        scrollerScrolls: scroller ? scroller.scrollWidth >= scroller.clientWidth : false,
+        ready: {
+          rows: window.__dashboardReady.tableRows,
+          shown: window.__dashboardReady.shown,
+          sort: window.__dashboardReady.tableSort,
+          open: window.__dashboardReady.tableOpen
+        }
+      };
+    });
+    check(table.startedClosed,
+      `${label}: the table under the map is open before the reader asks for it`);
+    check(table.closedRows === 0 || table.openRows === table.closedRows,
+      `${label}: the table changed its rows when it was opened`);
+    check(table.openRows === table.ready.rows,
+      `${label}: the table drew ${table.openRows} rows and reports ${table.ready.rows}`);
+    check(table.ready.rows === table.ready.shown,
+      `${label}: the table holds ${table.ready.rows} reservoirs while the map ` +
+      `effect includes ${table.ready.shown} -- two answers to one filter`);
+    check(table.ready.open === true,
+      `${label}: the header control did not open the table`);
+    check(table.reordered, `${label}: sorting the Full column did not reorder the table`);
+    check(table.ariaSort === "descending",
+      `${label}: the sorted column announces ${table.ariaSort}, not descending`);
+    check(table.unsortedAria === "none",
+      `${label}: an unsorted column does not announce that it can be sorted`);
+    check(table.sortInUrl && table.openInUrl,
+      `${label}: the table's order and open state are missing from a shareable link`);
+    /* The rows scroll inside their own box, so a control placed after them
+     * sits behind a nested scroller -- the trap the analysis controls were
+     * moved out of above the reservoir list. */
+    check(table.toolsBeforeRows,
+      `${label}: the table's export control is behind the row scroller`);
+
+    const afterTable = await tab.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth
+    }));
+    check(afterTable.scroll <= afterTable.viewport + 1,
+      `${label}: the open table widens the page ` +
+      `(${afterTable.scroll}px in ${afterTable.viewport}px)`);
+
+    await tab.evaluate(async () => {
+      document.getElementById("table-close").click();
+      await new Promise((resolve) => { setTimeout(resolve, 300); });
+    });
+
     check(layout.navigation && layout.navigation.right <= layout.viewport + 1,
       `${label}: the navigation is clipped`);
     for (const [control, box] of [["Home", layout.home], ["Fullscreen", layout.fullscreen]]) {

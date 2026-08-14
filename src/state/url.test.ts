@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { loadLegacyApi } from "../data/legacy-harness";
 import { readPayload } from "../data/payload-fixture";
+import { DEFAULT_SORT, SORT_KEYS } from "./table";
 import { DEFAULT_URL_STATE, searchWithState, selectionFromSearch, stateFromSearch } from "./url";
 import { STORAGE_CLASSES } from "../viz/classes";
 
@@ -146,7 +147,11 @@ describe("the rest of the view in the link", () => {
               for (const month of MONTHS) {
                 const state = {
                   reservoir: "Deer Creek", storageClass, reporting, drainageArea,
-                  lakePowell, geography, month
+                  lakePowell, geography, month,
+                  /* The bottom row has its own round trip below. Held at its
+                   * default here so this loop keeps testing the controls it
+                   * was written for rather than multiplying by two more. */
+                  tableOpen: false, tableSort: DEFAULT_SORT
                 };
                 expect(stateFromSearch(searchWithState(state))).toEqual(state);
               }
@@ -155,6 +160,25 @@ describe("the rest of the view in the link", () => {
         }
       }
     }
+  });
+
+  it("carries the table's open state and its order as separate facts", () => {
+    for (const tableOpen of [false, true]) {
+      for (const key of SORT_KEYS) {
+        for (const direction of ["asc", "desc"] as const) {
+          const tableSort = { key, direction };
+          const round = stateFromSearch(searchWithState({ tableOpen, tableSort }));
+          expect(round.tableOpen).toBe(tableOpen);
+          expect(round.tableSort).toEqual(tableSort);
+        }
+      }
+    }
+    // Defaults stay out of the address bar, like every other control here.
+    expect(searchWithState({ tableOpen: false, tableSort: DEFAULT_SORT })).toBe("");
+    expect(searchWithState({ tableOpen: true })).toBe("?table=open");
+    // A sort is shareable without the row being open: two facts, two answers.
+    expect(searchWithState({ tableSort: { key: "storage", direction: "desc" } }))
+      .toBe("?sort=storage-desc");
   });
 
   it("takes a drainage area only in the shape the payload writes them", () => {
