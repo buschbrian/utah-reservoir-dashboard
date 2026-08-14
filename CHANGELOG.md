@@ -7,6 +7,13 @@ and is not listed here.
 
 ### Fixed
 
+- **Reservoir symbols now separate when the map zooms in.** The ArcGIS 5.1
+  map no longer enlarges circles with every zoom step, and its largest ring
+  is narrower at the opening view. The initial regional extent now accounts
+  for the storage panel before the view resolves. Each six-digit drainage
+  area also has one name label source, including areas made from more than
+  one polygon.
+
 - **Browsers without WebGL 2 no longer get stuck on a loading map.** ArcGIS
   Maps SDK 5.1 requires WebGL 2, but the shell previously accepted a WebGL 1
   context and started a renderer that could never succeed. The capability

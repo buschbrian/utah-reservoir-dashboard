@@ -1,11 +1,11 @@
 /*
- * The point symbol both map engines already draw, expressed as arithmetic.
+ * The primary map's point symbol, expressed as arithmetic.
  *
  * The legacy ArcGIS page builds this as a string-concatenated Arcade
  * expression that exists twice, once per renderer, so a typo in either copy
  * shows up as slightly-wrong circles and never as an error. Every reservoir
  * is already in memory here, so the radii are plain numbers computed once
- * and asserted against `shared/reservoir-viz.js` in symbols.test.ts.
+ * and asserted directly in symbols.test.ts.
  *
  * Two radii per reservoir, and they mean different things:
  *
@@ -28,7 +28,11 @@ import type { NullableNumber, Reservoir } from "../types";
 import { STALE_ACCENT, storageColor } from "./classes";
 
 export const RING_MIN_PX = 8;
-export const RING_MAX_PX = 46;
+/* The primary map has less usable width than either comparison page because
+ * its summary panel shares the canvas. Forty-six pixels made the largest
+ * reservoirs cover whole clusters at the opening extent. Thirty-six keeps
+ * the physical-size ordering readable while leaving nearby centres visible. */
+export const RING_MAX_PX = 36;
 
 export interface ReservoirSymbol {
   ringPx: number;

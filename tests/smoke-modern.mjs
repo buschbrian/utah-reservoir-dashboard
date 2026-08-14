@@ -219,6 +219,8 @@ for (const viewport of VIEWPORTS) {
       `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     check(ready.drainageAreas === expectedAreas,
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
+    check(ready.drainageLabels === expectedAreas,
+      `${label}: configured ${ready.drainageLabels} drainage-area labels, expected ${expectedAreas}`);
 
     /* The renderer count above proves what the page built. This proves the
      * layer accepted it: a client-side feature layer whose source is
@@ -228,14 +230,32 @@ for (const viewport of VIEWPORTS) {
     const layerFeatures = await tab.evaluate(async () => {
       const layer = document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs");
-      if (!layer) return { type: null, count: 0 };
-      return { type: layer.type, count: await layer.queryFeatureCount() };
+      const drainage = document.querySelector("arcgis-map")?.map
+        ?.findLayerById("drainage-areas");
+      return {
+        type: layer?.type ?? null,
+        count: layer ? await layer.queryFeatureCount() : 0,
+        drainageType: drainage?.type ?? null,
+        drainageCount: drainage ? await drainage.queryFeatureCount() : 0,
+        drainageLabelClasses: drainage?.labelingInfo?.length ?? 0,
+        symbolUsesViewScale: JSON.stringify(layer?.renderer?.toJSON?.() ?? layer?.renderer ?? {})
+          .includes("$view.scale")
+      };
     });
     check(layerFeatures.type === "feature",
       `${label}: the reservoirs layer is "${layerFeatures.type}", expected a feature layer`);
     check(layerFeatures.count === expectedReservoirs,
       `${label}: the reservoir layer holds ${layerFeatures.count} features, ` +
       `expected ${expectedReservoirs}`);
+    check(layerFeatures.drainageType === "feature",
+      `${label}: the drainage-area layer is "${layerFeatures.drainageType}", expected feature`);
+    check(layerFeatures.drainageCount === expectedAreas,
+      `${label}: the drainage-area layer holds ${layerFeatures.drainageCount}, ` +
+      `expected ${expectedAreas}`);
+    check(layerFeatures.drainageLabelClasses === 1,
+      `${label}: drainage areas have ${layerFeatures.drainageLabelClasses} label classes, expected 1`);
+    check(layerFeatures.symbolUsesViewScale === false,
+      `${label}: reservoir symbols still grow with the view scale`);
 
     const visibleText = await tab.evaluate(COLLECT_SHADOW_TEXT);
     check(!RETIRED_TERMS.test(visibleText),

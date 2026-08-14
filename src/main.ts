@@ -465,6 +465,7 @@ if (!supportsDashboard(browserCapabilities())) {
     masked: map.status.masked,
     boundaryPoints: map.status.boundaryPoints,
     drainageAreas: map.status.drainageAreas,
+    drainageLabels: map.status.drainageLabels,
     /* The chosen area, which is not `drainageAreas` -- that one counts the
      * boundaries the map drew. One fact per field. */
     areaFilter: filterStatus.drainageArea,

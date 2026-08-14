@@ -45,6 +45,13 @@ export const OBJECT_ID_FIELD = "objectid";
 /** Which of the renderer's twelve symbols a reservoir draws with. */
 export const SYMBOL_KEY_FIELD = "symbol_key";
 
+/** One source feature and therefore at most one label for each drainage area. */
+export const DRAINAGE_OBJECT_ID_FIELD = "objectid";
+/* Deliberately not the reservoir layer's `name` field: pointer hit testing
+ * treats that field as selectable reservoir identity. */
+export const DRAINAGE_NAME_FIELD = "area_name";
+export const DRAINAGE_LABEL_MIN_SCALE = 10_000_000;
+
 const WGS84 = { wkid: 4326 };
 
 /* Symbols are written as property objects rather than constructed classes.
@@ -74,18 +81,62 @@ export function createMaskLayer(boundary?: UtahBoundary): GraphicsLayer {
   return layer;
 }
 
-export function createDrainageLayer(areas: readonly DrainageArea[]): GraphicsLayer {
-  const layer = new GraphicsLayer({ id: "drainage-areas", listMode: "hide" });
-  for (const area of areas) {
-    for (const polygon of area.polygons) {
-      layer.add(new Graphic({
-        geometry: new Polygon({ rings: mutableRings(polygon), spatialReference: WGS84 }),
-        symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE),
-        attributes: { huc6: area.huc6, name: area.name }
-      }));
+export interface DrainageLayerResult {
+  layer: FeatureLayer;
+  /** Source features eligible for labels. One feature represents one HUC6. */
+  labels: number;
+}
+
+export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLayerResult {
+  /* A multipolygon remains one feature. Building one graphic per polygon
+   * made a label renderer repeat the same drainage-area name on every island
+   * or disconnected piece. One feature per HUC6 gives the label engine one
+   * placement decision and one label, while preserving every ring. */
+  const source = areas.map((area, index) => new Graphic({
+    geometry: new Polygon({
+      rings: area.polygons.flatMap((polygon) => mutableRings(polygon)),
+      spatialReference: WGS84
+    }),
+    attributes: {
+      [DRAINAGE_OBJECT_ID_FIELD]: index + 1,
+      huc6: area.huc6,
+      [DRAINAGE_NAME_FIELD]: area.name
     }
-  }
-  return layer;
+  }));
+
+  const layer = new FeatureLayer({
+    id: "drainage-areas",
+    listMode: "hide",
+    source,
+    fields: [
+      { name: DRAINAGE_OBJECT_ID_FIELD, type: "oid" },
+      { name: "huc6", type: "string" },
+      { name: DRAINAGE_NAME_FIELD, type: "string" }
+    ],
+    objectIdField: DRAINAGE_OBJECT_ID_FIELD,
+    geometryType: "polygon",
+    spatialReference: WGS84,
+    popupEnabled: false,
+    labelsVisible: true,
+    renderer: {
+      type: "simple",
+      symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE)
+    } as never,
+    labelingInfo: [{
+      labelExpressionInfo: { expression: `$feature.${DRAINAGE_NAME_FIELD}` },
+      labelPlacement: "always-horizontal",
+      minScale: DRAINAGE_LABEL_MIN_SCALE,
+      maxScale: 0,
+      symbol: {
+        type: "text",
+        color: "#43576a",
+        haloColor: "rgba(255,255,255,0.92)",
+        haloSize: 1.25,
+        font: { family: "sans-serif", size: 10, weight: "bold" }
+      }
+    }] as never
+  });
+  return { layer, labels: source.length };
 }
 
 export interface ReservoirLayerResult {

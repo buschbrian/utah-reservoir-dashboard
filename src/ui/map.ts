@@ -45,6 +45,8 @@ export interface MapStatus {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
+  /** Drainage-area features eligible for one label each. */
+  drainageLabels: number;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -118,6 +120,7 @@ type MapElement = HTMLElement & {
   basemap?: unknown;
   animationsDisabled?: boolean;
   constraints?: unknown;
+  padding?: ViewPadding;
   zoom?: number;
   goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
     Promise<unknown>;
@@ -127,6 +130,10 @@ type MapElement = HTMLElement & {
     ready?: boolean;
     zoom?: number;
     padding?: ViewPadding;
+    constraints?: {
+      geometry?: unknown;
+      effectiveMinZoom?: number;
+    };
     goTo?(target: GoToTarget, options?: { animate?: boolean; duration?: number; easing?: string }):
       Promise<unknown>;
   };
@@ -356,6 +363,12 @@ export async function loadMap(
   map.add(maskLayer);
 
   const element = document.createElement("arcgis-map") as MapElement;
+  /* The comparison MapView supplies padding in its constructor, before its
+   * opening extent is resolved. Do the same through the map component's
+   * equivalent property: setting padding only after ready makes the SDK fit
+   * the region behind the summary panel and then shift an already-resolved
+   * view. */
+  element.padding = panelPadding();
   /* The opening view is the derived region: one zoom level out from the
    * drainage-area polygons, the same box the two production pages open at.
    * Set here rather than eased into after the layer loads -- the target is a
@@ -406,6 +419,7 @@ export async function loadMap(
     if (!element.view?.ready) return;
     settleMapHost();
     syncPadding();
+    syncConstraintStatus();
     if (pendingSelection) easeToSelection(pendingSelection);
   });
   element.addEventListener("arcgisViewReadyError", () => {
@@ -433,7 +447,7 @@ export async function loadMap(
     clearSlowMap();
     elementById("map-host").setAttribute("aria-busy", "false");
   }
-  let drainageLayer: GraphicsLayer | null = null;
+  let drainageLayer: FeatureLayer | null = null;
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: LayerView | null = null;
   let pendingFilter: string | null = null;
@@ -453,6 +467,7 @@ export async function loadMap(
     boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
       sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
+    drainageLabels: 0,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     filtered: false,
@@ -460,6 +475,20 @@ export async function loadMap(
       ?.geometry !== undefined,
     minZoom: MAP_MIN_ZOOM
   };
+
+  function syncConstraintStatus(): void {
+    const constraints = element.view?.constraints;
+    if (!constraints) return;
+    status.navigationBounds = constraints.geometry !== undefined
+      && constraints.geometry !== null;
+    if (Number.isFinite(constraints.effectiveMinZoom)) {
+      status.minZoom = constraints.effectiveMinZoom as number;
+    }
+    if (window.__dashboardReady) {
+      window.__dashboardReady.navigationBounds = status.navigationBounds;
+      window.__dashboardReady.minZoom = status.minZoom;
+    }
+  }
   /**
    * Eases the view toward the selected reservoir.
    *
@@ -558,10 +587,12 @@ export async function loadMap(
     },
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);
-      drainageLayer = createDrainageLayer(areas);
+      const result = createDrainageLayer(areas);
+      drainageLayer = result.layer;
       // Under the reservoirs and over the basemap: outlines are context.
       map.add(drainageLayer, 1);
       status.drainageAreas = areas.length;
+      status.drainageLabels = result.labels;
     }
   };
 }

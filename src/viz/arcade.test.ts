@@ -8,15 +8,11 @@
 import { describe, expect, it } from "vitest";
 import {
   FILL_PERCENT_FIELD,
-  MAX_ZOOM_FACTOR,
-  MIN_ZOOM_FACTOR,
-  REFERENCE_SCALE,
   SIZE_BASIS_FIELD,
   fillSizeExpression,
   ringSizeExpression,
   shadowSizeExpression,
-  storageColorExpression,
-  zoomFactor
+  storageColorExpression
 } from "./arcade";
 import { STALE_COLOR, STORAGE_CLASSES } from "./classes";
 import { hexToRgb } from "./color";
@@ -100,42 +96,11 @@ describe("the size expressions", () => {
     expect(shadow).not.toBe(ringSizeExpression(DOMAIN));
   });
 
-  /* The zoom term. Every size expression has to carry it, or the parts of
-   * one symbol scale against each other -- a ring that grows around a fill
-   * that does not is a reservoir that appears to empty as the reader zooms
-   * in. */
-  it("scale every size with the view, ring, fill and shadow alike", () => {
+  it("keeps every symbol part fixed in pixels while the geography zooms", () => {
     for (const expression of [ringSizeExpression(DOMAIN), fillSizeExpression(DOMAIN),
       shadowSizeExpression(DOMAIN, 2)]) {
-      expect(expression).toContain("$view.scale");
-      expect(expression).toContain(String(REFERENCE_SCALE));
-      expect(expression).toMatch(/\* k\b/);
-    }
-  });
-
-  it("leave the opening scale exactly as the shared module draws it", () => {
-    /* The factor is 1 at the reference scale, which is why the parity tests
-     * in symbols.test.ts still hold `symbols.ts` to `reservoir-viz.js`:
-     * the arithmetic there is this map at that scale (ADR-022). */
-    expect(zoomFactor(REFERENCE_SCALE)).toBe(1);
-  });
-
-  it("clamp at both ends, so a circle is never smaller than today or a county wide", () => {
-    expect(zoomFactor(1)).toBe(MAX_ZOOM_FACTOR);
-    // A view that has not settled yet reports no usable scale.
-    expect(zoomFactor(0)).toBe(1);
-    expect(zoomFactor(Number.NaN)).toBe(1);
-  });
-
-  it("grows the circles when zooming in and never shrinks them going out", () => {
-    expect(zoomFactor(REFERENCE_SCALE / 4)).toBeCloseTo(2, 6);
-    /* The measured opening scales: 1280px opens at the reference, and the
-     * two phone widths open wider than it. None of them may come out below
-     * 1 -- this term is allowed to enlarge a symbol and never to shrink one,
-     * which is what keeps a circle tappable on the smallest screen. */
-    expect(MIN_ZOOM_FACTOR).toBe(1);
-    for (const openingScale of [8_416_703, 21_746_566, 23_558_780]) {
-      expect(zoomFactor(openingScale), `opening scale ${openingScale}`).toBe(1);
+      expect(expression).not.toContain("$view.scale");
+      expect(expression).not.toMatch(/\bvar k\b/);
     }
   });
 });

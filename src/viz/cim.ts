@@ -34,7 +34,7 @@ import type { ReservoirSymbol } from "./symbols";
  * sane number so the symbol is valid before the first expression runs. */
 const RING_PLACEHOLDER_PX = 20;
 
-/** Points around each circle. 64 keeps the widest ring smooth at 46px. */
+/** Points around each circle. 64 keeps the widest ring smooth at 36px. */
 const CIRCLE_POINTS = 64;
 
 /** The frame every marker graphic is drawn in; `size` scales it to pixels. */
