@@ -1047,6 +1047,15 @@ with per-month tooltips.
 - **Time slider** (`<arcgis-slider>` over the 12 months), the README's top dashboard ask. The data is already there. Animating the drawdown across the state is the single most compelling thing this dataset can do and it currently cannot be seen at all.
 - CSV export continues to export exactly the rows on screen, raw numbers.
 
+Three of these have landed early, on the primary application: the filter and
+selection state is one object the map effect, the list, the summary and the
+address bar all derive from; `?reservoir=`, `?storage=`, `?reporting=`,
+`?area=`, `?powell=`, `?reservoirs=` and `?month=` restore the whole view; and
+the twelve months are a Calcite slider. The drainage-area filter joined them on
+2026-08-13 — a filter rather than a scope, so one basin is read against the
+state rather than instead of it, and the totals do not move when it changes.
+What is left here is the table, the CSV export and the bottom tab.
+
 ### Phase 6 — MapLibre parity page on v6
 
 - `maplibre-gl@^6` as an npm ESM dependency. **v6 requires WebGL2 and ships ESM-only** — note the browser floor (pre-2022 browsers are dropped) and add a capability check with a graceful message rather than a blank canvas.

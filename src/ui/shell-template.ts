@@ -56,6 +56,14 @@ function panelContents(suffix: string): string {
           <calcite-select data-filter="reporting"
             label="Filter reservoirs by reporting status"></calcite-select>
         </calcite-label>
+        <!-- A filter, not a scope: choosing one drainage area greys the rest
+             and leaves every total alone, so the reader reads one area
+             against the whole map rather than instead of it. -->
+        <calcite-label>
+          Drainage area
+          <calcite-select data-filter="drainage"
+            label="Filter reservoirs by drainage area"></calcite-select>
+        </calcite-label>
         <!-- Scope, not a filter, and separated from the two above because of
              that: the filters grey reservoirs the map still draws, while these
              change which reservoirs the map has (ADR-011). Both of that

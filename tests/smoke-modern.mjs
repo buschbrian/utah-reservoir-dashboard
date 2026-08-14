@@ -57,10 +57,19 @@ const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"
  * waterbodies that touch Utah, without Lake Powell (ADR-011). Derived from
  * the payload rather than written down, so the morning refresh cannot turn
  * this red on its own. */
-const expectedReservoirs = payload.reservoirs.filter((reservoir) =>
+const inScope = payload.reservoirs.filter((reservoir) =>
   reservoir.intersects_utah === true &&
   reservoir.rise_item_id !== 509 &&
-  reservoir.name.trim().toLowerCase() !== "lake powell").length;
+  reservoir.name.trim().toLowerCase() !== "lake powell");
+const expectedReservoirs = inScope.length;
+/* An area that holds some of the scope but not all of it, so filtering by it
+ * is a real narrowing whichever morning this runs. */
+const partialArea = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
+  .filter((code) => typeof code === "string")
+  .find((code) => {
+    const held = inScope.filter((reservoir) => reservoir.huc6 === code).length;
+    return held > 0 && held < inScope.length;
+  });
 const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
 
@@ -880,6 +889,33 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the map filter is "${restored.where}" after restoring a filtered link`);
     check(/powell=include/.test(restored.search) && /reporting=late/.test(restored.search),
       `${label}: the address bar dropped the view it restored ("${restored.search}")`);
+
+    /* The drainage-area filter, which is a filter and not a scope: the map
+     * keeps every reservoir and greys the ones outside the area, so the
+     * count drawn must not move while the count shown does. */
+    const area = partialArea;
+    await tab.goto(`${URL}?area=${area}`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    const narrowed = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      control: document.querySelector('#start-panel [data-filter="drainage"]')?.value,
+      summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      where: document.querySelector("arcgis-map")?.map
+        ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
+    }));
+    check(narrowed.ready.areaFilter === area,
+      `${label}: the link's drainage area was not applied (${narrowed.ready.areaFilter})`);
+    check(narrowed.control === area,
+      `${label}: the drainage-area control shows "${narrowed.control}", not the link's area`);
+    check(narrowed.where === `drainage_area = '${area}'`,
+      `${label}: the map filter is "${narrowed.where}" after restoring a drainage-area link`);
+    check(narrowed.ready.drawn === expectedReservoirs,
+      `${label}: filtering by drainage area removed reservoirs from the map`);
+    check(narrowed.ready.shown > 0 && narrowed.ready.shown < expectedReservoirs,
+      `${label}: a drainage area showed ${narrowed.ready.shown} of ${expectedReservoirs}`);
+    check(narrowed.summary.includes("grey"),
+      `${label}: the summary does not say the other reservoirs stay on the map`);
 
     // A link that names nothing this page draws is not an error; it is no
     // selection, and the reader gets the ordinary starting view.

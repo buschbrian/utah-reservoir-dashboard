@@ -11,11 +11,17 @@ import {
   type LakePowellChoice,
   type ReservoirGeography
 } from "./data/rollup";
-import { DEFAULT_SCOPE, overviewScope, type ScopeChoice } from "./overview-model";
+import {
+  DEFAULT_SCOPE,
+  overviewScope,
+  watershedOptions,
+  type ScopeChoice
+} from "./overview-model";
 import { describeReservoir } from "./state/detail";
 import {
   ALL_RESERVOIRS,
   describeFilter,
+  drainageAreaLabel,
   filterWhere,
   isFiltered,
   matchesFilter,
@@ -35,6 +41,7 @@ import {
   revealDetail,
   setDataState,
   setDetail,
+  setDrainageAreaOptions,
   setFilterControls,
   setFilterState,
   setMonthControl,
@@ -66,7 +73,8 @@ const selection = createSelectionStore();
 /* What the filter currently shows. The readiness signal is written after the
  * first draw and the filter keeps changing after that, so this is the one
  * place the answer lives and both readers take it from here. */
-const filterStatus = { filtered: false, shown: 0 };
+const filterStatus: { filtered: boolean; shown: number; drainageArea: string | null } =
+  { filtered: false, shown: 0, drainageArea: null };
 
 /* The reservoir a shared link asked for, once it has been matched against
  * the reservoirs actually in scope. Null both when there was no link and
@@ -178,6 +186,7 @@ let applyFilter: () => void = () => undefined;
 function viewState(): {
   storageClass: number | null;
   reporting: FilterState["reporting"];
+  drainageArea: string | null;
   lakePowell: LakePowellChoice;
   geography: ReservoirGeography;
   month: string | null;
@@ -185,10 +194,27 @@ function viewState(): {
   return {
     storageClass: filterState.storageClass,
     reporting: filterState.reporting,
+    drainageArea: filterState.drainageArea,
     lakePowell: scope.lakePowell,
     geography: scope.geography,
     month: selectedMonth()
   };
+}
+
+/** The drainage areas the map currently has, as the control's choices. The
+ * areas follow the scope: `connected` brings two more reservoirs, and one of
+ * them may be the only reservoir in its area. */
+function drainageAreaChoices(): { value: string; label: string }[] {
+  return [{ value: "all", label: drainageAreaLabel(null) },
+    ...watershedOptions(inScope).map((area) => ({ value: area.code, label: area.label }))];
+}
+
+/** The name of the chosen area, for the sentence under the controls. Null
+ * when nothing is chosen, and also when the choice has left the scope. */
+function drainageAreaName(): string | null {
+  if (filterState.drainageArea === null) return null;
+  return watershedOptions(inScope)
+    .find((area) => area.code === filterState.drainageArea)?.label ?? null;
 }
 
 function wireFilters(map: MapController): void {
@@ -199,15 +225,19 @@ function wireFilters(map: MapController): void {
     map.setFilter(filterWhere(filterState));
     markFilteredInList((name) => !shown.some((reservoir) => reservoir.name === name));
     setFilterState(
-      { storage: String(filterState.storageClass ?? "all"), reporting: filterState.reporting },
-      describeFilter(filterState, shown.length, inScope.length),
+      { storage: String(filterState.storageClass ?? "all"),
+        reporting: filterState.reporting,
+        drainage: filterState.drainageArea ?? "all" },
+      describeFilter(filterState, shown.length, inScope.length, drainageAreaName()),
       isFiltered(filterState)
     );
     filterStatus.filtered = isFiltered(filterState);
     filterStatus.shown = shown.length;
+    filterStatus.drainageArea = filterState.drainageArea;
     if (window.__dashboardReady) {
       window.__dashboardReady.filtered = filterStatus.filtered;
       window.__dashboardReady.shown = filterStatus.shown;
+      window.__dashboardReady.areaFilter = filterStatus.drainageArea;
     }
   };
 
@@ -219,10 +249,15 @@ function wireFilters(map: MapController): void {
     (["all", "late", "current"] as const).map((reporting) => ({
       value: reporting, label: reportingLabel(reporting)
     })),
+    drainageAreaChoices(),
     (kind, value) => {
-      filterState = kind === "storage"
-        ? { ...filterState, storageClass: value === "all" ? null : Number(value) }
-        : { ...filterState, reporting: value as FilterState["reporting"] };
+      if (kind === "storage") {
+        filterState = { ...filterState, storageClass: value === "all" ? null : Number(value) };
+      } else if (kind === "reporting") {
+        filterState = { ...filterState, reporting: value as FilterState["reporting"] };
+      } else {
+        filterState = { ...filterState, drainageArea: value === "all" ? null : value };
+      }
       apply();
       writeUrlState({ ...viewState(), reservoir: selection.get() });
     },
@@ -303,6 +338,16 @@ if (!supportsDashboard(browserCapabilities())) {
       if (selection.get() && !findReservoir(inScope, selection.get())) {
         selection.set(null, { source: "scope" });
       }
+      /* The areas the map has changed with the scope. A chosen area that is
+       * no longer one of them would leave every reservoir dimmed with a
+       * control offering no way back, so it falls back to all of them --
+       * the same rule the selection above follows. */
+      const areas = drainageAreaChoices();
+      setDrainageAreaOptions(areas);
+      if (filterState.drainageArea !== null
+        && !areas.some((area) => area.value === filterState.drainageArea)) {
+        filterState = { ...filterState, drainageArea: null };
+      }
       applyFilter();
       if (window.__dashboardReady) {
         window.__dashboardReady.reservoirs = inScope.length;
@@ -369,7 +414,11 @@ if (!supportsDashboard(browserCapabilities())) {
      * dashboard would show numbers that do not match the words around it. */
     const wanted = stateFromSearch(window.location.search);
     scope = { geography: wanted.geography, lakePowell: wanted.lakePowell };
-    filterState = { storageClass: wanted.storageClass, reporting: wanted.reporting };
+    filterState = {
+      storageClass: wanted.storageClass,
+      reporting: wanted.reporting,
+      drainageArea: wanted.drainageArea
+    };
     // A link to a month the payload no longer carries opens on the newest
     // reading rather than on nothing.
     const askedFor = wanted.month === null ? -1 : months.indexOf(wanted.month);
@@ -410,6 +459,9 @@ if (!supportsDashboard(browserCapabilities())) {
     masked: map.status.masked,
     boundaryPoints: map.status.boundaryPoints,
     drainageAreas: map.status.drainageAreas,
+    /* The chosen area, which is not `drainageAreas` -- that one counts the
+     * boundaries the map drew. One fact per field. */
+    areaFilter: filterStatus.drainageArea,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     filtered: filterStatus.filtered,
     shown: filterStatus.shown,

@@ -197,28 +197,52 @@ export interface FilterOption { value: string; label: string }
  * reader who filters on a phone, rotates, and finds the desktop panel
  * showing something else is looking at two answers to one question.
  */
+export type FilterKind = "storage" | "reporting" | "drainage";
+
+function fillFilter(kind: FilterKind, options: readonly FilterOption[]): void {
+  document.querySelectorAll<CalciteSelect>(`[data-filter="${kind}"]`).forEach((select) => {
+    const chosen = select.value;
+    select.replaceChildren(...options.map((option) => {
+      const element = document.createElement("calcite-option");
+      element.setAttribute("value", option.value);
+      element.textContent = option.label;
+      return element;
+    }));
+    // Keeps a choice that still exists. Refilling is how the drainage areas
+    // follow a scope change, and a reader who has chosen one should not lose
+    // it because the list around it was rebuilt.
+    if (options.some((option) => option.value === chosen)) select.value = chosen;
+  });
+}
+
 export function setFilterControls(
   storage: readonly FilterOption[],
   reporting: readonly FilterOption[],
-  onChange: (kind: "storage" | "reporting", value: string) => void,
+  drainage: readonly FilterOption[],
+  onChange: (kind: FilterKind, value: string) => void,
   onReset: () => void
 ): void {
-  const fill = (kind: "storage" | "reporting", options: readonly FilterOption[]): void => {
+  const wire = (kind: FilterKind, options: readonly FilterOption[]): void => {
+    fillFilter(kind, options);
     document.querySelectorAll<CalciteSelect>(`[data-filter="${kind}"]`).forEach((select) => {
-      select.replaceChildren(...options.map((option) => {
-        const element = document.createElement("calcite-option");
-        element.setAttribute("value", option.value);
-        element.textContent = option.label;
-        return element;
-      }));
       select.addEventListener("calciteSelectChange", () => onChange(kind, select.value));
     });
   };
-  fill("storage", storage);
-  fill("reporting", reporting);
+  wire("storage", storage);
+  wire("reporting", reporting);
+  wire("drainage", drainage);
   document.querySelectorAll<HTMLElement>('[data-filter="reset"]').forEach((button) => {
     button.addEventListener("click", onReset);
   });
+}
+
+/**
+ * The drainage-area choices, after the scope has changed which areas the map
+ * has. The listener is registered once by `setFilterControls`; this only
+ * replaces the options under it, so the control keeps working.
+ */
+export function setDrainageAreaOptions(options: readonly FilterOption[]): void {
+  fillFilter("drainage", options);
 }
 
 type CalciteSwitch = HTMLElement & { checked: boolean };
@@ -309,7 +333,7 @@ export function setMonthState(index: number, months: readonly string[], caption:
 
 /** Puts every copy of the controls, the summary and the reset at one state. */
 export function setFilterState(
-  values: { storage: string; reporting: string },
+  values: { storage: string; reporting: string; drainage: string },
   summary: string,
   filtered: boolean
 ): void {
@@ -317,6 +341,8 @@ export function setFilterState(
     .forEach((select) => { select.value = values.storage; });
   document.querySelectorAll<CalciteSelect>('[data-filter="reporting"]')
     .forEach((select) => { select.value = values.reporting; });
+  document.querySelectorAll<CalciteSelect>('[data-filter="drainage"]')
+    .forEach((select) => { select.value = values.drainage; });
   document.querySelectorAll<HTMLElement>('[data-filter="summary"]')
     .forEach((element) => { element.textContent = summary; });
   document.querySelectorAll<HTMLElement>('[data-filter="reset"]')

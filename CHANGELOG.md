@@ -64,6 +64,15 @@ and is not listed here.
 
 ### Added
 
+- **The primary application filters by drainage area.** The overview has had
+  this control since it gained drainage areas; the map did not, so a reader who
+  wanted one basin had to read fifty-one circles for it. It is a filter and not
+  a scope: the reservoirs outside the chosen area stay on the map in grey and
+  stay in every total, so an area is read *against* the state rather than
+  instead of it. The choices come from the reservoirs the map currently holds,
+  so they follow the Utah and connected scopes, and a choice that leaves the
+  scope falls back to all areas rather than dimming everything. It joins the
+  address bar as `?area=…` with the rest of the view.
 - **A shared link now carries the whole view.** The analysis controls join the
   address bar beside the selection: `?reservoir=…&storage=…&reporting=…&powell=…`
   restores the filters and the Lake Powell scope as well as the reservoir, so a

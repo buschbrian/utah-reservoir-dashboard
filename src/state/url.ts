@@ -34,6 +34,7 @@ const SELECTION_PARAMS = {
   reservoir: "reservoir",
   storageClass: "storage",
   reporting: "reporting",
+  drainageArea: "area",
   lakePowell: "powell",
   geography: "reservoirs",
   month: "month"
@@ -53,6 +54,8 @@ export interface DashboardUrlState {
   /** An index into the storage class table, or null for every class. */
   storageClass: number | null;
   reporting: Reporting;
+  /** A drainage-area code the payload carries, or null for every area. */
+  drainageArea: string | null;
   lakePowell: LakePowellChoice;
   /** Utah waterbodies, or every connected reservoir (ADR-011). */
   geography: ReservoirGeography;
@@ -64,6 +67,7 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   reservoir: null,
   storageClass: null,
   reporting: "all",
+  drainageArea: null,
   lakePowell: "exclude",
   geography: "utah",
   month: null
@@ -130,6 +134,11 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
       state.storageClass = Number.isInteger(index) && index >= 0 ? index : null;
     } else if (key === SELECTION_PARAMS.reporting) {
       state.reporting = value === "late" || value === "current" ? value : "all";
+    } else if (key === SELECTION_PARAMS.drainageArea) {
+      /* Only the shape is checked, as with the month: whether the map
+       * currently has this area is the page's business, and it falls back
+       * to every area when the scope does not contain it. */
+      state.drainageArea = /^[0-9]{1,12}$/.test(value) ? value : null;
     } else if (key === SELECTION_PARAMS.lakePowell) {
       state.lakePowell = value === "include" ? "include" : "exclude";
     } else if (key === SELECTION_PARAMS.geography) {
@@ -169,6 +178,9 @@ export function searchWithState(
   }
   if (full.reporting !== "all") {
     parts.push(`${SELECTION_PARAMS.reporting}=${full.reporting}`);
+  }
+  if (full.drainageArea !== null) {
+    parts.push(`${SELECTION_PARAMS.drainageArea}=${encodeURIComponent(full.drainageArea)}`);
   }
   if (full.lakePowell !== "exclude") {
     parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);

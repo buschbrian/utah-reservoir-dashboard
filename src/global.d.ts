@@ -20,6 +20,9 @@ interface DashboardReady {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
+  /** The drainage area the filter is narrowed to, or null for every area.
+   * Not `drainageAreas`, which counts the boundaries the map drew. */
+  areaFilter: string | null;
   listItems: number;
   /** True when the reader has narrowed the map with the analysis controls. */
   filtered: boolean;

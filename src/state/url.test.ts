@@ -102,9 +102,10 @@ describe("the rest of the view in the link", () => {
 
   it("carries the filters, both scope dimensions and the month", () => {
     expect(searchWithState({
-      storageClass: 0, reporting: "late", lakePowell: "include",
+      storageClass: 0, reporting: "late", drainageArea: "140600", lakePowell: "include",
       geography: "connected", month: "2026-02"
-    })).toBe("?storage=0&reporting=late&powell=include&reservoirs=connected&month=2026-02");
+    })).toBe("?storage=0&reporting=late&area=140600&powell=include" +
+      "&reservoirs=connected&month=2026-02");
   });
 
   it("writes nothing for the geography the dashboard opens on", () => {
@@ -126,18 +127,27 @@ describe("the rest of the view in the link", () => {
   it("survives a round trip in every combination the controls can reach", () => {
     for (const storageClass of [null, 0, 3]) {
       for (const reporting of ["all", "late", "current"] as const) {
-        for (const lakePowell of ["exclude", "include"] as const) {
-          for (const geography of ["utah", "connected"] as const) {
-            for (const month of [null, "2026-02"]) {
-              const state = {
-                reservoir: "Deer Creek", storageClass, reporting, lakePowell, geography, month
-              };
-              expect(stateFromSearch(searchWithState(state))).toEqual(state);
+        for (const drainageArea of [null, "140600"]) {
+          for (const lakePowell of ["exclude", "include"] as const) {
+            for (const geography of ["utah", "connected"] as const) {
+              for (const month of [null, "2026-02"]) {
+                const state = {
+                  reservoir: "Deer Creek", storageClass, reporting, drainageArea,
+                  lakePowell, geography, month
+                };
+                expect(stateFromSearch(searchWithState(state))).toEqual(state);
+              }
             }
           }
         }
       }
     }
+  });
+
+  it("takes a drainage area only in the shape the payload writes them", () => {
+    expect(stateFromSearch("?area=140600").drainageArea).toBe("140600");
+    expect(stateFromSearch("?area=Lower%20Green").drainageArea).toBeNull();
+    expect(stateFromSearch("?area=").drainageArea).toBeNull();
   });
 
   it("opens the dashboard rather than breaking on a hand-edited link", () => {
