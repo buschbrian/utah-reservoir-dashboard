@@ -12,6 +12,19 @@ export function readPayload(): ReservoirPayload {
   return validateReservoirPayload(JSON.parse(source) as unknown);
 }
 
+/**
+ * The payload shape readers could have cached before comparison metadata was
+ * added. Keep constructing it even after the committed daily file gains the
+ * fields, so optional-header compatibility cannot disappear with a refresh.
+ */
+export function readPayloadWithoutNormalMetadata(): ReservoirPayload {
+  const source = readFileSync(new URL("../../reservoirs.json", import.meta.url), "utf8");
+  const value = JSON.parse(source) as Record<string, unknown>;
+  delete value.normal_period;
+  delete value.normal_window_days;
+  return validateReservoirPayload(value);
+}
+
 export function readDrainageGeoJson(): unknown {
   const source = readFileSync(new URL("../../huc6.geojson", import.meta.url), "utf8");
   return JSON.parse(source) as unknown;

@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { readPayloadWithoutNormalMetadata } from "./payload-fixture";
 import { validateReservoirPayload } from "./validate";
 
 function validPayload(): Record<string, unknown> {
   return {
     generated_at: "2026-08-09T12:00:00Z",
     start_date: "2015-01-01",
+    normal_period: { start_year: 2015, end_year: 2025 },
+    normal_window_days: 7,
     stale_after_days: 2,
     stale_after_days_by_cadence: { daily: 2, monthly: 45 },
     source: "Official reservoir storage sources",
@@ -83,7 +86,28 @@ describe("reservoir payload validation", () => {
   });
 
   it("accepts a complete payload", () => {
-    expect(validateReservoirPayload(validPayload()).reservoir_count).toBe(1);
+    const payload = validateReservoirPayload(validPayload());
+    expect(payload.reservoir_count).toBe(1);
+    expect(payload.normal_period).toEqual({ start_year: 2015, end_year: 2025 });
+    expect(payload.normal_window_days).toBe(7);
+  });
+
+  it("accepts a payload generated before comparison metadata was added", () => {
+    const payload = validPayload();
+    delete payload.normal_period;
+    delete payload.normal_window_days;
+    expect(validateReservoirPayload(payload).reservoir_count).toBe(1);
+    expect(readPayloadWithoutNormalMetadata().reservoirs.length).toBeGreaterThan(0);
+  });
+
+  it("rejects malformed optional comparison metadata", () => {
+    const payload = validPayload();
+    payload.normal_period = { start_year: 2025, end_year: 2015 };
+    expect(() => validateReservoirPayload(payload)).toThrow("normal period metadata");
+
+    const other = validPayload();
+    other.normal_window_days = 7.5;
+    expect(() => validateReservoirPayload(other)).toThrow("normal window metadata");
   });
 
   it("rejects a reservoir missing a field used by statewide totals", () => {

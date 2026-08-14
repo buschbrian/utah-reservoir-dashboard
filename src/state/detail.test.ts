@@ -101,6 +101,29 @@ describe("the details a reader sees", () => {
     }
   });
 
+  it("states how many earlier years support the weekly comparison", () => {
+    const reservoir = reservoirs.find((candidate) => candidate.seasonal_sample_years > 0);
+    expect(reservoir).toBeDefined();
+    if (reservoir) {
+      const row = describeReservoir(reservoir, "#000").rows
+        .find((entry) => entry.label === "Normal for this week");
+      expect(row?.value).toContain(`compared with ${reservoir.seasonal_sample_years} earlier years`);
+    }
+
+    const base = reservoirs[0];
+    expect(base).toBeDefined();
+    if (!base) return;
+    const withoutComparison = {
+      ...base,
+      seasonal_normal_af: null,
+      pct_of_seasonal_normal: null,
+      seasonal_sample_years: 0
+    };
+    const row = describeReservoir(withoutComparison, "#000").rows
+      .find((entry) => entry.label === "Normal for this week");
+    expect(row?.value).toBe("—");
+  });
+
   it("signs a change and marks a fall, so a drop cannot read as a rise", () => {
     const falling = reservoirs.find((candidate) =>
       (candidate.change_30d_af ?? 0) < 0);

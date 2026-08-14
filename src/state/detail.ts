@@ -89,6 +89,13 @@ function withShare(value: number | null, share: number | null): string {
   return `${amount} (now at ${formatPercent(share)})`;
 }
 
+function withComparisonYears(value: number | null, share: number | null, years: number): string {
+  const reading = withShare(value, share);
+  if (!Number.isFinite(years) || years <= 0) return reading;
+  const rounded = Math.floor(years);
+  return `${reading}; compared with ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
+}
+
 const SCHEDULE_NAMES: Record<string, string> = {
   daily: "Every day",
   monthly: "Once a month"
@@ -146,7 +153,11 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
       },
       {
         label: "Normal for this week",
-        value: withShare(reservoir.seasonal_normal_af, reservoir.pct_of_seasonal_normal)
+        value: withComparisonYears(
+          reservoir.seasonal_normal_af,
+          reservoir.pct_of_seasonal_normal,
+          reservoir.seasonal_sample_years
+        )
       },
       { label: "History rank", value: formatPercent(reservoir.seasonal_percentile) },
       {

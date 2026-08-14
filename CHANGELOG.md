@@ -7,6 +7,11 @@ and is not listed here.
 
 ### Fixed
 
+- **The weekly storage comparison now states its basis.** Reservoir details say how many
+  earlier years support the value. The methods page explains that the comparison uses
+  readings from 2015 through the preceding year within a seven-day window, and warns that
+  this predominantly dry record is not a long-term climate average.
+
 - **Reservoir symbols now separate when the map zooms in.** The ArcGIS 5.1
   map no longer enlarges circles with every zoom step, and its largest ring
   is narrower at the opening view. The initial regional extent now accounts

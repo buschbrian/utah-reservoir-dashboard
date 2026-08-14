@@ -130,10 +130,11 @@ root.innerHTML = `
           recorded since 2015 is used instead, and the reservoir details say which of the
           two the percentage is measured against.</dd>
         <dt>Normal for this week</dt>
-        <dd>The middle value of the readings taken near the same date in earlier years. It
-          answers "is this a normal amount of water for the time of year", which percent
-          full on its own cannot: the same percentage means different things in April and
-          in September.</dd>
+        <dd>The middle value of readings from 2015 through the year before the current
+          reading, taken within seven days before or after the same date. It answers "is
+          this a normal amount of water for the time of year", which percent full on its
+          own cannot: the same percentage means different things in April and in
+          September.</dd>
         <dt>History rank</dt>
         <dd>How this reading compares with readings near the same date in earlier years.
           90% means it is higher than 90% of them. The current year is not counted against
@@ -182,6 +183,10 @@ root.innerHTML = `
         <li>A full level taken from the highest storage since 2015 is a floor, not a
           capacity: a reservoir that has never filled during that period will read higher
           than it would against its true capacity.</li>
+        <li>The storage record starts in 2015, and those years were predominantly dry in
+          this region. A normal built from this record is a dry-period normal. A reservoir
+          near 100% of that normal is near normal for a dry period, not near its long-term
+          average.</li>
         <li>Nothing here is a forecast. Every number is a measurement or an arithmetic
           comparison of measurements.</li>
       </ul>
