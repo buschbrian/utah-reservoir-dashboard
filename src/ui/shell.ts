@@ -1,4 +1,5 @@
 import type { DetailView } from "../state/detail";
+import { copyViewUrl } from "../state/share";
 import { describeDataState, type DataState } from "../state/shell";
 import { renderTrendChart, renderTrendTable } from "../viz/trend";
 import { elementById } from "./dom";
@@ -99,6 +100,26 @@ export function wirePanels(): void {
   elementById("detail-sheet-close").addEventListener("click", () => setOpen(detailSheet, false));
   mobileQuery.addEventListener("change", syncResponsiveShell);
   syncResponsiveShell();
+}
+
+/** Copies the address after every control has written the current state.
+ * Confirmation replaces the button's own text, so it is visible and
+ * keyboard-accessible without adding another live region to the two copies
+ * of the storage panel. */
+export function wireCopyViewLinks(): void {
+  let resetTimer = 0;
+  const buttons = [...document.querySelectorAll<HTMLElement>('[data-share="copy"]')];
+  const setText = (text: string): void => {
+    for (const button of buttons) button.textContent = text;
+  };
+  for (const button of buttons) {
+    button.addEventListener("click", async () => {
+      const copied = await copyViewUrl(window.location.href, navigator.clipboard);
+      setText(copied ? "Link copied" : "Link could not be copied");
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => setText("Copy link to this view"), 2500);
+    });
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { loadLegacyApi } from "../data/legacy-harness";
 import { readPayload } from "../data/payload-fixture";
 import { DEFAULT_URL_STATE, searchWithState, selectionFromSearch, stateFromSearch } from "./url";
+import { STORAGE_CLASSES } from "../viz/classes";
 
 const legacy = loadLegacyApi();
 
@@ -22,6 +23,12 @@ const AWKWARD = [
   "Lago Español"
 ];
 const NAMES = [...AWKWARD, ...readPayload().reservoirs.map((reservoir) => reservoir.name)];
+const PAYLOAD = readPayload();
+const AREAS = [null, ...new Set(PAYLOAD.reservoirs.map((reservoir) => reservoir.huc6)
+  .filter((value): value is string => typeof value === "string"))];
+const MONTHS = [null, ...new Set(PAYLOAD.reservoirs.flatMap((reservoir) =>
+  reservoir.monthly.map((month) => month.month)))];
+const CLASSES = [null, ...STORAGE_CLASSES.map((_, index) => index)];
 
 describe("reading a selection out of a link", () => {
   it("matches the shared parser on every name", () => {
@@ -104,8 +111,14 @@ describe("the rest of the view in the link", () => {
     expect(searchWithState({
       storageClass: 0, reporting: "late", drainageArea: "140600", lakePowell: "include",
       geography: "connected", month: "2026-02"
-    })).toBe("?storage=0&reporting=late&area=140600&powell=include" +
+    })).toBe("?class=0&late=true&drainage=140600&powell=include" +
       "&reservoirs=connected&month=2026-02");
+  });
+
+  it("uses false to distinguish current data from no reporting filter", () => {
+    expect(searchWithState({ reporting: "current" })).toBe("?late=false");
+    expect(stateFromSearch("?late=false").reporting).toBe("current");
+    expect(stateFromSearch("").reporting).toBe("all");
   });
 
   it("writes nothing for the geography the dashboard opens on", () => {
@@ -121,16 +134,16 @@ describe("the rest of the view in the link", () => {
 
   it("puts the reservoir first, so the readable part of a link leads", () => {
     const search = searchWithState({ reservoir: "Deer Creek", reporting: "late" });
-    expect(search.indexOf("reservoir=")).toBeLessThan(search.indexOf("reporting="));
+    expect(search.indexOf("reservoir=")).toBeLessThan(search.indexOf("late="));
   });
 
   it("survives a round trip in every combination the controls can reach", () => {
-    for (const storageClass of [null, 0, 3]) {
+    for (const storageClass of CLASSES) {
       for (const reporting of ["all", "late", "current"] as const) {
-        for (const drainageArea of [null, "140600"]) {
+        for (const drainageArea of AREAS) {
           for (const lakePowell of ["exclude", "include"] as const) {
             for (const geography of ["utah", "connected"] as const) {
-              for (const month of [null, "2026-02"]) {
+              for (const month of MONTHS) {
                 const state = {
                   reservoir: "Deer Creek", storageClass, reporting, drainageArea,
                   lakePowell, geography, month
@@ -145,20 +158,36 @@ describe("the rest of the view in the link", () => {
   });
 
   it("takes a drainage area only in the shape the payload writes them", () => {
+    expect(stateFromSearch("?drainage=140600").drainageArea).toBe("140600");
+    expect(stateFromSearch("?drainage=Lower%20Green").drainageArea).toBeNull();
+    expect(stateFromSearch("?drainage=").drainageArea).toBeNull();
     expect(stateFromSearch("?area=140600").drainageArea).toBe("140600");
-    expect(stateFromSearch("?area=Lower%20Green").drainageArea).toBeNull();
-    expect(stateFromSearch("?area=").drainageArea).toBeNull();
   });
 
   it("opens the dashboard rather than breaking on a hand-edited link", () => {
-    expect(stateFromSearch("?storage=banana&reporting=sideways&powell=maybe"))
+    expect(stateFromSearch("?class=banana&late=perhaps&drainage=sideways&powell=maybe"))
       .toEqual(DEFAULT_URL_STATE);
-    expect(stateFromSearch("?storage=-1")).toEqual(DEFAULT_URL_STATE);
+    expect(stateFromSearch(`?class=${STORAGE_CLASSES.length}`)).toEqual(DEFAULT_URL_STATE);
+    expect(stateFromSearch("?class=-1")).toEqual(DEFAULT_URL_STATE);
+    expect(searchWithState({ storageClass: STORAGE_CLASSES.length })).toBe("");
+    expect(searchWithState({ drainageArea: "Lower Green" })).toBe("");
+  });
+
+  it("ignores one malformed value while restoring the rest", () => {
+    expect(stateFromSearch("?drainage=Lower%20Green&class=1&month=2026-02"))
+      .toMatchObject({ drainageArea: null, storageClass: 1, month: "2026-02" });
   });
 
   it("still keeps another page's parameter when the filters are set", () => {
     expect(searchWithState({ reporting: "late" }, "?basemap=streets"))
-      .toBe("?reporting=late&basemap=streets");
+      .toBe("?late=true&basemap=streets");
+  });
+
+  it("accepts old filter links and rewrites them with the public names", () => {
+    const state = stateFromSearch("?storage=1&reporting=late&area=140600");
+    expect(state).toMatchObject({ storageClass: 1, reporting: "late", drainageArea: "140600" });
+    expect(searchWithState(state, "?storage=1&reporting=late&area=140600"))
+      .toBe("?class=1&late=true&drainage=140600");
   });
 
 });

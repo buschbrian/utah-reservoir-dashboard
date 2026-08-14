@@ -119,15 +119,21 @@ describe("a link shared between the map and the overview", () => {
   });
 
   it("honours a map link as far as this page can, and no further", () => {
-    /* `reporting=current` is the map's vocabulary; this page offers daily,
+    /* `late=false` is the map's current-data filter; this page offers daily,
      * monthly and late instead. The link must still open, with the
      * parameter it cannot honour falling back rather than rejected. */
-    const fromMap = "?reservoirs=connected&powell=include&area=140600&reporting=current";
+    const fromMap = "?reservoirs=connected&powell=include&drainage=140600" +
+      "&class=1&late=false";
     const state = overviewStateFromSearch(fromMap);
     expect(state.geography).toBe("connected");
     expect(state.lakePowell).toBe("include");
     expect(state.drainageArea).toBe("140600");
+    expect(state.storageClass).toBe(1);
     expect(state.reporting).toBe("all");
+  });
+
+  it("accepts the map's late-only spelling", () => {
+    expect(overviewStateFromSearch("?late=true").reporting).toBe("late");
   });
 
   it("does not throw away the map's own month on the way past", () => {

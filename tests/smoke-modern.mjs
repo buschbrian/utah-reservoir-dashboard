@@ -24,6 +24,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { createContext, runInContext } from "node:vm";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.join(REPO_ROOT, "dist");
@@ -62,14 +63,31 @@ const inScope = payload.reservoirs.filter((reservoir) =>
   reservoir.rise_item_id !== 509 &&
   reservoir.name.trim().toLowerCase() !== "lake powell");
 const expectedReservoirs = inScope.length;
-/* An area that holds some of the scope but not all of it, so filtering by it
- * is a real narrowing whichever morning this runs. */
-const partialArea = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
-  .filter((code) => typeof code === "string")
-  .find((code) => {
-    const held = inScope.filter((reservoir) => reservoir.huc6 === code).length;
-    return held > 0 && held < inScope.length;
+const legacyContext = createContext({ window: {} });
+runInContext(await readFile(path.join(REPO_ROOT, "shared/reservoir-viz.js"), "utf8"),
+  legacyContext);
+const storageClasses = legacyContext.window.ReservoirViz.CLASSES;
+const classOf = (reservoir) => {
+  const percent = reservoir.pct_of_capacity ?? reservoir.pct_of_record_max;
+  if (!Number.isFinite(percent)) return null;
+  let index = 0;
+  storageClasses.forEach((entry, candidate) => {
+    if (percent >= entry.min) index = candidate;
   });
+  return index;
+};
+/* One area-and-class intersection that is non-empty but not the full scope.
+ * The class breaks come from the legacy source of truth, not a copied list
+ * in this test. */
+const sharedFilter = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
+  .filter((code) => typeof code === "string")
+  .flatMap((drainage) => storageClasses.map((_, storageClass) => ({
+    drainage,
+    storageClass,
+    count: inScope.filter((reservoir) =>
+      reservoir.huc6 === drainage && classOf(reservoir) === storageClass).length
+  })))
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
 const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
 
@@ -1038,6 +1056,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     viewport: VIEWPORTS[0],
     reducedMotion: "reduce"
   });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: URL });
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
@@ -1126,20 +1145,25 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the link's filter was not applied`);
     check(restored.where === "late = 1",
       `${label}: the map filter is "${restored.where}" after restoring a filtered link`);
-    check(/powell=include/.test(restored.search) && /reporting=late/.test(restored.search),
+    check(/powell=include/.test(restored.search) && /late=true/.test(restored.search),
       `${label}: the address bar dropped the view it restored ("${restored.search}")`);
 
     /* The drainage-area filter, which is a filter and not a scope: the map
      * keeps every reservoir and greys the ones outside the area, so the
      * count drawn must not move while the count shown does. */
-    const area = partialArea;
-    await tab.goto(`${URL}?area=${area}`,
+    check(Boolean(sharedFilter), `${label}: no non-empty area and class combination exists`);
+    const area = sharedFilter?.drainage;
+    const storageClass = sharedFilter?.storageClass;
+    await tab.goto(`${URL}?drainage=${area}&class=${storageClass}`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
     await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
     const narrowed = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       control: document.querySelector('#start-panel [data-filter="drainage"]')?.value,
+      storage: document.querySelector('#start-panel [data-filter="storage"]')?.value,
       summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      listShown: document.querySelectorAll(
+        '#start-panel .list-btn:not(.list-btn-excluded)').length,
       where: document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
     }));
@@ -1147,14 +1171,40 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the link's drainage area was not applied (${narrowed.ready.areaFilter})`);
     check(narrowed.control === area,
       `${label}: the drainage-area control shows "${narrowed.control}", not the link's area`);
-    check(narrowed.where === `drainage_area = '${area}'`,
-      `${label}: the map filter is "${narrowed.where}" after restoring a drainage-area link`);
+    check(narrowed.storage === String(storageClass),
+      `${label}: the storage control shows "${narrowed.storage}", not class ${storageClass}`);
+    check(narrowed.where?.includes(`drainage_area = '${area}'`) &&
+      /fill_percent/.test(narrowed.where),
+    `${label}: the map filter is "${narrowed.where}" after restoring both filters`);
     check(narrowed.ready.drawn === expectedReservoirs,
       `${label}: filtering by drainage area removed reservoirs from the map`);
-    check(narrowed.ready.shown > 0 && narrowed.ready.shown < expectedReservoirs,
-      `${label}: a drainage area showed ${narrowed.ready.shown} of ${expectedReservoirs}`);
+    check(narrowed.ready.shown === sharedFilter?.count,
+      `${label}: map filter showed ${narrowed.ready.shown}, expected ${sharedFilter?.count}`);
+    check(narrowed.listShown === narrowed.ready.shown,
+      `${label}: list showed ${narrowed.listShown}, map reported ${narrowed.ready.shown}`);
     check(narrowed.summary.includes("grey"),
       `${label}: the summary does not say the other reservoirs stay on the map`);
+
+    const beforeHistory = await tab.evaluate(() => history.length);
+    await tab.locator('#start-panel [data-filter="reporting"]').evaluate((select) => {
+      select.value = "late";
+      select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+    });
+    await tab.waitForFunction(() => window.location.search.includes("late=true"));
+    check(await tab.evaluate(() => history.length) === beforeHistory,
+      `${label}: a filter change added an entry to browser history`);
+
+    const share = tab.locator('#start-panel [data-share="copy"]');
+    check(await share.evaluate(async (button) => {
+      await button.setFocus();
+      return document.activeElement === button || Boolean(button.shadowRoot?.activeElement);
+    }),
+      `${label}: copy-link control cannot receive keyboard focus`);
+    await tab.keyboard.press("Enter");
+    await tab.waitForFunction(() =>
+      document.querySelector('#start-panel [data-share="copy"]')?.textContent?.includes("Link copied"));
+    const copied = await tab.evaluate(() => navigator.clipboard.readText());
+    check(copied === tab.url(), `${label}: copied "${copied}" instead of "${tab.url()}"`);
 
     // A link that names nothing this page draws is not an error; it is no
     // selection, and the reader gets the ordinary starting view.
