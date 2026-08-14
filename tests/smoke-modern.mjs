@@ -677,32 +677,105 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   try {
     await tab.goto(`http://127.0.0.1:${PORT}/overview.html`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__overviewReady?.charts === 2", { timeout: 60000 });
+    const CHART_HOSTS = ["#capacity-chart", "#watershed-chart", "#trend-chart",
+      "#normal-chart", "#distribution-chart", "#spread-chart"];
+    /* A real function, not a string. Playwright evaluates a string as an
+       expression, so an arrow-function source text evaluates to a Function
+       object -- which is truthy, so the wait returned at once and the next
+       line read `undefined.lakePowellExcluded`. */
+    await tab.waitForFunction(
+      (expected) => window.__overviewReady?.charts === expected, CHART_HOSTS.length,
+      { timeout: 120000 });
     const overviewReady = await tab.evaluate(() => window.__overviewReady);
     check(overviewReady.lakePowellExcluded === true,
       `${label}: readiness signal reports Lake Powell in scope`);
-    check(await tab.locator("arcgis-chart").count() === 2,
-      `${label}: both ArcGIS charts did not render`);
-    check(await tab.locator("arcgis-chart").evaluateAll((charts) => charts.every((chart) =>
-      [...(chart.shadowRoot?.querySelectorAll("svg rect") ?? [])].some((rect) =>
-        Number(rect.getAttribute("width")) > 20 && Number(rect.getAttribute("height")) > 3))),
-    `${label}: an ArcGIS chart has no visible data bars`);
+    check(await tab.locator("arcgis-chart").count() === CHART_HOSTS.length,
+      `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
+
+    /* The bar and box charts draw into SVG; the scatterplot and the
+     * histogram draw into a canvas, which paints nothing at all in a
+     * browser that is not compositing -- the same quirk that leaves the map
+     * canvas blank in headless Chromium. So the drawn check applies to the
+     * SVG charts, and the canvas ones are held to what they computed: the
+     * SDK reports its own statistics on `arcgisDataProcessComplete`, which
+     * is a stronger claim than "some pixels are lit" anyway. */
+    const svgCharts = ["#capacity-chart", "#watershed-chart", "#trend-chart", "#spread-chart"];
+    for (const host of svgCharts) {
+      check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>
+        [...(chart.shadowRoot?.querySelectorAll("svg rect, svg path, svg circle") ?? [])]
+          .some((node) => node.getBoundingClientRect().width > 3)),
+      `${label}: ${host} drew no marks`);
+    }
+    const computed = await tab.evaluate(async (hosts) => {
+      const out = {};
+      await Promise.all(hosts.map((host) => new Promise((resolve) => {
+        const chart = document.querySelector(`${host} arcgis-chart`);
+        if (!chart) { out[host] = null; resolve(); return; }
+        const done = setTimeout(() => { out[host] = out[host] ?? "no event"; resolve(); }, 20000);
+        chart.addEventListener("arcgisDataProcessComplete", (event) => {
+          out[host] = event.detail?.chartData ?? "empty";
+          clearTimeout(done);
+          resolve();
+        }, { once: true });
+        void chart.refresh();
+      })));
+      const trend = out["#trend-chart"];
+      return {
+        histogramBins: Array.isArray(out["#distribution-chart"]?.bins)
+          ? out["#distribution-chart"].bins.length : 0,
+        histogramMean: out["#distribution-chart"]?.mean ?? null,
+        scatterPoints: Array.isArray(out["#normal-chart"]?.dataItems)
+          ? out["#normal-chart"].dataItems.length : 0,
+        /* The months the line is actually drawn from, in the order the SDK
+           will draw them. Read here rather than off the axis: the tick
+           labels are <p> elements scattered through a shadow tree with a
+           hidden readout among them carrying the same text, so scraping
+           them measured the tooltip as if it were a tick. */
+        trendMonths: Array.isArray(trend?.dataItems)
+          ? trend.dataItems.map((item) => item.month_label ?? item.x ?? null)
+          : []
+      };
+    }, ["#distribution-chart", "#normal-chart", "#trend-chart"]);
+    check(computed.histogramBins > 0,
+      `${label}: the distribution chart computed no bins`);
+    check(typeof computed.histogramMean === "number" && computed.histogramMean > 0,
+      `${label}: the distribution chart computed no mean`);
+    check(computed.scatterPoints > 0,
+      `${label}: the storage-against-normal chart computed no points`);
+
     check(await tab.locator("#reservoir-rows tr").count() === expectedReservoirs,
       `${label}: table does not match the map scope`);
     check(!(await tab.locator("#reservoir-rows").innerText()).includes("Lake Powell"),
       `${label}: Lake Powell appears in the default overview table`);
     // A chart host that finished drawing must stop announcing itself busy.
-    for (const host of ["#capacity-chart", "#watershed-chart"]) {
+    for (const host of CHART_HOSTS) {
       check(await tab.getAttribute(host, "aria-busy") === "false",
         `${label}: ${host} still reports itself as loading`);
     }
-    check(await tab.locator("#capacity-chart arcgis-chart")
-      .evaluate((chart) => Boolean(chart.aria?.label)),
-      `${label}: chart has no accessible name`);
+    for (const host of CHART_HOSTS) {
+      check(await tab.locator(`${host} arcgis-chart`)
+        .evaluate((chart) => Boolean(chart.aria?.label)),
+      `${label}: ${host} has no accessible name`);
+    }
+
+    /* The month axis, which sorted alphabetically twice before it sorted by
+     * time: first as month names, then as year-plus-abbreviation. The
+     * labels are the payload's own month keys, so ascending text order is
+     * chronological order -- and this asserts the order the line is drawn
+     * in rather than the label format, because the format is only the
+     * means. */
+    check(computed.trendMonths.length > 1,
+      `${label}: the trend chart drew no months`);
+    check(computed.trendMonths.every((month) => /^\d{4}-\d{2}$/.test(String(month))),
+      `${label}: the trend chart months are not month keys: ` +
+      `${computed.trendMonths.join(", ")}`);
+    check(JSON.stringify(computed.trendMonths)
+      === JSON.stringify([...computed.trendMonths].sort()),
+    `${label}: the trend chart months are out of order: ${computed.trendMonths.join(", ")}`);
     await tab.locator("#reservoir-search").fill("Jordan");
     await tab.waitForFunction(
-      `(expected) => window.__overviewReady?.visible > 0 &&
-        window.__overviewReady?.visible < expected`, expectedReservoirs,
+      (expected) => window.__overviewReady?.visible > 0
+        && window.__overviewReady?.visible < expected, expectedReservoirs,
       { timeout: 60000 });
     const filtered = await tab.locator("#reservoir-rows tr").count();
     check(filtered > 0 && filtered < expectedReservoirs,
