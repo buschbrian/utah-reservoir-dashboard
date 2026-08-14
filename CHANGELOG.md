@@ -64,6 +64,27 @@ and is not listed here.
 
 ### Added
 
+- **All 217 snow monitoring sites in the published drainage areas are now
+  verified and refreshed independently.** The inventory uses full-resolution
+  federal watershed geometry for sites near a divide, records the official
+  1991–2020 comparison period, and refuses to replace the last complete file
+  when even one listed station is missing. Seasonal drainage-area values
+  average station percentages and state how many sites reported; late readings
+  stay present and are marked as late data. The snow interface remains a
+  separate view under ADR-021.
+
+- **Every published drainage area now has tracked reservoir storage.** The
+  connected view adds 15 reviewed Colorado and Wyoming sites: ten in Colorado
+  Headwaters, four in White-Yampa, and one in Lower San Juan. Each capacity is
+  tied to a position-confirmed dam in the National Inventory of Dams. Nine
+  sites update daily and six update monthly; old readings continue to be
+  marked as late data.
+- **Current U.S. Drought Monitor polygons are now available as GeoJSON.** A
+  checked downloader retrieves every national D0-D4 feature from the official
+  service, verifies that all features describe the same week, and keeps the
+  last good file if that independent service is unavailable during a daily
+  reservoir update.
+
 - **The primary application filters by drainage area.** The overview has had
   this control since it gained drainage areas; the map did not, so a reader who
   wanted one basin had to read fifty-one circles for it. It is a filter and not

@@ -591,6 +591,26 @@ through an integration this project has, with identifiers it already handles.
 A second provider is only worth taking on if the AWDB pass leaves a gap that
 matters, and the pass has to come first.
 
+### 1.6c publication — 2026-08-14
+
+[ADR-023](docs/decisions/ADR-023-fill-the-empty-drainage-areas.md) closes the
+empty-area inventory question. The position-first capacity audit admitted all
+15 stations in the three empty published drainage areas: ten in Colorado
+Headwaters, four in White-Yampa, and one in Lower San Juan. They are committed
+as reviewed configuration in `connected_reservoirs.json`, with their station
+identifiers and National Inventory of Dams evidence kept together.
+
+The refresh now publishes 69 reservoirs across all fourteen drainage areas.
+Nine of the additions use current daily values and six use monthly values.
+Elkhead Reservoir's newest monthly value is May 31, 2026, so it is published
+as late data instead of being made to look current.
+
+The earlier drought-service block is also resolved at the geometry level.
+`tools/fetch_drought_monitor.py` downloads the official current nationwide
+polygons as GeoJSON, verifies completeness and common dates, and writes
+`data/drought/usdm-current.geojson`. Adding those polygons to the interface and
+calculating drainage-area coverage remain later product work.
+
 ### Watershed assignment measured — 2026-08-09
 
 `tools/probe_huc_points.py` answers the two questions the plan could only

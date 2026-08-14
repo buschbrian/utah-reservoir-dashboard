@@ -18,7 +18,8 @@ const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
 const RUNTIME_DATA = [
-  "reservoirs.json", "reference.json", "capacities.json",
+  "reservoirs.json", "snow_sites.json", "snowpack.json",
+  "reference.json", "capacities.json",
   "huc6.geojson", "utah-boundary.geojson"
 ];
 
@@ -110,7 +111,8 @@ describe("a data-only commit deploys on its own", () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     for (const path of ["index.html", "modern.html", "legacy/index.html",
       "overview.html", "methods.html", "explore.html",
-      "maplibre/index.html", "data/reservoirs.json", "data/reference.json",
+      "maplibre/index.html", "data/reservoirs.json", "data/snow_sites.json",
+      "data/snowpack.json", "data/reference.json",
       "data/huc6.geojson", "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }

@@ -101,6 +101,19 @@ def test_arcgis_rest_client_fetches_every_object_id_in_bounded_batches():
                for call in feature_calls)
 
 
+def test_arcgis_rest_client_can_keep_full_boundary_precision():
+    session = Session()
+    ArcGISRestClient("https://example.test/MapServer/3", session=session).query(
+        get_scope("upper-colorado"),
+        geometry_precision="6",
+        max_allowable_offset=None,
+    )
+    feature_calls = [params for url, params, _ in session.calls
+                     if url.endswith("/query") and "objectIds" in params]
+    assert all(call["geometryPrecision"] == "6" for call in feature_calls)
+    assert all("maxAllowableOffset" not in call for call in feature_calls)
+
+
 def test_arcgis_python_provider_uses_feature_layer_query_contract():
     class Layer:
         def __init__(self, url):

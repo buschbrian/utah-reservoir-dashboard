@@ -67,6 +67,9 @@ KNOWN_ASSIGNMENTS = {
     "Piute": "160300",                # Sevier
     "Strawberry": "140600",           # Lower Green, not Jordan: it drains east
     "Meeks Cabin": "140401",          # in Wyoming, and still ours
+    "Dillon Reservoir": "140100",     # Colorado Headwaters
+    "Elkhead Reservoir": "140500",    # White-Yampa
+    "Narraguinnep Reservoir": "140802",  # Lower San Juan
 }
 
 # The margin the boundary generalization was chosen against. If a future
@@ -104,6 +107,11 @@ def test_every_published_reservoir_lands_in_exactly_one_unit(units, reservoirs):
         matches = [unit["huc6"] for unit in units
                    if any(in_polygon(point, polygon) for polygon in unit["polygons"])]
         assert len(matches) == 1, f"{reservoir['name']} matched {matches}"
+
+
+def test_every_published_unit_has_at_least_one_tracked_reservoir(reservoirs):
+    represented = {reservoir["huc6"] for reservoir in reservoirs}
+    assert represented == set(EXPECTED_UNITS)
 
 
 @pytest.mark.parametrize("name,huc6", sorted(KNOWN_ASSIGNMENTS.items()))

@@ -75,7 +75,8 @@ class ArcGISRestClient:
             raise RuntimeError(f"ArcGIS query failed: {error.get('message', error)}")
         return payload
 
-    def query(self, scope, *, object_ids=None) -> dict:
+    def query(self, scope, *, object_ids=None, geometry_precision="5",
+              max_allowable_offset="0.005") -> dict:
         metadata = self._json(self.layer_url, {"f": "json"})
         capabilities = {part.strip().lower()
                         for part in str(metadata.get("capabilities", "")).split(",")}
@@ -114,15 +115,18 @@ class ArcGISRestClient:
         features = []
         for start in range(0, len(object_ids), batch_size):
             batch = object_ids[start:start + batch_size]
-            payload = self._json(query_url, {
+            parameters = {
                 "objectIds": ",".join(map(str, batch)),
                 "outFields": f"{object_id_field},huc6,name,states",
                 "returnGeometry": "true",
                 "outSR": "4326",
-                "geometryPrecision": "5",
-                "maxAllowableOffset": "0.005",
                 "f": "geojson",
-            })
+            }
+            if geometry_precision is not None:
+                parameters["geometryPrecision"] = str(geometry_precision)
+            if max_allowable_offset is not None:
+                parameters["maxAllowableOffset"] = str(max_allowable_offset)
+            payload = self._json(query_url, parameters)
             features.extend(payload.get("features") or [])
 
         if len(features) != len(object_ids):
