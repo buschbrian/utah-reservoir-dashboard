@@ -185,7 +185,13 @@ async function measure(tab, { withLayer }) {
 await new Promise((resolve) => server.listen(PORT, resolve));
 const browser = await chromium.launch({
   headless: false,
-  args: ["--window-position=0,0", "--window-size=1400,1000"]
+  args: ["--window-position=0,0", "--window-size=1400,1000"],
+  // The same escape hatch the two browser gates carry: a machine with Google
+  // Chrome installed does not need a second Chromium downloaded to measure
+  // its own GPU. The number is about the renderer, not about the wrapper.
+  ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+    : {})
 });
 
 const results = { baselineIdle: null, withLayer: [], withoutLayer: [] };

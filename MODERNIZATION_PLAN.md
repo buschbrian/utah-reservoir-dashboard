@@ -1,8 +1,8 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status (2026-08-13):** Phases 0, 1, 1.5, and 2 are complete. The inventory
+**Status (2026-08-13):** Phases 0, 1, 1.5, 2, and 3 are complete. The inventory
 portion of Phase 1.6 added Fontenelle; snowpack and drought context are not
-implemented. Phase 3 is underway. The ArcGIS 5.1 application is the root
+implemented. Phase 4 is next. The ArcGIS 5.1 application is the root
 production view, and the earlier pages remain available as comparisons.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
@@ -29,7 +29,8 @@ are not part of the frontend rewrite.
 | Build and deploy | Vite, strict TypeScript, Vitest, runtime-data copying, GitHub Pages deployment after direct pushes and successful refreshes, and the SDK bundle budget are live. |
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
 | Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
-| Next application work | Phase 3 interaction and analysis increments. |
+| Symbology and interaction | One feature layer, composed symbols, hover, selection, filter effects and shareable state are live and measured affordable on integrated graphics. |
+| Next application work | Phase 4 charts, once the two open questions about the map's subject are answered. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
@@ -692,6 +693,53 @@ layer. This was fixed on the production page by replacing the color visual
 variable with a `UniqueValueRenderer` generated from the shared class table
 (ADR-008); it was not deferred to the new shell.
 
+### Symbol and filter cost measured — 2026-08-13
+
+Phase 3.5's last open item. The rule was written down in
+[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) before the tool existed, so
+this is a result being read against a threshold rather than a threshold being
+chosen to fit a result.
+
+Measured with `node tools/profile-symbols.mjs` against `dist/modern.html` on a
+MacBook Air, Apple M4 (10 CPU cores, 8 GPU cores, 16 GB), macOS 27, Google
+Chrome 151.0.7922.138 — integrated graphics, which is the class of machine the
+rule was written for. Four runs per arm, the first of each discarded to shader
+compilation.
+
+| Measurement | Value |
+|---|---|
+| Frame budget (median idle interval) | 16.7 ms |
+| Pan p50, reservoirs drawn | 16.7 ms |
+| Pan p95, reservoirs drawn | 17.7 ms |
+| Pan p50, reservoirs hidden | 16.7 ms |
+| Layer's share of the median frame | 0 ms |
+| Run-to-run spread (noise floor) | 0 ms |
+| Tasks over 50 ms | 0 |
+| Filter apply, per change | 12.6–18 ms |
+
+All three pre-registered thresholds pass: pan p95 of 17.7 ms against a limit of
+33.4 ms, a layer share of 0 ms against 4.17 ms, and no task anywhere near the
+50 ms long-task threshold.
+
+**The composed symbol is free at this inventory size, to the limit of what the
+display can resolve.** Panning with all 51 reservoirs drawn and panning with the
+layer removed produce the same median frame interval, and the display refreshes
+at 16.7 ms, so a difference below that cannot be seen even if one exists. The
+p95 sits one millisecond over the median — the tail is a single frame's jitter,
+not a dropped frame. Applying `featureEffect` costs about one frame, once, per
+filter change.
+
+So nothing is reduced: the drop-shadow layer stays, and `CIRCLE_POINTS` stays at
+64. The pre-registered response to a failure was to cut cost, and there is no
+cost to cut. **Bloom stays rejected** on the encoding grounds recorded with the
+rule — the layer view's `temporary` highlight already does the emphasis job, and
+this measurement was never able to change that.
+
+The honest limit of the result: it is one machine in one session, at 51
+reservoirs. It says the current symbology is affordable, not that any symbology
+would be. The inventory work in Phase 1.6 is the thing that would make it worth
+re-running, and the tool is kept for that.
+
 ---
 
 ## 1. Baseline when this plan started
@@ -932,13 +980,16 @@ cutover stay in their later phases.
 symbology in one responsive shell, passes the Phase 2 integration gates, and
 leaves the three production views unchanged.
 
-### Phase 3 — Symbology and micro-interactions
+### Phase 3 — Symbology and micro-interactions (complete)
 
 The "slick" phase. Everything here is a real SDK capability, not CSS trickery.
 The executable order and release gates are in
-[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md). Increment 3.1 is complete:
-throttled pointer hover now reports name, percent full, and reading date, and
-map click selection follows the map component's `event.detail.x/y` contract.
+[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md). All five increments landed and
+the acceptance gates pass; the cost of the result is measured in
+[Symbol and filter cost measured](#symbol-and-filter-cost-measured--2026-08-13).
+Bloom was rejected on encoding grounds rather than on cost — the layer view's
+`temporary` highlight already emphasises the hovered and selected reservoir,
+and an effect that is free but redundant still loses.
 
 - **Dual circles → `CIMSymbol`.** Replace the two-`FeatureLayer` construction with a single layer and a `CIMSymbol` composed of stacked symbol layers: an offset, blurred **drop shadow**, the capacity ring, and the storage fill. CIM gives real per-symbol effects (offset, buffer, dash) that `simple-marker` cannot, and collapses the two layers into one — which also removes the duplicate-popup trap both engines hit.
   - Keep the sqrt-scaled shared size domain. Size still comes from visual variables so the ring-to-fill gap stays a true read of depletion.
@@ -1066,6 +1117,24 @@ with per-month tooltips.
    Lake Powell inclusion are independent dimensions.** The default is Utah
    reservoirs without Lake Powell; the connected comparison includes all
    published reservoirs (ADR-011).
+7. **The reservoirs outside the current scope.** The payload publishes more
+   reservoirs than the map draws. Whether the out-of-scope records are there
+   for context, for comparison, or for nothing decides whether they need a
+   scope control of their own beside Lake Powell's, or simply stay out.
+   Raised by Phase 3.5 and carried here because it changes what the map is
+   *of*, not how it draws. Answer it before Phase 4 builds charts on the
+   current answer.
+8. **The snow telemetry sites.** They are a different kind of thing from a
+   reservoir: a point measurement of what is going to arrive, rather than a
+   volume that is already there. Whether they belong on this map, on a layer
+   of their own, or on a separate view is a question about the dashboard's
+   subject. It gates the snowpack half of Phase 1.6 and the deferred snowpack
+   context item.
+
+   Whatever is decided for 7 and 8 has to reach all three engines and both
+   surfaces in the same pass. The scope control, the storage classes, the
+   opening extent and the analysis controls each took a follow-up pass to
+   bring back into line after one engine moved first.
 
 ## 6. Deferred
 

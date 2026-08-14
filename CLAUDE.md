@@ -105,7 +105,16 @@ node tools/profile-symbols.mjs   # needs a real, visible browser window
 
 It measures what the composed symbol and the filter effect cost on the machine
 you run it on, and refuses to run in CI rather than report a perfect score from
-a renderer that never drew. Leave the window in front for the duration.
+a renderer that never drew. Leave the window in front for the duration. The
+result of the 2026-08-13 run is in the modernization plan.
+
+All three browser tools take `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. A machine
+with Google Chrome installed does not need a second Chromium downloaded to run
+them:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" node tests/smoke.mjs
+```
 
 The smoke test is the one that catches what the others cannot: a page that
 loads, paints a basemap and renders no reservoirs at all. It asserts every

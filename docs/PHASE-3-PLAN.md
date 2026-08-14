@@ -160,7 +160,7 @@ surfaces at once. The scope control, the storage classes, the opening extent
 and the analysis controls each took a pass to bring back into line after one
 engine moved first.
 
-### 3.5 Loading and release gates — loading states complete, profiling pending
+### 3.5 Loading and release gates — complete
 
 - Replace remaining loading copy with Calcite loader/skeleton states without
   hiding error explanations.
@@ -230,9 +230,32 @@ If the baseline fails, the response is to reduce cost -- drop the shadow layer,
 or halve `CIRCLE_POINTS` from 64, where `src/viz/cim.ts` records the polygon
 error as under a tenth of a pixel -- not to relax the threshold.
 
+#### The measurement, read against that rule — 2026-08-13
+
+All three thresholds pass, and by margins that are not close. Drawing all 51
+reservoirs and drawing none of them produce the same median frame interval on
+an Apple M4, which is to say the composed symbol costs less than the display
+can resolve. Nothing is reduced: the shadow layer stays and `CIRCLE_POINTS`
+stays at 64. Bloom stays rejected on the encoding grounds recorded above,
+which no number was ever going to change. The table, the machine, the browser
+version and the limits of the result are in the modernization plan under
+"Symbol and filter cost measured".
+
 ## Phase acceptance
 
 Phase 3 is complete when one reservoir feature layer drives symbology,
 pointer feedback, selection, and filters; keyboard users retain an equivalent
 list path; reduced motion removes nonessential animation; and the production
 browser gates pass with and without a basemap.
+
+**Met on 2026-08-13.** Increments 3.1 through 3.5 are complete, and the gates
+pass: `npm run build`, 99 Python tests, `tests/smoke.mjs` over the three
+comparison views at all three widths, and `tests/smoke-modern.mjs` over the
+primary application at all three widths, with the first basemap refused, with
+every basemap refused, with the payload refused, and with the payload never
+answering.
+
+The two questions under "Still to decide" are deliberately still open. They
+are about what the map is *of* rather than how it draws, they were never
+3.5's to answer, and they now sit in the modernization plan's open decisions
+where the phases that depend on them will meet them.
