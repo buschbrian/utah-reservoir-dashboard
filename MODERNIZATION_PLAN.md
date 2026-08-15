@@ -1,11 +1,12 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
-**Status (2026-08-14):** Phases 0, 1, 1.5, 2, 3, and 5 are complete. The
+**Status (2026-08-15):** Phases 0, 1, 1.5, 2, 3, and 5 are complete. The
 inventory portion of Phase 1.6 added Fontenelle; snowpack and drought context
-are not implemented. Phase 4 is underway: the chart workspace is live, and its
+are not implemented. Phase 4 is underway: the chart workspace is live, its
 class colours, storage bands and reservoir summaries have completed their first
-accessibility pass. The ArcGIS 5.1 application is the root production view,
-and the earlier pages remain available as comparisons.
+accessibility pass, and the layer-driven ranking chart now runs on the primary
+application's bottom row. The ArcGIS 5.1 application is the root production
+view, and the earlier pages remain available as comparisons.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
@@ -32,8 +33,8 @@ are not part of the frontend rewrite.
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
 | Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
 | Symbology and interaction | One feature layer, composed symbols, hover, selection, filter effects and shareable state are live and measured affordable on integrated graphics. |
-| Bottom row | The sortable table and its CSV export are live under the map on the primary application, closing Phase 5's remainder. |
-| Next application work | Phase 4's layer-driven ranking chart, which now has a row to land in. |
+| Bottom row | The sortable table, its CSV export, and Phase 4's ranking chart share the row under the map. The chart is loaded when the row opens. |
+| Next application work | Phase 4's remaining question: whether the distribution histogram joins the primary application or stays an overview-only view. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
@@ -1068,6 +1069,31 @@ rewrite — assert it in a test.
 **Accessibility, closing the README's open item:** every chart keeps its
 `aria-label` and its table of the same numbers, and Plot marks become focusable
 with per-month tooltips.
+
+**The ranking chart landed on the primary application 2026-08-15**, in the
+bottom row beside the table. Three things were found by building it:
+
+- **The chart is drawn from the table's own rows.** `src/state/ranking.ts`
+  ranks the same `TableRow[]` the table renders and the CSV writer exports,
+  so the row's three surfaces are one filter answered three ways -- the same
+  by-construction agreement ADR-029's row was built on, extended rather than
+  re-proved. Colours come from the class table through `storageClass`
+  (ADR-008), computed from the same rounded value as the bar's length so the
+  two claims a bar makes cannot disagree at a class boundary.
+- **The charts package is loaded when the row opens, not with the page.**
+  `renderArcgisBarChart` is reused from the overview through a dynamic
+  import, which kept the static entry path at 2.13 MiB gzip (was 2.07). The
+  build's *totals* still grew to 23.58 MiB raw / 8.22 MiB gzip, because the
+  charts package's lazy chunk graph -- including a PDF exporter nothing here
+  calls -- now ships with the primary build. The SDK budget was re-baselined
+  deliberately from that measurement; the initial-path limit did not move.
+- **A chart redraw needs a debounce and an identity check.** The month
+  slider fires once per animation frame while dragged, and an SDK chart
+  takes whole seconds to rebuild -- so redraws are debounced, guarded by a
+  revision counter, and skipped when the records serialize to what is
+  already on screen (a table sort reorders the rows but not the ranking).
+  `rankingBars` joined the readiness signal; the row's `aria-busy` is
+  cleared on every exit from the draw, the failed one included.
 
 ### Phase 5 — State, filters and deep links (complete)
 

@@ -63,6 +63,11 @@ const inScope = payload.reservoirs.filter((reservoir) =>
   reservoir.rise_item_id !== 509 &&
   reservoir.name.trim().toLowerCase() !== "lake powell");
 const expectedReservoirs = inScope.length;
+/* The reservoirs the ranking chart can rank: those with a readable headline
+ * percentage, computed the way src/viz/symbols.ts computes it. Derived from
+ * the payload rather than written down, like the scope above. */
+const expectedRanked = inScope.filter((reservoir) =>
+  Number.isFinite(reservoir.pct_of_capacity ?? reservoir.pct_of_record_max)).length;
 const legacyContext = createContext({ window: {} });
 runInContext(await readFile(path.join(REPO_ROOT, "shared/reservoir-viz.js"), "utf8"),
   legacyContext);
@@ -803,6 +808,57 @@ for (const viewport of VIEWPORTS) {
     check(afterTable.scroll <= afterTable.viewport + 1,
       `${label}: the open table widens the page ` +
       `(${afterTable.scroll}px in ${afterTable.viewport}px)`);
+
+    /* Phase 4's ranking chart, in the same row. It is built from the same
+     * rows the table renders, so the assertion that matters is the count:
+     * every reservoir the filter matches that has a readable percentage,
+     * and only those -- a chart ranking unknowns at zero would invent a
+     * drought. Opening the row is what builds it, so this waits on the
+     * readiness field the render writes last. */
+    await tab.waitForFunction("window.__dashboardReady.rankingBars > 0", { timeout: 60000 });
+    const ranking = await tab.evaluate(() => {
+      const chart = document.querySelector('[data-ranking="host"] arcgis-chart');
+      return {
+        bars: window.__dashboardReady.rankingBars,
+        shown: window.__dashboardReady.shown,
+        busy: document.querySelector('[data-ranking="host"]')?.getAttribute("aria-busy"),
+        chartLabel: chart?.aria?.label ?? "",
+        caption: document.querySelector('[data-ranking="caption"]')?.textContent ?? "",
+        marks: [...(chart?.shadowRoot?.querySelectorAll("svg rect, svg path") ?? [])]
+          .filter((node) => node.getBoundingClientRect().width > 3).length,
+        /* The chart's box and the table's box, which must not overlap: the
+         * chart's scroller was once painted straight through the table
+         * region below it, because the grid holding both was allowed to
+         * shrink beneath its content. Scroll positions do not move these --
+         * both rects are the boxes themselves, not their contents. */
+        overlap: (() => {
+          const a = document.querySelector(".ranking-scroll")?.getBoundingClientRect();
+          const b = document.querySelector(".table-scroll")?.getBoundingClientRect();
+          if (!a || !b) return null;
+          return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+            Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        })(),
+        viewport: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth
+      };
+    });
+    check(ranking.bars === expectedRanked,
+      `${label}: the ranking chart holds ${ranking.bars} bars, expected ${expectedRanked}`);
+    check(ranking.bars <= ranking.shown,
+      `${label}: the ranking chart holds more bars (${ranking.bars}) than the filter ` +
+      `matches (${ranking.shown})`);
+    check(ranking.busy === "false",
+      `${label}: the ranking chart still reports itself as loading after it drew`);
+    check(ranking.chartLabel.length > 0,
+      `${label}: the ranking chart has no accessible name`);
+    check(ranking.caption.includes(String(ranking.bars)),
+      `${label}: the ranking caption does not say how many reservoirs are ranked`);
+    check(ranking.marks > 0, `${label}: the ranking chart drew no marks`);
+    check(ranking.overlap === 0,
+      `${label}: the ranking chart's box overlaps the table's by ${ranking.overlap}px²`);
+    check(ranking.scroll <= ranking.viewport + 1,
+      `${label}: the ranking chart widens the page ` +
+      `(${ranking.scroll}px in ${ranking.viewport}px)`);
 
     await tab.evaluate(async () => {
       document.getElementById("table-close").click();

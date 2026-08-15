@@ -14,15 +14,24 @@ import { build } from "vite";
  *   15.33 MiB raw / 5.39 MiB gzip across 1444 files
  *   2.07 MiB gzip on the static entry path
  *
- * The limits below sit above that deliberately. Two thirds of the raw total
- * is lazily-loaded SDK the shell never requests, so the number that governs
+ * Re-baselined on 2026-08-15, when Phase 4's ranking chart brought
+ * @arcgis/charts-components into the primary entry behind a dynamic import:
+ *
+ *   23.58 MiB raw / 8.22 MiB gzip across 1547 files
+ *   2.13 MiB gzip on the static entry path
+ *
+ * The growth is entirely lazily-loaded chart chunks -- the largest are the
+ * charts package's own PDF-export machinery, which nothing here calls but
+ * its chunk graph carries -- and the static entry path moved by 0.06 MiB.
+ * The limits below sit above that deliberately. Most of the raw total is
+ * lazily-loaded SDK the shell never requests, so the number that governs
  * what a reader waits for is the last one: the chunks the entry pulls in
  * statically. The headroom absorbs dependency patch releases; a change that
  * pushes past it is a change worth reading, not a threshold worth raising
  * without one.
  */
-const MAX_RAW_BYTES = 17 * 1024 * 1024;
-const MAX_GZIP_BYTES = 6 * 1024 * 1024;
+const MAX_RAW_BYTES = 26 * 1024 * 1024;
+const MAX_GZIP_BYTES = 9 * 1024 * 1024;
 const MAX_INITIAL_GZIP_BYTES = 2.3 * 1024 * 1024;
 
 const result = await build({
