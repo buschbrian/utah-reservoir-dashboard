@@ -6,6 +6,9 @@ const NAME_FIELD = "name";
 
 export interface HitGraphic {
   attributes?: Record<string, unknown>;
+  /** Kept as a compatibility fallback for SDK hits that attach the layer
+   * to the graphic rather than the result wrapper. */
+  layer?: { id?: string } | null;
 }
 
 export interface GraphicHit {
@@ -50,7 +53,8 @@ export function reservoirFromHits<T extends { name: string }>(
     if (named) return { reservoir: named, graphic };
 
     const objectId = attributes[OBJECT_ID_FIELD];
-    if (result.layer?.id === RESERVOIR_LAYER_ID
+    const layerId = result.layer?.id ?? graphic.layer?.id;
+    if (layerId === RESERVOIR_LAYER_ID
       && Number.isInteger(objectId)
       && (objectId as number) >= 1) {
       const reservoir = reservoirs[(objectId as number) - 1];

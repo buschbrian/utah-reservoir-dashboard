@@ -130,6 +130,7 @@ type MapElement = HTMLElement & {
   extent?: unknown;
   view?: {
     whenLayerView(layer: unknown): Promise<unknown>;
+    container?: HTMLElement | null;
     ready?: boolean;
     zoom?: number;
     padding?: ViewPadding;
@@ -238,6 +239,7 @@ function eventPoint(event: Event): ScreenPoint | null {
 
 function hideMapHover(): void {
   const card = elementById<HTMLElement>("map-hover");
+  card.setAttribute("aria-hidden", "true");
   card.hidden = true;
   card.replaceChildren();
 }
@@ -255,6 +257,7 @@ function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
       formatPercent(reservoir.change_30d_pct)} · `;
   context.textContent = `${change}Reading ${formatDate(reservoir.as_of)}`;
   card.replaceChildren(heading, summary, context);
+  card.setAttribute("aria-hidden", "false");
   card.hidden = false;
   const stage = card.parentElement;
   if (!stage) return;
@@ -268,12 +271,21 @@ function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
 function wirePointerSelection(
   element: MapElement,
   selection: SelectionStore,
-  drawn: () => readonly Reservoir[]
+  drawn: () => readonly Reservoir[],
+  layer: () => FeatureLayer | null
 ): void {
-  element.addEventListener("arcgisViewClick", (event) => {
+  let request = 0;
+  /* The immediate event is intended for direct feedback. Waiting for the
+   * delayed click made the opening map feel inert, especially while the
+   * component was still settling its own gesture recognizers. */
+  element.addEventListener("arcgisViewImmediateClick", (event) => {
     const screenPoint = eventPoint(event);
     if (!screenPoint) return;
-    void element.hitTest(screenPoint).then((response) => {
+    const targetLayer = layer();
+    if (!targetLayer) return;
+    const current = ++request;
+    void element.hitTest(screenPoint, { include: targetLayer }).then((response) => {
+      if (current !== request || layer() !== targetLayer) return;
       const hit = reservoirFromHits(drawn(), response.results);
       // Clicking the basemap clears the selection: the reader pointed at
       // something that is not a reservoir, and leaving the old details open
@@ -289,6 +301,7 @@ function wirePointerSelection(
 function wirePointerHover(
   element: MapElement,
   drawn: () => readonly Reservoir[],
+  layer: () => FeatureLayer | null,
   layerView: () => LayerView | null
 ): void {
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -296,6 +309,13 @@ function wirePointerHover(
   let frame = 0;
   let request = 0;
   let highlight: { remove(): void } | null = null;
+
+  const setCursor = (overReservoir: boolean): void => {
+    const cursor = overReservoir ? "pointer" : "";
+    element.style.cursor = cursor;
+    const container = element.view?.container;
+    if (container) container.style.cursor = cursor;
+  };
 
   /* The SDK's own emphasis, on the layer view, rather than a fourth circle
    * drawn on a graphics layer: `temporary` is the named highlight the SDK
@@ -318,6 +338,7 @@ function wirePointerHover(
 
   const clear = (): void => {
     emphasize(undefined);
+    setCursor(false);
     hideMapHover();
   };
 
@@ -329,11 +350,17 @@ function wirePointerHover(
       const point = queued;
       queued = null;
       if (!point) return;
+      const targetLayer = layer();
+      if (!targetLayer) {
+        clear();
+        return;
+      }
       const current = ++request;
-      void element.hitTest(point).then((response) => {
-        if (current !== request) return;
+      void element.hitTest(point, { include: targetLayer }).then((response) => {
+        if (current !== request || layer() !== targetLayer) return;
         const hit = reservoirFromHits(drawn(), response.results);
         emphasize(hit?.graphic);
+        setCursor(Boolean(hit));
         if (hit) showMapHover(hit.reservoir, point);
         else hideMapHover();
       }).catch(() => clear());
@@ -346,7 +373,7 @@ function wirePointerHover(
     frame = 0;
     clear();
   });
-  element.addEventListener("arcgisViewClick", clear);
+  element.addEventListener("arcgisViewImmediateClick", clear);
 }
 
 export async function loadMap(
@@ -460,8 +487,8 @@ export async function loadMap(
   let pendingFilter: string | null = null;
   let pendingSelection: Reservoir | null = null;
   let drawn: readonly Reservoir[] = [];
-  wirePointerSelection(element, selection, () => drawn);
-  wirePointerHover(element, () => drawn, () => reservoirLayerView);
+  wirePointerSelection(element, selection, () => drawn, () => reservoirLayer);
+  wirePointerHover(element, () => drawn, () => reservoirLayer, () => reservoirLayerView);
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();
   else if (resolution.degraded) showDegradedBasemap(resolution.name);

@@ -12,6 +12,18 @@ describe("overview chart records", () => {
       || (records[index - 1]?.capacityAf ?? 0) >= record.capacityAf)).toBe(true);
   });
 
+  it("uses stored acre-feet for the bar length when that measure is selected", () => {
+    const records = largestReservoirRecords(reservoirs, {
+      limit: 5,
+      measure: "storage",
+      rank: "name"
+    });
+
+    expect(records.every((record) => record.percent === record.storageAf)).toBe(true);
+    expect(records.map((record) => record.label))
+      .toEqual([...records.map((record) => record.label)].sort());
+  });
+
   it("aggregates each drainage area without losing storage", () => {
     const records = watershedRecords(reservoirs);
     expect(records.length).toBeGreaterThan(1);

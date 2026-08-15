@@ -268,17 +268,10 @@ body {
 .chart-host arcgis-chart {
   display: flex;
   position: relative;
-  width: calc(100% - 3rem);
+  width: 100%;
   height: 100%;
-  margin-inline-start: 3rem;
   --chart-width: 100%;
   --chart-height: 100%;
-}
-.chart-host arcgis-charts-action-bar {
-  position: absolute;
-  z-index: 2;
-  inset-block: 0;
-  inset-inline-start: 0;
 }
 .chart-empty { display: grid; place-items: center; height: 100%; margin: 0; color: var(--app-muted); }
 .table-card { margin-block-start: .75rem; }

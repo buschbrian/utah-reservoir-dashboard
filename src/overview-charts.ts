@@ -1,6 +1,5 @@
 import "@arcgis/charts-components/main.css";
 import "@arcgis/charts-components/components/arcgis-chart";
-import "@arcgis/charts-components/components/arcgis-charts-action-bar";
 import {
   ActionModes,
   ModelTypes,
@@ -20,7 +19,9 @@ import type {
   TrendPoint
 } from "./overview-model";
 import { STORAGE_CLASSES } from "./viz/classes";
+import { chartTooltip } from "./viz/chart-tooltip";
 import { hexToRgb } from "./viz/color";
+import { formatAcreFeet, formatPercent } from "./viz/format";
 
 export interface BarChartOptions {
   measure?: ChartMeasure;
@@ -97,6 +98,7 @@ const RENDER_SETTLE_MS = 8000;
  * a path that is not public. */
 type ChartElement = HTMLElementTagNameMap["arcgis-chart"];
 type ChartModel = NonNullable<ChartElement["model"]>;
+type TooltipFormatter = NonNullable<ChartElement["tooltipFormatter"]>;
 
 /** A percentage axis runs 0 to 100, always. */
 const PERCENT_AXIS = { min: 0, max: 100 };
@@ -274,19 +276,19 @@ export function storageLegendEntries(): { label: string; color: string }[] {
 }
 
 /**
- * Puts a chart and its action bar on the page and waits for it to draw.
+ * Puts a chart on the page and waits for it to draw.
  *
- * Shared by all four charts. The action bar is what gives every one of them
- * zoom, reset, "download as image" and "export data" without this file
- * implementing any of them -- it is the SDK's own toolbar, wired to the
- * chart element.
+ * The SDK action bar is intentionally absent. With no configured actions it
+ * rendered as a white, collapsible rail containing only an expand control;
+ * expanding it revealed nothing and narrowed every chart by three rem.
  */
 async function mountChart(
   host: HTMLElement,
   layer: FeatureLayer,
   model: ChartModel,
   ariaLabel: string,
-  actionMode: ActionModes
+  actionMode: ActionModes,
+  tooltipFormatter?: TooltipFormatter
 ): Promise<ChartElement> {
   const chart = document.createElement("arcgis-chart");
   chart.id = `${host.id || "overview"}-arcgis-chart`;
@@ -302,13 +304,11 @@ async function mountChart(
   chart.returnSelectionOIDs = true;
   chart.aria = {
     label: ariaLabel,
-    description: "Use the chart toolbar to zoom, reset, download an image, or export the data."
+    description: "Move the pointer over a chart mark to read its values."
   };
-  const actions = document.createElement("arcgis-charts-action-bar");
-  actions.id = `${chart.id}-actions`;
-  actions.chartElement = chart;
-  host.append(chart, actions);
-  await Promise.all([chart.componentOnReady(), actions.componentOnReady()]);
+  chart.tooltipFormatter = tooltipFormatter;
+  host.append(chart);
+  await chart.componentOnReady();
   const rendered = new Promise<void>((resolve) => {
     chart.addEventListener("arcgisRenderingComplete", () => resolve(), { once: true });
   });
@@ -325,6 +325,83 @@ async function mountChart(
     new Promise<void>((resolve) => { settle = setTimeout(resolve, RENDER_SETTLE_MS); })
   ]).finally(() => clearTimeout(settle));
   return chart;
+}
+
+function barTooltipFormatter(measure: ChartMeasure): TooltipFormatter {
+  return ((props: {
+    statValue?: number;
+    xValue?: Date | number | string;
+  }): string => chartTooltip(String(props.xValue ?? "Reservoir"), [{
+    label: measure === "storage" ? "Stored now" : "Percent full",
+    value: measure === "storage"
+      ? `${formatAcreFeet(props.statValue ?? null)} acre-feet`
+      : formatPercent(props.statValue ?? null)
+  }])) as TooltipFormatter;
+}
+
+function trendTooltipFormatter(
+  points: readonly TrendPoint[], measure: ChartMeasure
+): TooltipFormatter {
+  const labels = new Map(points.map((point) => [point.axisLabel, point.label]));
+  return ((props: {
+    statValue?: number;
+    xValue?: Date | number | string;
+  }): string => {
+    const key = String(props.xValue ?? "");
+    return chartTooltip(labels.get(key) ?? key, [{
+      label: measure === "storage" ? "Combined storage" : "Percent full",
+      value: measure === "storage"
+        ? `${formatAcreFeet(props.statValue ?? null)} acre-feet`
+        : formatPercent(props.statValue ?? null)
+    }]);
+  }) as TooltipFormatter;
+}
+
+function normalTooltipFormatter(): TooltipFormatter {
+  return ((x: number, y: number, _size: number | undefined,
+    dataContext?: Record<string, unknown>): string => {
+    const title = typeof dataContext?.label === "string"
+      ? dataContext.label : "Reservoir";
+    const drainage = typeof dataContext?.watershed === "string"
+      ? dataContext.watershed : "Not reported";
+    const stored = typeof dataContext?.storage_af === "number"
+      ? dataContext.storage_af : null;
+    return chartTooltip(title, [
+      { label: "Drainage area", value: drainage },
+      { label: "Usual storage for this date", value: `${formatAcreFeet(x)} acre-feet` },
+      { label: "Stored now", value: `${formatAcreFeet(stored)} acre-feet` },
+      { label: "Percent of the usual storage", value: formatPercent(y) }
+    ]);
+  }) as TooltipFormatter;
+}
+
+function histogramTooltipFormatter(): TooltipFormatter {
+  return ((count: number, binMinValue: number, binMaxValue: number): string =>
+    chartTooltip(`${count} ${count === 1 ? "reservoir" : "reservoirs"}`, [{
+      label: "Percent full",
+      value: `${binMinValue.toFixed(1)}% to ${binMaxValue.toFixed(1)}%`
+    }])) as TooltipFormatter;
+}
+
+function boxTooltipFormatter(): TooltipFormatter {
+  return ((props: {
+    xValue?: Date | number | string;
+    dataContext: Record<string, unknown>;
+  }): string => {
+    const value = (field: string): string => formatPercent(
+      typeof props.dataContext[field] === "number"
+        ? props.dataContext[field] as number : null
+    );
+    return chartTooltip(String(props.xValue ?? "Drainage area"), [
+      { label: "Minimum", value: value("min") },
+      { label: "First quartile", value: value("first_quartile") },
+      { label: "Median", value: value("median") },
+      { label: "Third quartile", value: value("third_quartile") },
+      { label: "Maximum", value: value("max") },
+      { label: "Interquartile range", value: value("iqr") },
+      { label: "Mean", value: value("avg") }
+    ]);
+  }) as TooltipFormatter;
 }
 
 /** The same empty state for every chart, so a filter that matches nothing
@@ -361,7 +438,11 @@ export async function renderArcgisBarChart(
   model.chartTitleVisibility = false;
   // The class legend is rendered beside the chart from the same table.
   model.legendVisibility = false;
-  model.setSortOrder(SerialChartDataSortingKinds.yAxisDesc);
+  /* The records already carry the reader's chosen rank. Sorting again by
+   * the bar value silently changed Capacity, Storage and Name back into
+   * Percent full. Custom sort makes the chart preserve that chosen order. */
+  model.setSortOrder(SerialChartDataSortingKinds.customSort,
+    records.map((record) => record.label));
   model.setAxisTitleText(options.categoryTitle ?? "Name", 0);
 
   if (options.measure === "storage") {
@@ -392,8 +473,7 @@ export async function renderArcgisBarChart(
 
   /* Selection mode rather than zoom when the caller wants clicks: the SDK
    * cannot do both, and a chart whose bars filter the page is worth more
-   * than one that can be rubber-band zoomed -- the toolbar still offers
-   * zoom as an explicit action either way.
+   * than one that can be rubber-band zoomed.
    *
    * One bar at a time. The mode used to be `MultiSelectionWithCtrlKey` and
    * the card promised "hold Ctrl to compare several", but the handler below
@@ -403,7 +483,8 @@ export async function renderArcgisBarChart(
    * does less, and the page's one selection is the search box (see
    * state/overview-url.ts), which holds one name. */
   const chart = await mountChart(host, layer, model, ariaLabel,
-    options.onSelect ? ActionModes.MonoSelection : ActionModes.Zoom);
+    options.onSelect ? ActionModes.MonoSelection : ActionModes.Zoom,
+    barTooltipFormatter(options.measure ?? "percent"));
 
   if (options.onSelect) {
     /* The SDK reports the selection as object IDs against the layer it was
@@ -553,6 +634,9 @@ export async function renderArcgisTrendChart(
   const seriesName = measure === "storage" ? "Acre-feet stored" : "Percent full";
   model.setSeriesName(seriesName, 0);
   model.setSeriesName(seriesName, 1);
+  /* Both series trace the same values. Let one mark own the tooltip so a
+   * month is described once instead of appearing as two identical rows. */
+  model.setDataTooltipVisibility(false, 1);
   /* Colour matching reads a layer renderer, and the month layer has none --
    * left on it discards the series colours below and falls back to the
    * SDK's default orange and blue, and orange is the colour the class table
@@ -563,7 +647,8 @@ export async function renderArcgisTrendChart(
   model.setSeriesColor([...CHART_INK.measureSoft], 0);
   model.setSeriesColor([...CHART_INK.measure], 1);
   model.setMarkerVisible(true, 1);
-  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
+  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
+    trendTooltipFormatter(points, measure));
 }
 
 /* ------------------------------------------------------------------ */
@@ -693,18 +778,11 @@ export async function renderArcgisNormalChart(
   model.setGuideVisibility(true, 0, "y");
   model.showLinearTrend = false;
 
-  /* A scatterplot's tooltip is built from its axis fields and nothing else
-   * -- `displayField` on the layer, which is what gives the other charts'
-   * tooltips a title, has no effect here, because neither axis is the
-   * reservoir's name. `additionalTooltipField` is documented as
-   * numeric-only, but a string field works in practice and is the only
-   * lever this model exposes. The two axis values are listed first no
-   * matter what this array says -- that ordering is not configurable here
-   * -- so `label` and `watershed` lead the *rest* of the tooltip rather
-   * than opening it, which is the closest this chart type gets to a name
-   * a reader sees before the numbers. */
-  model.additionalTooltipField = ["label", "watershed", "storage_af"];
-  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
+  /* The SDK only supports numeric fields in `additionalTooltipField`; the
+   * previous string-field workaround produced an oddly ordered tooltip.
+   * A formatter can name the point first and arrange the facts explicitly. */
+  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
+    normalTooltipFormatter());
   model.colorMatch = true;
 }
 
@@ -834,7 +912,8 @@ export async function renderArcgisDistributionChart(
   };
   model.setAxisTitleText("Percent full", 0);
   model.setAxisTitleText("Reservoirs", VALUE_AXIS);
-  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
+  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
+    histogramTooltipFormatter());
 }
 
 /**
@@ -892,5 +971,6 @@ export async function renderArcgisSpreadChart(
   model.setAxisTitleText("Percent full", VALUE_AXIS);
   model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
   model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);
-  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
+  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
+    boxTooltipFormatter());
 }

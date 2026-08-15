@@ -32,6 +32,27 @@ and is not listed here.
 
 ### Fixed
 
+- **The overview charts no longer reserve a white rail for an empty menu.**
+  The charts action bar had no actions to show, so its expand control only
+  opened and closed blank space while taking width away from every chart. The
+  rail and its inactive collapse state are removed, and each chart now uses
+  the full card width.
+- **Chart pointer summaries now have a consistent reading order.** Reservoir
+  or month names lead, followed by one fact per line with the correct unit.
+  The storage-against-normal chart no longer puts text fields into an SDK
+  option that supports numbers only, and the trend no longer repeats the same
+  value for its matching bar and line. Runtime names are escaped before the
+  charts SDK interprets the summary as markup.
+- **The reservoir bar chart now keeps the selected ranking.** The data was
+  prepared in Capacity, Storage, Percent full or Name order, then the chart
+  model sorted it by bar length again. It now preserves the order the reader
+  chose, including when acre-feet stored is the selected measure.
+- **Primary-map pointer input is limited to the current reservoir layer.** A
+  click now uses the SDK's immediate feedback event, and click and hover tests
+  exclude drainage areas, labels and old layers from their results. Late
+  answers from a layer that has since been replaced are ignored, and the
+  pointer changes shape when it is over a reservoir.
+
 - **Clicking a reservoir on the primary map now selects it straight away.**
   The map answered a click with a reservoir that carried no name, so the click
   cleared the details panel instead of opening it. It only affected the map as

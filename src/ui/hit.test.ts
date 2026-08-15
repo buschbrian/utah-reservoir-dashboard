@@ -33,6 +33,17 @@ describe("reservoir hit selection", () => {
     expect(hit).toBeNull();
   });
 
+  it("accepts SDK hits that attach the reservoir layer to the graphic", () => {
+    const hit = reservoirFromHits(reservoirs, [{
+      graphic: {
+        layer: { id: "reservoirs" },
+        attributes: { objectid: 1 }
+      }
+    }]);
+
+    expect(hit?.reservoir.name).toBe("Deer Creek");
+  });
+
   it("keeps accepting a named hit without layer metadata", () => {
     const hit = reservoirFromHits(reservoirs, [{
       graphic: { attributes: { name: "deer creek" } }

@@ -474,17 +474,20 @@ for (const viewport of VIEWPORTS) {
         const layer = map.map.findLayerById("reservoirs");
         const objectid = layer.source.find((graphic) =>
           graphic.attributes?.name === name)?.attributes?.objectid;
-        map.hitTest = async () => ({
-          /* A newly materialized client-side layer view can return only the
-           * object ID even though the source carries every field. Selection
-           * must work on the first draw, before a scope change rebuilds it.
-           * `layer` sits on the hit result itself, per the SDK's `GraphicHit`
-           * type -- not on `graphic.layer`, which the 2D feature layer view
-           * only ever sets for track and aggregate hits. */
-          results: [{ type: "graphic", layer, graphic: {
-            attributes: { objectid }
-          } }]
-        });
+        map.hitTest = async (_point, options) => {
+          window.__reservoirHitIncluded = options?.include === layer;
+          return ({
+            /* A newly materialized client-side layer view can return only the
+             * object ID even though the source carries every field. Selection
+             * must work on the first draw, before a scope change rebuilds it.
+             * `layer` sits on the hit result itself, per the SDK's `GraphicHit`
+             * type -- not on `graphic.layer`, which the 2D feature layer view
+             * only ever sets for track and aggregate hits. */
+            results: [{ type: "graphic", layer, graphic: {
+              attributes: { objectid }
+            } }]
+          });
+        };
         map.dispatchEvent(new CustomEvent("arcgisViewPointerMove", {
           detail: { x: 500, y: 300 }
         }));
@@ -495,6 +498,8 @@ for (const viewport of VIEWPORTS) {
       const hoverText = (await tab.locator("#map-hover").innerText()).trim();
       check(hoverText.includes(pointerName) && hoverText.includes("%"),
         `${label}: pointer hover did not summarize ${pointerName}`);
+      check(await tab.evaluate(() => window.__reservoirHitIncluded === true),
+        `${label}: pointer hit test was not limited to the reservoir layer`);
       const hoverBounds = await tab.evaluate(() => {
         const stage = document.querySelector(".map-stage").getBoundingClientRect();
         const card = document.querySelector("#map-hover").getBoundingClientRect();
@@ -507,7 +512,7 @@ for (const viewport of VIEWPORTS) {
 
       await tab.evaluate(() => {
         document.querySelector("arcgis-map").dispatchEvent(
-          new CustomEvent("arcgisViewClick", { detail: { x: 500, y: 300 } }));
+          new CustomEvent("arcgisViewImmediateClick", { detail: { x: 500, y: 300 } }));
       });
       await tab.waitForFunction(
         (name) => window.__dashboardReady.selected === name,
@@ -849,6 +854,25 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: readiness signal reports Lake Powell in scope`);
     check(await tab.locator("arcgis-chart").count() === CHART_HOSTS.length,
       `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
+    check(await tab.locator("arcgis-charts-action-bar").count() === 0,
+      `${label}: an empty collapsible chart rail is still rendered`);
+
+    const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
+      sort: chart.model?.getSortOrder(),
+      order: [...(chart.model?.orderByList ?? [])],
+      source: chart.layer?.source?.toArray()
+        ?.map((graphic) => graphic.attributes?.label) ?? []
+    }));
+    check(rankedChart.sort === "customSort",
+      `${label}: the reservoir chart overrides the selected rank with ${rankedChart.sort}`);
+    check(JSON.stringify(rankedChart.order) === JSON.stringify(rankedChart.source),
+      `${label}: the reservoir chart did not preserve its selected rank`);
+    for (const host of ["#capacity-chart", "#trend-chart", "#normal-chart",
+      "#distribution-chart", "#spread-chart"]) {
+      check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>
+        typeof chart.tooltipFormatter === "function"),
+      `${label}: ${host} has no arranged pointer summary`);
+    }
 
     /* The bar and box charts draw into SVG; the scatterplot and the
      * histogram draw into a canvas, which paints nothing at all in a
