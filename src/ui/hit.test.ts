@@ -9,10 +9,8 @@ const reservoirs = [
 describe("reservoir hit selection", () => {
   it("uses the reservoir object ID when the layer view omits the name", () => {
     const hit = reservoirFromHits(reservoirs, [{
-      graphic: {
-        layer: { id: "reservoirs" },
-        attributes: { objectid: 2 }
-      }
+      layer: { id: "reservoirs" },
+      graphic: { attributes: { objectid: 2 } }
     }]);
 
     expect(hit?.reservoir.name).toBe("Jordanelle");
@@ -20,10 +18,16 @@ describe("reservoir hit selection", () => {
 
   it("does not treat a drainage-area object ID as a reservoir", () => {
     const hit = reservoirFromHits(reservoirs, [{
-      graphic: {
-        layer: { id: "drainage-areas" },
-        attributes: { objectid: 1 }
-      }
+      layer: { id: "drainage-areas" },
+      graphic: { attributes: { objectid: 1 } }
+    }]);
+
+    expect(hit).toBeNull();
+  });
+
+  it("does not fall back to the object ID when the hit carries no layer at all", () => {
+    const hit = reservoirFromHits(reservoirs, [{
+      graphic: { attributes: { objectid: 2 } }
     }]);
 
     expect(hit).toBeNull();

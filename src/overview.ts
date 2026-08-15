@@ -42,7 +42,7 @@ import {
 } from "./overview-model";
 import type { Reservoir } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
-import { wireTheme } from "./ui/theme";
+import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import "./styles/overview.css";
 
@@ -192,7 +192,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       <section class="overview-card" aria-labelledby="capacity-heading">
         <div class="card-heading">
           <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Your choice appears in the search box above, and clearing it brings the rest back.</p></div>
-          <span class="sdk-badge">ArcGIS Chart</span>
+          <span class="sdk-badge">Bar chart</span>
         </div>
         <!-- The chart's own controls, above the chart for the same reason
              the analysis controls sit above the reservoir list: a control
@@ -206,25 +206,25 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="watershed-heading">
-        <div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each area. Click a bar to filter to it.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each area. Click a bar to filter to it.</p></div><span class="sdk-badge">Bar chart</span></div>
         <div id="watershed-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="trend-heading">
-        <div class="card-heading"><div><h2 id="trend-heading">The last 12 months</h2><p>Combined storage for the reservoirs in view, month by month. The only chart here that shows direction.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="trend-heading">The last 12 months</h2><p>Combined storage for the reservoirs in view, month by month. The only chart here that shows direction.</p></div><span class="sdk-badge">Bar and line chart</span></div>
         <div id="trend-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="normal-heading">
-        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the dashed line hold less than they usually do on this date. The reservoirs get larger to the right, in tenfold steps, so the small ones are as readable as Flaming Gorge.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the dashed line hold less than they usually do on this date. The reservoirs get larger to the right, in tenfold steps, so the small ones are as readable as Flaming Gorge.</p></div><span class="sdk-badge">Scatter plot</span></div>
         <div id="normal-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="distribution-heading">
-        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">Histogram</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="spread-heading">
-        <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">ArcGIS Chart</span></div>
+        <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">Box plot</span></div>
         <div id="spread-chart" class="chart-host" aria-busy="true"></div>
       </section>
     </div>
@@ -480,6 +480,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       : "input";
     control.addEventListener(event, () => void update());
   }
+  /* Each chart reads the page's Calcite colours once, when it is built --
+   * they are baked into the SDK's own chart config, not CSS the cascade can
+   * re-theme on its own. Without this, flipping the theme toggle after the
+   * charts have drawn leaves them in whichever theme was active at the time,
+   * while the rest of the page has already moved on. */
+  document.addEventListener(THEME_CHANGE_EVENT, () => void update());
   reset.addEventListener("click", () => {
     search.value = "";
     watershed.value = "all";

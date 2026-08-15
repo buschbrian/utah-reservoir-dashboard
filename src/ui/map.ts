@@ -141,7 +141,7 @@ type MapElement = HTMLElement & {
       Promise<unknown>;
   };
   hitTest(target: { x: number; y: number }, options?: { include?: unknown }): Promise<{
-    results: { type: string; graphic?: HitGraphic }[];
+    results: { type: string; graphic?: HitGraphic; layer?: { id?: string } | null }[];
   }>;
 };
 

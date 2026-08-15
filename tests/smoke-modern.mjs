@@ -477,9 +477,12 @@ for (const viewport of VIEWPORTS) {
         map.hitTest = async () => ({
           /* A newly materialized client-side layer view can return only the
            * object ID even though the source carries every field. Selection
-           * must work on the first draw, before a scope change rebuilds it. */
-          results: [{ type: "graphic", graphic: {
-            layer, attributes: { objectid }
+           * must work on the first draw, before a scope change rebuilds it.
+           * `layer` sits on the hit result itself, per the SDK's `GraphicHit`
+           * type -- not on `graphic.layer`, which the 2D feature layer view
+           * only ever sets for track and aggregate hits. */
+          results: [{ type: "graphic", layer, graphic: {
+            attributes: { objectid }
           } }]
         });
         map.dispatchEvent(new CustomEvent("arcgisViewPointerMove", {

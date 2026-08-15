@@ -6,11 +6,19 @@ const NAME_FIELD = "name";
 
 export interface HitGraphic {
   attributes?: Record<string, unknown>;
-  layer?: { id?: string } | null;
 }
 
 export interface GraphicHit {
   graphic?: HitGraphic;
+  /**
+   * The layer the hit belongs to. This lives on the hit result itself, per
+   * the SDK's `GraphicHit` type -- `graphic.layer` is documented as set only
+   * "if applicable", and the 2D feature layer view only ever assigns it for
+   * track and aggregate hits. Reading it off the graphic instead reads a
+   * field that is `undefined` for every plain feature hit, which is why the
+   * layer check below never matched.
+   */
+  layer?: { id?: string } | null;
 }
 
 export interface ReservoirHit<T> {
@@ -42,7 +50,7 @@ export function reservoirFromHits<T extends { name: string }>(
     if (named) return { reservoir: named, graphic };
 
     const objectId = attributes[OBJECT_ID_FIELD];
-    if (graphic.layer?.id === RESERVOIR_LAYER_ID
+    if (result.layer?.id === RESERVOIR_LAYER_ID
       && Number.isInteger(objectId)
       && (objectId as number) >= 1) {
       const reservoir = reservoirs[(objectId as number) - 1];

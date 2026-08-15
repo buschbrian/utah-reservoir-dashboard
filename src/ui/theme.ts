@@ -9,6 +9,13 @@ import { elementById } from "./dom";
 const THEME_STORAGE_KEY = "utah-reservoir-dashboard-theme";
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
+/** Fired on `document` whenever the effective theme changes -- from the
+ * toggle, or from the system preference while the preference is "system".
+ * A page with content the CSS cascade cannot reach on its own, such as a
+ * chart drawn once from Calcite colours it read at mount time, listens for
+ * this to redraw rather than polling `documentElement.dataset.theme`. */
+export const THEME_CHANGE_EVENT = "dashboard-theme-change";
+
 function readThemePreference(): ThemePreference {
   try {
     return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
@@ -30,6 +37,7 @@ function applyTheme(): void {
     action.setAttribute("text", `Theme: ${themePreference}`);
     action.setAttribute("label", `Change color theme. Current setting: ${themePreference}`);
   }
+  document.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { theme } }));
 }
 
 export function wireTheme(): void {

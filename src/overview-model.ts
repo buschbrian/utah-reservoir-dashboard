@@ -267,6 +267,7 @@ export function percentFullValues(reservoirs: readonly Reservoir[]): ValuePoint[
 export interface NormalPoint {
   id: number;
   label: string;
+  watershed: string;
   storageAf: number;
   normalAf: number;
   /** Above 100 is wetter than usual for the date, below is drier. */
@@ -289,6 +290,7 @@ export function normalComparison(reservoirs: readonly Reservoir[]): NormalPoint[
     .map((reservoir, index) => ({
       id: index + 1,
       label: reservoir.name,
+      watershed: reservoir.huc6_name ?? "Not assigned",
       storageAf: reservoir.current_storage_af,
       normalAf: reservoir.seasonal_normal_af ?? 0,
       percentOfNormal: Number((reservoir.pct_of_seasonal_normal

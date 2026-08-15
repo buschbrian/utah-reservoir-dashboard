@@ -42,6 +42,62 @@ and is not listed here.
   selected reservoir also stayed above the circles only until the reservoirs
   were redrawn, and now stays above them.
 
+- **Clicking or hovering a reservoir on the primary map worked again.** The
+  object-ID fallback above read the hit's layer off `graphic.layer`, which
+  the 2D feature layer view leaves `undefined` for an ordinary feature hit --
+  it only sets that property for track and aggregate hits. The SDK's own
+  `GraphicHit` type carries the layer on the hit result itself, not the
+  graphic, so the fallback silently never matched and every click and hover
+  on a reservoir point fell through to "nothing here," while the reservoir
+  list kept working because it never goes through `hitTest`. Reading
+  `result.layer` instead resolves both.
+
+- **The overview's six charts now match the page's own light or dark theme.**
+  `createModel` builds every chart against its own defaults -- a white
+  background, near-black axis text and lines -- and nothing here ever told
+  it otherwise, so a chart sat inside a card looking like neither theme. The
+  first attempt at this read Calcite's own stock colour ramp, which is nearer
+  to plain grey and white than this app's own warm, muted cream-and-charcoal
+  tokens (`app.css`) -- so the fix "worked" and still looked wrong. Reading
+  the app's own `--app-surface-raised`, `--app-text` and `--app-border`
+  instead is what actually matches the card each chart already sits inside.
+  Colours are re-read and reapplied if the reader flips the theme toggle
+  after the charts have drawn, since a chart bakes the colours it read at
+  mount time into its own config rather than tracking the CSS variables live.
+- **Chart tooltips now name the reservoir or drainage area they are over.**
+  Four of the five chart layers had no `displayField`, so their tooltips
+  listed every field with its raw alias rather than opening with the one
+  that says what the mark *is*. The fifth -- the box plot behind "spread
+  within each drainage area" -- did have a name for its category, but never
+  named its own series, so its tooltip opened with `Field: series_1786…`, a
+  generated id, sitting right above the `Drainage area` row that already
+  answered the same question. And the scatter chart ("stored now against
+  normal") plots two numbers with no category field between them, so neither
+  fix touched it: nothing in its axes or `displayField` carries the
+  reservoir's name into a tooltip built only from what a point is plotted
+  against, and the tooltip read three numbers with no way to say whose they
+  were. Its name and drainage area are now listed explicitly instead, the
+  one lever a scatterplot tooltip actually exposes -- the two plotted values
+  still list first, which this chart type does not allow changing, so the
+  name is the first line after them rather than the very first line.
+
+- **The overview's charts say what kind of chart they are.** Every chart
+  card carried the same "ArcGIS Chart" badge, which named the SDK rather
+  than the chart -- a bar chart, a histogram and a box plot all wear the
+  same label. Each now says which one it is.
+
+- **The twelve-month trend is a bar chart with a line over it, not a bare
+  line.** Twelve points and nothing else read as mostly empty space, and a
+  bar gives every month the same visual weight the rest of the page's bars
+  do. The line stays, drawn over the bars, for the one thing a bar chart
+  alone cannot show: which way the last twelve months are going.
+
+- **The distribution histogram's axis reads whole numbers.** Its bins are
+  computed from the data's own range rather than fixed ten-point bands (see
+  the note in the source on why), so the bin edges -- and the axis labels at
+  them -- used to carry the data's own fractional digits, printing edges
+  like 40.74 instead of 41. The axis now rounds its own display.
+
 - **The primary map now draws the symbol sizes its code specifies.** CIM
   marker dimensions are points, but the renderer passed CSS-pixel diameters
   into them unchanged, making every reservoir circle one third wider than

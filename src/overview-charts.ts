@@ -5,7 +5,8 @@ import {
   ActionModes,
   ModelTypes,
   SerialChartDataSortingKinds,
-  WebChartStatisticType
+  WebChartStatisticType,
+  WebChartTypes
 } from "@arcgis/charts-components";
 import { createModel } from "@arcgis/charts-components/model/shared/setup-utils";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer.js";
@@ -102,6 +103,93 @@ const PERCENT_AXIS = { min: 0, max: 100 };
 /** The value axis is the second one; the category axis is the first. */
 const VALUE_AXIS = 1;
 
+/**
+ * Expands a browser-minified `#rgb` to `#rrggbb`.
+ *
+ * `getComputedStyle` can hand back either form for the same colour -- the
+ * production build's CSS minifier shortens Calcite's own `#ffffff` to `#fff`
+ * where the dev server serves it unminified, and the build only exercises
+ * the shortened form, so this went unnoticed until the production smoke
+ * test hit it. `hexToRgb` deliberately still rejects the three-digit form
+ * for its other callers: a shorthand slipping into the app's own colour
+ * table (ADR-008) is a bug worth catching, not something to guess at.
+ */
+function expandShorthandHex(hex: string): string {
+  const digits = hex.replace("#", "");
+  return digits.length === 3 ? `#${[...digits].map((digit) => digit + digit).join("")}` : hex;
+}
+
+/**
+ * Chart background, axis and grid colours, read from the page's own theme.
+ *
+ * `createModel` always builds a chart against its own defaults -- a white
+ * background and near-black text -- whatever theme the surrounding page is
+ * in. These are the app's own tokens (`app.css`), not Calcite's stock
+ * `--calcite-color-*` ramp: the app's light and dark themes are a warm,
+ * muted cream and charcoal, not white and black, and a chart read from
+ * Calcite's own grey-and-white defaults would sit inside its card looking
+ * like neither theme. `--app-surface-raised` is what `.overview-card`
+ * itself is painted with, so the chart's background matches the card it is
+ * already sitting on rather than the page behind it.
+ */
+function chartThemeSymbols(): {
+  background: [number, number, number, number];
+  text: [number, number, number, number];
+  line: [number, number, number, number];
+  grid: [number, number, number, number];
+} {
+  const page = getComputedStyle(document.documentElement);
+  const channels = (variable: string): [number, number, number] =>
+    hexToRgb(expandShorthandHex(page.getPropertyValue(variable).trim()));
+  const border = channels("--app-border");
+  return {
+    background: [...channels("--app-surface-raised"), 255],
+    text: [...channels("--app-text"), 255],
+    line: [...border, 255],
+    /* A hairline, not a highlight: full-strength border colour across every
+     * row would compete with the marks it is meant to sit behind. */
+    grid: [...border, 40]
+  };
+}
+
+/**
+ * The theming surface every concrete model here shares -- bar, line,
+ * histogram, scatterplot and box plot -- inherited from mixins the SDK does
+ * not expose on `arcgis-chart`'s own `model` property, which is typed
+ * against the abstract base class the mixins attach *below*. The cast at the
+ * call site is this file's one admission of that; every one of these charts
+ * really does have all five.
+ */
+interface ThemedChartModel {
+  backgroundColor: [number, number, number, number] | undefined;
+  axisLabelsSymbol: { type: "esriTS"; color: [number, number, number, number] } | undefined;
+  axisLinesSymbol: {
+    type: "esriSLS"; style: "esriSLSSolid"; color: [number, number, number, number]; width: number;
+  } | undefined;
+  setGridLinesSymbol(
+    symbol: { type: "esriSLS"; style: "esriSLSSolid"; color: [number, number, number, number]; width: number }
+      | undefined,
+    axisIndices?: number[]
+  ): void;
+  setAxisTitleSymbol(
+    symbol: { type: "esriTS"; color: [number, number, number, number] } | undefined,
+    axisIndex: number
+  ): void;
+}
+
+/** Applies the page's theme to a chart model's background, axis lines, axis
+ * labels and axis titles. Every chart here has exactly two axes. */
+function applyChartTheme(chartModel: ChartModel): void {
+  const model = chartModel as unknown as ThemedChartModel;
+  const theme = chartThemeSymbols();
+  model.backgroundColor = theme.background;
+  model.axisLabelsSymbol = { type: "esriTS", color: theme.text };
+  model.axisLinesSymbol = { type: "esriSLS", style: "esriSLSSolid", color: theme.line, width: 1 };
+  model.setGridLinesSymbol({ type: "esriSLS", style: "esriSLSSolid", color: theme.grid, width: 1 });
+  model.setAxisTitleSymbol({ type: "esriTS", color: theme.text }, 0);
+  model.setAxisTitleSymbol({ type: "esriTS", color: theme.text }, VALUE_AXIS);
+}
+
 function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
   const source = records.map((record) => new Graphic({
     geometry: new Point({ longitude: -111, latitude: 39 }),
@@ -117,6 +205,11 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
   return new FeatureLayer({
     title: "Filtered Utah reservoir conditions",
     source,
+    /* Named so the chart's own tooltip has a title: without it, every field
+     * the tooltip lists -- including the reservoir's own name -- is shown
+     * as an alias-prefixed line rather than one of them standing apart as
+     * what the point or bar actually *is*. */
+    displayField: "label",
     objectIdField: "ObjectID",
     geometryType: "point",
     spatialReference: { wkid: 4326 },
@@ -219,6 +312,7 @@ async function mountChart(
   const rendered = new Promise<void>((resolve) => {
     chart.addEventListener("arcgisRenderingComplete", () => resolve(), { once: true });
   });
+  applyChartTheme(model);
   chart.layer = layer;
   chart.model = model;
   /* Whichever comes first. `arcgisRenderingComplete` has been observed never
@@ -371,10 +465,19 @@ function trendLayer(points: readonly TrendPoint[]): FeatureLayer {
         month_label: point.axisLabel,
         month_name: point.label,
         percent: point.percent,
+        /* Duplicates of the two fields above, under their own names.
+         * `ComboBarLineChartModel` gives every entry in `numericFields` its
+         * own series, so the second, line series needs a field of its own
+         * to plot -- the same values, not a different metric, since the
+         * line is there to trace the shape of the bars it sits over, not
+         * to add a second thing to read. */
+        percent_line: point.percent,
         storage_af: point.storageAf,
+        storage_af_line: point.storageAf,
         reporting: point.reporting
       }
     })),
+    displayField: "month_name",
     objectIdField: "ObjectID",
     geometryType: "point",
     spatialReference: { wkid: 4326 },
@@ -383,7 +486,9 @@ function trendLayer(points: readonly TrendPoint[]): FeatureLayer {
       { name: "month_label", alias: "Month", type: "string" },
       { name: "month_name", alias: "Month name", type: "string" },
       { name: "percent", alias: "Percent full", type: "double" },
+      { name: "percent_line", alias: "Percent full", type: "double" },
       { name: "storage_af", alias: "Storage (acre-feet)", type: "double" },
+      { name: "storage_af_line", alias: "Storage (acre-feet)", type: "double" },
       { name: "reporting", alias: "Reservoirs reporting", type: "integer" }
     ]
   });
@@ -392,12 +497,15 @@ function trendLayer(points: readonly TrendPoint[]): FeatureLayer {
 /**
  * Combined storage across the last twelve months.
  *
- * A line rather than bars, because the months are a sequence and the shape
- * between them is the point -- this is the one chart on the page that
- * answers "which way is it going", which no arrangement of today's numbers
- * can. Sorting is left alone deliberately: the categories are months in
- * order, and sorting them by value would destroy the only axis that means
- * anything here.
+ * A bar for each month with a line traced over it, rather than the line on
+ * its own: the months are a sequence and the shape between them is the
+ * point -- this is the one chart on the page that answers "which way is it
+ * going", which no arrangement of today's numbers can -- but a bare line
+ * over twelve points reads as mostly empty space. The bar gives every month
+ * the same visual weight the other charts' bars do; the line stays for the
+ * direction a bar chart alone cannot show. Sorting is left alone
+ * deliberately: the categories are months in order, and sorting them by
+ * value would destroy the only axis that means anything here.
  */
 export async function renderArcgisTrendChart(
   host: HTMLElement,
@@ -414,10 +522,18 @@ export async function renderArcgisTrendChart(
 
   const layer = trendLayer(points);
   await layer.load();
-  const model = await createModel({ layer, chartType: ModelTypes.LineChart });
+  const model = await createModel({ layer, chartType: ModelTypes.ComboBarLineChart });
   if (!isCurrent()) return;
   model.xAxisField = "month_label";
-  model.numericFields = [measure === "storage" ? "storage_af" : "percent"];
+  /* Two series over the same values, not two metrics: the bar chart
+   * `numericFields` pattern gives one series per field, so the line gets
+   * its own duplicate field (`trendLayer`) rather than a second thing to
+   * read. Series 0 stays the SDK's default bar; series 1 is switched to a
+   * line below. */
+  const field = measure === "storage" ? "storage_af" : "percent";
+  const lineField = measure === "storage" ? "storage_af_line" : "percent_line";
+  model.numericFields = [field, lineField];
+  model.setSeriesType(1, WebChartTypes.LineSeries);
   model.aggregationType = WebChartStatisticType.NoAggregation;
   /* Ascending on the category axis, which with year-first labels is
    * chronological order. See TrendPoint.axisLabel for why the axis is
@@ -434,14 +550,19 @@ export async function renderArcgisTrendChart(
     model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
     model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);
   }
-  model.setSeriesName(measure === "storage" ? "Acre-feet stored" : "Percent full", 0);
+  const seriesName = measure === "storage" ? "Acre-feet stored" : "Percent full";
+  model.setSeriesName(seriesName, 0);
+  model.setSeriesName(seriesName, 1);
   /* Colour matching reads a layer renderer, and the month layer has none --
-   * left on it discards the series colour below and falls back to the SDK's
-   * default orange, which is the colour the class table gives to 50-75%. A
-   * line drawn in a class colour invites the reader to read its height off
-   * the key beside the other charts. */
+   * left on it discards the series colours below and falls back to the
+   * SDK's default orange and blue, and orange is the colour the class table
+   * gives to 50-75%. The bar is the softer of the two, the way the
+   * histogram and the spread chart's boxes are, so the line -- drawn over
+   * it, full strength -- is what a reader's eye follows for direction. */
   model.colorMatch = false;
-  model.setSeriesColor([...CHART_INK.measure], 0);
+  model.setSeriesColor([...CHART_INK.measureSoft], 0);
+  model.setSeriesColor([...CHART_INK.measure], 1);
+  model.setMarkerVisible(true, 1);
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
 }
 
@@ -457,11 +578,17 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
       attributes: {
         ObjectID: point.id,
         label: point.label,
+        watershed: point.watershed,
         normal_af: point.normalAf,
         storage_af: point.storageAf,
         percent_of_normal: point.percentOfNormal
       }
     })),
+    /* A scatterplot has no category axis to carry the reservoir's name into
+     * the tooltip the way the bar charts' x-axis field does, so without this
+     * the tooltip has no way to say which dot the reader is over at all --
+     * it can only show the two numbers the axes already plot. */
+    displayField: "label",
     objectIdField: "ObjectID",
     geometryType: "point",
     spatialReference: { wkid: 4326 },
@@ -482,6 +609,7 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
     fields: [
       { name: "ObjectID", alias: "Object ID", type: "oid" },
       { name: "label", alias: "Reservoir", type: "string" },
+      { name: "watershed", alias: "Drainage area", type: "string" },
       { name: "normal_af", alias: "Usual storage for this date (acre-feet)", type: "double" },
       { name: "storage_af", alias: "Stored now (acre-feet)", type: "double" },
       { name: "percent_of_normal", alias: "Percent of the usual storage", type: "double" }
@@ -565,10 +693,17 @@ export async function renderArcgisNormalChart(
   model.setGuideVisibility(true, 0, "y");
   model.showLinearTrend = false;
 
-  /* Two logarithmic decades of horizontal position cannot be read back as a
-   * number by eye, and the acre-feet are what says whether a dot below the
-   * line matters. */
-  model.additionalTooltipField = "storage_af";
+  /* A scatterplot's tooltip is built from its axis fields and nothing else
+   * -- `displayField` on the layer, which is what gives the other charts'
+   * tooltips a title, has no effect here, because neither axis is the
+   * reservoir's name. `additionalTooltipField` is documented as
+   * numeric-only, but a string field works in practice and is the only
+   * lever this model exposes. The two axis values are listed first no
+   * matter what this array says -- that ordering is not configurable here
+   * -- so `label` and `watershed` lead the *rest* of the tooltip rather
+   * than opening it, which is the closest this chart type gets to a name
+   * a reader sees before the numbers. */
+  model.additionalTooltipField = ["label", "watershed", "storage_af"];
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom);
   model.colorMatch = true;
 }
@@ -589,6 +724,11 @@ function valueLayer(
         ObjectID: entry.id, label: entry.label, value: entry.value, grouping: entry.group
       }
     })),
+    /* Only the box plot's outliers are single reservoirs a reader can hover
+     * -- a histogram bin is many of them -- but naming the field here is
+     * harmless for the bins and is what gives an outlier's tooltip a title
+     * instead of just the two field values it plots. */
+    displayField: "label",
     objectIdField: "ObjectID",
     geometryType: "point",
     spatialReference: { wkid: 4326 },
@@ -635,19 +775,42 @@ export async function renderArcgisDistributionChart(
   /* Ten bins. NOT ten-point bands: the SDK divides the range the data
    * actually covers, and axis bounds do not move the bin edges -- setting
    * them to 0 and 100 left the config saying 0-100 and the chart still
-   * drawn from 3.3 to 96. The card says "ten equal bands" for that reason,
-   * and the axis labels print the edges the reader is actually looking at. */
+   * drawn from 3.3 to 96. `setMinBound(0, 0)` was tried again here, after
+   * `mountChart` as well as before, on the theory that it might at least
+   * widen the visible axis to include zero without moving the bars
+   * themselves -- the model's own config held the value afterward, and the
+   * chart still opened at the data's own minimum either way.
+   * `HistogramModel` computes its own axis domain from the data and does
+   * not consult the configured bounds at all, for either the bin edges or
+   * the visible range. The card says "ten equal bands" for that reason, and
+   * the axis labels print the edges the reader is actually looking at. */
   model.binCount = 10;
   /* Colour matching takes a chart's colours from the layer's renderer, and
    * this layer has none -- it is a list of values, not of classified
-   * features. Left on, it discarded `binSymbol` and painted the bars in the
-   * SDK's default orange, which is the class table's own 50-75% colour
-   * sitting directly above a key that says so. */
+   * features. A class-breaks renderer keyed on `value`, one gradient colour
+   * per bin, was tried here: `colorMatch` read it, but only ever applied
+   * the renderer's *one* base colour to every bar alike, the same as it did
+   * for a plain unique-value renderer and for a continuous colour visual
+   * variable -- three different renderer shapes, the same flat result. A
+   * histogram bin is many reservoirs at many different values, not the one
+   * classified feature a bar chart's category or a scatter's point is, and
+   * `colorMatch` has nothing per-bin to match against. Left on, it also
+   * discarded `binSymbol` and painted the bars in the SDK's default orange,
+   * which is the class table's own 50-75% colour sitting directly above a
+   * key that says so. */
   model.colorMatch = false;
   model.showMeanOverlay = true;
   model.showMedianOverlay = true;
   model.showStandardDevOverlay = true;
   model.showNormalDistOverlay = true;
+  /* The bin edges are the axis's own values (see the binCount note above),
+   * not independently chosen "nice" ticks, so they carry the data range's
+   * own fractional digits -- rounding the display to whole numbers is what
+   * `HistogramModel` exposes; there is no way to make the edges themselves
+   * fall on round numbers without abandoning the SDK's own binning. */
+  model.setAxisValueFormat(0, {
+    type: "number", intlOptions: { style: "decimal", maximumFractionDigits: 0 }
+  });
   /* A count of reservoirs is not a storage level, so the bars are drawn in
    * the app's teal rather than the SDK's default orange -- which is the
    * class table's 50-75% colour, sitting directly above a key that says so.
@@ -710,9 +873,21 @@ export async function renderArcgisSpreadChart(
   model.showMeanLines = true;
   /* Quartiles are not a storage level either, so the boxes carry the same
    * teal the histogram and the trend line do rather than the SDK's grey,
-   * which on the dark page was very nearly the page itself. */
+   * which on the dark page was very nearly the page itself. A gradient
+   * keyed on drainage area, one colour per box, was tried here the same way
+   * as the histogram: `colorMatch` read the renderer but only ever applied
+   * its one base colour to every box alike, whether `showMeanLines` left
+   * this as a single combined series or not -- `seriesLength` never rose
+   * above 1, so there was never more than one box's worth of colour to set
+   * in the first place. */
   model.meanLinesBoxColor = [...CHART_INK.measureSoft];
   model.setSeriesColor([...CHART_INK.measureSoft], 0);
+  /* Every other chart in this file names its series; this one didn't, so
+   * the tooltip's "Field" row -- the SDK's own label for "which series is
+   * this" -- fell back to the series' generated id instead of a name a
+   * reader would recognize, right above the "Drainage area" row that
+   * already answers the question the field name was trying to. */
+  model.setSeriesName("Percent full", 0);
   model.setAxisTitleText("Drainage area", 0);
   model.setAxisTitleText("Percent full", VALUE_AXIS);
   model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
