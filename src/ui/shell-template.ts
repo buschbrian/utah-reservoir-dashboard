@@ -151,8 +151,8 @@ export function renderShell(root: HTMLElement): void {
           icon="sliders-horizontal" label="Show or hide the storage summary" active></calcite-action>
         <calcite-action id="detail-toggle" slot="content-end" text="Reservoir details"
           icon="information" label="Show or hide the reservoir details"></calcite-action>
-        <calcite-action id="table-toggle" slot="content-end" text="Reservoir table"
-          icon="table" label="Show or hide the reservoir table"></calcite-action>
+        <calcite-action id="table-toggle" slot="content-end" text="Table and chart"
+          icon="table" label="Show or hide the reservoir table and chart"></calcite-action>
         <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
           icon="brightness" label="Change color theme"></calcite-action>
       </calcite-navigation>
@@ -188,26 +188,48 @@ export function renderShell(root: HTMLElement): void {
            its own. -->
       <calcite-shell-panel id="table-row" slot="panel-bottom" layout="horizontal"
         height="m" position="end" collapsed>
-        <calcite-panel heading="Reservoir table" heading-level="2">
+        <calcite-panel heading="Reservoir table and chart" heading-level="2">
           <calcite-action id="table-close" slot="header-actions-end" icon="x"
-            text="Close reservoir table" label="Close reservoir table"></calcite-action>
+            text="Close the table and chart" label="Close the table and chart"></calcite-action>
           <div class="table-copy">
-            <!-- Before the rows, not after them. The rows scroll inside
-                 their own box, so a control placed below them sits behind a
-                 nested scroller -- the same trap the analysis controls were
-                 moved out of above the reservoir list. -->
-            <div class="table-tools">
-              <p class="table-caption" data-table="caption" role="status" aria-live="polite"></p>
-              <calcite-button data-table="export" appearance="outline" icon-start="export"
-                scale="s">
-                Download these rows (CSV file)
-              </calcite-button>
+            <div class="bottom-row">
+              <!-- Phase 4's layer-driven ranking chart. Built from the same
+                   rows the table renders and the CSV export writes, so the
+                   three surfaces in this row are one filter answered three
+                   ways. The chart itself is loaded and drawn only once the
+                   reader opens the row: the charts package is the heaviest
+                   optional part of the application, and a closed row is not
+                   a reason to pay for it. -->
+              <section class="ranking-region" aria-labelledby="ranking-heading">
+                <div class="ranking-head">
+                  <h3 id="ranking-heading">How full each reservoir is</h3>
+                  <p class="ranking-caption" data-ranking="caption"></p>
+                </div>
+                <div class="ranking-scroll" tabindex="0" role="region"
+                  aria-label="Ranking chart, scrolls down">
+                  <div class="ranking-host" data-ranking="host" aria-busy="false"></div>
+                </div>
+              </section>
+              <section class="table-region" aria-labelledby="table-region-heading">
+                <h3 id="table-region-heading" class="visually-hidden">Reservoir table</h3>
+                <!-- Before the rows, not after them. The rows scroll inside
+                     their own box, so a control placed below them sits behind a
+                     nested scroller -- the same trap the analysis controls were
+                     moved out of above the reservoir list. -->
+                <div class="table-tools">
+                  <p class="table-caption" data-table="caption" role="status" aria-live="polite"></p>
+                  <calcite-button data-table="export" appearance="outline" icon-start="export"
+                    scale="s">
+                    Download these rows (CSV file)
+                  </calcite-button>
+                </div>
+                <!-- Its own scroller. The page is tested at 360px and may not
+                     scroll sideways at any width, and six columns of numbers
+                     will not fit there however they are styled. -->
+                <div class="table-scroll" data-table="rows" tabindex="0" role="region"
+                  aria-label="Reservoir table, scrolls sideways"></div>
+              </section>
             </div>
-            <!-- Its own scroller. The page is tested at 360px and may not
-                 scroll sideways at any width, and six columns of numbers
-                 will not fit there however they are styled. -->
-            <div class="table-scroll" data-table="rows" tabindex="0" role="region"
-              aria-label="Reservoir table, scrolls sideways"></div>
           </div>
         </calcite-panel>
       </calcite-shell-panel>

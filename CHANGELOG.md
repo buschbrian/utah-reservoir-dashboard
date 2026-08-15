@@ -7,6 +7,17 @@ and is not listed here.
 
 ### Added
 
+- **A ranking chart beside the table under the map.** The bottom row now
+  pairs the sortable table with a bar chart that ranks every reservoir the
+  analysis controls match, lowest percent full first. It is drawn from the
+  same rows the table renders and the CSV export writes, follows the month
+  slider and the scope the same way, and its bar colors are the storage
+  levels in the map key. Clicking a bar selects that reservoir, the same
+  selection the map, the list and the table set. A reservoir with no
+  readable percentage is not ranked, and the caption says how many are. The
+  chart is loaded only when the row is opened, so the map does not wait on
+  it.
+
 - **A reservoir table under the map, with its own CSV file.** The header now
   carries a table control that opens a panel below the map listing every
   reservoir the analysis controls match, with its storage, full level,

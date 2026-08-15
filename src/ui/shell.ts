@@ -139,6 +139,14 @@ export function setTableCaption(caption: string): void {
     .forEach((element) => { element.textContent = caption; });
 }
 
+/** The ranking chart's caption. Not a live region: the table caption beside
+ * it already announces every change to the same filtered set, and a second
+ * announcement of the same fact is noise, not information. */
+export function setRankingCaption(caption: string): void {
+  document.querySelectorAll<HTMLElement>('[data-ranking="caption"]')
+    .forEach((element) => { element.textContent = caption; });
+}
+
 export function wireTableExport(onExport: () => void): void {
   document.querySelectorAll<HTMLElement>('[data-table="export"]')
     .forEach((button) => { button.addEventListener("click", onExport); });

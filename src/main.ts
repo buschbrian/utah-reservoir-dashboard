@@ -36,6 +36,7 @@ import {
   storageLabel,
   type FilterState
 } from "./state/filters";
+import { describeRanking, rankingRecords } from "./state/ranking";
 import { createSelectionStore, findReservoir } from "./state/selection";
 import {
   DEFAULT_SORT,
@@ -63,6 +64,7 @@ import {
   setFilterState,
   setMonthControl,
   setMonthState,
+  setRankingCaption,
   setReservoirList,
   setScopeControl,
   setScopeValue,
@@ -76,7 +78,7 @@ import {
 } from "./ui/shell";
 import { renderShell } from "./ui/shell-template";
 import { markSelectedInTable, renderTable } from "./ui/table";
-import { wireTheme } from "./ui/theme";
+import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import type { Reservoir } from "./types";
 import { STORAGE_CLASSES, storageColor } from "./viz/classes";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
@@ -279,6 +281,90 @@ function renderReservoirTable(): void {
   }
 }
 
+/* Phase 4's ranking chart, beside the table in the bottom row. Drawn from
+ * `shownRows`, so it honors the filter, the month and the scope by
+ * construction -- the same rows, ranked instead of sorted. */
+let rankingRevision = 0;
+let rankingTimer = 0;
+/** The records the chart last drew, as a key. Rebuilding an SDK chart takes
+ * whole seconds, so a change that produces the same records -- a table sort,
+ * a filter set and unset -- must not pay for one. */
+let lastRankingKey: string | null = null;
+/** Bars the ranking chart is holding. 0 until it has drawn: the row opens
+ * closed, and the chart is not built until the reader opens it. */
+let rankingBars = 0;
+
+/**
+ * Asks for a redraw, soon. Debounced because the month slider fires once per
+ * animation frame while it is dragged, and the chart is the one surface here
+ * that cannot be rebuilt at that rate. Skipped entirely while the row is
+ * closed: a collapsed panel has no box for the chart to measure itself
+ * against, and the row's open handler schedules a draw the moment that
+ * changes.
+ */
+function scheduleRankingChart(): void {
+  if (!tableOpen) return;
+  window.clearTimeout(rankingTimer);
+  rankingTimer = window.setTimeout(() => { void renderRankingChart(); }, 250);
+}
+
+async function renderRankingChart(): Promise<void> {
+  const host = document.querySelector<HTMLElement>('[data-ranking="host"]');
+  if (!host) return;
+  const records = rankingRecords(shownRows);
+  const key = JSON.stringify(records);
+  if (key === lastRankingKey && host.querySelector("arcgis-chart")) return;
+  const revision = ++rankingRevision;
+  setRankingCaption(describeRanking(records.length, shownRows.length));
+  /* Busy only while a draw is actually in flight, and every way out of the
+   * draw -- drawn, superseded, failed -- has to clear it. `mountChart`'s own
+   * deadline bounds the wait, so this cannot be announced forever. */
+  host.setAttribute("aria-busy", "true");
+  /* One readable bar per reservoir. The row is far shorter than the full
+   * set, so the host takes the height the bars need and the region scrolls,
+   * exactly the way the table beside it does. */
+  host.style.blockSize = `${Math.max(272, records.length * 18 + 88)}px`;
+  try {
+    /* Loaded when the reader first opens the row, not with the page: the
+     * charts package is the heaviest optional part of the application, and
+     * the map must not wait on it. */
+    const { renderArcgisBarChart } = await import("./overview-charts");
+    if (revision !== rankingRevision) return;
+    await renderArcgisBarChart(
+      host,
+      records,
+      "Percent full for each reservoir the analysis controls match, lowest first",
+      () => revision === rankingRevision,
+      {
+        measure: "percent",
+        categoryTitle: "Reservoir",
+        /* A bar is the reservoir it ranks: clicking one selects it, the same
+         * selection the map, the list and the table set. Clearing the bar
+         * clears the selection rather than leaving the details panel open on
+         * something the chart no longer points at. */
+        onSelect: (labels) => selection.set(labels[0] ?? null, { source: "chart" })
+      }
+    );
+  } catch (error) {
+    console.error("The ranking chart could not be drawn:", error);
+    if (revision === rankingRevision) {
+      host.setAttribute("aria-busy", "false");
+      const failed = document.createElement("p");
+      failed.className = "chart-empty";
+      failed.setAttribute("role", "alert");
+      failed.textContent =
+        "This chart could not be drawn. The table beside it has the same values.";
+      host.replaceChildren(failed);
+    }
+    return;
+  }
+  if (revision !== rankingRevision) return;
+  host.setAttribute("aria-busy", "false");
+  lastRankingKey = key;
+  rankingBars = records.length;
+  if (window.__dashboardReady) window.__dashboardReady.rankingBars = rankingBars;
+}
+
 
 /** The drainage areas the map currently has, as the control's choices. The
  * areas follow the scope: `connected` brings two more reservoirs, and one of
@@ -316,6 +402,9 @@ function wireFilters(map: MapController): void {
     // The table lists what the filter matched, so it is rebuilt from the
     // same `apply` the map effect and the panel sentence are written by.
     renderReservoirTable();
+    // And the ranking chart is redrawn from the rows the table just took,
+    // so the row's two surfaces cannot answer the filter differently.
+    scheduleRankingChart();
     if (window.__dashboardReady) {
       window.__dashboardReady.filtered = filterStatus.filtered;
       window.__dashboardReady.shown = filterStatus.shown;
@@ -486,6 +575,17 @@ if (!supportsDashboard(browserCapabilities())) {
       tableOpen = open;
       if (window.__dashboardReady) window.__dashboardReady.tableOpen = open;
       writeUrlState({ ...viewState(), reservoir: selection.get() });
+      // The first open is what builds the chart; a later one redraws it only
+      // if the rows changed while the row was closed.
+      if (open) scheduleRankingChart();
+    });
+    /* The chart bakes the page's colors into its own config when it is
+     * built, so a theme change has to rebuild it -- the cascade cannot
+     * reach inside. The key is cleared or the rebuild would be skipped as
+     * "the same records". */
+    document.addEventListener(THEME_CHANGE_EVENT, () => {
+      lastRankingKey = null;
+      scheduleRankingChart();
     });
     /* Exactly the rows on screen, raw numbers -- the same array the renderer
      * was handed, so the file cannot hold a different set, order or month. */
@@ -578,6 +678,10 @@ if (!supportsDashboard(browserCapabilities())) {
     tableRows: shownRows.length,
     tableSort: `${tableSort.key}-${tableSort.direction}`,
     tableOpen,
+    /* Bars the ranking chart is holding, which is not `tableRows`: the chart
+     * leaves out a reservoir with no readable percentage, and it is not
+     * built at all until the reader opens the row. */
+    rankingBars,
     navigationBounds: map.status.navigationBounds,
     minZoom: map.status.minZoom,
     deepLink: deepLink?.name ?? null,

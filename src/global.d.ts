@@ -42,6 +42,10 @@ interface DashboardReady {
   tableSort: string;
   /** True while the reader has the table open under the map. */
   tableOpen: boolean;
+  /** Bars the ranking chart in the bottom row is holding. Not `tableRows`:
+   * the chart leaves out a reservoir with no readable percentage, and it is
+   * 0 until the reader first opens the row, which is what builds it. */
+  rankingBars: number;
   /** True when the map refuses to navigate outside the region. */
   navigationBounds: boolean;
   /** The closest the reader is allowed to zoom out. */

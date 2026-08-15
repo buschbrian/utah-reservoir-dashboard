@@ -558,6 +558,84 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   block-size: 100%;
   box-sizing: border-box;
 }
+/* The ranking chart and the table share the row: two columns while the row
+   is wide enough for both to be read, stacked with the row's own copy
+   scrolling below that. Both columns need `min-width: 0` for the same
+   reason the panel's selects do -- each carries content that will not
+   break, and either one can otherwise widen the page. */
+.bottom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-block-size: 0;
+}
+@media (min-width: 48rem) {
+  .bottom-row { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+}
+.ranking-region,
+.table-region {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-width: 0;
+  min-block-size: 0;
+}
+.ranking-head h3 { margin: 0; font-size: .875rem; }
+.ranking-caption {
+  margin: .125rem 0 0;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+/* The chart's own scroller, like the table's: one bar per reservoir in view
+   needs more height than the row has, and the page may not grow for it. */
+.ranking-scroll {
+  overflow: auto;
+  min-width: 0;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+  background: var(--app-surface-raised);
+}
+.ranking-scroll:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+/* The host's height is set from the number of bars when the chart renders,
+   so every bar keeps a readable label; this is only the floor. */
+.ranking-host { position: relative; min-block-size: 16rem; }
+/* The two custom properties are how the component actually takes a size:
+   without them its internal wrapper falls back to a default height and
+   draws every bar into a 150px strip whatever the element measures. The
+   overview's chart hosts carry the same pair. */
+.ranking-host arcgis-chart {
+  display: flex;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  --chart-width: 100%;
+  --chart-height: 100%;
+}
+.chart-empty {
+  margin: 0;
+  padding: .75rem;
+  color: var(--app-muted);
+  font-size: .8125rem;
+}
+@media (max-width: 47.99rem) {
+  /* Stacked, so the row's copy becomes the scroller and each region keeps a
+     bounded share -- a chart that takes the whole 45vh row would leave the
+     table it ranks unreachable. The grid must take its content's height
+     here: left shrinkable, it was squeezed to the row's height and the
+     chart's box was painted straight through the table region below it. */
+  .table-copy { overflow-y: auto; }
+  .bottom-row { flex: none; }
+  .ranking-scroll,
+  .table-scroll { flex: none; max-block-size: 38vh; }
+}
 /* The caption and the export control on one line while there is room for
    them, and stacked when there is not. `min-width: 0` on the caption because
    it is a flex child holding an unbreakable sentence, which is the same rule
