@@ -471,8 +471,16 @@ for (const viewport of VIEWPORTS) {
         .getAttribute("data-reservoir");
       await tab.evaluate((name) => {
         const map = document.querySelector("arcgis-map");
+        const layer = map.map.findLayerById("reservoirs");
+        const objectid = layer.source.find((graphic) =>
+          graphic.attributes?.name === name)?.attributes?.objectid;
         map.hitTest = async () => ({
-          results: [{ type: "graphic", graphic: { attributes: { name } } }]
+          /* A newly materialized client-side layer view can return only the
+           * object ID even though the source carries every field. Selection
+           * must work on the first draw, before a scope change rebuilds it. */
+          results: [{ type: "graphic", graphic: {
+            layer, attributes: { objectid }
+          } }]
         });
         map.dispatchEvent(new CustomEvent("arcgisViewPointerMove", {
           detail: { x: 500, y: 300 }

@@ -19,9 +19,9 @@ import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../vi
 import { formatAcreFeet, formatDate, formatPercent } from "../viz/format";
 import { headlinePercent } from "../viz/symbols";
 import { elementById } from "./dom";
+import { reservoirFromHits, type HitGraphic } from "./hit";
 import { hoverPosition } from "./hover";
 import {
-  NAME_FIELD,
   createDrainageLayer,
   createHighlightLayer,
   createMaskLayer,
@@ -90,8 +90,6 @@ export interface MapController {
 
 /** What excluded reservoirs look like: present, readable, clearly not chosen. */
 const EXCLUDED_EFFECT = "grayscale(100%) opacity(35%)";
-
-type HitGraphic = { attributes?: Record<string, unknown> };
 
 type LayerView = { highlight(target: unknown, options?: { name?: string }): { remove(): void } };
 
@@ -267,18 +265,20 @@ function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
   card.style.top = `${position.top}px`;
 }
 
-function wirePointerSelection(element: MapElement, selection: SelectionStore): void {
+function wirePointerSelection(
+  element: MapElement,
+  selection: SelectionStore,
+  drawn: () => readonly Reservoir[]
+): void {
   element.addEventListener("arcgisViewClick", (event) => {
     const screenPoint = eventPoint(event);
     if (!screenPoint) return;
     void element.hitTest(screenPoint).then((response) => {
-      const hit = response.results.find((result) =>
-        typeof result.graphic?.attributes?.[NAME_FIELD] === "string");
-      const name = hit?.graphic?.attributes?.[NAME_FIELD];
+      const hit = reservoirFromHits(drawn(), response.results);
       // Clicking the basemap clears the selection: the reader pointed at
       // something that is not a reservoir, and leaving the old details open
       // makes the panel describe a reservoir nobody is looking at.
-      selection.set(typeof name === "string" ? name : null, { source: "map" });
+      selection.set(hit?.reservoir.name ?? null, { source: "map" });
     }).catch((error: unknown) => {
       console.warn("The map could not answer a pointer selection:", error);
     });
@@ -332,12 +332,9 @@ function wirePointerHover(
       const current = ++request;
       void element.hitTest(point).then((response) => {
         if (current !== request) return;
-        const hit = response.results.find((result) =>
-          typeof result.graphic?.attributes?.[NAME_FIELD] === "string");
-        const name = hit?.graphic?.attributes?.[NAME_FIELD];
-        const reservoir = typeof name === "string" ? findReservoir(drawn(), name) : null;
-        emphasize(reservoir ? hit?.graphic : undefined);
-        if (reservoir) showMapHover(reservoir, point);
+        const hit = reservoirFromHits(drawn(), response.results);
+        emphasize(hit?.graphic);
+        if (hit) showMapHover(hit.reservoir, point);
         else hideMapHover();
       }).catch(() => clear());
     });
@@ -463,7 +460,7 @@ export async function loadMap(
   let pendingFilter: string | null = null;
   let pendingSelection: Reservoir | null = null;
   let drawn: readonly Reservoir[] = [];
-  wirePointerSelection(element, selection);
+  wirePointerSelection(element, selection, () => drawn);
   wirePointerHover(element, () => drawn, () => reservoirLayerView);
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();

@@ -37,9 +37,10 @@ and is not listed here.
   cleared the details panel instead of opening it. It only affected the map as
   first drawn: changing which reservoirs are shown built the layer again, and
   from then on every click worked, which is why the fault looked intermittent.
-  The map now asks for every field it reads. The ring around the selected
-  reservoir also stayed above the circles only until the reservoirs were
-  redrawn, and now stays above them.
+  The map now asks for every field it reads and falls back to the stable
+  reservoir object ID when the SDK still omits the name. The ring around the
+  selected reservoir also stayed above the circles only until the reservoirs
+  were redrawn, and now stays above them.
 
 - **The primary map now draws the symbol sizes its code specifies.** CIM
   marker dimensions are points, but the renderer passed CSS-pixel diameters
