@@ -13,6 +13,9 @@ module, and one Python pipeline:
 |---|---|
 | `index.html` | Primary Vite entry for the typed ArcGIS 5.1 and Calcite 5 application. |
 | `modern.html` | Stable alias for the primary application. |
+| `overview.html` | Production ArcGIS Charts data workspace. |
+| `methods.html` | Methods and sources page. |
+| `data.html` | Public data API documentation. |
 | `legacy/index.html` | ArcGIS Maps SDK **4.34** from Esri's CDN, AMD `require()`. Not in the module graph — copied verbatim into `dist/`. |
 | `maplibre/index.html` | MapLibre GL JS from unpkg. Also copied verbatim. |
 | `explore.html` | A Vite entry point for the production overview (Observable Plot). |

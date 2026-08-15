@@ -1157,6 +1157,52 @@ lives.
 
 ---
 
+## Noted follow-up items — 2026-08-15
+
+Recorded from a repo review; not yet triaged into a phase or an ADR. The
+first two are concrete UI defects. The rest are directional notes about
+where the product goes after Phase 7, kept here so they are not lost before
+they are scoped.
+
+**UI fixes**
+
+1. **The HUC6 drainage-area label halo is too strong, and the labels sit
+   above the reservoir points instead of behind them.** The halo needs to
+   drop to 50% opacity, and the labels need to render as background
+   elements — under the reservoir symbols, not over them. Touches the label
+   work from ADR-025/ADR-027 and the layer ordering from Phase 3.3.
+2. **Only the first of the overview's seven charts carries filter controls,
+   even though the filters affect all seven.** Either wire the filtering UI
+   into the other six charts, or add one filter row that visibly governs
+   the whole chart set instead of reading as though it belongs to the first
+   chart alone. `overview.html` / Phase 4.
+
+**Directional notes**
+
+3. **Declutter the modern page toward being primarily the ArcGIS 5.1 SDK
+   application.** Move or retire the older comparison-engine material
+   currently reachable from the modern shell, so the primary page reads as
+   the ArcGIS 5.1 application first rather than one of several equal
+   options.
+4. **The public API and reference data already cover more geographic scope
+   than the dashboard displays** (see
+   [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md)).
+   Not needed now, but worth keeping deliberately — it is the natural seed
+   for a future multi-state or multi-region explorer.
+5. **Prefer authoritative ArcGIS REST services over static exports where
+   practical.** For committed JSON/GeoJSON that must ship as files, do not
+   generalize geometry beyond 100m simplification unless doing so produces
+   a genuinely large file-size saving.
+6. **Retire MapLibre and restructure this dashboard into multiple views**,
+   rather than maintaining it as a separate comparison page. Candidate
+   views: current storage and reservoir levels (have), drought and
+   advanced watershed statistics (pandas/NumPy), snowpack, and a dashboard
+   for each — roughly four, possibly more or fewer once it is actually
+   scoped. This would supersede ADR-007 and ADR-016's two-engine framing
+   and wants its own ADR when it is decided, not before.
+
+---
+
 ## 4. Risks and traps
 
 | Risk | Notes / mitigation |

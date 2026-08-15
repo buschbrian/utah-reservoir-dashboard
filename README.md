@@ -13,6 +13,7 @@ legacy comparisons:
 |---|---|
 | [ArcGIS dashboard](./) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
 | [ArcGIS data workspace](overview.html) | Cross-filtered KPIs, ArcGIS charts, and an accessible exact-value table. |
+| [Methods and sources](methods.html) | Where the numbers come from, how they are collected, and how each value is worked out. |
 | [Public data API](data.html) | Stable JSON downloads, field definitions, and code examples. |
 | [Legacy ArcGIS map](legacy/) | Retained ArcGIS 4.34 comparison. |
 | [Legacy MapLibre map](maplibre/) | Retained MapLibre GL JS and CARTO comparison. |
@@ -29,12 +30,17 @@ The ArcGIS dashboard provides these map controls:
 
 - Point at a reservoir for its name, percent full, and data date.
 - Select a reservoir for its complete record and 12-month chart.
-- Filter by percent-full class or show only reservoirs with late data. Other
-  reservoirs remain visible in gray to preserve geographic context.
+- Filter by drainage area, percent-full class, or show only reservoirs with
+  late data. Other reservoirs remain visible in gray to preserve geographic
+  context.
 - Move or play the month slider to compare the last 12 months.
+- Open the reservoir table below the map to sort every matching reservoir by
+  storage, full level, drainage area, or reading date, and download exactly
+  the rows and order on screen as a CSV file.
 - Open the reservoir list to reach every site with a keyboard.
 - Copy a link to the complete view. The address can carry `?reservoir=`,
-  `?drainage=`, `?class=`, `?late=`, and `?month=` together.
+  `?drainage=`, `?class=`, `?late=`, `?month=`, `?table=`, and `?sort=`
+  together.
 
 The ArcGIS data workspace answers comparison questions that a map cannot. Its
 search, drainage-area, and reporting filters update the KPI strip, both ArcGIS
@@ -210,6 +216,8 @@ kept as comparison fixtures, not parallel product targets.
 |---|---|
 | `index.html`, `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application; `modern.html` is a stable alias. |
 | `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
+| `methods.html` + `src/methods.ts` | Methods and sources page: where the numbers come from and how each value is worked out. |
+| `data.html` + `src/data-docs.ts` | Public data API documentation: stable paths, field definitions, and code examples. |
 | `legacy/index.html` | CDN-loaded ArcGIS 4.34 comparison; copied into `dist/`. |
 | `maplibre/index.html` | CDN-loaded MapLibre legacy comparison; copied into `dist/`. |
 | `explore.html` | Legacy no-SDK overview. |
@@ -271,22 +279,39 @@ work.
 Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
 the root and at its stable `modern.html` alias, with its ArcGIS Charts
 workspace at `overview.html`.
-Phase 3 has begun with pointer hover and corrected map-click selection. Its
-ordered increments and gates are in [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md);
-the completed shell contract remains in
-[`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence, measurements,
-and implementation history live in [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
+
+Phase 3 is complete: pointer hover, corrected map-click selection, layer-view
+highlight, filter dimming, and eased selection all landed, and the measured
+symbol and filter cost is recorded in the modernization plan. Phase 5 is also
+complete: one filter and selection state object drives the map, the reservoir
+list, the sortable table under the map, and the address bar together; the
+table's CSV export writes exactly the rows and order on screen; and storage
+color uses five equal, colorblind-safe bands. The methods and public data API
+pages document where the numbers come from and how to reach them outside the
+dashboard.
+
+Phase 3's ordered increments and gates are in
+[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md); the completed shell contract
+remains in [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence,
+measurements, and implementation history live in
+[`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
 
 ## Documentation map
 
-- [`CLAUDE.md`](CLAUDE.md) — concise rules and verification steps for
-  contributors and coding agents.
+- [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) — concise rules and
+  verification steps for contributors and coding agents.
 - [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — working roadmap,
   measurements, spikes, and implementation history.
 - [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) — the completed shell scope,
   milestones, and acceptance gates.
-- [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) — ordered symbology and
+- [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) — the completed symbology and
   interaction increments.
+- [`docs/PHASE-1.6-PLAN.md`](docs/PHASE-1.6-PLAN.md) — the connected-site and
+  snowpack data additions.
+- [`docs/MODERN-OVERVIEW-PLAN.md`](docs/MODERN-OVERVIEW-PLAN.md) — the data
+  workspace's decision record and visual direction.
+- [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md) — the
+  broader watershed research scope and its measured baseline.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
