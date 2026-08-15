@@ -1001,6 +1001,43 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     check(JSON.stringify(computed.trendMonths)
       === JSON.stringify([...computed.trendMonths].sort()),
     `${label}: the trend chart months are out of order: ${computed.trendMonths.join(", ")}`);
+    /* Twelve at most. Each reservoir carries twelve months, but a late
+       reservoir's window is older, so the union across the set can span
+       fifteen -- and this chart's title says "the last 12 months". */
+    check(computed.trendMonths.length <= 12,
+      `${label}: the trend chart draws ${computed.trendMonths.length} months ` +
+      "under a twelve-month title");
+
+    /* The scatter summary names its reservoir and drainage area. The SDK
+       queries the scatter layer for numeric fields and the renderer's field
+       only, so the drainage-area string never arrives in `dataContext`; the
+       formatter has to find it another way. This hands the formatter what
+       the SDK actually passes -- the plotted values and a context without
+       `watershed` -- and expects the drainage area named anyway. */
+    const scatterTooltip = await tab.locator("#normal-chart arcgis-chart")
+      .evaluate((chart) => {
+        const graphic = chart.layer?.source?.toArray()?.[0];
+        if (!graphic || typeof chart.tooltipFormatter !== "function") return null;
+        const point = graphic.attributes;
+        return {
+          expectedName: point.label,
+          expectedArea: point.watershed,
+          summary: chart.tooltipFormatter(
+            point.normal_af, point.percent_of_normal, undefined, {
+              ObjectID: point.ObjectID,
+              normal_af: point.normal_af,
+              percent_of_normal: point.percent_of_normal,
+              storage_af: point.storage_af,
+              label: point.label
+            })
+        };
+      });
+    check(Boolean(scatterTooltip?.summary?.includes(scatterTooltip.expectedName)),
+      `${label}: the scatter summary does not name its reservoir`);
+    check(Boolean(scatterTooltip?.summary?.includes(scatterTooltip.expectedArea))
+      && !scatterTooltip?.summary?.includes("Not reported"),
+    `${label}: the scatter summary does not name its drainage area ` +
+      `(${scatterTooltip?.summary})`);
     await tab.locator("#reservoir-search").fill("Jordan");
     await tab.waitForFunction(
       (expected) => window.__overviewReady?.visible > 0

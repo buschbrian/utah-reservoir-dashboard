@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
-import { filterAndSort, filterOverview, overviewScope, watershedOptions } from "./overview-model";
+import {
+  filterAndSort,
+  filterOverview,
+  monthlyTrend,
+  overviewScope,
+  watershedOptions
+} from "./overview-model";
 
 const base = readPayload().reservoirs[0]!;
 const reservoir = (overrides: Partial<typeof base>): typeof base => ({ ...base, ...overrides });
@@ -60,6 +66,29 @@ describe("modern overview model", () => {
     expect(filterOverview([daily, late, other], {
       query: "echo", huc6: "160202", cadence: "late"
     })).toEqual([late]);
+  });
+
+  /* Every reservoir carries twelve months, but a late reservoir's twelve are
+   * older ones, so the union across the set spans more than twelve -- and the
+   * chart drawn from this claims to be "the last twelve months". */
+  it("keeps the trend to the newest twelve months when late windows stretch the union", () => {
+    const window12 = (endYear: number, endMonth: number): typeof base.monthly =>
+      Array.from({ length: 12 }, (_, index) => {
+        const date = new Date(Date.UTC(endYear, endMonth - 12 + index, 1));
+        const month = `${date.getUTCFullYear()}-`
+          + `${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+        return {
+          month, mean_af: 100, min_af: 90, max_af: 110, end_af: 100,
+          normal_af: 100, days: 28
+        };
+      });
+    const current = reservoir({ name: "Current", monthly: window12(2026, 8) });
+    const late = reservoir({ name: "Late", monthly: window12(2026, 5) });
+
+    const trend = monthlyTrend([current, late]);
+    expect(trend).toHaveLength(12);
+    expect(trend[0]?.month).toBe("2025-09");
+    expect(trend[trend.length - 1]?.month).toBe("2026-08");
   });
 
   it("provides unique alphabetized watershed choices", () => {

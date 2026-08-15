@@ -213,9 +213,17 @@ export interface TrendPoint {
  * The denominator is each month's own reporting set rather than the whole
  * scope, which is `monthlyRollup`'s rule already: a reservoir that did not
  * report in November must not be counted as empty in November.
+ *
+ * Only the newest twelve month keys. Each reservoir carries twelve months,
+ * but a late reservoir's twelve are older ones, so the union across the set
+ * stretches further back than any single reservoir's window -- and the chart
+ * says "the last twelve months", so drawing fourteen or fifteen makes the
+ * title wrong on exactly the mornings a reservoir goes quiet. The map's
+ * month slider still takes the whole union: a slider position is a claim
+ * that some reservoir reported then, not that the last year contains it.
  */
 export function monthlyTrend(reservoirs: readonly Reservoir[]): TrendPoint[] {
-  return monthKeys(reservoirs).map((month, index) => {
+  return monthKeys(reservoirs).slice(-12).map((month, index) => {
     const rollup = monthlyRollup(reservoirs, month);
     return {
       id: index + 1,

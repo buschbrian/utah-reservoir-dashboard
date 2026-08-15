@@ -190,6 +190,23 @@ and is not listed here.
 
 ### Fixed
 
+- **The twelve-month trend chart now draws twelve months.** Every reservoir
+  carries twelve months of history, but a reservoir with late data carries an
+  *older* twelve, so the months across the whole set span further back than
+  any single reservoir's window -- the chart drew fourteen or fifteen bars
+  under a title that said twelve. The trend now keeps the newest twelve
+  months it can see. The map's month slider is unchanged on purpose: a
+  slider position claims only that some reservoir reported that month, not
+  that the last year contains it.
+
+- **The scatter chart's pointer summary names the dot's drainage area
+  again.** The charts SDK asks the layer only for numeric fields and for the
+  field its renderer colours by, so the drainage-area name -- a text field
+  that is neither -- never arrived, and every dot read "Drainage area: Not
+  reported". The summary now looks the reservoir up by the stable object id
+  the SDK does deliver, which also stops the reservoir's own name depending
+  on how the SDK treats the renderer's field.
+
 - **The overview charts no longer reserve a white rail for an empty menu.**
   The charts action bar had no actions to show, so its expand control only
   opened and closed blank space while taking width away from every chart. The

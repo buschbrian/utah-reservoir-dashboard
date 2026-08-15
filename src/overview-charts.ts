@@ -357,17 +357,24 @@ function trendTooltipFormatter(
   }) as TooltipFormatter;
 }
 
-function normalTooltipFormatter(): TooltipFormatter {
+function normalTooltipFormatter(points: readonly NormalPoint[]): TooltipFormatter {
+  /* The SDK queries a scatterplot's layer for its numeric fields and the
+   * renderer's field, and nothing else -- `watershed` is a string field on
+   * the layer, so it never reached `dataContext` and every dot read
+   * "Drainage area: Not reported". The object id does arrive, and it is the
+   * id these points were built with, so the summary looks its point up
+   * rather than trusting the query's field list. */
+  const byId = new Map(points.map((point) => [point.id, point]));
   return ((x: number, y: number, _size: number | undefined,
     dataContext?: Record<string, unknown>): string => {
-    const title = typeof dataContext?.label === "string"
-      ? dataContext.label : "Reservoir";
-    const drainage = typeof dataContext?.watershed === "string"
-      ? dataContext.watershed : "Not reported";
-    const stored = typeof dataContext?.storage_af === "number"
-      ? dataContext.storage_af : null;
+    const point = typeof dataContext?.ObjectID === "number"
+      ? byId.get(dataContext.ObjectID) : undefined;
+    const title = point?.label
+      ?? (typeof dataContext?.label === "string" ? dataContext.label : "Reservoir");
+    const stored = point?.storageAf
+      ?? (typeof dataContext?.storage_af === "number" ? dataContext.storage_af : null);
     return chartTooltip(title, [
-      { label: "Drainage area", value: drainage },
+      { label: "Drainage area", value: point?.watershed ?? "Not reported" },
       { label: "Usual storage for this date", value: `${formatAcreFeet(x)} acre-feet` },
       { label: "Stored now", value: `${formatAcreFeet(stored)} acre-feet` },
       { label: "Percent of the usual storage", value: formatPercent(y) }
@@ -782,7 +789,7 @@ export async function renderArcgisNormalChart(
    * previous string-field workaround produced an oddly ordered tooltip.
    * A formatter can name the point first and arrange the facts explicitly. */
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
-    normalTooltipFormatter());
+    normalTooltipFormatter(points));
   model.colorMatch = true;
 }
 
