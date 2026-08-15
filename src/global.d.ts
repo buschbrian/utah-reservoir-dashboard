@@ -20,8 +20,10 @@ interface DashboardReady {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
-  /** Drainage-area features eligible for one label each. */
+  /** Drainage-area background text symbols, one per area. */
   drainageLabels: number;
+  /** True while drainage-area text is below the reservoir symbols. */
+  drainageLabelsUnderReservoirs: boolean;
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;

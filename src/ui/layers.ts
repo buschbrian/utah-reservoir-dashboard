@@ -1,13 +1,13 @@
 /*
  * The drawn layers, built from data already in memory.
  *
- * Four separate layers, and they are added independently on purpose: the
- * mask and the drainage outlines are context, the reservoirs are the page.
+ * Separate layers, added independently on purpose: the mask, drainage
+ * outlines and drainage text are context; the reservoirs are the page.
  * A boundary file that fails to load costs the reader context and nothing
  * else, so nothing here throws on the way to drawing the points.
  *
- * The context layers are graphics -- they are drawn once and never queried.
- * The reservoirs are a client-side `FeatureLayer`, because a layer view is
+ * The context is drawn once and is not part of reservoir selection. The
+ * reservoirs are a client-side `FeatureLayer`, because a layer view is
  * what `featureEffect`, named highlights and attribute filters operate on;
  * a graphic has no layer view to ask.
  */
@@ -28,7 +28,7 @@ import {
   type DrainageArea,
   type UtahBoundary
 } from "../data/boundaries";
-import type { Ring } from "../data/huc";
+import { drainageLabelPoint, type Ring } from "../data/huc";
 import { DRAINAGE_AREA_FIELD } from "../state/filters";
 import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
@@ -52,6 +52,7 @@ export const DRAINAGE_OBJECT_ID_FIELD = "objectid";
 export const DRAINAGE_NAME_FIELD = "area_name";
 export const DRAINAGE_LABEL_MIN_SCALE = 25_000_000;
 export const DRAINAGE_LABEL_HALO_PX = 2;
+export const DRAINAGE_LABEL_HALO_COLOR = "rgba(255,255,255,0.5)";
 
 const WGS84 = { wkid: 4326 };
 
@@ -84,26 +85,56 @@ export function createMaskLayer(boundary?: UtahBoundary): GraphicsLayer {
 
 export interface DrainageLayerResult {
   layer: FeatureLayer;
-  /** Source features eligible for labels. One feature represents one HUC6. */
+  /** Text symbols drawn below the reservoir layer. */
+  labelLayer: GraphicsLayer;
+  /** One background label symbol for each HUC6. */
   labels: number;
 }
 
 export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLayerResult {
+  const labelGraphics: Graphic[] = [];
   /* A multipolygon remains one feature. Building one graphic per polygon
-   * made a label renderer repeat the same drainage-area name on every island
-   * or disconnected piece. One feature per HUC6 gives the label engine one
-   * placement decision and one label, while preserving every ring. */
-  const source = areas.map((area, index) => new Graphic({
-    geometry: new Polygon({
+   * made a label repeat on every island or disconnected piece. One feature
+   * and one interior label point per HUC6 preserve every ring and keep one
+   * name per area. The text is a symbol in its own layer, not FeatureLayer
+   * labeling: a text-symbol layer can stay physically below reservoirs. */
+  const source = areas.map((area, index) => {
+    const geometry = new Polygon({
       rings: area.polygons.flatMap((polygon) => mutableRings(polygon)),
       spatialReference: WGS84
-    }),
-    attributes: {
-      [DRAINAGE_OBJECT_ID_FIELD]: index + 1,
-      huc6: area.huc6,
-      [DRAINAGE_NAME_FIELD]: area.name
+    });
+    const labelPoint = drainageLabelPoint(area.polygons);
+    /* The outline still draws without its name, but not silently: the label
+     * count this feeds is a readiness signal, and a shape that defeats the
+     * interior-point search should say so where someone debugging the count
+     * will look. */
+    if (!labelPoint) {
+      console.warn(`No interior label point for drainage area ${area.name} (${area.huc6}); its name is not drawn.`);
     }
-  }));
+    if (labelPoint) {
+      labelGraphics.push(new Graphic({
+        geometry: new Point({ longitude: labelPoint[0], latitude: labelPoint[1],
+          spatialReference: WGS84 }),
+        attributes: { huc6: area.huc6, [DRAINAGE_NAME_FIELD]: area.name },
+        symbol: {
+          type: "text",
+          text: area.name,
+          color: "#263f52",
+          haloColor: DRAINAGE_LABEL_HALO_COLOR,
+          haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
+          font: { family: "sans-serif", size: "11px", weight: "bold" }
+        }
+      }));
+    }
+    return new Graphic({
+      geometry,
+      attributes: {
+        [DRAINAGE_OBJECT_ID_FIELD]: index + 1,
+        huc6: area.huc6,
+        [DRAINAGE_NAME_FIELD]: area.name
+      }
+    });
+  });
 
   const layer = new FeatureLayer({
     id: "drainage-areas",
@@ -118,28 +149,19 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
     geometryType: "polygon",
     spatialReference: WGS84,
     popupEnabled: false,
-    labelsVisible: true,
     renderer: {
       type: "simple",
       symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE)
-    } as never,
-    labelingInfo: [{
-      labelExpressionInfo: { expression: `$feature.${DRAINAGE_NAME_FIELD}` },
-      labelPlacement: "always-horizontal",
-      allowOverrun: true,
-      deconflictionStrategy: "static",
-      minScale: DRAINAGE_LABEL_MIN_SCALE,
-      maxScale: 0,
-      symbol: {
-        type: "text",
-        color: "#263f52",
-        haloColor: "rgba(255,255,255,0.98)",
-        haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
-        font: { family: "sans-serif", size: "11px", weight: "bold" }
-      }
-    }] as never
+    } as never
   });
-  return { layer, labels: source.length };
+  const labelLayer = new GraphicsLayer({
+    id: "drainage-labels",
+    listMode: "hide",
+    minScale: DRAINAGE_LABEL_MIN_SCALE,
+    maxScale: 0
+  });
+  labelLayer.addMany(labelGraphics);
+  return { layer, labelLayer, labels: labelGraphics.length };
 }
 
 export interface ReservoirLayerResult {

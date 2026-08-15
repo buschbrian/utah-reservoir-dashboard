@@ -45,8 +45,10 @@ export interface MapStatus {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
-  /** Drainage-area features eligible for one label each. */
+  /** Drainage-area background text symbols, one per HUC6. */
   drainageLabels: number;
+  /** True while drainage-area text is below the reservoir symbols. */
+  drainageLabelsUnderReservoirs: boolean;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -482,6 +484,7 @@ export async function loadMap(
     elementById("map-host").setAttribute("aria-busy", "false");
   }
   let drainageLayer: FeatureLayer | null = null;
+  let drainageLabelLayer: GraphicsLayer | null = null;
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: LayerView | null = null;
   let pendingFilter: string | null = null;
@@ -502,6 +505,7 @@ export async function loadMap(
       sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
     drainageLabels: 0,
+    drainageLabelsUnderReservoirs: false,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     filtered: false,
@@ -586,6 +590,19 @@ export async function loadMap(
       : { filter: { where }, excludedEffect: EXCLUDED_EFFECT };
   }
 
+  /* One fact, one formula, every reader. Both draw paths can reorder the
+   * label and reservoir layers, so both go through here; computing it twice
+   * is how the status field and the readiness field learn to disagree. */
+  function syncDrainageLabelOrder() {
+    status.drainageLabelsUnderReservoirs = drainageLabelLayer !== null
+      && reservoirLayer !== null
+      && map.layers.indexOf(drainageLabelLayer) < map.layers.indexOf(reservoirLayer);
+    if (window.__dashboardReady) {
+      window.__dashboardReady.drainageLabelsUnderReservoirs =
+        status.drainageLabelsUnderReservoirs;
+    }
+  }
+
   return {
     status,
     drawReservoirs(reservoirs, percentOf) {
@@ -615,6 +632,7 @@ export async function loadMap(
       if (window.__dashboardReady) {
         window.__dashboardReady.selectionOnTop = status.selectionOnTop;
       }
+      syncDrainageLabelOrder();
       if (pendingFilter !== null) applyFilter(pendingFilter);
       /* The layer view is what the hover highlight needs, and it only ever
        * arrives in a browser that is actually painting: `whenLayerView` is
@@ -633,12 +651,18 @@ export async function loadMap(
     },
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);
+      if (drainageLabelLayer) map.remove(drainageLabelLayer);
       const result = createDrainageLayer(areas);
       drainageLayer = result.layer;
-      // Under the reservoirs and over the basemap: outlines are context.
+      drainageLabelLayer = result.labelLayer;
+      // Under the reservoirs and over the basemap: outlines and text are
+      // context. Text symbols obey this operational layer order; a
+      // FeatureLayer label pass can paint the same words above the points.
       map.add(drainageLayer, 1);
+      map.add(drainageLabelLayer, 2);
       status.drainageAreas = areas.length;
       status.drainageLabels = result.labels;
+      syncDrainageLabelOrder();
     }
   };
 }

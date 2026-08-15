@@ -252,9 +252,15 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("type", "text", "GeoJSON collection type."),
     f("features", "array", "Drainage-area boundary features."),
     f("filter", "text", "Hydrologic-region selection rule used to build the collection."),
-    f("scope", "identifier", "Named drainage-area scope."),
+    f("geometry", "object", "Coordinate system, precision and maximum offset used for this collection.", true),
+    f("scope", "identifier", "Named drainage-area scope. Collections retrieved before this field was recorded omit it.", true),
     f("source", "text", "Boundary publisher and source."),
     f("unit_count", "drainage areas", "Number of features in the collection.")
+  ]},
+  { id: "reference-collection-geometry", title: "Collection geometry settings", path: "named scope boundaries.geometry", fields: [
+    f("coordinate_decimal_places", "decimal places", "Number of coordinate decimal places requested from the source."),
+    f("coordinate_system", "text", "Coordinate system used by the collection."),
+    f("max_allowable_offset_degrees", "decimal degrees", "Largest coordinate offset allowed when the source simplifies the polygons.")
   ]},
   { id: "reference-geojson", title: "GeoJSON feature", path: "all boundary features", fields: [
     f("type", "text", "GeoJSON object type."),

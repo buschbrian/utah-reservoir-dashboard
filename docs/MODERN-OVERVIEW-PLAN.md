@@ -2,8 +2,8 @@
 
 ## Decision
 
-Keep `explore.html` unchanged as the legacy comparison. The modern map links
-from its header to `overview.html`, a new Vite/TypeScript entry that shares the
+Keep `explore.html` as a compatibility redirect to `overview.html`. The modern
+map links from its header to that Vite/TypeScript entry, which shares the
 validated reservoir loader, rollup rules, formatting and storage classes with
 the map. This prevents a daily data refresh from becoming application source
 and prevents the map, table and charts from calculating the same fact three
@@ -27,7 +27,8 @@ color-vision simulation, lightness-order checks and non-text contrast review.
 
 1. Move the overview link from the map canvas into the modern header.
 2. Add the modern overview with shared scope, ArcGIS Charts, search, sort and a
-   semantic data table. Keep the legacy overview linked for comparison.
+   semantic data table. Redirect saved links from the earlier overview to this
+   surface.
 3. Extract shared modern navigation and theme primitives so the map and
    overview cannot drift.
 4. Add drainage-area and seasonal charts from shared rollups, with a written
@@ -36,7 +37,26 @@ color-vision simulation, lightness-order checks and non-text contrast review.
    browser and accessibility coverage.
 
 Steps 1–5 are implemented. Search, drainage-area, and reporting filters now
-cross-filter the KPI strip, two ArcGIS bar charts, and exact-value table. The
-chart action bars expose interactive inspection and export. Filter state is
-stored in the URL, and the dashboard exports the filtered table as a CSV file.
-`explore.html` and the legacy map pages remain available for comparison.
+cross-filter the KPI strip, six ArcGIS charts, and exact-value table. The
+charts expose interactive inspection, and the workspace exports its filtered
+table as a CSV file. Filter and display state is stored in the URL.
+`explore.html` and the old map paths remain as compatibility redirects under
+ADR-031. Their former implementations are no longer published.
+
+## Control scope
+
+Updated on 2026-08-15 after the chart workspace grew to six ArcGIS charts and
+one interactive storage-level strip.
+
+- The **Focus the analysis** row changes every KPI, chart, and table row.
+- The storage-level strip is also a dashboard filter. It changes everything
+  below the strip while continuing to show the full distribution allowed by
+  the other filters.
+- The **Chart display** row sits above the full chart grid. Its measure changes
+  the largest-reservoir and 12-month charts. Its count and order settings say
+  explicitly that they change only the largest-reservoir chart.
+- No display setting is placed inside the first chart card when it also changes
+  another chart.
+
+The separate row avoids copying controls into six cards and avoids claiming
+that a count or order setting applies to a chart that cannot use it.

@@ -3,10 +3,8 @@
  *
  * A port of `selectionFromSearch` / `searchWithSelection` from
  * `shared/reservoir-viz.js`, held against it character for character in
- * `url.test.ts`. That parity is the whole point: `?reservoir=Deer+Creek`
- * opens Deer Creek on `explore.html`, on both production maps, and now
- * here, or "share this view" is a promise the dashboard keeps on three
- * pages out of four.
+ * `url.test.ts`. That parity protects saved links while the retired routes
+ * translate them to the current map or chart workspace.
  *
  * No browser API in the parsing half. The reading and writing are the parts
  * most likely to be wrong about a name with a space or an apostrophe in it
@@ -26,10 +24,10 @@ import { STORAGE_CLASSES } from "../viz/classes";
  * comment promised would make the second entry a line rather than a
  * refactor, and this is that second entry -- and the third and fourth.
  *
- * `reservoir` keeps its spelling because links are interchangeable with the
- * three production pages (`url.test.ts` holds that against the shared
- * module). The filter names are the public map contract. Older overview
- * spellings remain accepted below, so a saved link does not expire.
+ * `reservoir` keeps its spelling because it is the public map contract and
+ * the redirect pages carry it forward (`url.test.ts` holds that against the
+ * shared module). Older overview spellings remain accepted below, so a saved
+ * link does not expire.
  */
 const SELECTION_PARAMS = {
   reservoir: "reservoir",
@@ -102,11 +100,10 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
 };
 
 /**
- * `URLSearchParams` is deliberately not used. It writes a space as `+`
- * where `explore.html` writes `%20` through `encodeURIComponent`, so
- * round-tripping through it would quietly change the shape of every link
- * the overview page produces. Reading accepts both spellings: `+` is a
- * legal space in a query string, and a hand-typed link is likely to use it.
+ * `URLSearchParams` is deliberately not used. It writes a space as `+`,
+ * while earlier shared links used `%20` through `encodeURIComponent`.
+ * Reading accepts both spellings: `+` is a legal space in a query string,
+ * and a hand-typed link is likely to use it.
  */
 function decodeQueryPart(text: string): string | null {
   try {
@@ -146,7 +143,7 @@ function classIndex(value: string | undefined): number | null {
 
 /**
  * A query string to the reservoir it names. Unknown parameters are ignored
- * rather than read: `maplibre/index.html` carries its own `basemap`, and a
+ * rather than read: an older saved link can carry its own `basemap`, and a
  * selection must not be confused by it.
  */
 export function selectionFromSearch(search: string | null | undefined): string | null {

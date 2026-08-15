@@ -70,28 +70,19 @@ describe("user text", () => {
     expect(methods).toContain("dry-period normal");
   });
 
-  it("defines each required technical term", async () => {
-    const overview = await readFile(resolve(root, "explore.html"), "utf8");
-    for (const term of [
-      "Capacity",
-      "Acre-foot",
-      "Normal",
-      "History rank",
-      "Update schedule",
-      "CSV file"
-    ]) {
-      expect(overview, `${term} must be in the terms section`).toContain(`<dt>${term}</dt>`);
+  it("keeps the current value explanations on the methods page", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    for (const term of ["Percent full", "Normal for this week", "History rank", "Late data"]) {
+      expect(methods, `${term} must remain explained`).toContain(`<dt>${term}</dt>`);
     }
   });
-});
 
-describe("production page runtime references", () => {
-  it("builds the MapLibre hover lookup before the pointer handler uses it", async () => {
-    const source = await readFile(resolve(root, "maplibre/index.html"), "utf8");
-    const declaration = source.indexOf("const byName = new Map(");
-    const hoverUse = source.indexOf("hoverCard.show(byName.get(name)");
-
-    expect(declaration).toBeGreaterThanOrEqual(0);
-    expect(hoverUse).toBeGreaterThan(declaration);
+  it("keeps the glossary the retired overview used to carry", async () => {
+    // explore.html defined these before it became a redirect. The definitions
+    // moved here; this test is what notices if they are dropped again.
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    for (const term of ["Capacity", "Acre-foot", "Update schedule", "CSV file"]) {
+      expect(methods, `${term} must remain defined`).toContain(`<dt>${term}</dt>`);
+    }
   });
 });

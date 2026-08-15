@@ -27,7 +27,7 @@ export function renderUnsupported(root: HTMLElement): void {
       <p class="eyebrow">Browser support</p>
       <h1>This browser cannot display the reservoir map.</h1>
       <p>Use a current browser with WebGL 2 enabled, or open the accessible
-        <a href="./explore.html">reservoir overview</a>.</p>
+        <a href="./overview.html">storage charts and table</a>.</p>
     </main>`;
 }
 

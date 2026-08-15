@@ -66,28 +66,6 @@ root.innerHTML = `
     <header class="overview-intro">
       <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is large enough to hide local conditions in a combined total, so it starts excluded and can be added back at any time.</p>
     </header>
-    <!-- These three pages are published on every deploy, and until now the
-         only way to reach any of them was to already know its address. They
-         are not in the navigation bar because that bar clips rather than
-         scrolls: four links plus the theme control measured 408px against a
-         360px viewport, which does not shorten the row, it amputates the end
-         of it. Here they also get to say what they are for, which is what
-         ADR-007 actually asks of a comparison. -->
-    <nav class="overview-views" aria-label="Other views of this data">
-      <h2>Other views</h2>
-      <ul>
-        <li><a id="legacy-link" href="./legacy/"><b>Legacy map</b>
-          <span>The same reservoirs drawn by ArcGIS Maps SDK 4.34, kept for comparison.</span></a></li>
-        <li><a id="maplibre-link" href="./maplibre/"><b>MapLibre map</b>
-          <span>The second rendering engine, and the view to use if the Esri services are unreachable.</span></a></li>
-        <!-- "Statewide overview" read as a link to somewhere else on a page
-             that is itself the statewide overview. It is named for what it
-             is: the earlier build of this page, kept beside the two earlier
-             maps. -->
-        <li><a id="explore-link" href="./explore.html"><b>Legacy overview</b>
-          <span>The earlier version of this page, with its own charts and rankings.</span></a></li>
-      </ul>
-    </nav>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
   </main>`;
 wireTheme();
@@ -149,7 +127,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     <!-- Two rows, and each row is one kind of thing: what this section is
          and how to undo it, then the controls themselves. They used to share
          a single wrapping flex line, so the heading competed with the four
-         selects for the same space and "Reset filters" was pushed wherever
+         selects for the same space and "Reset view" was pushed wherever
          the last control left room -- a different place at every width. -->
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
       <!-- Lake Powell rides with the heading rather than in the row of
@@ -162,7 +140,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
         <div class="filterbar-head-actions">
           <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
-          <button id="reset-filters" class="reset-button" type="button">Reset filters</button>
+          <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
       <div class="filterbar-controls">
@@ -188,19 +166,23 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       </div>
       <div class="class-bar" data-classes role="group" aria-labelledby="class-heading"></div>
     </section>
+    <section class="chart-settings" aria-labelledby="chart-settings-heading">
+      <div class="chart-settings-copy">
+        <p class="eyebrow">Chart display</p>
+        <h2 id="chart-settings-heading">Choose how the charts show the filtered data</h2>
+        <p>The filters above change every chart and the table. Each setting here says which charts it changes.</p>
+      </div>
+      <div class="chart-settings-controls">
+        <label>Largest reservoirs shown<select id="chart-limit"><option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="25">Top 25</option><option value="0">All</option></select></label>
+        <label>Storage charts measure<select id="chart-measure"><option value="percent">Percent full</option><option value="storage">Acre-feet stored</option></select></label>
+        <label>Largest reservoirs ordered by<select id="chart-rank"><option value="capacity">Capacity</option><option value="storage">Storage</option><option value="percent">Percent full</option><option value="name">Name</option></select></label>
+      </div>
+    </section>
     <div class="overview-chart-grid">
       <section class="overview-card" aria-labelledby="capacity-heading">
         <div class="card-heading">
           <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Your choice appears in the search box above, and clearing it brings the rest back.</p></div>
           <span class="sdk-badge">Bar chart</span>
-        </div>
-        <!-- The chart's own controls, above the chart for the same reason
-             the analysis controls sit above the reservoir list: a control
-             under a thing it changes is a control the reader finds second. -->
-        <div class="chart-controls">
-          <label>Show<select id="chart-limit"><option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="25">Top 25</option><option value="0">All</option></select></label>
-          <label>Measure<select id="chart-measure"><option value="percent">Percent full</option><option value="storage">Acre-feet stored</option></select></label>
-          <label>Rank by<select id="chart-rank"><option value="capacity">Capacity</option><option value="storage">Storage</option><option value="percent">Percent full</option><option value="name">Name</option></select></label>
         </div>
         <div id="capacity-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>

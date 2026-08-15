@@ -8,16 +8,15 @@ import { defineConfig } from "vitest/config";
 const root = process.cwd();
 const outDir = resolve(root, "dist");
 
-function preserveRuntimeAndLegacyFiles(): Plugin {
+function preserveRuntimeDataAndRedirects(): Plugin {
   return {
-    name: "preserve-runtime-data-and-legacy-pages",
+    name: "preserve-runtime-data-and-retired-route-redirects",
     apply: "build",
     async closeBundle() {
       await mkdir(resolve(outDir, "data"), { recursive: true });
       await mkdir(resolve(outDir, "api"), { recursive: true });
       await mkdir(resolve(outDir, "legacy"), { recursive: true });
       await mkdir(resolve(outDir, "maplibre"), { recursive: true });
-      await cp(resolve(root, "shared"), resolve(outDir, "shared"), { recursive: true });
       await cp(resolve(root, "data", "drought"), resolve(outDir, "data", "drought"),
         { recursive: true });
 
@@ -28,9 +27,8 @@ function preserveRuntimeAndLegacyFiles(): Plugin {
       // reservoirs.json, and cannot go blank when that service is down.
       // `reference.json` is the capacity table and every boundary in one
       // versioned payload (ADR-018), and it is what the typed stack fetches.
-      // The four files it is built from stay published beside it: they are
-      // the reviewed sources, and the two legacy map pages still read the
-      // Utah outline directly.
+      // The files it is built from stay published beside it as reviewed data
+      // sources and documented direct-download contracts.
       for (const file of [
         "reservoirs.json", "snow_sites.json", "snowpack.json",
         "reference.json", "capacities.json",
@@ -74,5 +72,5 @@ export default defineConfig({
       }
     }
   },
-  plugins: [preserveRuntimeAndLegacyFiles()]
+  plugins: [preserveRuntimeDataAndRedirects()]
 });

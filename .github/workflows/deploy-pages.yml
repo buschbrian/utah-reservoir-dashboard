@@ -58,17 +58,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      # The ArcGIS 5.1 application is the root production page. The previous
-      # ArcGIS implementation and the other comparison pages keep explicit
-      # URLs. Asserted here rather than trusted, because those copies happen
-      # in a closeBundle hook that no other job exercises.
+      # The ArcGIS 5.1 application is the root production page. The retired
+      # application paths remain as small redirect pages. Asserted here rather
+      # than trusted, because two of those copies happen in a closeBundle hook
+      # that no other job exercises.
       - name: Verify the published output still serves every current URL
         run: |
           missing=0
           for path in index.html modern.html legacy/index.html \
                       overview.html methods.html data.html \
-                      explore.html maplibre/index.html \
-                      shared/reservoir-viz.js reservoirs.json capacities.json \
+                      explore.html maplibre/index.html retired-route.js \
+                      reservoirs.json capacities.json \
                       snow_sites.json snowpack.json \
                       huc6.geojson utah-boundary.geojson reference.json \
                       data/reservoirs.json data/capacities.json \

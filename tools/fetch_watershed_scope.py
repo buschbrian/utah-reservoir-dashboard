@@ -27,6 +27,10 @@ from watershed_scopes import get_scope, validate_huc6_codes  # noqa: E402
 
 WBD_LAYER = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3"
 TIMEOUT = 90
+GEOMETRY_PRECISION = "5"
+# Roughly 100 metres north-to-south. New committed geometry starts here; the
+# 500-metre production huc6.geojson remains the measured ADR-005 exception.
+MAX_ALLOWABLE_OFFSET = "0.001"
 
 
 class ArcGISFeatureLayerIdProvider:
@@ -75,8 +79,8 @@ class ArcGISRestClient:
             raise RuntimeError(f"ArcGIS query failed: {error.get('message', error)}")
         return payload
 
-    def query(self, scope, *, object_ids=None, geometry_precision="5",
-              max_allowable_offset="0.005") -> dict:
+    def query(self, scope, *, object_ids=None, geometry_precision=GEOMETRY_PRECISION,
+              max_allowable_offset=MAX_ALLOWABLE_OFFSET) -> dict:
         metadata = self._json(self.layer_url, {"f": "json"})
         capabilities = {part.strip().lower()
                         for part in str(metadata.get("capabilities", "")).split(",")}
@@ -221,6 +225,11 @@ def main() -> int:
         "scope": scope.name,
         "filter": scope.where,
         "unit_count": report["feature_count"],
+        "geometry": {
+            "coordinate_system": "WGS 84 (EPSG:4326)",
+            "max_allowable_offset_degrees": float(MAX_ALLOWABLE_OFFSET),
+            "coordinate_decimal_places": int(GEOMETRY_PRECISION),
+        },
     })
     print(json.dumps(report, indent=2))
     if args.dry_run:

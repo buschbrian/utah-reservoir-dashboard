@@ -114,6 +114,103 @@ function inPolygon(point: Point, rings: readonly Ring[]): boolean {
   return !holes.some((hole) => inRing(point, hole));
 }
 
+/** Twice the signed planar area. Only relative size matters at HUC6 scale. */
+function ringArea2(ring: Ring): number {
+  let total = 0;
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const from = ring[index];
+    const to = ring[index + 1];
+    if (!from || !to) continue;
+    total += from[0] * to[1] - to[0] * from[1];
+  }
+  return total;
+}
+
+/** The usual area-weighted centroid. It can fall outside a concave polygon. */
+function ringCentroid(ring: Ring): Point | null {
+  let area2 = 0;
+  let magnitude = 0;
+  let x = 0;
+  let y = 0;
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const from = ring[index];
+    const to = ring[index + 1];
+    if (!from || !to) continue;
+    const cross = from[0] * to[1] - to[0] * from[1];
+    area2 += cross;
+    magnitude += Math.abs(cross);
+    x += (from[0] + to[0]) * cross;
+    y += (from[1] + to[1]) * cross;
+  }
+  /* Degenerate means the signed terms cancelled. At coordinate magnitudes
+   * near 100 the cancellation leaves rounding noise far above machine
+   * epsilon, so the threshold has to scale with the terms that cancelled,
+   * not with 1. */
+  if (!(Math.abs(area2) > magnitude * Number.EPSILON * 4)) return null;
+  return [x / (3 * area2), y / (3 * area2)];
+}
+
+/**
+ * One deterministic interior point for a multipart area label.
+ *
+ * Prefer the centroid of the largest outer ring. Concave rings and holes can
+ * put that point outside the polygon, so the fallback tests horizontal spans
+ * through the ring and keeps the widest span whose midpoint is inside. The
+ * fixed scan is inexpensive for fourteen display labels and avoids pulling
+ * the SDK's full geometry-operator graph into the opening bundle.
+ */
+export function drainageLabelPoint(polygons: readonly (readonly Ring[])[]): Point | null {
+  const rings = polygons
+    .filter((polygon) => polygon[0] !== undefined)
+    .sort((left, right) =>
+      Math.abs(ringArea2(right[0] as Ring)) - Math.abs(ringArea2(left[0] as Ring)))[0];
+  const outer = rings?.[0];
+  if (!rings || !outer) return null;
+
+  const centroid = ringCentroid(outer);
+  if (centroid && inPolygon(centroid, rings)) return centroid;
+
+  const ys = outer.map(([, y]) => y);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  if (!Number.isFinite(minY) || !Number.isFinite(maxY) || minY === maxY) return null;
+
+  let best: Point | null = null;
+  let bestWidth = -1;
+  const scanYs = [centroid?.[1], ...Array.from({ length: 64 }, (_, index) =>
+    minY + (maxY - minY) * ((index + 0.5) / 64))]
+    .filter((value): value is number => value !== undefined && Number.isFinite(value));
+
+  for (const y of scanYs) {
+    const crossings: number[] = [];
+    for (const ring of rings) {
+      for (let index = 0, previous = ring.length - 1; index < ring.length;
+        previous = index, index += 1) {
+        const from = ring[previous];
+        const to = ring[index];
+        if (!from || !to || (from[1] > y) === (to[1] > y)) continue;
+        crossings.push(from[0] + (to[0] - from[0]) * (y - from[1]) / (to[1] - from[1]));
+      }
+    }
+    crossings.sort((left, right) => left - right);
+    /* Sorted crossings alternate inside and outside, so only the even pairs
+     * are interior spans. The midpoint test below still guards the pairing
+     * against a scanline that grazes a vertex. */
+    for (let index = 0; index + 1 < crossings.length; index += 2) {
+      const left = crossings[index];
+      const right = crossings[index + 1];
+      if (left === undefined || right === undefined || right <= left) continue;
+      const candidate: Point = [(left + right) / 2, y];
+      const width = right - left;
+      if (width > bestWidth && inPolygon(candidate, rings)) {
+        best = candidate;
+        bestWidth = width;
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * The unit containing this point, or null. Units are tested in order and the
  * first hit wins: HUC6 units tile the country without overlapping, so a

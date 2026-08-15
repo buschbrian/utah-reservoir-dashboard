@@ -161,6 +161,21 @@ root.innerHTML = `
       </dl>
     </section>
 
+    <section class="methods-section" id="terms" aria-labelledby="terms-heading">
+      <h2 id="terms-heading">Meaning of terms</h2>
+      <dl class="methods-list">
+        <dt>Capacity</dt>
+        <dd>The amount of water that a reservoir is designed to hold.</dd>
+        <dt>Acre-foot</dt>
+        <dd>A unit of water volume. One acre-foot covers one acre with water that is one
+          foot deep.</dd>
+        <dt>Update schedule</dt>
+        <dd>How often a source supplies new data.</dd>
+        <dt>CSV file</dt>
+        <dd>A plain-text file that stores table data.</dd>
+      </dl>
+    </section>
+
     <section class="methods-section" id="scope" aria-labelledby="scope-heading">
       <h2 id="scope-heading">Which reservoirs are included</h2>
       <p>A reservoir is placed in a drainage area by its dam or outlet point, not by the

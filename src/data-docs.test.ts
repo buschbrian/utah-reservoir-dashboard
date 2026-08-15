@@ -70,7 +70,9 @@ describe("public API field documentation", () => {
     const data = read("reference.json");
     const catalog = data.capacity_catalog;
     const state = data.geography.state;
-    const scope = Object.values(data.geography.watersheds.scopes)[0] as Record<string, any>;
+    const scopes = Object.values(data.geography.watersheds.scopes) as Record<string, any>[];
+    const scope = scopes[0];
+    if (!scope) throw new Error("reference data has no named drainage-area scope");
     const stateFeature = state.features[0];
     const watershedFeature = scope.boundaries.features[0];
     expectFields(REFERENCE_GROUPS, "reference-header", data);
@@ -84,7 +86,15 @@ describe("public API field documentation", () => {
     expectFields(REFERENCE_GROUPS, "reference-geojson-collection", {
       type: state.type, features: state.features
     });
-    expectFields(REFERENCE_GROUPS, "reference-watershed-collection", scope.boundaries);
+    // Each scope checked alone: a field missing from one scope must not be
+    // hidden by another scope that still carries it.
+    for (const entry of scopes) {
+      expectFields(REFERENCE_GROUPS, "reference-watershed-collection", entry.boundaries);
+    }
+    for (const geometry of scopes.map((entry) => entry.boundaries.geometry)
+      .filter(Boolean)) {
+      expectFields(REFERENCE_GROUPS, "reference-collection-geometry", geometry);
+    }
     expectFields(REFERENCE_GROUPS, "reference-geojson", stateFeature);
     expectFields(REFERENCE_GROUPS, "reference-geojson", watershedFeature);
     expectFields(REFERENCE_GROUPS, "reference-geometry", stateFeature.geometry);

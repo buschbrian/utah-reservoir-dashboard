@@ -1159,47 +1159,125 @@ lives.
 
 ## Noted follow-up items — 2026-08-15
 
-Recorded from a repo review; not yet triaged into a phase or an ADR. The
-first two are concrete UI defects. The rest are directional notes about
-where the product goes after Phase 7, kept here so they are not lost before
-they are scoped.
+Recorded from a repo review. The first two were concrete UI defects. The rest
+are directional notes about where the product goes after Phase 7; the small
+slices below record which parts are now decided or implemented.
 
-**UI fixes**
+**UI fixes — implemented 2026-08-15**
 
-1. **The HUC6 drainage-area label halo is too strong, and the labels sit
-   above the reservoir points instead of behind them.** The halo needs to
-   drop to 50% opacity, and the labels need to render as background
-   elements — under the reservoir symbols, not over them. Touches the label
-   work from ADR-025/ADR-027 and the layer ordering from Phase 3.3.
-2. **Only the first of the overview's seven charts carries filter controls,
-   even though the filters affect all seven.** Either wire the filtering UI
-   into the other six charts, or add one filter row that visibly governs
-   the whole chart set instead of reading as though it belongs to the first
-   chart alone. `overview.html` / Phase 4.
+1. **Drainage-area label treatment.** The halo is now 50% opaque. The names
+   are one interior text symbol per HUC6 on a dedicated background layer,
+   under the reservoir layer on the first draw and after every scope redraw.
+   The readiness signal and browser gate assert that order. ADR-030 records
+   why ordinary FeatureLayer labels could not enforce it.
+2. **Overview control scope.** The workspace has six ArcGIS charts plus one
+   interactive storage-level strip, not seven chart components. The analysis
+   filters above the KPI strip already change every chart and the table. The
+   confusing part was the first chart's display controls: its measure also
+   changed the 12-month chart, while its count and order changed only the
+   largest-reservoir chart. All three now sit in one **Chart display** row
+   above the chart grid, and each label names the charts it changes.
 
 **Directional notes**
 
 3. **Declutter the modern page toward being primarily the ArcGIS 5.1 SDK
-   application.** Move or retire the older comparison-engine material
-   currently reachable from the modern shell, so the primary page reads as
-   the ArcGIS 5.1 application first rather than one of several equal
-   options.
+   application — implemented under ADR-031.** The primary page now reads as
+   the ArcGIS 5.1 application, and the former implementation paths are
+   compatibility redirects rather than equal product options.
 4. **The public API and reference data already cover more geographic scope
    than the dashboard displays** (see
    [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md)).
    Not needed now, but worth keeping deliberately — it is the natural seed
    for a future multi-state or multi-region explorer.
 5. **Prefer authoritative ArcGIS REST services over static exports where
-   practical.** For committed JSON/GeoJSON that must ship as files, do not
-   generalize geometry beyond 100m simplification unless doing so produces
-   a genuinely large file-size saving.
-6. **Retire MapLibre and restructure this dashboard into multiple views**,
-   rather than maintaining it as a separate comparison page. Candidate
+   practical — geometry default implemented; inventory begun.** For committed
+   JSON/GeoJSON that must ship as files, do not generalize geometry beyond
+   100m simplification unless doing so produces a genuinely large file-size
+   saving.
+6. **Retire MapLibre and restructure this dashboard into multiple views —
+   retirement implemented under ADR-031; new views remain to build.** Candidate
    views: current storage and reservoir levels (have), drought and
    advanced watershed statistics (pandas/NumPy), snowpack, and a dashboard
    for each — roughly four, possibly more or fewer once it is actually
-   scoped. This would supersede ADR-007 and ADR-016's two-engine framing
-   and wants its own ADR when it is decided, not before.
+   scoped.
+
+### Small implementation slices for the directional work
+
+These are ordered so each slice can ship and be verified on its own. Work not
+marked as implemented remains proposed until its named decision is accepted.
+
+1. **Make the primary surface unambiguous — implemented 2026-08-15.** The
+   ArcGIS shell and overview now call the two product surfaces **Storage map**
+   and **Storage charts**. The overview no longer promotes the three comparison
+   pages. Their direct URLs remain compatibility redirects, and unit and
+   browser tests assert both sides of that boundary.
+2. **Retire comparison implementations — implemented 2026-08-15.** ADR-031
+   supersedes ADR-019, keeps its root, alias and refresh-deployment decisions,
+   and retires its complete comparison pages. `/legacy/` and `/maplibre/`
+   redirect to the storage map; `/explore.html` redirects to storage charts.
+   Recognized state crosses through an allowlist, while old basemap choices
+   and unknown fields are dropped. Observable Plot and the legacy runtimes are
+   absent from the published artifact. `shared/reservoir-viz.js` remains a
+   source-only ADR-008 color-table owner and test oracle until a separate
+   decision moves that contract.
+3. **Establish the multi-view shell.** Keep one shared ArcGIS 5.1 navigation,
+   theme, data loader, filter vocabulary, and URL-state contract. Add view
+   routes without adding data layers to the storage map. The initial working
+   set is:
+
+   - current storage and reservoir levels, already live;
+   - the current storage table and chart workspace, already live;
+   - drought and advanced drainage-area statistics;
+   - snowpack, as required by ADR-021.
+
+   The storage map and its chart workspace can remain one topic with two
+   surfaces. Drought and drainage-area statistics can also begin together and
+   split only if their controls or explanations become crowded. The final
+   count therefore does not need to be fixed at four before prototypes exist.
+4. **Build drought and drainage-area statistics as a data slice first.** Use
+   the downloaded official drought polygons already produced by
+   `tools/fetch_drought_monitor.py`. Add a deterministic Python analysis step
+   with pandas or NumPy only when it materially simplifies polygon coverage,
+   time-series statistics, or uncertainty calculations. Publish small tested
+   results by HUC6 before adding the view, then add the map, summaries, chart
+   equivalents, deadlines, and readiness signal.
+5. **Build snowpack as its own vertical slice.** Finish the Phase 1.6 refresh
+   contract, validate `snowpack.json`, and expose reporting-site counts and
+   late readings. Then add one ArcGIS 5.1 snowpack view tied to the same HUC6
+   choices and shared links as storage. Do not put snow symbols or a second
+   colour table on the reservoir map.
+6. **Audit service and geometry sources — inventory begun and default enforced
+   2026-08-15.** The source owner, exact endpoint, copy policy, update behavior,
+   runtime failure behavior, and geometry treatment are now recorded in
+   [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md).
+   It identifies one concrete migration slice: compare the older hosted dam
+   layer still named by capacity and point tools with the current U.S. Army
+   Corps public feature service before changing any committed values. The
+   named-scope watershed and official drought
+   downloaders now request roughly 100-metre geometry by default and publish
+   that tolerance in their output. The measured committed-file changes were
+   86,460 to 352,255 bytes for Upper Colorado HUC6 boundaries and 916,611 to
+   2,042,452 bytes for the national drought polygons. The drought file is not
+   loaded by the current dashboard. The broader watershed scope is embedded
+   in the public `reference.json` contract, so its extra precision increased
+   that uncompressed payload from 239,656 to 505,451 bytes even though the
+   current map selects only the Utah scope. This preserves the broader API
+   seed deliberately; extract a smaller runtime geography payload before it
+   becomes a measured loading problem. Keep the source inventory current as
+   endpoints or copy policies change. Prefer an
+   authoritative public REST layer for optional map context when it has a
+   bounded failure path; keep reviewed assignments and daily normalized data
+   reproducible in committed files. Use 100 metres or finer as the default
+   simplification for new GeoJSON. Any coarser export needs measured file-size
+   savings, unchanged analytical results, and an ADR. The current 500-metre
+   `huc6.geojson` is an existing measured exception under ADR-005: it saved
+   455 KiB against the 100-metre candidate and moved no reservoir assignment.
+7. **Preserve broader API scope without exposing it yet.** Keep geographic
+   identifiers and wider-region records in the public contract where they are
+   already validated. Do not add present-day filters or generalized UI for a
+   multi-state explorer. When that product is scoped, begin with a separate
+   route and explicit region definitions rather than widening the Utah view
+   silently.
 
 ---
 

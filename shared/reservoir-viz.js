@@ -1,7 +1,5 @@
 /*
- * Shared rendering logic for all three pages: ../index.html (the ArcGIS
- * Maps SDK map), ../maplibre/index.html (the MapLibre GL JS map) and
- * ../explore.html (the statewide overview, which draws no map at all).
+ * Frozen source oracle from the three retired comparison pages.
  *
  * Why this file exists: the two map pages exist to compare *rendering
  * engines*, so everything that isn't engine-specific -- the color classes,
@@ -19,8 +17,11 @@
  * about data rather than drawing -- the statewide rollup -- because the map
  * pages are the obvious next place to want it.
  *
- * Same zero-build-step constraint as the rest of the project: a plain
- * script that hangs one global off window, no modules, no bundler.
+ * The implementations are no longer published (ADR-031), but ADR-008 still
+ * makes CLASSES below the canonical storage color table and typed tests load
+ * this script in a node:vm sandbox. It is source-only technical debt, not a
+ * browser runtime. Moving that table needs its own decision so route cleanup
+ * cannot also change the dashboard's colors.
  *
  * IMPROVEMENT: with a build step this would be an ES module with real
  * imports and the chart and the rollup would be tested units. It is

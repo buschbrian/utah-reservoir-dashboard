@@ -39,6 +39,15 @@ GeoJSON batches using the layer's advertised record limit. It refuses partial,
 duplicate, missing, or out-of-region results. ArcGIS layer metadata varies by
 service generation, so the object-ID field is resolved from `objectIdField`,
 `objectIdFieldName`, or the field whose type is `esriFieldTypeOID`.
+New named-scope files use a roughly 100-metre geometry tolerance. The coarser
+production `huc6.geojson` remains the measured ADR-005 exception; that choice
+does not become the default for new regional files. Regenerating the Upper
+Colorado file at this tolerance increased it from 86,460 to 352,255 bytes and
+increased its geometry from the earlier generalized export to 16,097 vertices.
+Because `reference.json` preserves named research scopes for the public API,
+the derived reference payload increased from 239,656 to 505,451 bytes. The
+Utah map still selects only its named scope; a later runtime-payload split can
+remove that transfer cost without narrowing the public API.
 
 ## Measured storage-station baseline
 

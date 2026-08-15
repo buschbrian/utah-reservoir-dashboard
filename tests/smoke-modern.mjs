@@ -1,8 +1,8 @@
 /*
  * Browser smoke test for the production ArcGIS 5.1 application at the root.
  *
- * Separate from tests/smoke.mjs on purpose. That file protects the three
- * retained comparison pages; this one protects the primary application.
+ * Separate from tests/smoke.mjs on purpose. That file protects compatibility
+ * redirects; this one protects the complete primary application.
  *
  * What only a real browser can answer here:
  *
@@ -239,6 +239,8 @@ for (const viewport of VIEWPORTS) {
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
     check(ready.drainageLabels === expectedAreas,
       `${label}: configured ${ready.drainageLabels} drainage-area labels, expected ${expectedAreas}`);
+    check(ready.drainageLabelsUnderReservoirs === true,
+      `${label}: drainage-area labels are not below the reservoir symbols`);
 
     /* The renderer count above proves what the page built. This proves the
      * layer accepted it: a client-side feature layer whose source is
@@ -250,12 +252,18 @@ for (const viewport of VIEWPORTS) {
         ?.findLayerById("reservoirs");
       const drainage = document.querySelector("arcgis-map")?.map
         ?.findLayerById("drainage-areas");
+      const drainageLabels = document.querySelector("arcgis-map")?.map
+        ?.findLayerById("drainage-labels");
+      const firstLabel = drainageLabels?.graphics?.at(0)?.symbol;
       return {
         type: layer?.type ?? null,
         count: layer ? await layer.queryFeatureCount() : 0,
         drainageType: drainage?.type ?? null,
         drainageCount: drainage ? await drainage.queryFeatureCount() : 0,
         drainageLabelClasses: drainage?.labelingInfo?.length ?? 0,
+        drainageLabelType: drainageLabels?.type ?? null,
+        drainageLabelCount: drainageLabels?.graphics?.length ?? 0,
+        drainageHaloAlpha: firstLabel?.haloColor?.a ?? null,
         symbolUsesViewScale: JSON.stringify(layer?.renderer?.toJSON?.() ?? layer?.renderer ?? {})
           .includes("$view.scale")
       };
@@ -270,8 +278,15 @@ for (const viewport of VIEWPORTS) {
     check(layerFeatures.drainageCount === expectedAreas,
       `${label}: the drainage-area layer holds ${layerFeatures.drainageCount}, ` +
       `expected ${expectedAreas}`);
-    check(layerFeatures.drainageLabelClasses === 1,
-      `${label}: drainage areas have ${layerFeatures.drainageLabelClasses} label classes, expected 1`);
+    check(layerFeatures.drainageLabelClasses === 0,
+      `${label}: drainage-area text still uses the foreground label pass`);
+    check(layerFeatures.drainageLabelType === "graphics",
+      `${label}: the background label layer is "${layerFeatures.drainageLabelType}", expected graphics`);
+    check(layerFeatures.drainageLabelCount === expectedAreas,
+      `${label}: the label layer holds ${layerFeatures.drainageLabelCount} symbols, ` +
+      `expected ${expectedAreas}`);
+    check(layerFeatures.drainageHaloAlpha === 0.5,
+      `${label}: drainage-area label halo opacity is ${layerFeatures.drainageHaloAlpha}, expected 0.5`);
     check(layerFeatures.symbolUsesViewScale === false,
       `${label}: reservoir symbols still grow with the view scale`);
 
@@ -336,6 +351,8 @@ for (const viewport of VIEWPORTS) {
         drawn: window.__dashboardReady.drawn,
         geography: window.__dashboardReady.geography,
         selectionOnTop: window.__dashboardReady.selectionOnTop,
+        drainageLabelsUnderReservoirs:
+          window.__dashboardReady.drainageLabelsUnderReservoirs,
         search: window.location.search
       };
     }, controls);
@@ -347,6 +364,8 @@ for (const viewport of VIEWPORTS) {
      * below each layer that replaced it, and no counted field could tell. */
     check(wider.selectionOnTop,
       `${label}: the selection ring fell beneath the reservoirs after a scope change`);
+    check(wider.drainageLabelsUnderReservoirs,
+      `${label}: drainage-area labels rose above reservoirs after a scope change`);
     check(wider.drawn > expectedReservoirs,
       `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
       `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);
@@ -659,7 +678,7 @@ for (const viewport of VIEWPORTS) {
     /* The header lays its contents out in one row and clips what does not
      * fit, so an overflowing header never widens the page -- the check above
      * cannot see this, and did not: at 375px the title, its description and
-     * the "Table and charts" label came to 446px of content, which put the
+     * the former full link label came to 446px of content, which put the
      * reservoir details and theme controls fully off screen with nothing to
      * reveal them. Every control in the bar is measured against the viewport. */
     const navControls = await tab.evaluate(() => {
@@ -856,6 +875,26 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
     check(await tab.locator("arcgis-charts-action-bar").count() === 0,
       `${label}: an empty collapsible chart rail is still rendered`);
+    const chartSettings = await tab.evaluate(() => {
+      const row = document.querySelector(".chart-settings");
+      const grid = document.querySelector(".overview-chart-grid");
+      return {
+        rows: document.querySelectorAll(".chart-settings").length,
+        controls: row?.querySelectorAll("select").length ?? 0,
+        insideFirstCard: document.querySelector(".overview-chart-grid .overview-card select") !== null,
+        beforeCharts: Boolean(row && grid && (row.compareDocumentPosition(grid)
+          & Node.DOCUMENT_POSITION_FOLLOWING)),
+        copy: row?.textContent ?? ""
+      };
+    });
+    check(chartSettings.rows === 1 && chartSettings.controls === 3,
+      `${label}: chart display settings are not in one three-control row`);
+    check(chartSettings.insideFirstCard === false && chartSettings.beforeCharts === true,
+      `${label}: chart display settings still read as part of the first chart`);
+    check(chartSettings.copy.includes("filters above change every chart")
+      && chartSettings.copy.includes("Storage charts measure")
+      && chartSettings.copy.includes("Largest reservoirs"),
+    `${label}: chart setting scope is not explained`);
 
     const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
       sort: chart.model?.getSortOrder(),
@@ -1026,17 +1065,16 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     check(layout.nav?.left >= 0 && layout.nav?.right <= layout.viewport + 1,
       `${label}: navigation is clipped`);
 
-    /* This page is the only route to the second rendering engine (ADR-007)
-     * and to the 4.34 map, both of which the root cut-over left published
-     * and unreachable. The header clips rather than scrolls, so its own
-     * bounding box cannot prove its contents fit -- and it is why the three
-     * outbound links sit in the page rather than in the bar. Measure all of
-     * them, and require each to point where its label says. */
+    /* Only primary ArcGIS surfaces belong in this page's flow. The former
+     * paths remain compatibility URLs, but a comparison card here would
+     * still present retired implementations as equal product choices. */
+    const promotedComparisons = await tab.locator(
+      'a[href="./legacy/"], a[href="./maplibre/"], a[href="./explore.html"]'
+    ).count();
+    check(promotedComparisons === 0,
+      `${label}: the overview promotes ${promotedComparisons} comparison-page links`);
     const navLinks = {
       "theme-toggle": null,
-      "legacy-link": "./legacy/",
-      "maplibre-link": "./maplibre/",
-      "explore-link": "./explore.html",
       // The header's own links swap for the menu below 64rem, so only
       // whichever is actually showing at this width is measured.
       ...(viewport.width >= 1024
@@ -1453,10 +1491,14 @@ for (const failure of [
   const context = await browser.newContext({ viewport: VIEWPORTS[0] });
   const tab = await context.newPage();
   const errors = [];
+  let heldRoute = null;
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
 
   await tab.route(/reservoirs\.json/i, async (route) => {
-    if (failure.hang) return; // never fulfilled, never aborted: a hang
+    if (failure.hang) {
+      heldRoute = route;
+      return; // held until the application deadline proves it can recover
+    }
     return route.fulfill(failure.fulfil);
   });
 
@@ -1497,6 +1539,10 @@ for (const failure of [
     failures.push(`${label}: ${err.message}`);
   }
   for (const err of errors) failures.push(`${label}: ${err}`);
+  /* The application has already proved that it leaves its loading state.
+   * Release the request the test held on purpose before closing the browser
+   * context; newer Chromium builds otherwise wait forever for that route. */
+  if (heldRoute) await heldRoute.abort("aborted").catch(() => {});
   await context.close();
 }
 

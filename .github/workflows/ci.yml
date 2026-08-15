@@ -71,13 +71,12 @@ jobs:
           # remains exactly what npm ci installed from the lockfile.
           npm install --no-save --no-package-lock playwright
           npx playwright install --with-deps chromium
-      - name: Load the production dashboards in a real browser
+      - name: Check retired route redirects in a real browser
         run: |
           mkdir -p screenshots
           node tests/smoke.mjs
-      # Separate step, and separate file: this one covers the primary ArcGIS
-      # application. When it goes red the step name distinguishes it from
-      # the three retained comparison pages.
+      # Separate step, and separate file: this one covers the complete primary
+      # ArcGIS application rather than the three small compatibility routes.
       - name: Load the primary ArcGIS application in a real browser
         run: node tests/smoke-modern.mjs
       # Uploaded on failure *and* success: when a map breaks, the picture is

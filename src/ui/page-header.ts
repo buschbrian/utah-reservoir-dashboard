@@ -41,12 +41,12 @@ interface PageLink {
 const PAGES: readonly PageLink[] = [
   {
     id: "map", href: "./", icon: "map",
-    text: "Map", menuText: "Reservoir map", label: "Open the reservoir map"
+    text: "Storage map", menuText: "Storage map", label: "Open the storage map"
   },
   {
     id: "overview", href: "./overview.html", icon: "table",
-    text: "Table and charts", menuText: "Table and charts",
-    label: "Open the reservoir table and charts"
+    text: "Storage charts", menuText: "Storage charts",
+    label: "Open the storage charts and table"
   },
   {
     id: "methods", href: "./methods.html", icon: "question",
@@ -72,7 +72,10 @@ export function brandMarkup(headingLevel: 1 | 2): string {
     <div id="brand" slot="logo">
       <calcite-icon icon="water-drop" scale="l" aria-hidden="true"></calcite-icon>
       <span class="brand-text">
-        <${tag} id="brand-title">Utah Reservoir Dashboard</${tag}>
+        <${tag} id="brand-title" aria-label="Utah Reservoir Dashboard">
+          <span class="brand-title-wide" aria-hidden="true">Utah Reservoir Dashboard</span>
+          <span class="brand-title-narrow" aria-hidden="true">Utah Reservoirs</span>
+        </${tag}>
         <span id="sdk-name">ArcGIS Maps SDK for JavaScript</span>
       </span>
     </div>`;

@@ -10,7 +10,7 @@ and refuses a partial or duplicate response.
     python tools/fetch_drought_monitor.py --output data/drought/usdm.geojson
 
 The default output retains every national feature and asks the service for a
-roughly 550-metre geometry tolerance suitable for a web map. It can later be
+roughly 100-metre geometry tolerance suitable for analysis and a web map. It can later be
 clipped or intersected with the committed HUC-6 boundaries without making the
 download depend on a particular dashboard view.
 """
@@ -35,7 +35,7 @@ LAYER_URL = (
 )
 USER_AGENT = "utah-reservoir-dashboard/drought-monitor (+https://github.com/buschbrian)"
 TIMEOUT = 90
-MAX_ALLOWABLE_OFFSET = 0.005  # degrees; about 550 m north-to-south
+MAX_ALLOWABLE_OFFSET = 0.001  # degrees; about 110 m north-to-south
 GEOMETRY_PRECISION = 5
 DATE_FIELDS = ("MapDate", "ReleaseDate", "ValidStart", "ValidEnd")
 REQUIRED_FIELDS = {"DM", "MapDate", "ReleaseDate"}

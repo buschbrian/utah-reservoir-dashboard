@@ -6,23 +6,17 @@ A public dashboard for current reservoir storage in Utah and connected Colorado
 River and Great Basin drainage areas. It combines official storage observations,
 traceable capacity figures, twelve months of history, and drainage-area context.
 
-The same validated data is presented in one ArcGIS application and retained
-legacy comparisons:
+The same validated data is presented through one ArcGIS 5.1 application:
 
 | View | Purpose |
 |---|---|
-| [ArcGIS dashboard](./) | Primary responsive map built with ArcGIS Maps SDK for JavaScript 5.1 and Calcite 5. |
-| [ArcGIS data workspace](overview.html) | Cross-filtered KPIs, ArcGIS charts, and an accessible exact-value table. |
+| [Storage map](./) | Current reservoir storage on a responsive ArcGIS map. |
+| [Storage charts](overview.html) | Cross-filtered summaries, six ArcGIS charts, and an accessible exact-value table. |
 | [Methods and sources](methods.html) | Where the numbers come from, how they are collected, and how each value is worked out. |
 | [Public data API](data.html) | Stable JSON downloads, field definitions, and code examples. |
-| [Legacy ArcGIS map](legacy/) | Retained ArcGIS 4.34 comparison. |
-| [Legacy MapLibre map](maplibre/) | Retained MapLibre GL JS and CARTO comparison. |
-| [Legacy overview](explore.html) | Retained no-SDK analysis page for experiments and historical comparison. |
 
 The root page and its stable `modern.html` alias are the ArcGIS Maps SDK for
-JavaScript application. The legacy pages stay available so renderer behavior,
-accessibility, and performance can be compared without holding the primary
-dashboard back.
+JavaScript application. New interface work targets these primary surfaces.
 
 ## Use the dashboard
 
@@ -42,11 +36,10 @@ The ArcGIS dashboard provides these map controls:
   `?drainage=`, `?class=`, `?late=`, `?month=`, `?table=`, and `?sort=`
   together.
 
-The ArcGIS data workspace answers comparison questions that a map cannot. Its
-search, drainage-area, and reporting filters update the KPI strip, both ArcGIS
-charts, and semantic table as one view. Lake Powell is excluded by stable RISE
-item identifier 509 from the default map and data workspace; it remains in the
-source data for traceability and explicit legacy comparisons.
+The storage charts answer comparison questions that a map cannot. Their search,
+drainage-area, and reporting filters update the summary strip, all six ArcGIS
+charts, and the semantic table as one view. Lake Powell starts excluded from
+the default map and charts, but remains in the source data and can be included.
 
 ## Quick start
 
@@ -61,9 +54,9 @@ npm ci
 npm run dev
 ```
 
-Vite opens the ArcGIS dashboard. Open `/overview.html` for the data workspace,
-or `/legacy/`, `/maplibre/`, and `/explore.html` for the legacy comparisons.
-The ArcGIS pages need network access for SDK assets and basemap services.
+Vite opens the storage map. Open `/overview.html` for storage charts. The map
+needs network access for basemap services; stored reservoir data still loads
+when those services do not answer.
 
 ### Commands
 
@@ -75,7 +68,7 @@ The ArcGIS pages need network access for SDK assets and basemap services.
 | `npm run budget:sdk` | Check the planned ArcGIS 5.1 bundle against its size budget. |
 | `npm run build` | Typecheck, test, check the SDK budget, and build `dist/`. |
 | `python -m pytest tests/ -q` | Run pipeline and drainage-area tests without network access. |
-| `node tests/smoke.mjs` | Test the built production pages in Chromium. |
+| `node tests/smoke.mjs` | Check retired route redirects in Chromium. |
 | `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
 | `node scripts/fetch-huc6.mjs --dry-run` | Rebuild drainage-area boundaries without writing. |
 | `python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run` | Validate all Upper Colorado HUC6 boundaries without replacing the dashboard scope. |
@@ -209,8 +202,8 @@ provider's published point. `huc6` is assigned by the dam or outlet. See
 
 ## Architecture
 
-The primary application is typed and component based. The original pages are
-kept as comparison fixtures, not parallel product targets.
+The primary application is typed and component based. The former application
+paths are permanent compatibility redirects, not parallel product targets.
 
 | Path | Role |
 |---|---|
@@ -218,24 +211,25 @@ kept as comparison fixtures, not parallel product targets.
 | `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
 | `methods.html` + `src/methods.ts` | Methods and sources page: where the numbers come from and how each value is worked out. |
 | `data.html` + `src/data-docs.ts` | Public data API documentation: stable paths, field definitions, and code examples. |
-| `legacy/index.html` | CDN-loaded ArcGIS 4.34 comparison; copied into `dist/`. |
-| `maplibre/index.html` | CDN-loaded MapLibre legacy comparison; copied into `dist/`. |
-| `explore.html` | Legacy no-SDK overview. |
-| `shared/reservoir-viz.js` | Shared behavior retained by the legacy views. |
+| `legacy/index.html` | Compatibility redirect from the ArcGIS 4.34 URL to the storage map. |
+| `maplibre/index.html` | Compatibility redirect from the MapLibre URL to the storage map. |
+| `explore.html` | Compatibility redirect from the earlier overview to storage charts. |
+| `public/retired-route.js` | Allowlisted state translation for the three redirects. |
+| `shared/reservoir-viz.js` | Source-only color-table owner and porting test oracle; not published. |
 | `refresh_reservoirs.py` | Daily storage pipeline and metric calculation. |
 | `huc.py` | Drainage-area geometry, assignment, and pipeline rollups. |
-| `tests/smoke.mjs` | Browser contract for all production views at desktop and phone widths. |
+| `tests/smoke.mjs` | Browser contract for compatibility redirects at desktop and phone widths. |
 
 The load-bearing rules are:
 
 1. **Runtime data is copied, never bundled.** Daily refreshes must not require
    application data to be compiled into JavaScript.
-2. **Shared production behavior has one owner.** Anything both maps need lives
-   in `shared/reservoir-viz.js`; the typed port is tested for parity.
+2. **The frozen source oracle is not a runtime.** The typed port is tested
+   against `shared/reservoir-viz.js`, but that file is not published.
 3. **Color classes have one source of truth.** Renderers, legends, filters, and
    charts derive from the same table.
-4. **Legacy engines remain comparable, but do not constrain the ArcGIS app.**
-   Their differences are useful evidence, not a second product roadmap.
+4. **Retired routes preserve bookmarks, not runtimes.** Their allowlisted
+   redirects reach the closest ArcGIS surface without loading the old engines.
 5. **A public page never asks for ArcGIS credentials.** Secured resources fail
    promptly and fall back rather than opening a sign-in dialog.
 6. **Visible text uses Simplified Technical English.** Tests reject retired or
@@ -255,8 +249,8 @@ updates. Changed runtime data is committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
 `dist/` after direct pushes to `main` and after successful scheduled refreshes.
-Vite copies the reservoir, snow, reference, and boundary files, the shared
-module, and the legacy pages into the artifact. The workflow checks
+Vite copies the reservoir, snow, reference, and boundary files and the three
+compatibility redirects into the artifact. The workflow checks
 that every public URL exists and that the data payload did not leak into a
 JavaScript bundle.
 
@@ -312,6 +306,9 @@ measurements, and implementation history live in
   workspace's decision record and visual direction.
 - [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md) — the
   broader watershed research scope and its measured baseline.
+- [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md)
+  — the owner, endpoint, copy policy, failure behavior, geometry precision,
+  and next migration step for every current or planned data source.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
@@ -322,8 +319,8 @@ measurements, and implementation history live in
 ## Known limitations
 
 - Monthly sources cannot support a meaningful 7-day change.
-- The ArcGIS application depends on third-party SDK assets and basemap services;
-  the legacy overview remains the no-SDK comparison.
+- The map depends on third-party basemap services. If they all fail, local
+  reservoir data remains available without a background map.
 - Automated accessibility auditing, displaying snow measurements, and drought
   context are not complete.
 - ArcGIS map pixels render blank in headless Chromium even when the map and

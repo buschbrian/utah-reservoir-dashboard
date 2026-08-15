@@ -1,5 +1,6 @@
 """Network-free contract checks for the drought GeoJSON downloader."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from tools.fetch_drought_monitor import (  # noqa: E402
+    MAX_ALLOWABLE_OFFSET,
     assemble_geojson,
     object_id_field,
     validate_metadata,
@@ -71,6 +73,15 @@ def test_geojson_is_complete_sorted_and_self_describing():
     assert payload["map_date"] == "2026-08-11"
     assert payload["release_date"] == "2026-08-13"
     assert "National Drought Mitigation Center" in payload["attribution"]
+    assert MAX_ALLOWABLE_OFFSET == 0.001
+    assert payload["geometry"]["max_allowable_offset_degrees"] == 0.001
+
+
+def test_committed_drought_geometry_is_no_coarser_than_the_new_file_default():
+    payload = json.loads(
+        (ROOT / "data" / "drought" / "usdm-current.geojson").read_text(encoding="utf-8"))
+
+    assert payload["geometry"]["max_allowable_offset_degrees"] <= 0.001
 
 
 def test_geojson_refuses_partial_duplicate_or_mixed_week_results():

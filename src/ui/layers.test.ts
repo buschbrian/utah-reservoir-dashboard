@@ -3,6 +3,7 @@ import type { DrainageArea } from "../data/boundaries";
 import type { Reservoir } from "../types";
 import { cssPixelsToPoints } from "../viz/units";
 import {
+  DRAINAGE_LABEL_HALO_COLOR,
   DRAINAGE_LABEL_MIN_SCALE,
   DRAINAGE_LABEL_HALO_PX,
   DRAINAGE_NAME_FIELD,
@@ -52,7 +53,7 @@ describe("the reservoir layer", () => {
 });
 
 describe("the drainage-area layer", () => {
-  it("builds one source feature and one label candidate per HUC6", () => {
+  it("builds one source feature and one background label per HUC6", () => {
     const areas: DrainageArea[] = [{
       huc6: "140100",
       name: "Colorado Headwaters",
@@ -70,28 +71,31 @@ describe("the drainage-area layer", () => {
 
     expect(result.labels).toBe(areas.length);
     expect(result.layer.source.length).toBe(areas.length);
+    expect(result.labelLayer.graphics.length).toBe(areas.length);
     expect(result.layer.source.at(0)?.geometry?.type).toBe("polygon");
     expect((result.layer.source.at(0)?.geometry as { rings?: unknown[] }).rings).toHaveLength(2);
+    expect(result.labelLayer.graphics.at(0)?.geometry?.type).toBe("point");
   });
 
-  it("uses one name label class at the regional map scale", () => {
+  it("uses one name symbol with a half-opacity halo at the regional map scale", () => {
     const result = createDrainageLayer([{
       huc6: "160202",
       name: "Jordan",
       states: "UT",
       polygons: [[square(-112, 40)]]
     }]);
-    const labels = result.layer.labelingInfo ?? [];
-    const label = labels[0];
+    const label = result.labelLayer.graphics.at(0);
+    const symbol = label?.symbol;
 
-    expect(result.layer.labelsVisible).toBe(true);
-    expect(labels).toHaveLength(1);
-    expect(label?.labelExpressionInfo?.expression).toBe(`$feature.${DRAINAGE_NAME_FIELD}`);
-    expect(label?.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
-    expect(label?.allowOverrun).toBe(true);
-    expect(label?.deconflictionStrategy).toBe("static");
-    expect(label?.symbol?.type).toBe("text");
-    expect((label?.symbol as { haloSize?: number } | undefined)?.haloSize)
+    expect(result.layer.labelingInfo ?? []).toHaveLength(0);
+    expect(result.labelLayer.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
+    expect(result.labelLayer.graphics).toHaveLength(1);
+    expect(label?.attributes?.[DRAINAGE_NAME_FIELD]).toBe("Jordan");
+    expect(symbol?.type).toBe("text");
+    expect((symbol as { text?: string } | null | undefined)?.text).toBe("Jordan");
+    expect((symbol as { haloSize?: number } | null | undefined)?.haloSize)
       .toBe(cssPixelsToPoints(DRAINAGE_LABEL_HALO_PX));
+    expect((symbol as { haloColor?: { toCss(alpha?: boolean): string } } | null | undefined)
+      ?.haloColor?.toCss(true).replaceAll(" ", "")).toBe(DRAINAGE_LABEL_HALO_COLOR);
   });
 });

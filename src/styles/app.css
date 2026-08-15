@@ -492,6 +492,7 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 }
 #brand-title,
 #sdk-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand-title-narrow { display: none; }
 #sdk-name {
   color: var(--app-muted);
   font-size: .75rem;
@@ -509,6 +510,18 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 @media (max-width: 47.99rem) {
   #sdk-name { display: none; }
   #brand { padding-inline-start: .75rem; }
+  /* Calcite navigation clips instead of scrolling. The full product name,
+   * page menu and theme action measured 384px in the 360px overview bar, so
+   * the last action was present but unreachable. Keep the complete name as
+   * this heading's accessible label and use the shorter visible form only
+   * in the narrow bar. */
+  .brand-title-wide { display: none; }
+  .brand-title-narrow { display: inline; }
+  /* The overview has fewer actions than the map, but Calcite reserves more
+   * space around its slotted end controls there. Give those controls an
+   * explicit 12.5rem lane; max-width alone leaves the theme action clipped
+   * by 18px at 360px even with the shorter visible title. */
+  .overview-nav #brand { max-width: min(13rem, calc(100vw - 12.5rem)); }
 }
 
 /* The twelve-month slider. Sits between the analysis controls and the list,

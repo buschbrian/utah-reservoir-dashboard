@@ -1,12 +1,15 @@
 """Network-free contracts for named watershed extraction scopes."""
 
 from dataclasses import replace
+import json
+from pathlib import Path
 
 import pytest
 
 from tools.fetch_watershed_scope import (
     ArcGISFeatureLayerIdProvider,
     ArcGISRestClient,
+    MAX_ALLOWABLE_OFFSET,
     normalize_collection,
 )
 from watershed_scopes import get_scope, load_scope_units, validate_huc6_codes
@@ -51,6 +54,13 @@ def test_committed_upper_colorado_boundaries_match_the_named_scope():
         "140100", "140200", "140300", "140401", "140402",
         "140500", "140600", "140700", "140801", "140802",
     ]
+
+
+def test_committed_upper_colorado_geometry_uses_the_new_file_default():
+    path = Path(__file__).resolve().parent.parent / get_scope("upper-colorado").output
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert payload["geometry"]["max_allowable_offset_degrees"] <= 0.001
 
 
 class Response:
@@ -99,6 +109,8 @@ def test_arcgis_rest_client_fetches_every_object_id_in_bounded_batches():
     assert [call["objectIds"] for call in feature_calls] == ["1", "2"]
     assert all(call["f"] == "geojson" and call["outSR"] == "4326"
                for call in feature_calls)
+    assert MAX_ALLOWABLE_OFFSET == "0.001"
+    assert all(call["maxAllowableOffset"] == "0.001" for call in feature_calls)
 
 
 def test_arcgis_rest_client_can_keep_full_boundary_precision():

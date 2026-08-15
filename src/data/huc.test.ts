@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MonthlyRecord } from "../types";
 import { loadLegacyApi } from "./legacy-harness";
 import {
-  assignHuc, coverageReport, monthlyRollupByHuc, rollupByHuc,
+  assignHuc, coverageReport, drainageLabelPoint, monthlyRollupByHuc, rollupByHuc,
   type HucMember, type HucUnit
 } from "./huc";
 
@@ -64,6 +64,39 @@ describe("assignHuc", () => {
   it("assigns a cross-border reservoir by its outlet, not its extent", () => {
     const outletInSecondUnit = 1.01;
     expect(assignHuc([outletInSecondUnit, 0.5], units)?.name).toBe("Great Salt Lake");
+  });
+});
+
+describe("drainageLabelPoint", () => {
+  it("keeps the label inside a concave area when its centroid falls outside", () => {
+    const area: HucUnit = {
+      huc6: "140100", name: "L shape", states: "UT",
+      polygons: [[[[0, 0], [4, 0], [4, 1], [1, 1], [1, 4], [0, 4], [0, 0]]]]
+    };
+    const point = drainageLabelPoint(area.polygons);
+    expect(point).not.toBeNull();
+    expect(assignHuc(point as [number, number], [area])).toBe(area);
+  });
+
+  it("does not put the label inside a polygon hole", () => {
+    const area: HucUnit = {
+      huc6: "140300", name: "Donut", states: "UT",
+      polygons: [[
+        [[0, 0], [6, 0], [6, 6], [0, 6], [0, 0]],
+        [[1, 1], [5, 1], [5, 5], [1, 5], [1, 1]]
+      ]]
+    };
+    const point = drainageLabelPoint(area.polygons);
+    expect(point).not.toBeNull();
+    expect(assignHuc(point as [number, number], [area])).toBe(area);
+  });
+
+  it("uses the largest part of a multipart area", () => {
+    const polygons: HucUnit["polygons"] = [
+      [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      [[[10, 0], [14, 0], [14, 4], [10, 4], [10, 0]]]
+    ];
+    expect(drainageLabelPoint(polygons)?.[0]).toBeGreaterThan(10);
   });
 });
 

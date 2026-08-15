@@ -41,56 +41,11 @@ body {
   line-height: 1.55;
   text-wrap: pretty;
 }
-/* The routes to the other published pages. `auto-fit` with a `1fr` maximum
- * rather than a column count, for the same reason the filter bar is flex:
- * the layout should not have to know how many links there are. `minmax(0, …)`
- * because the description is prose and would otherwise set a floor that
- * widens the page at 360px. */
-.overview-views { margin-block-end: 1.25rem; }
-.overview-views h2 {
-  margin: 0 0 .5rem;
-  font-size: .8rem;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--app-muted);
-}
-.overview-views ul {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
-  gap: .6rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.overview-views a {
-  display: block;
-  min-width: 0;
-  height: 100%;
-  padding: .7rem .85rem;
-  background: color-mix(in srgb, var(--app-surface-raised) 94%, var(--app-sand));
-  border: 1px solid var(--app-border);
-  border-radius: .65rem;
-  text-decoration: none;
-  color: inherit;
-}
-.overview-views a:hover, .overview-views a:focus-visible {
-  border-color: var(--app-accent, currentcolor);
-  background: var(--app-surface-raised);
-}
-.overview-views b { display: block; font-size: .95rem; }
-.overview-views span {
-  display: block;
-  margin-block-start: .15rem;
-  font-size: .82rem;
-  line-height: 1.4;
-  color: var(--app-muted);
-}
-
 /* Two stacked rows rather than one wrapping line. Everything used to be a
  * single flex flow -- heading, five controls and the reset button competing
  * for the same wrap -- so the heading stole width from the controls at every
  * size, the switch sat at a different height from the selects beside it, and
- * "Reset filters" landed in a different place at every width because it was
+ * "Reset view" landed in a different place at every width because it was
  * simply whatever the last wrap left over. Splitting the section into "what
  * this is" and "the controls" lets each row solve one problem.
  *
@@ -214,19 +169,38 @@ body {
  * grid has room for an odd one out. */
 .overview-chart-grid > :first-child { grid-column: span 1; }
 
-/* A chart's own controls: what it shows, not what the page shows. Visually
- * lighter than the filter bar above, because these narrow one card while
- * that one narrows everything. */
-.chart-controls {
+/* One row owns chart display settings. Keeping it outside the first card
+ * prevents the shared measure from reading as a setting for one chart, and
+ * the longer labels state where the two card-specific settings apply. */
+.chart-settings {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem .75rem;
-  margin-block-end: .6rem;
+  gap: .8rem 1.25rem;
+  align-items: end;
+  margin-block: .75rem;
+  padding: .85rem 1rem;
+  background: color-mix(in srgb, var(--app-surface-raised) 96%, var(--app-sand));
+  border: 1px solid var(--app-border);
+  border-radius: .65rem;
 }
-.chart-controls label {
-  display: flex;
-  gap: .35rem;
-  align-items: center;
+.chart-settings-copy { flex: 1 1 20rem; min-width: 0; }
+.chart-settings-copy h2 { margin: .1rem 0 .2rem; font-size: 1rem; }
+.chart-settings-copy p:last-child {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+.chart-settings-controls {
+  display: grid;
+  flex: 2 1 34rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(11.5rem, 100%), 1fr));
+  gap: .6rem .75rem;
+  min-width: 0;
+}
+.chart-settings-controls label {
+  display: grid;
+  gap: .25rem;
   min-width: 0;
   color: var(--app-muted);
   font-size: .7rem;
@@ -234,9 +208,11 @@ body {
   letter-spacing: .03em;
   text-transform: uppercase;
 }
-.chart-controls select {
+.chart-settings-controls select {
+  width: 100%;
   min-width: 0;
-  padding: .25rem .4rem;
+  min-height: 2.25rem;
+  padding: .35rem .5rem;
   color: var(--app-text);
   background: var(--app-surface-raised);
   border: 1px solid var(--app-border);
@@ -245,7 +221,7 @@ body {
   letter-spacing: normal;
   text-transform: none;
 }
-.chart-controls select:focus-visible {
+.chart-settings-controls select:focus-visible {
   outline: .15rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
   outline-offset: .1rem;
 }

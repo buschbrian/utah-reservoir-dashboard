@@ -112,7 +112,8 @@ describe("a data-only commit deploys on its own", () => {
     for (const path of ["index.html", "modern.html", "legacy/index.html",
       "overview.html", "methods.html", "explore.html",
       "data.html", "api/reservoirs.json", "api/snowpack.json", "api/reference.json",
-      "maplibre/index.html", "data/reservoirs.json", "data/snow_sites.json",
+      "maplibre/index.html", "retired-route.js",
+      "data/reservoirs.json", "data/snow_sites.json",
       "data/snowpack.json", "data/reference.json",
       "data/huc6.geojson", "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
@@ -138,31 +139,61 @@ describe("a data-only commit deploys on its own", () => {
     }
   });
 
-  it("publishes ArcGIS 5.1 at the root and preserves the old ArcGIS page", async () => {
+  it("publishes ArcGIS 5.1 at the root and redirects the retired pages", async () => {
     const rootEntry = await read("index.html");
     const modernEntry = await read("modern.html");
     const legacyEntry = await read("legacy/index.html");
+    const maplibreEntry = await read("maplibre/index.html");
+    const exploreEntry = await read("explore.html");
     const config = await read("vite.config.ts");
 
     expect(rootEntry).toContain('src="/src/main.ts"');
     expect(modernEntry).toContain('src="/src/main.ts"');
-    expect(legacyEntry).toContain("https://js.arcgis.com/4.34/");
+    expect(legacyEntry).toContain('data-target="../" data-contract="map"');
+    expect(maplibreEntry).toContain('data-target="../" data-contract="map"');
+    expect(exploreEntry)
+      .toContain('data-target="./overview.html" data-contract="overview"');
+    expect(exploreEntry)
+      .toContain('<link vite-ignore rel="canonical" href="./overview.html"');
+    expect(legacyEntry).not.toContain("https://js.arcgis.com/");
+    expect(maplibreEntry).not.toContain("unpkg.com/maplibre");
+    expect(exploreEntry).not.toContain("@observablehq/plot");
+    // The two map redirects are one page maintained in two places. An edit
+    // that reaches only one of them is a drift no per-file check can see.
+    expect(maplibreEntry, "legacy/ and maplibre/ redirect pages must stay identical")
+      .toEqual(legacyEntry);
     expect(config).toContain('index: resolve(root, "index.html")');
     expect(config).toContain('resolve(root, "legacy", "index.html")');
   });
 
-  /* Copying a page into `dist/` keeps it published; it does not keep it
-   * reachable. The root cut-over moved the 4.34 page into `legacy/` with
-   * every test above still passing, and left no link to it from anywhere in
-   * the typed stack -- ADR-007 asks for two engines a reader can compare,
-   * and a URL you have to already know is not a comparison. The primary
-   * application's header clips rather than scrolls and carries one outbound
-   * link, so the overview bar is where these have to live. */
-  it("routes a reader to every published page it preserves", async () => {
-    const overview = await read("src/overview.ts");
+  it("names the primary ArcGIS surfaces by topic", async () => {
+    const header = await read("src/ui/page-header.ts");
+    expect(header).toContain('text: "Storage map", menuText: "Storage map"');
+    expect(header).toContain('text: "Storage charts", menuText: "Storage charts"');
+    expect(await read("index.html")).toContain("<title>Storage map —");
+    expect(await read("overview.html")).toContain("<title>Storage charts —");
+  });
+
+  /* Redirect paths remain public contracts, but complete comparison runtimes
+   * are neither promoted nor shipped. The frozen shared module remains in
+   * source only because ADR-008 and the parity tests still use it. */
+  it("keeps retired paths but no retired runtime in the primary application", async () => {
+    const primarySources = await Promise.all([
+      "src/ui/page-header.ts", "src/ui/shell-template.ts", "src/overview.ts",
+      "src/methods.ts", "src/data-docs.ts"
+    ].map(read));
+    const primary = primarySources.join("\n");
+
     for (const href of ["./legacy/", "./maplibre/", "./explore.html"]) {
-      expect(overview, `nothing links to ${href}, so no reader can reach it`)
-        .toContain(`href="${href}"`);
+      expect(primary, `${href} is still promoted from the primary application`)
+        .not.toContain(`href="${href}"`);
     }
+
+    const config = await read("vite.config.ts");
+    expect(config).toContain('resolve(root, "legacy", "index.html")');
+    expect(config).toContain('resolve(root, "maplibre", "index.html")');
+    expect(config).toContain('explore: resolve(root, "explore.html")');
+    expect(config).not.toContain('resolve(root, "shared")');
+    expect(await read("package.json")).not.toContain("@observablehq/plot");
   });
 });

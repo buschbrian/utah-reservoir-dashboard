@@ -27,7 +27,7 @@ supersedes the old one — the history is the point.
 | [ADR-016](ADR-016-arcgis-is-the-primary-application.md) | Make ArcGIS the primary application and keep legacy pages for comparison | Superseded by ADR-019 |
 | [ADR-017](ADR-017-map-geography-comes-from-the-drainage-areas.md) | The map's geography is derived from the drainage areas | Accepted |
 | [ADR-018](ADR-018-reference-data-ships-as-one-versioned-export.md) | Capacity and geography ship as one versioned reference export | Accepted |
-| [ADR-019](ADR-019-cut-over-the-root-and-chain-refresh-deploys.md) | Put ArcGIS 5.1 at the root and deploy successful refreshes | Accepted |
+| [ADR-019](ADR-019-cut-over-the-root-and-chain-refresh-deploys.md) | Put ArcGIS 5.1 at the root and deploy successful refreshes | Superseded by ADR-031 |
 | [ADR-020](ADR-020-every-published-reservoir-is-reachable.md) | Every published reservoir is reachable from the map | Accepted |
 | [ADR-021](ADR-021-snow-telemetry-goes-on-a-view-of-its-own.md) | Snow telemetry goes on a view of its own | Accepted |
 | [ADR-022](ADR-022-scale-the-reservoir-symbols-with-the-view.md) | Scale the reservoir symbols with the view | Superseded by ADR-025 |
@@ -35,9 +35,11 @@ supersedes the old one — the history is the point.
 | [ADR-024](ADR-024-use-full-resolution-watersheds-for-snow-sites.md) | Use full-resolution watersheds for snow sites | Accepted |
 | [ADR-025](ADR-025-keep-map-symbols-fixed-and-label-each-drainage-area-once.md) | Keep map symbols fixed and label each drainage area once | Superseded by ADR-027 |
 | [ADR-026](ADR-026-quote-machine-identifiers-in-api-documentation.md) | Quote machine identifiers in API documentation | Accepted |
-| [ADR-027](ADR-027-use-css-pixels-for-map-symbols-and-opening-labels.md) | Use CSS pixels for map symbols and opening labels | Accepted |
+| [ADR-027](ADR-027-use-css-pixels-for-map-symbols-and-opening-labels.md) | Use CSS pixels for map symbols and opening labels | Superseded by ADR-030 |
 | [ADR-028](ADR-028-use-equal-bands-and-a-colorblind-safe-ramp.md) | Use equal storage bands and a colorblind-safe ramp | Accepted |
 | [ADR-029](ADR-029-the-table-narrows-where-the-map-dims.md) | The table narrows where the map dims | Accepted |
+| [ADR-030](ADR-030-draw-drainage-area-names-below-reservoirs.md) | Draw drainage-area names below reservoir symbols | Accepted |
+| [ADR-031](ADR-031-retire-comparison-implementations-and-redirect-their-urls.md) | Retire comparison implementations and redirect their URLs | Accepted |
 
 ## Relationship to the modernization plan
 
