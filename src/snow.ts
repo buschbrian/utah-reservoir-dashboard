@@ -48,6 +48,7 @@ import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
+import { mapStatusNote } from "./ui/view-map";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES } from "./viz/snow-classes";
 import { formatDate, formatPercent } from "./viz/format";
@@ -112,7 +113,7 @@ function renderSnow(payload: SnowpackPayload): void {
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div class="drought-legend snow-map-legend" role="list" aria-label="Snow map classes and their colours"></div>
-      <div id="snow-map-host" class="snow-map-host" aria-busy="true"
+      <div id="snow-map-host" class="view-map-host" aria-busy="true"
         aria-label="A map of the drainage areas and snow measurement sites. The chart and tables on this page carry the same values as text."></div>
       <div class="snow-day-row">
         <label class="snow-day-label" for="snow-day">Day shown</label>
@@ -531,23 +532,15 @@ function renderSnow(payload: SnowpackPayload): void {
       map.setArea(currentArea);
       mapHost.setAttribute("aria-busy", "false");
       if (!map.status.basemap) {
-        const note = document.createElement("p");
-        note.className = "chart-empty";
-        note.setAttribute("role", "status");
-        note.textContent =
-          "The map background is unavailable. Areas and sites are still drawn from local data.";
-        mapHost.append(note);
+        mapHost.append(mapStatusNote("The map background is unavailable. " +
+          "Areas and sites are still drawn from local data."));
       }
       publishReady();
     } catch (error) {
       console.warn("The snow map could not start:", error);
       mapHost.setAttribute("aria-busy", "false");
-      const note = document.createElement("p");
-      note.className = "chart-empty";
-      note.setAttribute("role", "status");
-      note.textContent =
-        "The map could not start. The chart and tables carry the same values.";
-      mapHost.replaceChildren(note);
+      mapHost.replaceChildren(mapStatusNote(
+        "The map could not start. The chart and tables carry the same values."));
       publishReady();
     }
   })();

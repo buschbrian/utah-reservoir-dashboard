@@ -1295,8 +1295,13 @@ marked as implemented remains proposed until its named decision is accepted.
    visible note when the reservoir payload cannot be read. Freshness
    follows the weekly cadence — the map's week, release date and age are
    stated, and nine days without a release marks the data late. Cross
-   links carry `?area=` to the storage map and the snow view. Remaining:
-   the USDM polygon layer on a map surface, and the weekly automation.
+   links carry `?area=` to the storage map and the snow view. **The USDM
+   polygon map landed 2026-08-16:** the weekly national polygons in the
+   monitor's palette under the fourteen outlines, on the drought view only
+   (one colour language per map), refusing to draw a week that does not
+   match the coverage figures, with the shared theme-following basemap and
+   view-map helpers (`src/ui/theme-basemap.ts`, `src/ui/view-map.ts`) that
+   the snow map now also uses. Remaining: the weekly automation.
 5. **Build snowpack as its own vertical slice — first version implemented
    2026-08-15.** `snow.html` is a fourth navigation surface on the shared
    shell: the seasonal curve for the whole region or one drainage area, the

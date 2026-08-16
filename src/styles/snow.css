@@ -55,26 +55,6 @@
 }
 .site-name-button:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 
-/* The map card. A fixed-height stage: the layout must not move when the
- * WebGL view arrives, and the note shown when it cannot arrive sits in the
- * same box. */
-.snow-map-host {
-  position: relative;
-  block-size: clamp(20rem, 52vh, 28rem);
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: .4rem;
-  background: color-mix(in srgb, var(--app-muted) 8%, transparent);
-}
-.snow-map-host arcgis-map { display: block; block-size: 100%; }
-.snow-map-host .chart-empty {
-  position: absolute;
-  inset-block-start: 50%;
-  inline-size: 100%;
-  text-align: center;
-  transform: translateY(-50%);
-}
-
 .snow-day-row {
   display: flex;
   gap: .75rem;

@@ -14,17 +14,22 @@ import "@arcgis/map-components/components/arcgis-zoom";
 
 import ArcGISMap from "@arcgis/core/Map";
 import Graphic from "@arcgis/core/Graphic";
-import Extent from "@arcgis/core/geometry/Extent";
 import Point from "@arcgis/core/geometry/Point";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
-import { resolveBasemap } from "../arcgis/basemaps";
 import type { DrainageArea } from "../data/boundaries";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
 import { SNOW_CLASSES, snowClassIndex } from "../viz/snow-classes";
-import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
+import { followThemeBasemap } from "./theme-basemap";
+import {
+  fitToAreas,
+  hexRgba,
+  viewReadyWithin,
+  type Rgba,
+  type ViewMapElement
+} from "./view-map";
 
 export interface SnowMapStatus {
   basemap: boolean;
@@ -45,19 +50,6 @@ export interface SnowMapController {
   setArea(huc6: string | null): void;
 }
 
-export interface SnowMapElement extends HTMLElement {
-  map?: ArcGISMap | null | undefined;
-  view?: {
-    ready?: boolean;
-    constraints?: { snapToZoom?: boolean };
-    goTo?(target: unknown, options?: { animate?: boolean }): Promise<unknown>;
-  } | null | undefined;
-}
-
-/** How long the view may claim to be starting before the page stops
- * waiting on it. The figures above the map never wait on this. */
-const VIEW_READY_TIMEOUT_MS = 25000;
-
 const OUTLINE = { color: "#5b6b7a", width: 0.7 };
 const CHOSEN_OUTLINE = { color: "#27363f", width: 2.2 };
 
@@ -65,7 +57,6 @@ const CHOSEN_OUTLINE = { color: "#27363f", width: 2.2 };
  * convention `ui/layers.ts` records: the SDK autocasts them, and a
  * constructed symbol does not satisfy the property types under
  * `exactOptionalPropertyTypes`. */
-type Rgba = [number, number, number, number];
 type FillSymbol = {
   type: "simple-fill";
   color: Rgba;
@@ -77,15 +68,6 @@ type MarkerSymbol = {
   color: Rgba;
   outline: { color: string; width: number };
 };
-
-function hexRgba(hex: string, alpha: number): Rgba {
-  return [
-    parseInt(hex.slice(1, 3), 16),
-    parseInt(hex.slice(3, 5), 16),
-    parseInt(hex.slice(5, 7), 16),
-    alpha
-  ];
-}
 
 function basinSymbol(percent: number | null, chosen: boolean): FillSymbol {
   const index = snowClassIndex(percent);
@@ -115,23 +97,8 @@ function siteSymbol(percent: number | null): MarkerSymbol {
     };
 }
 
-/** Resolves when the component's view is ready, or after the deadline. */
-function viewReadyWithin(element: SnowMapElement, timeoutMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    if (element.view?.ready) {
-      resolve();
-      return;
-    }
-    const timer = setTimeout(resolve, timeoutMs);
-    element.addEventListener("arcgisViewReadyChange", () => {
-      clearTimeout(timer);
-      resolve();
-    }, { once: true });
-  });
-}
-
 export async function createSnowMap(
-  element: SnowMapElement,
+  element: ViewMapElement,
   areas: readonly DrainageArea[],
   sites: readonly SnowSite[],
   firstDay: { values: MapDayValues; day: string } | null
@@ -168,10 +135,9 @@ export async function createSnowMap(
     siteLayer.add(graphic);
   }
 
-  const resolution = await resolveBasemap(effectiveThemeNow());
   const status: SnowMapStatus = {
-    basemap: resolution.resource !== null,
-    basemapDegraded: resolution.degraded,
+    basemap: false,
+    basemapDegraded: false,
     viewReady: false,
     basins: basinGraphics.size,
     sites: siteGraphics.size,
@@ -181,27 +147,11 @@ export async function createSnowMap(
   };
 
   const map = new ArcGISMap({ layers: [basinLayer, siteLayer] });
-  /* The property setter is typed for autocast objects only under exact
-   * optional properties; a real Basemap is what it actually wants. The main
-   * map's element types field the same way, as `unknown`. */
-  if (resolution.resource) {
-    (map as unknown as { basemap: unknown }).basemap = resolution.resource;
-  }
-  element.map = map;
-
-  /* The canvas follows the theme. This map has no gallery, so unlike the
-   * storage map there is no reader choice to protect; the swap is
-   * sequenced so two quick toggles cannot land out of order. */
-  let themeSwap: Promise<void> = Promise.resolve();
-  document.addEventListener(THEME_CHANGE_EVENT, () => {
-    themeSwap = themeSwap.then(async () => {
-      const next = await resolveBasemap(effectiveThemeNow());
-      if (!next.resource) return;
-      (map as unknown as { basemap: unknown }).basemap = next.resource;
-      status.basemap = true;
-      status.basemapDegraded = next.degraded;
-    });
+  await followThemeBasemap(map, (basemapStatus) => {
+    status.basemap = basemapStatus.basemap;
+    status.basemapDegraded = basemapStatus.degraded;
   });
+  element.map = map;
 
   let chosenArea: string | null = null;
   let currentValues: MapDayValues | null = null;
@@ -237,38 +187,9 @@ export async function createSnowMap(
   /* The page must not wait forever on a WebGL view: after the deadline the
    * readiness signal reports the view unready and the page moves on -- the
    * same numbers are all in the chart and tables above it. */
-  await viewReadyWithin(element, VIEW_READY_TIMEOUT_MS);
+  await viewReadyWithin(element);
   status.viewReady = Boolean(element.view?.ready);
-
-  /* Frame the fourteen units exactly. A written zoom cannot do this: the
-   * card's width varies, and the component snaps a fractional zoom level to
-   * an integer -- one step out spans Oregon to Minnesota. */
-  const view = element.view;
-  if (status.viewReady && view?.goTo) {
-    let xmin = Infinity;
-    let ymin = Infinity;
-    let xmax = -Infinity;
-    let ymax = -Infinity;
-    for (const area of areas) {
-      for (const polygon of area.polygons) {
-        for (const ring of polygon) {
-          for (const [lon, lat] of ring) {
-            if (lon < xmin) xmin = lon;
-            if (lon > xmax) xmax = lon;
-            if (lat < ymin) ymin = lat;
-            if (lat > ymax) ymax = lat;
-          }
-        }
-      }
-    }
-    if (Number.isFinite(xmin)) {
-      if (view.constraints) view.constraints.snapToZoom = false;
-      await view.goTo(
-        new Extent({ xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } }),
-        { animate: false }
-      ).catch(() => undefined);
-    }
-  }
+  await fitToAreas(element, areas);
 
   return controller;
 }

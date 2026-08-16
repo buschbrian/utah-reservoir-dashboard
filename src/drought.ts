@@ -18,8 +18,12 @@ import "@esri/calcite-components/components/calcite-button";
 import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
 
+import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
+
+import { loadDrainageAreas } from "./data/boundaries";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadReservoirs } from "./data/load";
+import { loadUsdmPolygons } from "./data/usdm-load";
 import {
   areasAtOrWorse,
   bySeverity,
@@ -32,6 +36,8 @@ import {
   type StorageContext
 } from "./drought-model";
 import type { DroughtCoveragePayload } from "./types";
+import { createDroughtMap } from "./ui/drought-map";
+import { mapStatusNote } from "./ui/view-map";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
@@ -79,9 +85,17 @@ function renderDrought(
       <article class="overview-kpi"><span>Map week</span><strong>${formatDate(payload.map_date)}</strong><small>Published ${formatDate(payload.release_date)}</small></article>
       <article class="overview-kpi"><span>Map age</span><strong${late ? ' class="late-badge"' : ""}>${age} ${age === 1 ? "day" : "days"}</strong><small>${late ? "Late data: a new weekly map has been missed" : "A new map is published each Thursday"}</small></article>
     </section>
-    <section class="overview-card table-card" aria-labelledby="drought-areas-heading">
-      <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area, most severe first</h2><p>The bar is the share of the area's land in each class. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
+    <section class="overview-card" aria-labelledby="drought-map-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the fourteen drainage areas the figures below describe; drought does not stop at their edges, so the wider pattern is drawn too.</p></div>
+        <span class="sdk-badge">ArcGIS map</span>
+      </div>
       <div class="drought-legend" role="list" aria-label="Drought classes and their map colours"></div>
+      <div id="drought-map-host" class="view-map-host" aria-busy="true"
+        aria-label="A map of drought classes over the drainage areas. The bars and table on this page carry the same shares as text."></div>
+    </section>
+    <section class="overview-card table-card" aria-labelledby="drought-areas-heading">
+      <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area, most severe first</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
       <div class="drought-rows"></div>
       <details class="snow-month-details"><summary>Exact values for every class</summary>
         <div class="table-scroll"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
@@ -205,6 +219,56 @@ function renderDrought(
       ? ordered.filter((unit) => storage.has(unit.huc6)).length
       : 0
   };
+
+  /* The map starts after the figures are on screen, from its own two
+   * fetches: the national polygons the coverage was computed from, and the
+   * drainage boundaries. Either failing costs the picture only; the note
+   * says so and every share stays in the bars and table. */
+  void (async () => {
+    const mapHost = content.querySelector<HTMLElement>("#drought-map-host");
+    if (!mapHost) return;
+    const failed = (): void => {
+      mapHost.setAttribute("aria-busy", "false");
+      mapHost.replaceChildren(mapStatusNote(
+        "The map could not start. The bars and table carry the same shares."));
+      window.__droughtReady = {
+        ...(window.__droughtReady ?? {}), mapClassesDrawn: 0, mapOutlines: 0
+      } as typeof window.__droughtReady;
+    };
+    try {
+      installAnonymousAuthPolicy();
+      const [areas, usdm] = await Promise.all(
+        [loadDrainageAreas(), loadUsdmPolygons()]);
+      if (areas.length === 0) throw new Error("no drainage boundaries");
+      if (usdm.mapDate !== payload.map_date) {
+        /* Two committed files describing two different weeks is a pipeline
+         * fault the reader must not have to notice on their own. */
+        throw new Error(
+          `polygon week ${usdm.mapDate} does not match coverage week ${payload.map_date}`);
+      }
+      const mapElement = document.createElement("arcgis-map");
+      const zoom = document.createElement("arcgis-zoom");
+      zoom.setAttribute("position", "top-right");
+      mapElement.append(zoom);
+      mapHost.replaceChildren(mapElement);
+      const mapStatus = await createDroughtMap(mapElement, areas, usdm);
+      mapHost.setAttribute("aria-busy", "false");
+      if (!mapStatus.basemap) {
+        mapHost.append(mapStatusNote("The map background is unavailable. " +
+          "Drought classes and outlines are still drawn from local data."));
+      }
+      window.__droughtReady = {
+        ...(window.__droughtReady ?? {}),
+        mapClassesDrawn: mapStatus.classesDrawn,
+        mapOutlines: mapStatus.outlines,
+        mapBasemap: mapStatus.basemap,
+        mapViewReady: mapStatus.viewReady
+      } as typeof window.__droughtReady;
+    } catch (error) {
+      console.warn("The drought map could not start:", error);
+      failed();
+    }
+  })();
 }
 
 try {

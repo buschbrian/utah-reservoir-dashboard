@@ -7,6 +7,17 @@ and is not listed here.
 
 ### Added
 
+- **The drought page has its map.** A map card above the coverage bars draws
+  the monitor's weekly national polygons in the monitor's own colours, with
+  the fourteen drainage areas outlined over them — drought does not stop at
+  the region's edge, so the wider pattern is drawn whole while the outlines
+  say which land the figures describe. The polygons are the same committed
+  weekly download the coverage shares were computed from, and the page
+  refuses to draw them over figures from a different week. The map follows
+  the color theme like the others, one degenerate sliver in a future weekly
+  file cannot blank it, and if it cannot start the bars and table keep
+  every share with a visible note.
+
 - **The map background follows the color theme.** Both maps now open on the
   canvas that matches the page: light gray in the light theme, dark gray in
   the dark one, and they swap when the theme control is used. A background

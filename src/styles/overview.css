@@ -291,6 +291,26 @@ body {
     repeating-linear-gradient(135deg,
       transparent 0 6px, color-mix(in srgb, var(--app-muted) 18%, transparent) 6px 8px);
 }
+
+/* The view-map stage the snow and drought cards share. Fixed height: the
+ * layout must not move when the WebGL view arrives, and the note shown
+ * when it cannot arrive sits in the same box. */
+.view-map-host {
+  position: relative;
+  block-size: clamp(20rem, 52vh, 28rem);
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: .4rem;
+  background: color-mix(in srgb, var(--app-muted) 8%, transparent);
+}
+.view-map-host arcgis-map { display: block; block-size: 100%; }
+.view-map-host .chart-empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inline-size: 100%;
+  text-align: center;
+  transform: translateY(-50%);
+}
 :root[data-theme="dark"] .late-badge { color: #f0b48b; }
 .overview-error { padding: 2rem; border-inline-start: .3rem solid var(--app-terracotta); background: var(--app-surface-raised); }
 

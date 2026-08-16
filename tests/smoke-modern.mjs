@@ -1429,6 +1429,22 @@ for (const viewport of VIEWPORTS) {
       `${label}: cross links are malformed (${badLink ?? "count " + state.areaLinks.length})`);
     check(state.scroll <= state.viewport + 1,
       `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
+
+    /* The map half: the weekly polygons in the monitor's palette under the
+     * drainage outlines. Counted, because a blank canvas screenshots fine. */
+    await tab.waitForFunction(
+      "window.__droughtReady && window.__droughtReady.mapClassesDrawn !== undefined",
+      { timeout: 60000 });
+    const mapState = await tab.evaluate(() => ({ ready: window.__droughtReady }));
+    console.log("  map:", JSON.stringify({
+      classes: mapState.ready?.mapClassesDrawn,
+      outlines: mapState.ready?.mapOutlines,
+      basemap: mapState.ready?.mapBasemap
+    }));
+    check(mapState.ready?.mapClassesDrawn > 0 && mapState.ready?.mapClassesDrawn <= 5,
+      `${label}: the map drew ${mapState.ready?.mapClassesDrawn} drought classes`);
+    check(mapState.ready?.mapOutlines === mapState.ready?.units,
+      `${label}: ${mapState.ready?.mapOutlines} outlines for ${mapState.ready?.units} areas`);
     await tab.screenshot({ path: `screenshots/drought-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);

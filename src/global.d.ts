@@ -109,6 +109,14 @@ interface Window {
     daysOld: number;
     lateData: boolean;
     storageJoined: number;
+    /* The map half, present once the map module has resolved or failed.
+     * Added fields, never replacements. */
+    /** Intensity classes the weekly file carried and the map drew. */
+    mapClassesDrawn?: number;
+    /** Drainage-area outlines drawn over the polygons. */
+    mapOutlines?: number;
+    mapBasemap?: boolean;
+    mapViewReady?: boolean;
   };
   /* The methods page settles whether or not the payload can be read: the
    * rules on it do not depend on the data. This reports that it finished,
