@@ -215,3 +215,65 @@ describe("selecting a reservoir", () => {
     expect(seen).toHaveBeenCalledTimes(1);
   });
 });
+
+/*
+ * What "full" is measured against, and how much history a rank rests on.
+ *
+ * Both were reviewed into the panel after a read of the published data found
+ * that neither was stated anywhere a reader could see. Three different
+ * quantities arrive as "capacity" from the two providers, and four reservoirs
+ * -- Lake Powell among them -- carry roughly seven tenths of the combined
+ * full level that every regional percentage is divided by. And every history
+ * rank rests on eight to eleven years, because the record starts in 2015.
+ */
+describe("what the panel says about its own basis", () => {
+  it("names which kind of full level each percentage is measured against", () => {
+    const named = reservoirs
+      .filter((reservoir) => reservoir.capacity_basis !== null)
+      .map((reservoir) => describeReservoir(reservoir, "#000"));
+
+    expect(named.length).toBeGreaterThan(0);
+    for (const view of named) {
+      const capacity = view.rows.find((row) =>
+        row.label === "Capacity" || row.label === "Highest recorded storage");
+      expect(capacity?.value, `${view.name} does not say which full level`)
+        .toMatch(/measured as /);
+    }
+  });
+
+  /* The distinction that matters: a maximum level includes storage kept for
+   * floods and is not the pool a reservoir is operated to hold. A reader
+   * comparing two reservoirs is entitled to know they are not the same
+   * measurement. */
+  it("distinguishes a maximum level from a normal one", () => {
+    const maximum = reservoirs.find((r) => r.capacity_basis === "max_storage");
+    const normal = reservoirs.find((r) => r.capacity_basis === "normal_storage");
+
+    expect(maximum, "the payload no longer carries a maximum-level reservoir")
+      .toBeDefined();
+    expect(normal).toBeDefined();
+    const maximumRow = describeReservoir(maximum!, "#000").rows
+      .find((row) => row.label === "Capacity")?.value ?? "";
+    const normalRow = describeReservoir(normal!, "#000").rows
+      .find((row) => row.label === "Capacity")?.value ?? "";
+
+    expect(maximumRow).toContain("floods");
+    expect(normalRow).toContain("normal full level");
+    expect(maximumRow).not.toBe(normalRow);
+  });
+
+  it("gives every history rank the number of years behind it", () => {
+    for (const view of views) {
+      const rank = view.rows.find((row) => row.label === "History rank")?.value ?? "";
+      if (rank === "—") continue;
+      expect(rank, `${view.name} states a rank with no sample size`)
+        .toMatch(/out of \d+ earlier years?/);
+    }
+  });
+
+  /* The record is short and the note has to say so, because a percentile out
+   * of eleven reads exactly like a percentile out of a hundred. */
+  it("warns that a rank from this record is an indication, not a measurement", () => {
+    expect(views[0]?.note).toContain("indication rather than a measurement");
+  });
+});

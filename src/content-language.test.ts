@@ -100,6 +100,25 @@ describe("user text", () => {
     expect(methods).toContain("dry-period normal");
   });
 
+  /*
+   * Three caveats added after a methods review, each of which a reader needs
+   * in order to read the numbers correctly, and each of which is the kind of
+   * thing a later edit quietly drops because the page is long.
+   */
+  it("keeps the caveats that make the numbers readable", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+
+    // These reservoirs are operated: storage is releases as well as weather.
+    expect(methods).toContain("operated");
+    expect(methods).toMatch(/releases as well as weather|what was let out/);
+    // Snow and storage are compared against different periods.
+    expect(methods).toContain("1991 through 2020");
+    expect(methods).toMatch(/different periods/);
+    // "Full" is measured against more than one kind of full level.
+    expect(methods).toContain("normal full level");
+    expect(methods).toContain("maximum level");
+  });
+
   it("keeps the current value explanations on the methods page", async () => {
     const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
     for (const term of ["Percent full", "Normal for this week", "History rank", "Late data"]) {

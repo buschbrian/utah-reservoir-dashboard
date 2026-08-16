@@ -5,6 +5,28 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Added
+
+- **The methods page now says three things it should have said all along.**
+  These reservoirs are operated, so a falling level can be a release rather
+  than a dry watershed. Snow is compared against thirty years and storage
+  against eleven, so the two "normals" are not equivalent and storage will
+  tend to look better against its own. And "full" is measured against more
+  than one kind of full level.
+
+- **Every reservoir now says which full level its percentage is measured
+  against.** Three different quantities arrive as "capacity": a normal full
+  level, a maximum level that includes storage kept for floods, and the level
+  the water and climate service publishes with its readings. Four reservoirs
+  use the maximum — and because Lake Powell is one, those four are about
+  seven tenths of the combined full level every regional percentage is
+  divided by.
+
+- **Every history rank says how many years it came from.** The record starts
+  in 2015, so each rank is a position among eight to eleven values. Two ranks
+  a few points apart are not meaningfully different, and the panel now says
+  so instead of presenting a percentile as a measurement.
+
 ### Changed
 
 - **The drainage-area outlines are drawn from much finer boundaries.** They

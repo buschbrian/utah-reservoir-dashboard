@@ -45,6 +45,11 @@ root.innerHTML = `
       <p class="methods-lede">Every value on this site is an observation published by a
         public agency, or something worked out from those observations by a rule written
         down below. Nothing here is modelled, predicted or smoothed.</p>
+      <p class="methods-lede">Three things are worth reading before the numbers:
+        these reservoirs are <a href="#limits">operated</a>, so storage reflects releases
+        as well as weather; snow and storage are compared against
+        <a href="#limits">different periods</a>; and "full" is measured against
+        <a href="#values">more than one kind of full level</a>.</p>
       <p class="methods-status" id="methods-status" role="status" aria-live="polite"
         aria-busy="true">Reading the published data&hellip;</p>
       <p><a href="./data.html">Use the public data API</a> to download the published
@@ -152,6 +157,21 @@ root.innerHTML = `
           capacity where a traceable capacity exists. Where it does not, the highest storage
           recorded since 2015 is used instead, and the reservoir details say which of the
           two the percentage is measured against.</dd>
+        <dt>Which full level</dt>
+        <dd>Three different full levels reach this site, and they do not mean the same
+          thing. A <strong>normal full level</strong> is the amount a reservoir is operated
+          to hold. A <strong>maximum level</strong> includes storage above that, which is
+          kept empty to catch a flood and is not meant to be occupied. A third group carries
+          the full level the water and climate service publishes beside its readings. Each
+          reservoir's details name the one used for it.
+          <br />This matters most where it is least visible. Four reservoirs are measured
+          against a maximum level, and because Lake Powell is one of them, those four make up
+          about seven tenths of the combined full level that every regional percentage is
+          divided by. A reservoir measured against a maximum level reads lower than the same
+          reservoir measured against a normal one, so combined figures on this site are
+          slightly lower than they would be if one basis were used throughout. We publish the
+          basis rather than silently converting between them, because converting would mean
+          inventing numbers the dam owners have not published.</dd>
         <dt>Normal for this week</dt>
         <dd>The middle value of readings from 2015 through the year before the current
           reading, taken within seven days before or after the same date. It answers "is
@@ -161,7 +181,12 @@ root.innerHTML = `
         <dt>History rank</dt>
         <dd>How this reading compares with readings near the same date in earlier years.
           90% means it is higher than 90% of them. The current year is not counted against
-          itself.</dd>
+          itself.
+          <br />The record starts in 2015, so every rank rests on eight to eleven earlier
+          years. That is a small number to take a position in, and two ranks a few points
+          apart are not meaningfully different. Each reservoir's details give the number of
+          years its own rank was taken from. Treat a rank as an indication of where a
+          reading sits, not as a measurement.</dd>
         <dt>Change</dt>
         <dd>The difference between the newest reading and the reading nearest 7, 30 or 365
           days before it, where the provider publishes often enough to support it.</dd>
@@ -225,6 +250,22 @@ root.innerHTML = `
           this region. A normal built from this record is a dry-period normal. A reservoir
           near 100% of that normal is near normal for a dry period, not near its long-term
           average.</li>
+        <li><strong>Storage and snow are compared against different periods, and the two
+          numbers are not equivalent.</strong> Snow is compared with 1991 through 2020, the
+          thirty-year period the measuring service publishes and the standard length for a
+          climate comparison. Storage is compared with 2015 onward, because that is where
+          the storage record this site collects begins. So "snow at 70% of normal" is
+          measured against thirty years including wet ones, while "storage near normal" is
+          measured against eleven mostly dry ones. Storage will therefore tend to look
+          better against its normal than snow does against its own. Read each against its
+          own period, and do not read one as confirming the other.</li>
+        <li><strong>These reservoirs are operated, and much of what the numbers show is
+          operation rather than weather.</strong> Water is released to meet downstream
+          deliveries, power generation, environmental flows and obligations between states.
+          A reservoir can fall through a wet month because it is releasing water, and hold
+          steady through a dry one because it is not. Storage is the result of what arrived
+          and what was let out, and this site publishes only the result. Do not read a
+          falling reservoir as a drying watershed without checking what was released.</li>
         <li>Nothing here is a forecast. Every number is a measurement or an arithmetic
           comparison of measurements.</li>
       </ul>

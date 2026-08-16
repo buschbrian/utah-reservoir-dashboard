@@ -103,6 +103,51 @@ function withComparisonYears(value: number | null, share: number | null, years: 
   return `${reading}; compared with ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
 }
 
+/**
+ * What a reservoir's full level actually measures.
+ *
+ * Three different quantities are published as "capacity" across the two
+ * providers, and until now the details panel called all three of them the
+ * same thing. They are not the same thing: a normal full level is the pool a
+ * reservoir is operated to hold, and a maximum level includes storage above
+ * it that exists to catch a flood and is not meant to be occupied. A
+ * reservoir at 60% of one is not at 60% of the other.
+ *
+ * It matters more than the count of each suggests. Four of the sixty-nine
+ * reservoirs are measured against a maximum level, and those four are 71% of
+ * the combined denominator every regional percentage is divided by -- Lake
+ * Powell alone is most of it. So a reader comparing two reservoirs, or
+ * reading a combined figure, is comparing against mixed bases unless the
+ * panel says which.
+ */
+const CAPACITY_BASIS_NAMES: Record<string, string> = {
+  normal_storage: "the normal full level",
+  max_storage: "the maximum level, which includes storage kept for floods",
+  awdb_reservoir_metadata: "the full level published with the readings"
+};
+
+/** The words for a basis, or null when the provider named none. */
+export function capacityBasisName(basis: string | null): string | null {
+  if (!basis) return null;
+  return CAPACITY_BASIS_NAMES[basis] ?? null;
+}
+
+/**
+ * The history rank, with the number of years behind it.
+ *
+ * A rank is a position in a list, and a position in a list of eight is a
+ * different claim from a position in a list of thirty. The record starts in
+ * 2015, so every rank here rests on eight to eleven values; saying so beside
+ * the number is the difference between a reader treating it as a measurement
+ * and treating it as an indication.
+ */
+export function rankWithYears(percentile: number | null, years: number): string {
+  const rank = formatPercent(percentile);
+  if (percentile === null || !Number.isFinite(years) || years <= 0) return rank;
+  const rounded = Math.floor(years);
+  return `${rank}, out of ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
+}
+
 const SCHEDULE_NAMES: Record<string, string> = {
   daily: "Every day",
   monthly: "Once a month"
@@ -156,7 +201,11 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
       { label: "Stored now", value: `${formatAcreFeet(reservoir.current_storage_af)} acre-feet` },
       {
         label: capacityLabel,
-        value: `${formatAcreFeet(reservoir.capacity_af ?? reservoir.record_max_af)} acre-feet`
+        /* Which full level this is, not just how much it is. */
+        value: `${formatAcreFeet(reservoir.capacity_af ?? reservoir.record_max_af)} acre-feet${
+          basis === "capacity" && capacityBasisName(reservoir.capacity_basis)
+            ? `, measured as ${capacityBasisName(reservoir.capacity_basis)}`
+            : ""}`
       },
       {
         label: "Normal for this week",
@@ -183,7 +232,11 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
           : `${formatAcreFeet(reservoir.peak_this_year_af)} acre-feet${
             reservoir.peak_this_year_date ? ` (${formatDate(reservoir.peak_this_year_date)})` : ""}`
       },
-      { label: "History rank", value: formatPercent(reservoir.seasonal_percentile) },
+      {
+        label: "History rank",
+        value: rankWithYears(
+          reservoir.seasonal_percentile, reservoir.seasonal_sample_years)
+      },
       { label: "Reading date", value: formatDate(reservoir.as_of) },
       {
         label: "Update schedule",
@@ -201,7 +254,9 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
      * the others, and the legacy popup explained it every time rather than
      * once somewhere else. */
     note: `History rank compares this value with values near the same date in earlier ` +
-      `years: 90% means it is higher than 90% of them. Storage data from the ` +
-      `${providerName(reservoir)}, which can revise these values later.`
+      `years: 90% means it is higher than 90% of them. The record starts in 2015, so ` +
+      `a rank rests on a small number of years and is an indication rather than a ` +
+      `measurement. Storage data from the ${providerName(reservoir)}, which can ` +
+      `revise these values later.`
   };
 }
