@@ -1313,8 +1313,12 @@ marked as implemented remains proposed until its named decision is accepted.
    storage map, an exact fit to the fourteen units (a written zoom cannot
    do this — the component snaps fractional zoom, and one step out spans
    Oregon to Minnesota), and graceful degradation to a visible note.
-   Still to build: per-site accumulation curves with the published normal
-   timing, and the snow entry in the data reference. Do not
+   **Per-site accumulation curves landed 2026-08-16:** a one-site card with
+   the water-year curve in inches against the normal median, the published
+   onset/peak/meltout timing drawn and stated as text, a grouped site
+   picker plus selectable names in the site table, and `?site=` carrying
+   the station identifier in shared links. Still to build: the snow entry
+   in the data reference. Do not
    put snow symbols or a second colour table on the reservoir map. Design
    decisions adopted from the external product review above: HUC6 basin-fill choropleth by percent of
    the 1991–2020 normal median with sites reading on the same scale, the

@@ -9,10 +9,15 @@ import {
   monthReadings,
   newestHeadline,
   percentOfNormal,
+  observedPeak,
   regionCurve,
   seasonHighPoint,
   seasonLabel,
+  siteByStation,
+  siteMonthReadings,
+  sitePoints,
   siteRows,
+  siteTiming,
   type CurvePoint
 } from "./snow-model";
 
@@ -208,6 +213,81 @@ describe("the map day", () => {
     const values = mapDayValues(payload, "1999-01-01");
     expect([...values.basins.values()].every((value) => value === null)).toBe(true);
     expect([...values.sites.values()].every((value) => value === null)).toBe(true);
+  });
+});
+
+describe("one site's season", () => {
+  const site = payload.sites[0]!;
+
+  it("finds a site by its station and answers null for a stranger", () => {
+    expect(siteByStation(payload, site.station)?.name).toBe(site.name);
+    expect(siteByStation(payload, "0000:XX:NONE")).toBeNull();
+  });
+
+  it("names the columns of every published day", () => {
+    const points = sitePoints(site);
+    expect(points.length).toBe(site.series.length);
+    expect(points[0]).toEqual({
+      date: site.series[0]![0],
+      inches: site.series[0]![1],
+      normalInches: site.series[0]![2]
+    });
+  });
+
+  it("places the normal season inside the water year", () => {
+    const timing = siteTiming({
+      ...site,
+      normal_timing: {
+        onset: { month: 10, day: 11 },
+        peak: { month: 5, day: 1, value: 25.2 },
+        meltout: { month: 6, day: 17 }
+      }
+    }, 2026);
+    // October belongs to the opening calendar year, May and June to the
+    // closing one.
+    expect(timing.onset).toBe("2025-10-11");
+    expect(timing.peakDate).toBe("2026-05-01");
+    expect(timing.peakInches).toBe(25.2);
+    expect(timing.meltout).toBe("2026-06-17");
+  });
+
+  it("answers null for timing the provider does not publish", () => {
+    const timing = siteTiming({
+      ...site,
+      normal_timing: { peak: null, onset: null, meltout: null }
+    }, 2026);
+    expect(timing).toEqual({
+      onset: null, peakDate: null, peakInches: null, meltout: null
+    });
+  });
+
+  it("finds the season's highest reading", () => {
+    const peak = observedPeak([
+      { date: "2026-01-01", inches: 3, normalInches: 5 },
+      { date: "2026-03-01", inches: 9.5, normalInches: 10 },
+      { date: "2026-04-01", inches: null, normalInches: 11 }
+    ]);
+    expect(peak).toEqual({ date: "2026-03-01", inches: 9.5 });
+    expect(observedPeak([
+      { date: "2026-01-01", inches: null, normalInches: null }
+    ])).toBeNull();
+  });
+
+  it("keeps one month row per month, first-of-month values only", () => {
+    const months = siteMonthReadings(sitePoints(site));
+    const keys = months.map((month) => month.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const month of months) {
+      if (month.point) expect(month.point.date).toBe(`${month.key}-01`);
+    }
+  });
+
+  it("gives every committed site a drawable season", () => {
+    for (const entry of payload.sites) {
+      const points = sitePoints(entry);
+      expect(points.length).toBeGreaterThan(1);
+      expect(points.some((point) => point.inches !== null)).toBe(true);
+    }
   });
 });
 

@@ -40,6 +40,7 @@ const userTextFiles = [
   "src/snow-model.ts",
   "src/viz/snow-curve.ts",
   "src/viz/snow-classes.ts",
+  "src/viz/site-curve.ts",
   "src/ui/snow-map.ts",
   // The drought view's visible text, and the class table whose labels are
   // the monitor's own official names.

@@ -16,22 +16,32 @@ describe("snow URL state", () => {
     expect(snowStateFromSearch("").day).toBeNull();
   });
 
+  it("reads a station identifier and refuses anything else", () => {
+    expect(snowStateFromSearch("?site=1030%3ACO%3ASNTL").site).toBe("1030:CO:SNTL");
+    expect(snowStateFromSearch("?site=Arapaho+Ridge").site).toBeNull();
+    expect(snowStateFromSearch("").site).toBeNull();
+  });
+
   it("round-trips every reachable state", () => {
     for (const area of ["140100", null]) {
       for (const day of ["2026-04-01", null]) {
-        const search = snowSearchFromState({ area, day }, "");
-        expect(snowStateFromSearch(search)).toEqual({ area, day });
+        for (const site of ["1030:CO:SNTL", null]) {
+          const search = snowSearchFromState({ area, day, site }, "");
+          expect(snowStateFromSearch(search)).toEqual({ area, day, site });
+        }
       }
     }
   });
 
-  it("drops both parameters entirely for the default view", () => {
+  it("drops every parameter entirely for the default view", () => {
     expect(snowSearchFromState(
-      { area: null, day: null }, "?area=160201&day=2026-04-01")).toBe("");
+      { area: null, day: null, site: null },
+      "?area=160201&day=2026-04-01&site=1030%3ACO%3ASNTL")).toBe("");
   });
 
   it("leaves parameters it does not own alone", () => {
-    const search = snowSearchFromState({ area: "140100", day: null }, "?theme=dark");
+    const search = snowSearchFromState(
+      { area: "140100", day: null, site: null }, "?theme=dark");
     expect(search).toContain("theme=dark");
     expect(search).toContain("area=140100");
     expect(search).not.toContain("day=");

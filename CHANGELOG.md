@@ -7,6 +7,16 @@ and is not listed here.
 
 ### Added
 
+- **Every snow site has its own season.** A new card on the snowpack page
+  draws one measurement site's water year in inches, day by day, against
+  the middle value for the same days in 1991 through 2020 — with the site's
+  published normal season marked: when snow usually starts to build, its
+  usual highest value, and when it has usually melted. The reader reaches a
+  site through a grouped picker or by selecting its name in the site table,
+  a shared link carries the choice, and the exact first-of-month values sit
+  in a table behind the chart. A site whose normal timing the data service
+  does not publish says so rather than inventing one.
+
 - **The snowpack view has its map.** A map card now sits above the seasonal
   curve: each drainage area is filled by its mean percent of normal for a
   chosen day, and every measurement site is a point on the same red-to-blue

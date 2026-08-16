@@ -20,6 +20,41 @@
 .snow-month-details { margin-block-start: .75rem; }
 .snow-month-details summary { color: var(--app-muted); font-size: .8rem; cursor: pointer; }
 
+/* The one-site card. The normal line is data at half voice: dashed and
+ * muted so this year's line reads first, the way the storage trend chart
+ * treats its normal. Timing marks carry their words as titles and the
+ * caption repeats them as text. */
+.site-curve-normal {
+  fill: none;
+  stroke: var(--app-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  stroke-linejoin: round;
+}
+.site-timing-tick { stroke: var(--app-muted); stroke-width: 2; }
+.site-timing-peak {
+  fill: var(--app-surface-raised);
+  stroke: var(--app-muted);
+  stroke-width: 1.5;
+}
+.snow-site-stats { margin: .1rem 0 .5rem; color: var(--app-muted); font-size: .8rem; }
+.snow-site-reading { margin: .5rem 0 0; font-size: .84rem; }
+.snow-site-timing { margin: .25rem 0 0; color: var(--app-muted); font-size: .8rem; }
+
+/* A site name in the table is a real button; it looks like the link it
+ * behaves as, and keeps the row's text metrics. */
+.site-name-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--app-accent);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.site-name-button:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+
 /* The map card. A fixed-height stage: the layout must not move when the
  * WebGL view arrives, and the note shown when it cannot arrive sits in the
  * same box. */

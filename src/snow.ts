@@ -32,10 +32,16 @@ import {
   monthReadings,
   newestHeadline,
   normalPeriodLabel,
+  observedPeak,
+  percentOfNormal,
   regionCurve,
   seasonHighPoint,
   seasonLabel,
+  siteByStation,
+  siteMonthReadings,
+  sitePoints,
   siteRows,
+  siteTiming,
   type CurvePoint
 } from "./snow-model";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
@@ -45,6 +51,7 @@ import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES } from "./viz/snow-classes";
 import { formatDate, formatPercent } from "./viz/format";
+import { renderSiteCurve } from "./viz/site-curve";
 import { renderSnowCurve } from "./viz/snow-curve";
 import "./styles/overview.css";
 import "./styles/snow.css";
@@ -124,8 +131,15 @@ function renderSnow(payload: SnowpackPayload): void {
         <div class="table-scroll"><table class="overview-table"><thead><tr><th>Month</th><th>Of normal</th><th>Reporting sites</th></tr></thead><tbody id="snow-month-rows"></tbody></table></div>
       </details>
     </section>
+    <section class="overview-card" aria-labelledby="snow-site-heading">
+      <div class="card-heading">
+        <div><h2 id="snow-site-heading">One site through the season</h2><p>Snow water in inches at the chosen site, day by day, against the middle value for the same day in the years ${normalPeriodLabel(payload)}. The markers show the site's normal season: when snow usually starts to build, its usual highest value, and when it has usually melted.</p></div>
+        <label class="sort-control">Measurement site<select id="snow-site"><option value="">Choose a site</option></select></label>
+      </div>
+      <div id="snow-site-detail"><p class="chart-empty">Choose a measurement site above, or select one in the table below.</p></div>
+    </section>
     <section class="overview-card table-card" aria-labelledby="snow-table-heading">
-      <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. A summer value near zero is normal: the snow has melted.</p></div></div>
+      <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. Select a site name to see its season. A summer value near zero is normal: the snow has melted.</p></div></div>
       <div class="table-scroll"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
     </section>`;
 
@@ -137,8 +151,29 @@ function renderSnow(payload: SnowpackPayload): void {
   const mapHost = document.querySelector<HTMLElement>("#snow-map-host");
   const daySlider = document.querySelector<HTMLElement & { value?: number }>("#snow-day");
   const dayReading = document.querySelector<HTMLElement>("#snow-day-reading");
+  const sitePicker = document.querySelector<HTMLSelectElement>("#snow-site");
+  const siteDetail = document.querySelector<HTMLElement>("#snow-site-detail");
   if (!area || !status || !curveHost || !monthRows || !siteRowsBody
-    || !mapHost || !daySlider || !dayReading) return;
+    || !mapHost || !daySlider || !dayReading || !sitePicker || !siteDetail) return;
+
+  /* Every site, grouped by drainage area, in the payload's own order. The
+   * picker always offers all of them: the area filter narrows the table,
+   * and a reader following a link to one site must not find it missing
+   * because a filter happens to exclude its basin. */
+  {
+    let group: HTMLOptGroupElement | null = null;
+    for (const site of payload.sites) {
+      if (!group || group.label !== site.huc6_name) {
+        group = document.createElement("optgroup");
+        group.label = site.huc6_name;
+        sitePicker.append(group);
+      }
+      const option = document.createElement("option");
+      option.value = site.station;
+      option.textContent = site.name;
+      group.append(option);
+    }
+  }
 
   for (const choice of choices) {
     const option = document.createElement("option");
@@ -180,7 +215,9 @@ function renderSnow(payload: SnowpackPayload): void {
   const startDay = defaultMapDay(payload) ?? fallbackDay;
   let currentDay = startDay;
   let currentArea: string | null = null;
+  let currentSite: string | null = null;
   let lastCurvePoints = 0;
+  let lastSiteCurvePoints = 0;
 
   const publishReady = (): void => {
     const rows = siteRows(payload, currentArea);
@@ -191,6 +228,8 @@ function renderSnow(payload: SnowpackPayload): void {
       curvePoints: lastCurvePoints,
       tableRows: rows.length,
       area: currentArea,
+      site: currentSite,
+      siteCurvePoints: lastSiteCurvePoints,
       ...(map ? {
         mapBasins: map.status.basins,
         mapSites: map.status.sites,
@@ -201,6 +240,126 @@ function renderSnow(payload: SnowpackPayload): void {
         mapViewReady: map.status.viewReady
       } : {})
     };
+  };
+
+  /* The one site the reader is studying. Real elements throughout: every
+   * word here except the fixed prompts comes from the payload, and one
+   * innerHTML path through runtime data would be the only place on the page
+   * where a site name is parsed as markup. */
+  const renderSiteDetail = (station: string | null): void => {
+    const site = station ? siteByStation(payload, station) : null;
+    currentSite = site ? site.station : null;
+    sitePicker.value = site ? site.station : "";
+    if (!site) {
+      lastSiteCurvePoints = 0;
+      const prompt = document.createElement("p");
+      prompt.className = "chart-empty";
+      prompt.textContent =
+        "Choose a measurement site above, or select one in the table below.";
+      siteDetail.replaceChildren(prompt);
+    } else {
+      const points = sitePoints(site);
+      const timing = siteTiming(site, payload.water_year);
+
+      const stats = document.createElement("p");
+      stats.className = "snow-site-stats";
+      stats.textContent = `${site.name} · ${site.huc6_name} · ` +
+        `${formatFeet(site.elevation_feet)} feet · ${site.county} County, ` +
+        `${site.state} · Records begin ${formatDate(site.begins)}`;
+
+      const chart = renderSiteCurve(points, timing,
+        `Snow water for ${site.name}, in inches, day by day for the season ` +
+        `${seasonLabel(payload)}, with the normal middle value as a second ` +
+        `line. The table below lists the value on the first day of each month.`);
+      lastSiteCurvePoints = chart
+        ? points.filter((point) => point.inches !== null).length : 0;
+
+      const reading = document.createElement("p");
+      reading.className = "snow-site-reading";
+      const latest = [...points].reverse().find((point) => point.inches !== null);
+      const peak = observedPeak(points);
+      const parts: string[] = [];
+      if (latest) {
+        const percent = percentOfNormal(latest.inches, latest.normalInches);
+        parts.push(`Newest value: ${formatInches(latest.inches)} inches` +
+          `${percent === null ? "" : ` (${formatPercent(percent)} of normal)`}` +
+          ` on ${formatDate(latest.date)}.`);
+      }
+      if (site.late) parts.push("This site has late data.");
+      if (peak) {
+        parts.push(`Season high point: ${formatInches(peak.inches)} inches ` +
+          `on ${formatDate(peak.date)}.`);
+      }
+      reading.textContent = parts.join(" ");
+
+      const timingLine = document.createElement("p");
+      timingLine.className = "snow-site-timing";
+      const clauses: string[] = [];
+      if (timing.onset) {
+        clauses.push(`snow usually starts to build near ${formatDate(timing.onset)}`);
+      }
+      if (timing.peakDate) {
+        clauses.push(`the usual highest value is ` +
+          `${timing.peakInches === null ? "reached" : `${formatInches(timing.peakInches)} inches`} ` +
+          `near ${formatDate(timing.peakDate)}`);
+      }
+      if (timing.meltout) {
+        clauses.push(`the snow has usually melted by ${formatDate(timing.meltout)}`);
+      }
+      timingLine.textContent = clauses.length > 0
+        ? `The normal season at this site: ${clauses.join("; ")}.`
+        : "The data service does not publish normal season timing for this site.";
+
+      const table = document.createElement("details");
+      table.className = "snow-month-details";
+      const summary = document.createElement("summary");
+      summary.textContent = "Values on the first day of each month";
+      const scroller = document.createElement("div");
+      scroller.className = "table-scroll";
+      const tableElement = document.createElement("table");
+      tableElement.className = "overview-table";
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      for (const label of ["Month", "Snow water (inches)", "Normal (inches)"]) {
+        const cell = document.createElement("th");
+        cell.textContent = label;
+        headRow.append(cell);
+      }
+      head.append(headRow);
+      const body = document.createElement("tbody");
+      for (const month of siteMonthReadings(points)) {
+        const row = document.createElement("tr");
+        const name = document.createElement("th");
+        name.scope = "row";
+        name.textContent = month.label;
+        const inches = document.createElement("td");
+        inches.textContent = month.point ? formatInches(month.point.inches) : "—";
+        const normal = document.createElement("td");
+        normal.textContent = month.point ? formatInches(month.point.normalInches) : "—";
+        row.append(name, inches, normal);
+        body.append(row);
+      }
+      tableElement.append(head, body);
+      scroller.append(tableElement);
+      table.append(summary, scroller);
+
+      const children: Node[] = [stats];
+      if (chart) children.push(chart);
+      else {
+        const empty = document.createElement("p");
+        empty.className = "chart-empty";
+        empty.textContent = "This site has no values to draw this season.";
+        children.push(empty);
+      }
+      children.push(reading, timingLine, table);
+      siteDetail.replaceChildren(...children);
+    }
+    writeSnowUrl({
+      area: currentArea,
+      day: currentDay === startDay ? null : currentDay,
+      site: currentSite
+    });
+    publishReady();
   };
 
   const describeDay = (day: string): string => {
@@ -214,7 +373,11 @@ function renderSnow(payload: SnowpackPayload): void {
     dayReading.textContent = describeDay(day);
     if (daySlider.value !== undefined) daySlider.value = Math.max(0, days.indexOf(day));
     if (map) map.setDay(mapDayValues(payload, day), day);
-    writeSnowUrl({ area: currentArea, day: day === startDay ? null : day });
+    writeSnowUrl({
+      area: currentArea,
+      day: day === startDay ? null : day,
+      site: currentSite
+    });
     publishReady();
   };
 
@@ -279,13 +442,28 @@ function renderSnow(payload: SnowpackPayload): void {
 
     siteRowsBody.replaceChildren(...rows.map((site) => {
       const row = document.createElement("tr");
-      const cells = [site.name, site.basinName, formatFeet(site.elevationFeet),
+      /* The name is the way into the site's own season: a real button, so
+       * the keyboard path is the same one the pointer takes. */
+      const nameCell = document.createElement("td");
+      const nameButton = document.createElement("button");
+      nameButton.type = "button";
+      nameButton.className = "site-name-button";
+      nameButton.textContent = site.name;
+      nameButton.setAttribute("aria-label",
+        `Show the season for ${site.name}`);
+      nameButton.addEventListener("click", () => {
+        renderSiteDetail(site.station);
+        siteDetail.closest("section")?.scrollIntoView({ block: "start" });
+      });
+      nameCell.append(nameButton);
+      row.append(nameCell);
+      const cells = [site.basinName, formatFeet(site.elevationFeet),
         formatInches(site.inches), formatInches(site.normalInches),
         formatPercent(site.percent), formatDate(site.latestDate)];
       cells.forEach((value, index) => {
         const cell = document.createElement("td");
         cell.textContent = value;
-        if (index === 6 && site.late) cell.className = "late-badge";
+        if (index === 5 && site.late) cell.className = "late-badge";
         row.append(cell);
       });
       return row;
@@ -296,13 +474,17 @@ function renderSnow(payload: SnowpackPayload): void {
     if (map) map.setArea(chosen);
     writeSnowUrl({
       area: chosen,
-      day: currentDay === startDay ? null : currentDay
+      day: currentDay === startDay ? null : currentDay,
+      site: currentSite
     });
     lastCurvePoints = curvePoints;
     publishReady();
   };
 
   area.addEventListener("change", update);
+  sitePicker.addEventListener("change", () => {
+    renderSiteDetail(sitePicker.value || null);
+  });
   daySlider.addEventListener("calciteSliderInput", () => {
     const index = Number(daySlider.value ?? 0);
     const day = days[Math.max(0, Math.min(days.length - 1, index))];
@@ -318,6 +500,10 @@ function renderSnow(payload: SnowpackPayload): void {
   if (currentDay) {
     dayReading.textContent = describeDay(currentDay);
     if (daySlider.value !== undefined) daySlider.value = Math.max(0, days.indexOf(currentDay));
+  }
+  // A linked site the payload does not carry falls back to none chosen.
+  if (wanted.site !== null && siteByStation(payload, wanted.site)) {
+    renderSiteDetail(wanted.site);
   }
 
   /* The map starts after the figures are on screen. Boundaries or basemap

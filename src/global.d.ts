@@ -93,6 +93,10 @@ interface Window {
     mapDay?: string | null;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
+    /** The measurement site whose season is open, or null for none. */
+    site?: string | null;
+    /** Days the open site's curve drew. 0 while no site is chosen. */
+    siteCurvePoints?: number;
   };
   /** The drought view finished drawing. `units` is what the coverage file
    * provided; `rows` is what the page rendered; `storageJoined` counts the

@@ -1341,6 +1341,37 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map has no shown day`);
     check(mapState.slider && mapState.legendItems === 6,
       `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} of 6`);
+
+    /* One site's season. Chosen through the picker the way a reader would;
+     * the drawn-point count is what proves a curve, not a prompt, is on
+     * screen, and the address bar has to carry the choice. */
+    const firstStation = await tab.evaluate(() =>
+      document.querySelector("#snow-site optgroup option")?.getAttribute("value") ?? null);
+    check(typeof firstStation === "string" && firstStation.length > 0,
+      `${label}: the site picker offers no sites`);
+    await tab.selectOption("#snow-site", firstStation);
+    await tab.waitForFunction(
+      "window.__snowReady && window.__snowReady.site !== null", { timeout: 10000 });
+    const siteState = await tab.evaluate(() => ({
+      ready: window.__snowReady,
+      chart: Boolean(document.querySelector("#snow-site-detail svg")),
+      normalLine: Boolean(document.querySelector("#snow-site-detail .site-curve-normal")),
+      monthRows: document.querySelectorAll("#snow-site-detail tbody tr").length,
+      search: window.location.search,
+      nameButtons: document.querySelectorAll(".site-name-button").length
+    }));
+    check(siteState.ready?.site === firstStation,
+      `${label}: readiness reports site ${siteState.ready?.site}`);
+    check(siteState.chart && siteState.ready?.siteCurvePoints > 0,
+      `${label}: the site curve drew ${siteState.ready?.siteCurvePoints} points`);
+    check(siteState.normalLine,
+      `${label}: the site curve has no normal line to compare against`);
+    check(siteState.monthRows > 0,
+      `${label}: the site card published no month table rows`);
+    check(siteState.search.includes("site="),
+      `${label}: the chosen site is not in the address bar (${siteState.search})`);
+    check(siteState.nameButtons === siteState.ready?.tableRows,
+      `${label}: ${siteState.nameButtons} site name buttons for ${siteState.ready?.tableRows} rows`);
     await tab.screenshot({ path: `screenshots/snow-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);

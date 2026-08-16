@@ -224,6 +224,101 @@ export function defaultMapDay(payload: SnowpackPayload): string | null {
   return newestHeadline(region, headlineFloor(payload.site_count, 2))?.date ?? null;
 }
 
+/** One published day of one site's series, with the columns named. */
+export interface SitePoint {
+  date: string;
+  inches: number | null;
+  normalInches: number | null;
+}
+
+export function sitePoints(site: SnowSite): SitePoint[] {
+  return site.series.map(([date, inches, normalInches]) => ({
+    date, inches, normalInches
+  }));
+}
+
+export function siteByStation(
+  payload: SnowpackPayload, station: string
+): SnowSite | null {
+  return payload.sites.find((site) => site.station === station) ?? null;
+}
+
+/**
+ * The site's normal season, as dates in this water year.
+ *
+ * The provider publishes the timing as a month and day; October through
+ * December belong to the water year's opening calendar year, January
+ * onward to its closing one. A site whose timing the provider omits
+ * answers null, and the page says the timing is not published rather than
+ * inventing one.
+ */
+export interface SiteTiming {
+  onset: string | null;
+  peakDate: string | null;
+  peakInches: number | null;
+  meltout: string | null;
+}
+
+function timingDate(
+  point: { month: number; day: number } | null, waterYear: number
+): string | null {
+  if (!point) return null;
+  const year = point.month >= 10 ? waterYear - 1 : waterYear;
+  const month = String(point.month).padStart(2, "0");
+  const day = String(point.day).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function siteTiming(site: SnowSite, waterYear: number): SiteTiming {
+  const timing = site.normal_timing;
+  return {
+    onset: timingDate(timing.onset, waterYear),
+    peakDate: timingDate(timing.peak, waterYear),
+    peakInches: timing.peak?.value ?? null,
+    meltout: timingDate(timing.meltout, waterYear)
+  };
+}
+
+/** The highest reading of the season so far, or null before any value. */
+export function observedPeak(
+  points: readonly SitePoint[]
+): { date: string; inches: number } | null {
+  let best: { date: string; inches: number } | null = null;
+  for (const point of points) {
+    if (point.inches !== null && (best === null || point.inches > best.inches)) {
+      best = { date: point.date, inches: point.inches };
+    }
+  }
+  return best;
+}
+
+/** First-of-month rows for the table behind a site's curve. */
+export interface SiteMonthReading {
+  key: string;
+  label: string;
+  point: SitePoint | null;
+}
+
+export function siteMonthReadings(
+  points: readonly SitePoint[]
+): SiteMonthReading[] {
+  const months = new Map<string, SitePoint | null>();
+  for (const point of points) {
+    const key = point.date.slice(0, 7);
+    if (!months.has(key)) {
+      months.set(key, point.date.endsWith("-01") ? point : null);
+    }
+  }
+  return [...months.entries()].map(([key, point]) => {
+    const monthIndex = Number(key.slice(5)) - 1;
+    return {
+      key,
+      label: `${MONTH_NAMES[monthIndex] ?? key} ${key.slice(0, 4)}`,
+      point
+    };
+  });
+}
+
 export interface MonthReading {
   /** "2025-10" */
   key: string;
