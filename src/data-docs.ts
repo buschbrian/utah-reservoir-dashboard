@@ -110,12 +110,15 @@ root.innerHTML = `
     <section class="methods-section" id="examples" aria-labelledby="examples-heading">
       <h2 id="examples-heading">Examples</h2>
       <h3>Browser JavaScript</h3>
-      <pre><code>const response = await fetch("${base}/reservoirs.json");
+      <!-- A code block that scrolls needs a keyboard path to scroll it, and
+           a name for what the reader has just tabbed into. Same treatment the
+           sideways-scrolling tables get. -->
+      <pre tabindex="0" role="region" aria-label="Browser JavaScript example, scrolls sideways"><code>const response = await fetch("${base}/reservoirs.json");
 if (!response.ok) throw new Error(&#96;Request failed: \${response.status}&#96;);
 const data = await response.json();
 console.log(data.reservoirs);</code></pre>
       <h3>Python</h3>
-      <pre><code>import requests
+      <pre tabindex="0" role="region" aria-label="Python example, scrolls sideways"><code>import requests
 
 response = requests.get("${base}/reservoirs.json", timeout=30)
 response.raise_for_status()
@@ -155,6 +158,14 @@ function renderGroups(hostId: string, groups: readonly ApiFieldGroup[]): void {
 
     const wrapper = document.createElement("div");
     wrapper.className = "api-table-scroll";
+    /* These only become scrollable at narrow widths, which is why the
+     * desktop accessibility pass never saw them and the 390px one did: a
+     * region a mouse can scroll and a keyboard cannot is still a trap, it is
+     * just a trap that only appears on a phone. Named after the group, so
+     * tabbing into one says which table it is. */
+    wrapper.tabIndex = 0;
+    wrapper.setAttribute("role", "region");
+    wrapper.setAttribute("aria-label", `${group.title} fields, scrolls sideways`);
     const table = document.createElement("table");
     table.className = "api-table";
     table.innerHTML = "<thead><tr><th>Field</th><th>Units or type</th><th>Meaning</th></tr></thead>";

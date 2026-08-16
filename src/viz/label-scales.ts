@@ -35,21 +35,30 @@
  * sizes -- capital I against lowercase l, 0 against O, b against d -- are
  * given deliberately different shapes. Every label on these maps is small
  * type over a busy relief basemap, which is the exact case it was designed
- * for, and this project already treats mobile and accessibility as product
- * commitments rather than test artifacts.
+ * for, and this project already treats accessibility as a product commitment
+ * rather than a test artifact.
  *
- * Weight lives in the family name, not in a `weight` property: these are
- * four separate font files, and asking for "bold" on the regular family gets
- * a synthesized bold at best. The bold family is used for one tier only --
- * the drainage-area names, which are the subject of these maps.
+ * **The family is the family and the weight is the weight.** This shipped
+ * wrong once and the browser suite caught it. The SDK's documentation lists
+ * the available fonts by display name -- "Atkinson Hyperlegible Next Bold"
+ * and so on -- which reads like four families, so that is what was written.
+ * But 2D labels are glyph atlases fetched by a slug the SDK builds from the
+ * family *and* the weight together, so "Atkinson Hyperlegible Next Regular"
+ * at normal weight asked the font host for
+ * `atkinson-hyperlegible-next-regular-regular`, which 404s, and every label
+ * silently fell back to the default sans. One family plus a real weight
+ * resolves: `atkinson-hyperlegible-next-regular` and
+ * `atkinson-hyperlegible-next-bold`, both verified against the host.
  *
- * 2D only, and served as `pbf` from Esri's font host rather than bundled. A
- * font that does not arrive falls back to the SDK's default sans, which
- * costs the typeface and never the label, so this needs no deadline of its
- * own.
+ * 2D only, and served from Esri's font host rather than bundled. A font that
+ * does not arrive still falls back rather than failing, which is exactly why
+ * this needed a test that watches the network instead of the page.
  */
-export const LABEL_FONT_FAMILY = "Atkinson Hyperlegible Next Regular";
-export const LABEL_FONT_FAMILY_BOLD = "Atkinson Hyperlegible Next Bold";
+export const LABEL_FONT_FAMILY = "Atkinson Hyperlegible Next";
+
+/** The weight the one bold tier asks for -- the drainage-area names, which
+ * are the subject of these maps. Everything else is normal. */
+export const LABEL_FONT_WEIGHT_BOLD = "bold";
 
 /*
  * The type sizes, in the order the shapes nest.

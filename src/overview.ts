@@ -212,7 +212,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     </div>
     <section class="overview-card table-card" aria-labelledby="table-heading">
       <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><div class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div></div>
-      <div class="table-scroll"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Reservoir table, scrolls sideways"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
     </section>`;
 
   /* One legend per chart, built from the class table rather than by the

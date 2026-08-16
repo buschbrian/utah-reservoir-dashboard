@@ -232,7 +232,7 @@ body {
 .sdk-badge {
   flex: 0 0 auto;
   padding: .2rem .45rem;
-  color: var(--app-terracotta);
+  color: var(--app-badge-text);
   background: color-mix(in srgb, var(--app-terracotta) 9%, transparent);
   border-radius: 999px;
   font-size: .65rem;

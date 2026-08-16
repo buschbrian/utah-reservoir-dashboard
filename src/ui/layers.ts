@@ -37,7 +37,7 @@ import { reservoirCIMTemplate, reservoirCIMTemplateSimple } from "../viz/cim";
 import {
   DRAINAGE_LABEL_SIZE_PX,
   LABEL_FONT_FAMILY,
-  LABEL_FONT_FAMILY_BOLD,
+  LABEL_FONT_WEIGHT_BOLD,
   RESERVOIR_LABEL_SCALE,
   RESERVOIR_LABEL_SIZE_PX
 } from "../viz/label-scales";
@@ -112,7 +112,7 @@ export function reservoirLabelingInfo(): unknown[] {
       color: "rgba(74,91,102,0.95)",
       haloColor: "rgba(255,255,255,0.8)",
       haloSize: "1.2px",
-      font: { family: LABEL_FONT_FAMILY, size: RESERVOIR_LABEL_SIZE_PX }
+      font: { family: LABEL_FONT_FAMILY, size: RESERVOIR_LABEL_SIZE_PX, weight: "normal" }
     }
   }];
 }
@@ -185,12 +185,14 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
           color: "#263f52",
           haloColor: DRAINAGE_LABEL_HALO_COLOR,
           haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
-          /* The one bold tier on the map, and the only one that asks for
-           * the bold *family* -- a synthesized bold over a relief basemap
-           * loses the letterform distinctions this typeface exists for. */
+          /* The one bold tier on the map. Family and weight, not a
+           * "Bold" family: the SDK builds the glyph-atlas slug from both,
+           * so folding the weight into the name asks for a font that does
+           * not exist and falls back silently. */
           font: {
-            family: LABEL_FONT_FAMILY_BOLD,
-            size: `${DRAINAGE_LABEL_SIZE_PX}px`
+            family: LABEL_FONT_FAMILY,
+            size: `${DRAINAGE_LABEL_SIZE_PX}px`,
+            weight: LABEL_FONT_WEIGHT_BOLD
           }
         }
       }));

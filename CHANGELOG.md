@@ -7,6 +7,20 @@ and is not listed here.
 
 ### Fixed
 
+- **Every map label was rendering in the wrong typeface.** The new reading
+  font was requested by a name that already included its weight, which asked
+  for a font file that does not exist — and a missing label font does not
+  fail, it quietly falls back. The maps looked fine and were not using the
+  font at all. The browser tests now watch for this directly, because it is
+  invisible on the page.
+
+- **Small text and scrolling regions now meet the accessibility standard.**
+  The badge on each card was slightly too light against its own background;
+  six tables and two code samples could be scrolled with a mouse but not with
+  a keyboard; and both sliders announced a number to a screen reader without
+  saying what the number was. All found by an automated audit that now runs
+  over every page, at every screen width, on every test run.
+
 - **The drought map would have broken on the next weekly release.** The daily
   job downloaded the new drought polygons but never recomputed the coverage
   figures the page draws from them, so the two files would have described

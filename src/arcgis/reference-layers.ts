@@ -124,7 +124,7 @@ function stateLayer(): FeatureLayer {
         color: "rgba(74,91,102,0.85)",
         haloColor: "rgba(255,255,255,0.7)",
         haloSize: "1.4px",
-        font: { family: LABEL_FONT_FAMILY, size: STATE_LABEL_SIZE_PX }
+        font: { family: LABEL_FONT_FAMILY, size: STATE_LABEL_SIZE_PX, weight: "normal" }
       }
     }] as never
   });
@@ -165,7 +165,7 @@ function countyLayer(): FeatureLayer {
         color: "rgba(108,122,133,0.85)",
         haloColor: "rgba(255,255,255,0.7)",
         haloSize: "1.2px",
-        font: { family: LABEL_FONT_FAMILY, size: COUNTY_LABEL_SIZE_PX }
+        font: { family: LABEL_FONT_FAMILY, size: COUNTY_LABEL_SIZE_PX, weight: "normal" }
       }
     }] as never
   });

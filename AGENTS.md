@@ -127,6 +127,21 @@ reservoir rendered, no retired vocabulary is visible, nothing overlaps the map
 controls, and there are no console errors. The smaller redirect suite checks
 saved-link translation and proves no retired runtime is requested.
 
+**It also runs axe-core over every page at every width, and watches the font
+host.** Both catch things nothing else can. Calcite and the ArcGIS components
+put their real controls inside shadow roots, so a DOM-only check never sees
+them — the slider handle that had no accessible name is a `div` three levels
+down. And a mistyped label font does not fail: the atlas 404s, the labels fall
+back to the default sans, and the page looks fine, so the only place it shows
+is the request. Two violations are accepted, both in vendor components, and
+`AXE_EXCEPTIONS` in the suite says why for each.
+
+**Label fonts are a family and a weight, never a family with a weight in its
+name.** The SDK builds the glyph-atlas slug from both, so
+`"Atkinson Hyperlegible Next Bold"` asks for
+`atkinson-hyperlegible-next-bold-regular`, which does not exist. Ask for the
+family and set `weight` instead.
+
 **Anything that can wait forever needs a deadline.** A promise that never
 settles is a loading state that never ends, and a spinner that cannot resolve
 is an error the reader is not being told about. Runtime fetches go through

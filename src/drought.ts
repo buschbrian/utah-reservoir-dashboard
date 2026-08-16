@@ -140,7 +140,7 @@ function renderDrought(
       <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
       <div class="drought-rows"></div>
       <details class="snow-month-details"><summary>Exact values for every class</summary>
-        <div class="table-scroll"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Drought class table, scrolls sideways"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
       </details>
       <p class="drought-attribution">${payload.attribution}. Read the full national map at <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noreferrer">droughtmonitor.unl.edu</a>.</p>
     </section>`;
