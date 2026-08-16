@@ -5,7 +5,7 @@ import { STORAGE_CLASSES } from "../viz/classes";
 import {
   DRAINAGE_LABEL_SIZE_PX,
   LABEL_FONT_FAMILY,
-  LABEL_FONT_FAMILY_BOLD,
+  LABEL_FONT_WEIGHT_BOLD,
   RESERVOIR_LABEL_SCALE
 } from "../viz/label-scales";
 import { cssPixelsToPoints } from "../viz/units";
@@ -160,30 +160,44 @@ describe("reservoir names", () => {
    * -- which is the one label on these maps drawn bold. */
   it("is smaller and lighter than the drainage-area name it sits inside", () => {
     const [label] = reservoirLabelingInfo() as {
-      symbol: { font: { size: number; family: string } };
+      symbol: { font: { size: number; family: string; weight: string } };
     }[];
 
     expect(label?.symbol.font.size).toBeLessThan(DRAINAGE_LABEL_SIZE_PX);
-    /* Weight comes from the family, not a `weight` property: these are four
-     * separate font files, and asking the regular family for "bold" gets a
-     * synthesized bold that loses the letterform distinctions the typeface
-     * exists for. So "lighter" is asserted as "not the bold family". */
     expect(label?.symbol.font.family).toBe(LABEL_FONT_FAMILY);
-    expect(label?.symbol.font.family).not.toBe(LABEL_FONT_FAMILY_BOLD);
+    expect(label?.symbol.font.weight).not.toBe(LABEL_FONT_WEIGHT_BOLD);
   });
 
-  /* Atkinson Hyperlegible Next, drawn for low-vision readability and added
-   * to the SDK's 2D label fonts in 5.1. The drainage names are the only tier
-   * that takes the bold family. */
-  it("draws the drainage names in the bold family of the same typeface", () => {
+  /*
+   * Atkinson Hyperlegible Next, drawn for low-vision readability and added to
+   * the SDK's 2D label fonts in 5.1. One family, and the weight as a weight.
+   *
+   * This shipped as four families -- "Atkinson Hyperlegible Next Bold" and
+   * so on, which is how the SDK documents them -- and every label silently
+   * fell back to the default sans, because 2D labels are glyph atlases
+   * fetched by a slug built from the family *and* the weight: the name
+   * already ending in "Regular" asked the host for
+   * `atkinson-hyperlegible-next-regular-regular`, which does not exist. The
+   * browser suite now watches the font host for exactly that.
+   */
+  it("draws the drainage names in the same family at bold weight", () => {
     const result = createDrainageLayer([{
       huc6: "160202", name: "Jordan", states: "UT", polygons: [[square(-112, 40)]]
     }]);
     const font = (result.labelLayer.graphics.at(0)?.symbol as {
-      font?: { family?: string };
+      font?: { family?: string; weight?: string };
     } | null | undefined)?.font;
 
-    expect(font?.family).toBe(LABEL_FONT_FAMILY_BOLD);
+    expect(font?.family).toBe(LABEL_FONT_FAMILY);
+    expect(font?.weight).toBe(LABEL_FONT_WEIGHT_BOLD);
+  });
+
+  /* The mistake this file exists to prevent repeating: a family name that
+   * already carries its own weight. The SDK appends the weight to build the
+   * glyph-atlas slug, so any family ending in a weight word asks for a font
+   * that is not there and falls back without saying so. */
+  it("never folds a weight into the family name", () => {
+    expect(LABEL_FONT_FAMILY).not.toMatch(/\b(regular|bold|italic|light|medium)\b/i);
   });
 });
 

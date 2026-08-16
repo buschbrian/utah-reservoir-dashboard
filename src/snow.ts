@@ -59,6 +59,7 @@ import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
+import { nameSliderHandle } from "./ui/slider-label";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
 import { formatDate, formatPercent } from "./viz/format";
@@ -147,7 +148,7 @@ function renderSnow(payload: SnowpackPayload): void {
       </div>
       <div id="snow-curve-host" aria-busy="true"></div>
       <details class="snow-month-details"><summary>Values on the first day of each month</summary>
-        <div class="table-scroll"><table class="overview-table"><thead><tr><th>Month</th><th>Of normal</th><th>Reporting sites</th></tr></thead><tbody id="snow-month-rows"></tbody></table></div>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="First-of-month table, scrolls sideways"><table class="overview-table"><thead><tr><th>Month</th><th>Of normal</th><th>Reporting sites</th></tr></thead><tbody id="snow-month-rows"></tbody></table></div>
       </details>
     </section>
     <section class="overview-card" aria-labelledby="snow-site-heading">
@@ -160,7 +161,7 @@ function renderSnow(payload: SnowpackPayload): void {
     <section class="overview-card table-card" aria-labelledby="snow-table-heading">
       <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. Select a site name to see its season. A summer value near zero is normal: the snow has melted.</p></div></div>
       <div class="snow-spread" id="snow-spread"></div>
-      <div class="table-scroll"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Measurement site table, scrolls sideways"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
     </section>`;
 
   const area = document.querySelector<HTMLSelectElement>("#snow-area");
@@ -175,6 +176,9 @@ function renderSnow(payload: SnowpackPayload): void {
   const spreadHost = document.querySelector<HTMLElement>("#snow-spread");
   const mapHost = document.querySelector<HTMLElement>("#snow-map-host");
   const daySlider = document.querySelector<HTMLElement & { value?: number }>("#snow-day");
+  /* The focusable control is the handle inside the component's shadow root,
+   * and Calcite 5.1 leaves it unnamed whatever the host carries. */
+  nameSliderHandle(daySlider, "Day of the snow season shown on the map");
   const dayReading = document.querySelector<HTMLElement>("#snow-day-reading");
   const sitePicker = document.querySelector<HTMLSelectElement>("#snow-site");
   const siteDetail = document.querySelector<HTMLElement>("#snow-site-detail");

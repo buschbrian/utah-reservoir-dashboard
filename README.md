@@ -321,8 +321,13 @@ measurements, and implementation history live in
 - Monthly sources cannot support a meaningful 7-day change.
 - The map depends on third-party basemap services. If they all fail, local
   reservoir data remains available without a background map.
-- Automated accessibility auditing, displaying snow measurements, and drought
-  context are not complete.
+- Two accessibility findings are accepted rather than fixed, and both are in
+  third-party components. `arcgis-chart` renders an inner element carrying a
+  label with no role for it to attach to, so that label is inert — every
+  chart is named by the section heading around it instead. Re-check on the
+  next SDK upgrade. Calcite's slider leaves its own handle unnamed, which
+  this project works around by naming the handle directly; if Calcite starts
+  naming it, that workaround stands aside.
 - ArcGIS map pixels render blank in headless Chromium even when the map and
   reservoir layers are ready, so smoke tests assert runtime state as well as
   capturing screenshots.

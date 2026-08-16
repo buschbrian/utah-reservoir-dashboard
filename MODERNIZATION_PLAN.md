@@ -1180,9 +1180,9 @@ lives.
 
 - Rewrite the Playwright smoke test against the new DOM. **Gotcha: Calcite and ArcGIS components are shadow-DOM.** Playwright's CSS locators pierce open shadow roots, but map readiness cannot be asserted from the DOM — wait on the `arcgis-map` component's ready event / `view.when()` via `page.waitForFunction`, not on a selector. Keep the existing assertions: every published reservoir renders, a popup opens, zero console errors, screenshots uploaded.
 - **Assert no credential prompt can reach production.** Load the shell with a key-gated basemap forced to the front of the chain and assert there is no password input anywhere in the DOM (piercing shadow roots), and that the fallback basemap rendered. The policy in `src/arcgis/auth.ts` is unit-tested against a fake IdentityManager; this is the end-to-end half.
-- Add axe-core to the Playwright run. Keyboard and contrast pass across the shell — the README's open accessibility item.
+- **Add axe-core to the Playwright run — done 2026-08-16.** It runs over all six pages at all three widths, WCAG 2.0/2.1 A and AA, on a settled page. It found five real defects and every one of them was ours: the `.sdk-badge` at 4.23:1 where AA wants 4.5, four sideways-scrolling tables and two code blocks that a mouse could scroll and a keyboard could not, the API field tables which are only scrollable at phone widths and so were invisible to a desktop-only pass, and both sliders' handles with no accessible name. Two accepted exceptions remain, both in vendor components and both documented in `AXE_EXCEPTIONS`.
 - Lighthouse and runtime-transfer audit. The emitted SDK budget already runs in every build; replace its fixture with the real shell entry, verify lazy chunks are requested only when used, and verify CDN-hosted assets resolve under the production CSP.
-- Decide the fate of `explore.html`: the unified dashboard supersedes most of it. Either retire it with a redirect, or keep it deliberately as the no-SDK fallback (recommended — it is the page that survives a CDN outage, and that is a real property worth keeping).
+- ~~Decide the fate of `explore.html`~~ — **settled by ADR-031.** It is a compatibility redirect to storage charts, and the recommendation above was overtaken: the no-SDK fallback property was real but the page had drifted into a second implementation of the same product, which was the larger cost.
 - Rewrite the main README. It is excellent and should stay that way; the architecture section is what changes.
 
 ---
@@ -1692,6 +1692,56 @@ for all fourteen units, deterministic, no timestamps, and it reports
 "unchanged" and writes nothing when the week has not moved. So running it every
 day rather than only on a detected change costs nothing and repairs a coverage
 file that has somehow fallen behind, instead of waiting for someone to notice.
+
+### Phase 7, the accessibility half — 2026-08-16
+
+axe-core now runs inside the browser suite over all six pages at all three
+widths, WCAG 2.0 and 2.1 at A and AA, on a settled page — after every control
+is wired and every table filled, because a scan of a half-built page tests the
+loading state.
+
+**It found five defects and every one was ours.** The `.sdk-badge` measured
+4.23:1 against its own tint where AA wants 4.5 for text that size. Four
+sideways-scrolling tables and two code samples were regions a mouse could
+scroll and a keyboard could not — the shell had solved this once, with
+`tabindex="0" role="region"`, and the pattern had simply not been carried to
+the pages written since. The API field tables were the same fault but only at
+phone widths, where they become scrollable; a desktop-only audit would have
+shipped them. And both sliders' handles had no accessible name at all: the
+focusable control in a `calcite-slider` is a `div` inside its shadow root, and
+neither the host's `aria-label` nor the component's `label` property reaches
+it, so a screen reader announced a number with no indication of what it
+counted.
+
+That last one is why the tool had to be axe rather than a DOM check. It walks
+the composed tree, so it sees inside the open shadow roots that Calcite and
+the ArcGIS components keep their real controls in. `src/ui/slider-label.ts`
+names the handle directly, which is defensible for three measured reasons
+recorded there — chiefly that Lit does not manage that attribute, verified by
+driving both the value and a re-rendering property and confirming the name
+survived.
+
+**And the gate immediately caught a defect from earlier the same day.** The
+Atkinson Hyperlegible Next work had been shipped with a caveat: the glyph
+fetch could not be verified locally because it needs a compositing browser.
+The caveat was right and the code was wrong. 2D label fonts are glyph atlases
+fetched under a slug the SDK builds from the family *and* the weight, so
+`"Atkinson Hyperlegible Next Regular"` at normal weight asked for
+`atkinson-hyperlegible-next-regular-regular`, which 404s — and a missing label
+font does not fail, it falls back to the default sans and looks fine. Every
+label on every map had been rendering in the wrong typeface since it shipped.
+
+The console filter could not have caught it either: a 404 console message
+carries no URL, so the suite's `/favicon|tile|sprite|font/` filter had nothing
+to match against. `watchLabelFonts` now watches the responses instead, which
+is the only surface the mistake is visible on. One family plus a real weight
+resolves, both slugs verified against the host.
+
+**What is left in Phase 7.** The smoke rewrite, the credential-prompt
+assertion and the `explore.html` decision are all done. Lighthouse and the
+runtime-transfer audit remain, as does the README's architecture section. The
+SDK budget already measures the real shell entry rather than a fixture, so
+that part of the audit is standing.
 
 ---
 

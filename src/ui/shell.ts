@@ -3,6 +3,7 @@ import { copyViewUrl } from "../state/share";
 import { describeDataState, type DataState } from "../state/shell";
 import { renderTrendChart, renderTrendTable } from "../viz/trend";
 import { elementById } from "./dom";
+import { nameSliderHandle } from "./slider-label";
 
 const mobileQuery = window.matchMedia("(max-width: 47.99rem)");
 
@@ -378,6 +379,9 @@ export function setMonthControl(
   document.querySelectorAll<CalciteSlider>('[data-month="slider"]').forEach((slider) => {
     slider.max = months.length;
     slider.value = months.length;
+    /* The focusable control is the handle inside the component's shadow
+     * root, and Calcite 5.1 leaves it unnamed whatever the host carries. */
+    nameSliderHandle(slider, "Month to show on the map");
     slider.addEventListener("calciteSliderChange", () => onChange(slider.value));
     /* Dragging fires input continuously -- faster than the screen can show
      * it. One redraw per animation frame, with the last value winning, so a

@@ -97,6 +97,114 @@ const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
 
 const URL = `http://127.0.0.1:${PORT}/`;
+
+/*
+ * axe-core, injected into each page rather than run as a Playwright plugin.
+ *
+ * One dependency instead of a plugin chain, and the same file the browser
+ * would load: `axe.run` walks the composed tree, so it pierces the open
+ * shadow roots that Calcite and the ArcGIS components put their real
+ * controls inside -- which is the whole reason a DOM-only check was never
+ * going to be enough here. The slider handle this found is a `div` three
+ * levels inside a shadow root.
+ */
+const AXE_SOURCE = await readFile(
+  path.join(REPO_ROOT, "node_modules", "axe-core", "axe.min.js"), "utf8");
+
+/* WCAG 2.0 and 2.1, levels A and AA. Not the "best-practice" rules: those
+ * are opinions worth reading and not worth failing a build over. */
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+
+/*
+ * The one accepted exception, kept as narrow as a selector can make it.
+ *
+ * `arcgis-chart` renders an inner `div` carrying an `aria-label` and no role,
+ * which `aria-prohibited-attr` correctly reports: the label is inert, because
+ * a bare `div` has no role for a name to attach to. It is Esri's markup, in
+ * their component, and the honest options were to leave their label inert or
+ * to reach into a vendor subtree and add a role to it -- and the second is
+ * how you end up owning someone else's component.
+ *
+ * Nothing is lost by leaving it. Every chart sits in a `section` named by
+ * `aria-labelledby` against a real heading, with a sentence under it, so the
+ * chart is announced by our markup rather than theirs. Re-check this on the
+ * next SDK upgrade; if Esri adds the role, this exception starts matching
+ * nothing and should be deleted.
+ */
+const AXE_EXCEPTIONS = [
+  { rule: "aria-prohibited-attr", target: "-arcgis-chart" }
+];
+
+function axeViolations(violations) {
+  return violations
+    .map((violation) => ({
+      ...violation,
+      nodes: violation.nodes.filter((node) => !AXE_EXCEPTIONS.some((allowed) =>
+        allowed.rule === violation.id
+        && node.target.join(" ").includes(allowed.target)))
+    }))
+    .filter((violation) => violation.nodes.length > 0);
+}
+
+/**
+ * Runs axe over a settled page and reports every violation as its own check,
+ * so a failure names the rule and the element rather than a count.
+ */
+/*
+ * Label fonts, watched on the wire rather than in the DOM.
+ *
+ * A 2D label font is a glyph atlas fetched from Esri's font host under a slug
+ * the SDK builds from the family *and* the weight. Ask for one that does not
+ * exist and nothing breaks: the request 404s, the labels quietly fall back to
+ * the default sans, and the page looks fine. That is exactly what happened
+ * when the typeface was first set from the SDK's documented display names --
+ * "Atkinson Hyperlegible Next Regular" at normal weight asked for
+ * `atkinson-hyperlegible-next-regular-regular`.
+ *
+ * Nothing in the DOM shows it, and the console message for a 404 carries no
+ * URL, so the existing console filter could not tell it from a missing tile.
+ * The only place the mistake is visible is the request itself.
+ */
+function watchLabelFonts(tab) {
+  const missing = [];
+  tab.on("response", (response) => {
+    const url = response.url();
+    if (!url.includes("/fonts/")) return;
+    if (response.status() >= 400) missing.push(`${response.status()} ${url}`);
+  });
+  return missing;
+}
+
+function checkLabelFonts(check, label, missing) {
+  check(missing.length === 0,
+    `${label}: a label font did not resolve, so labels fell back silently: ` +
+    [...new Set(missing)].join(", "));
+}
+
+async function checkAccessibility(tab, check, label) {
+  await tab.addScriptTag({ content: AXE_SOURCE });
+  const violations = await tab.evaluate(async (tags) => {
+    const result = await window.axe.run(document, {
+      runOnly: { type: "tag", values: tags }
+    });
+    return result.violations.map((violation) => ({
+      id: violation.id,
+      impact: violation.impact,
+      help: violation.help,
+      nodes: violation.nodes.map((node) => ({ target: node.target }))
+    }));
+  }, AXE_TAGS);
+
+  const remaining = axeViolations(violations);
+  check(remaining.length === 0,
+    `${label}: axe-core found ${remaining.length} accessibility violation(s): ` +
+    remaining.map((violation) =>
+      `${violation.id} (${violation.impact}) on ${violation.nodes.length} node(s) ` +
+      `e.g. ${violation.nodes[0]?.target.join(" ")}`).join("; "));
+  if (remaining.length === 0) {
+    console.log(`  axe: clean (${violations.length} exception(s) allowed)`);
+  }
+}
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -158,6 +266,7 @@ for (const viewport of VIEWPORTS) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
@@ -890,6 +999,10 @@ for (const viewport of VIEWPORTS) {
         { timeout: 5000 });
     }
 
+    /* Last, on a settled page: every control is wired, every table is
+     * filled, and the shadow roots have rendered their real controls. */
+    checkLabelFonts(check, label, labelFonts);
+    await checkAccessibility(tab, check, label);
     await tab.screenshot({ path: `screenshots/modern-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
@@ -908,6 +1021,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
     if (msg.type() === "error" && !/favicon/i.test(diagnostic)) {
@@ -1203,6 +1317,9 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     }
     check(layout.chart?.left >= 0 && layout.chart?.right <= layout.viewport + 1,
       `${label}: chart card is clipped`);
+    /* Last, on a settled page: every control is wired, every table is
+     * filled, and the shadow roots have rendered their real controls. */
+    await checkAccessibility(tab, check, label);
     await tab.screenshot({ path: `screenshots/overview-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
@@ -1219,6 +1336,7 @@ for (const viewport of VIEWPORTS) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
   });
@@ -1255,6 +1373,9 @@ for (const viewport of VIEWPORTS) {
       `${label}: cache or availability terms are missing`);
     check(state.scroll <= state.viewport + 1,
       `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
+    /* Last, on a settled page: every control is wired, every table is
+     * filled, and the shadow roots have rendered their real controls. */
+    await checkAccessibility(tab, check, label);
     await tab.screenshot({ path: `screenshots/data-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
@@ -1381,6 +1502,7 @@ for (const viewport of VIEWPORTS) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
   });
@@ -1499,6 +1621,10 @@ for (const viewport of VIEWPORTS) {
       `${label}: the chosen site is not in the address bar (${siteState.search})`);
     check(siteState.nameButtons === siteState.ready?.tableRows,
       `${label}: ${siteState.nameButtons} site name buttons for ${siteState.ready?.tableRows} rows`);
+    /* Last, on a settled page: every control is wired, every table is
+     * filled, and the shadow roots have rendered their real controls. */
+    checkLabelFonts(check, label, labelFonts);
+    await checkAccessibility(tab, check, label);
     await tab.screenshot({ path: `screenshots/snow-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
@@ -1516,6 +1642,7 @@ for (const viewport of VIEWPORTS) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
   });
@@ -1628,6 +1755,10 @@ for (const viewport of VIEWPORTS) {
       "usdm-classes", "Drought class");
     await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
       "reservoir-reference", "Reservoir,");
+    /* Last, on a settled page: every control is wired, every table is
+     * filled, and the shadow roots have rendered their real controls. */
+    checkLabelFonts(check, label, labelFonts);
+    await checkAccessibility(tab, check, label);
     await tab.screenshot({ path: `screenshots/drought-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
@@ -1652,6 +1783,7 @@ for (const viewport of VIEWPORTS) {
   const errors = [];
   const refused = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
 
   let firstItem = null;
   await tab.route(/\/sharing\/rest\/content\/items\/[0-9a-f]+/i, async (route) => {
@@ -1717,6 +1849,7 @@ for (const viewport of VIEWPORTS) {
   const errors = [];
   const refused = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
     // These are the SDK and Chromium reporting the failures this block
@@ -1782,6 +1915,7 @@ for (const viewport of VIEWPORTS) {
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
     if (/favicon|tile|sprite|font/i.test(msg.text())) return;
@@ -1967,6 +2101,7 @@ for (const failure of [
   const errors = [];
   let heldRoute = null;
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  const labelFonts = watchLabelFonts(tab);
 
   await tab.route(/reservoirs\.json/i, async (route) => {
     if (failure.hang) {
