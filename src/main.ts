@@ -652,6 +652,7 @@ if (!supportsDashboard(browserCapabilities())) {
     reservoirs: inScope.length,
     drawn: map.status.reservoirsDrawn,
     symbols: map.status.reservoirSymbols,
+    reservoirLabels: map.status.reservoirLabels,
     late: inScope.filter(isLate).length,
     lakePowell: scope.lakePowell,
     geography: scope.geography,

@@ -79,6 +79,29 @@ export function regionExtent(): Extent {
   return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
 }
 
+/**
+ * The drainage areas themselves, with no margin around them.
+ *
+ * Where a map opens depends on the shape of the box it opens in, and the
+ * two shapes on this site are very different. The storage map has a whole
+ * viewport and opens at `regionExtent`, one zoom level out, which puts the
+ * areas in the middle of the canvas with context around them. The snow and
+ * drought maps are wide, short cards inside a scrolling page: an extent is
+ * a *minimum*, so containing that much latitude in a third of the height
+ * spreads the same box across a continent of longitude -- measured at
+ * 1:18,000,000 against the storage map's 1:10,700,000, which is far enough
+ * out that the region reads as a shape rather than a map.
+ *
+ * So the cards open on this instead, and land within about a zoom level of
+ * the storage map's scale. It is the same subject, framed for the box it is
+ * in. The navigation bounds stay `regionExtent` on all three maps, so what
+ * a reader can pan to is identical everywhere.
+ */
+export function drainageExtent(): Extent {
+  const [[xmin, ymin], [xmax, ymax]] = HUC6_BOUNDS;
+  return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
+}
+
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }

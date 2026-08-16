@@ -7,6 +7,37 @@ and is not listed here.
 
 ### Added
 
+- **The snow and drought maps work like the storage map now.** Both had
+  shipped as pictures: a background, some shapes, and one zoom button.
+  They now carry the same tools in the same corner — zoom, home, full
+  screen and a scale bar — refuse to be dragged out of the region, and
+  stop at the same widest view. Pointing at anything on any of the three
+  maps brings up a card that travels with the pointer: a reservoir gives
+  how full it is and what that is a percent *of*, a drainage area gives
+  its mean snow or its drought share with the storage banked in it, and a
+  measurement site gives its reading beside the normal depth for the day.
+
+- **The reservoirs are named on every map.** They appear on the snow and
+  drought maps as small neutral points — no storage colours there, because
+  each map keeps one colour language — so a reader can see which
+  reservoirs sit in the basin at half its normal snow, or under the
+  driest land, without matching two lists of names by eye.
+
+- **The names come in as you zoom, not all at once.** State names carry
+  the widest views and step aside; drainage-area names hold the middle;
+  reservoir names arrive one zoom step in from where each map opens;
+  county names last. A name is never larger than the shape it sits
+  inside, and only the drainage-area names are bold. The result is that
+  no view is a wall of text and no name is lost — the crowded ones step
+  back and return as you zoom toward them.
+
+- **State and county outlines on the drought map.** The drought map draws
+  the whole national pattern, so it now says which land that pattern
+  crosses. Both come from Esri's public boundary services rather than from
+  files in this repository; the counties stay hidden until you are close
+  enough for them to mean something, and if either service does not answer
+  within eight seconds the map simply draws without it.
+
 - **The drought page has its map.** A map card above the coverage bars draws
   the monitor's weekly national polygons in the monitor's own colours, with
   the fourteen drainage areas outlined over them — drought does not stop at
@@ -271,6 +302,18 @@ and is not listed here.
 - Architecture decision records, in [`docs/decisions/`](docs/decisions/).
 
 ### Changed
+
+- **Every map opens on the Oceans background.** It carries seafloor and
+  land relief under a quiet set of labels, so the terrain the water sits
+  in is visible — which the deliberately blank gray canvases could not
+  show. The theme-matching canvases are kept as the next choice, so a
+  reader on the dark page still gets a dark background if the preferred
+  one is ever unavailable.
+
+- **The snow and drought map cards are taller, and open on the drainage
+  areas.** A wide, short card has to sit much further out to hold the same
+  region, which had left both maps opening about a third further out than
+  the storage map. They now open within half a zoom step of it.
 
 - **Storage colours now use an accessible red-to-blue scale and regular
   intervals.** Five equal 20-point bands replace the uneven red-to-green

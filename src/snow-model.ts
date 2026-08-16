@@ -11,7 +11,7 @@
  * recomputing a basin from its sites and comparing against the published
  * rollup, value for value.
  */
-import type { SnowpackPayload, SnowSite } from "./types";
+import type { NullableNumber, SnowpackPayload, SnowSite } from "./types";
 
 export interface BasinChoice {
   code: string;
@@ -189,28 +189,57 @@ export function seasonHighPoint(
   return best;
 }
 
+/** One site's own reading for the chosen day, in the published units. */
+export interface SiteDayDepth {
+  inches: NullableNumber;
+  normalInches: NullableNumber;
+}
+
 /** Everything the map colours for one day of the water year. */
 export interface MapDayValues {
   /** Mean percent of normal per drainage area, from the published rollups. */
   basins: Map<string, number | null>;
   /** Percent of normal per station, from each site's own series. */
   sites: Map<string, number | null>;
+  /**
+   * Sites that reported for each drainage area that day.
+   *
+   * A separate fact from the mean, and the one a reader needs to weigh it:
+   * an area at 46% of normal from eleven sites and the same figure from two
+   * are different statements, and the fill draws them the same colour. The
+   * map card says which.
+   */
+  reporting: Map<string, number>;
+  /**
+   * Depth per station, kept beside the percentage rather than derived from
+   * it. The percentage is the framing everywhere in this view, but a card
+   * that only gives a ratio cannot answer "of how much snow", and the two
+   * numbers are already in the row the percentage was computed from.
+   */
+  depths: Map<string, SiteDayDepth>;
 }
 
 export function mapDayValues(
   payload: SnowpackPayload, date: string
 ): MapDayValues {
   const basins = new Map<string, number | null>();
+  const reporting = new Map<string, number>();
   for (const rollup of payload.rollups) {
     const day = rollup.series.find((entry) => entry.date === date);
     basins.set(rollup.huc6, day ? day.mean_percent_of_normal_median : null);
+    reporting.set(rollup.huc6, day ? day.reporting_site_count : 0);
   }
   const sites = new Map<string, number | null>();
+  const depths = new Map<string, SiteDayDepth>();
   for (const site of payload.sites) {
     const row = site.series.find((entry) => entry[0] === date);
     sites.set(site.station, row ? percentOfNormal(row[1], row[2]) : null);
+    depths.set(site.station, {
+      inches: row ? row[1] : null,
+      normalInches: row ? row[2] : null
+    });
   }
-  return { basins, sites };
+  return { basins, sites, reporting, depths };
 }
 
 /**

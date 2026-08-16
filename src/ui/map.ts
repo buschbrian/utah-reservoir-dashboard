@@ -17,12 +17,20 @@ import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
-import { formatAcreFeet, formatDate, formatPercent } from "../viz/format";
-import { headlinePercent } from "../viz/symbols";
+import { storageByArea } from "../drought-model";
 import { elementById } from "./dom";
-import { reservoirFromHits, type HitGraphic } from "./hit";
-import { hoverPosition } from "./hover";
+import { drainageAreaLines, storageReservoirLines } from "./hover-content";
+import { reservoirFromHits, type GraphicHit, type HitGraphic } from "./hit";
 import {
+  eventPoint,
+  wireMapHover,
+  type HighlightView,
+  type HoverResolution,
+  type ScreenPoint
+} from "./map-hover";
+
+import {
+  DRAINAGE_NAME_FIELD,
   createDrainageLayer,
   createHighlightLayer,
   createMaskLayer,
@@ -53,6 +61,9 @@ export interface MapStatus {
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
+  /** True while the reservoir layer is carrying its names. Separate from
+   * `reservoirsDrawn`: a layer draws points whether or not it labels them. */
+  reservoirLabels: boolean;
   /** True when the map is greying reservoirs the reader filtered out. */
   filtered: boolean;
   /* True while the selection ring is drawn over the reservoirs rather than
@@ -93,8 +104,6 @@ export interface MapController {
 
 /** What excluded reservoirs look like: present, readable, clearly not chosen. */
 const EXCLUDED_EFFECT = "grayscale(100%) opacity(35%)";
-
-type LayerView = { highlight(target: unknown, options?: { name?: string }): { remove(): void } };
 
 interface GoToTarget { center: [number, number]; zoom: number }
 
@@ -148,9 +157,6 @@ type MapElement = HTMLElement & {
     results: { type: string; graphic?: HitGraphic; layer?: { id?: string } | null }[];
   }>;
 };
-
-interface ScreenPoint { x: number; y: number }
-interface PointerDetail extends ScreenPoint { screenPoint?: ScreenPoint }
 
 function showMapMessage(heading: string, detail: string, role: "status" | "alert"): void {
   const host = elementById<HTMLElement>("map-host");
@@ -234,42 +240,6 @@ function showMissingBasemap(): void {
  * keyboard trap over a canvas -- and it works in the one environment the
  * canvas does not, a hidden or headless browser, where `hitTest` never
  * settles because the render loop that resolves it never runs. */
-function eventPoint(event: Event): ScreenPoint | null {
-  const detail = (event as CustomEvent<PointerDetail>).detail;
-  const point = detail?.screenPoint ?? detail;
-  return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? point : null;
-}
-
-function hideMapHover(): void {
-  const card = elementById<HTMLElement>("map-hover");
-  card.setAttribute("aria-hidden", "true");
-  card.hidden = true;
-  card.replaceChildren();
-}
-
-function showMapHover(reservoir: Reservoir, point: ScreenPoint): void {
-  const card = elementById<HTMLElement>("map-hover");
-  const heading = document.createElement("strong");
-  heading.textContent = reservoir.name;
-  const summary = document.createElement("span");
-  summary.textContent = `${formatPercent(headlinePercent(reservoir))} full · ` +
-    `${formatAcreFeet(reservoir.current_storage_af)} acre-feet`;
-  const context = document.createElement("span");
-  const change = reservoir.change_30d_pct === null
-    ? "" : `30 days: ${reservoir.change_30d_pct > 0 ? "+" : ""}${
-      formatPercent(reservoir.change_30d_pct)} · `;
-  context.textContent = `${change}Reading ${formatDate(reservoir.as_of)}`;
-  card.replaceChildren(heading, summary, context);
-  card.setAttribute("aria-hidden", "false");
-  card.hidden = false;
-  const stage = card.parentElement;
-  if (!stage) return;
-  const position = hoverPosition(point,
-    { width: stage.clientWidth, height: stage.clientHeight },
-    { width: card.offsetWidth, height: card.offsetHeight });
-  card.style.left = `${position.left}px`;
-  card.style.top = `${position.top}px`;
-}
 
 function wirePointerSelection(
   element: MapElement,
@@ -298,85 +268,6 @@ function wirePointerSelection(
       console.warn("The map could not answer a pointer selection:", error);
     });
   });
-}
-
-/** One hit test per animation frame, with stale async answers discarded. */
-function wirePointerHover(
-  element: MapElement,
-  drawn: () => readonly Reservoir[],
-  layer: () => FeatureLayer | null,
-  layerView: () => LayerView | null
-): void {
-  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-  let queued: ScreenPoint | null = null;
-  let frame = 0;
-  let request = 0;
-  let highlight: { remove(): void } | null = null;
-
-  const setCursor = (overReservoir: boolean): void => {
-    const cursor = overReservoir ? "pointer" : "";
-    element.style.cursor = cursor;
-    const container = element.view?.container;
-    if (container) container.style.cursor = cursor;
-  };
-
-  /* The SDK's own emphasis, on the layer view, rather than a fourth circle
-   * drawn on a graphics layer: `temporary` is the named highlight the SDK
-   * ships pre-configured for exactly this, so hover emphasis matches the
-   * platform instead of being a second opinion about what hover looks like.
-   * A hover card can be shown without it -- the highlight needs a layer
-   * view, which never arrives in a hidden pane. */
-  const emphasize = (graphic: HitGraphic | undefined): void => {
-    highlight?.remove();
-    highlight = null;
-    const view = layerView();
-    if (!view || !graphic) return;
-    try {
-      highlight = view.highlight(graphic, { name: "temporary" });
-    } catch {
-      // An emphasis the view refuses is not worth losing the hover card over.
-      highlight = null;
-    }
-  };
-
-  const clear = (): void => {
-    emphasize(undefined);
-    setCursor(false);
-    hideMapHover();
-  };
-
-  element.addEventListener("arcgisViewPointerMove", (event) => {
-    queued = eventPoint(event);
-    if (!queued || frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      const point = queued;
-      queued = null;
-      if (!point) return;
-      const targetLayer = layer();
-      if (!targetLayer) {
-        clear();
-        return;
-      }
-      const current = ++request;
-      void element.hitTest(point, { include: targetLayer }).then((response) => {
-        if (current !== request || layer() !== targetLayer) return;
-        const hit = reservoirFromHits(drawn(), response.results);
-        emphasize(hit?.graphic);
-        setCursor(Boolean(hit));
-        if (hit) showMapHover(hit.reservoir, point);
-        else hideMapHover();
-      }).catch(() => clear());
-    });
-  });
-  element.addEventListener("arcgisViewPointerLeave", () => {
-    request += 1;
-    queued = null;
-    if (frame) cancelAnimationFrame(frame);
-    frame = 0;
-    clear();
-  });
-  element.addEventListener("arcgisViewImmediateClick", clear);
 }
 
 export async function loadMap(
@@ -493,21 +384,73 @@ export async function loadMap(
   let drainageLayer: FeatureLayer | null = null;
   let drainageLabelLayer: GraphicsLayer | null = null;
   let reservoirLayer: FeatureLayer | null = null;
-  let reservoirLayerView: LayerView | null = null;
+  let reservoirLayerView: HighlightView | null = null;
   let pendingFilter: string | null = null;
   let pendingSelection: Reservoir | null = null;
   let drawn: readonly Reservoir[] = [];
+  /* Rebuilt with every draw rather than per hover: the hover path runs on
+   * an animation frame, and rolling up every reservoir there would do the
+   * same arithmetic sixty times a second to answer one question. */
+  let areaStorage = storageByArea([]);
   wirePointerSelection(element, selection, () => drawn, () => reservoirLayer);
-  wirePointerHover(element, () => drawn, () => reservoirLayer, () => reservoirLayerView);
+  /* Hover, on the shared wiring the snow and drought maps also use. The
+   * card is the one the shell template already places inside `.map-stage`;
+   * the include is the layer itself rather than an array, and the browser
+   * gate asserts that identity -- a hit test that is not limited to the
+   * reservoirs answers with drainage polygons the reader cannot select. */
+  wireMapHover(element, {
+    card: elementById<HTMLElement>("map-hover"),
+    /* Both layers, reservoirs first, so a reservoir standing on a boundary
+     * answers as a reservoir. Limited to these two: without an include, a
+     * hit test also answers with the mask and the basemap, and the reader
+     * would get a card for pointing at Nevada. */
+    include: () => (reservoirLayer
+      ? (drainageLayer ? [reservoirLayer, drainageLayer] : [reservoirLayer])
+      : null),
+    layerView: () => reservoirLayerView,
+    resolve: (results: readonly GraphicHit[]): HoverResolution | null => {
+      const hit = reservoirFromHits(drawn, results);
+      if (hit) {
+        return {
+          content: {
+            heading: hit.reservoir.name,
+            lines: storageReservoirLines(hit.reservoir)
+          },
+          graphic: hit.graphic
+        };
+      }
+      /* The drainage area under the pointer, when no reservoir is. The
+       * outlines carried a name and nothing else until now; this is the one
+       * number a reader wants from an area, and it is the same arithmetic
+       * the drought view joins storage by. */
+      for (const result of results) {
+        const name = result.graphic?.attributes?.[DRAINAGE_NAME_FIELD];
+        const huc6 = result.graphic?.attributes?.["huc6"];
+        if (typeof name !== "string" || typeof huc6 !== "string") continue;
+        return {
+          content: {
+            heading: name,
+            lines: drainageAreaLines(areaStorage.get(huc6))
+          }
+          /* No `graphic`: the emphasis is the reservoir layer view's named
+           * highlight, and lighting up a whole drainage polygon under the
+           * pointer would be a much louder answer than the question. */
+        };
+      }
+      return null;
+    }
+  });
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();
   else if (resolution.degraded) showDegradedBasemap(resolution.name);
 
-  /* The canvas follows the theme -- light gray on the light page, dark gray
-   * on the dark one -- unless the reader has chosen a background from the
-   * gallery, detected by the map no longer wearing the one this module
-   * assigned. Sequenced through one in-flight promise so two quick toggles
-   * cannot race their resolutions into the wrong order. */
+  /* The background re-resolves with the theme, unless the reader has chosen
+   * one from the gallery -- detected by the map no longer wearing the one
+   * this module assigned. Oceans leads both chains, so this normally lands
+   * back on the same background; what it protects is the fallback, which is
+   * still theme-aware a step down. Sequenced through one in-flight promise
+   * so two quick toggles cannot race their resolutions into the wrong
+   * order. */
   let themeSwap: Promise<void> = Promise.resolve();
   document.addEventListener(THEME_CHANGE_EVENT, () => {
     themeSwap = themeSwap.then(async () => {
@@ -533,6 +476,7 @@ export async function loadMap(
     drainageLabelsUnderReservoirs: false,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
+    reservoirLabels: false,
     filtered: false,
     selectionOnTop: false,
     navigationBounds: (element.constraints as { geometry?: unknown } | undefined)
@@ -639,6 +583,7 @@ export async function loadMap(
       reservoirLayerView = null;
       const result = createReservoirLayer(reservoirs, percentOf);
       drawn = reservoirs;
+      areaStorage = storageByArea(reservoirs);
       reservoirLayer = result.layer;
       map.add(result.layer);
       /* Added after the points so a selected reservoir is not covered by
@@ -652,6 +597,7 @@ export async function loadMap(
       map.add(highlightLayer);
       status.reservoirsDrawn = result.drawn;
       status.reservoirSymbols = result.symbols;
+      status.reservoirLabels = result.labelled;
       status.selectionOnTop =
         map.layers.indexOf(highlightLayer) > map.layers.indexOf(result.layer);
       if (window.__dashboardReady) {
@@ -664,7 +610,7 @@ export async function loadMap(
        * settled by the same render loop `hitTest` is, which does not run in
        * a hidden pane. Nothing else waits on it. */
       void element.view?.whenLayerView(result.layer).then((view) => {
-        reservoirLayerView = view as LayerView;
+        reservoirLayerView = view as HighlightView;
       }).catch((error: unknown) => {
         console.warn("The map cannot emphasize a reservoir under the pointer:", error);
       });

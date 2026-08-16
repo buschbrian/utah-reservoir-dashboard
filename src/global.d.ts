@@ -14,6 +14,9 @@ interface DashboardReady {
    * a smaller number means the renderer dropped some and drew an
    * approximation of the class table rather than the table. */
   symbols: number;
+  /** True while the reservoir layer is carrying its names. Not `drawn`: a
+   * layer draws its points whether or not it labels them. */
+  reservoirLabels: boolean;
   late: number;
   basemap: boolean;
   basemapDegraded: boolean;
@@ -93,6 +96,12 @@ interface Window {
     mapDay?: string | null;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
+    /** Reservoirs drawn on the snow map for reference, 0 when that payload
+     * could not be read. They carry no storage colour: the snow scale owns
+     * this map. */
+    mapReservoirs?: number;
+    /** True while those reference reservoirs are carrying their names. */
+    mapReservoirLabels?: boolean;
     /** The measurement site whose season is open, or null for none. */
     site?: string | null;
     /** Days the open site's curve drew. 0 while no site is chosen. */
@@ -115,6 +124,17 @@ interface Window {
     mapClassesDrawn?: number;
     /** Drainage-area outlines drawn over the polygons. */
     mapOutlines?: number;
+    /** Reservoirs drawn on the drought map for reference. They carry no
+     * storage colour: the monitor's palette owns this map. */
+    mapReservoirs?: number;
+    /** True while those reference reservoirs are carrying their names. */
+    mapReservoirLabels?: boolean;
+    /** True when the hosted state boundaries answered and were drawn.
+     * False is a supported outcome: they are optional context. */
+    mapStateBoundaries?: boolean;
+    /** True when the hosted county boundaries answered. They stay hidden
+     * until the reader zooms in, so this is about the layer, not the view. */
+    mapCountyBoundaries?: boolean;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
   };

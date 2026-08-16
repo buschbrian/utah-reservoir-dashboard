@@ -1,12 +1,17 @@
 /*
  * The theme-following basemap for view maps without a gallery.
  *
- * The snow and drought maps both open on the canvas that matches the page
- * theme and swap it when the theme changes. Written once: the sequencing
- * that stops two quick toggles landing out of order is exactly the kind of
- * subtlety that drifts when copied. The storage map keeps its own wiring,
- * because it has a gallery and therefore a reader choice to protect; these
- * maps have no gallery, so the swap is unconditional.
+ * Every map now opens on Oceans, which leads both chains, so re-resolving
+ * on a theme change usually lands on the same background it started with.
+ * The wiring stays anyway, because the chain is still theme-aware one step
+ * down: a reader on the dark page whose oceans style is blocked should get
+ * the dark canvas, and that is decided at resolve time, not at load time.
+ *
+ * Written once: the sequencing that stops two quick toggles landing out of
+ * order is exactly the kind of subtlety that drifts when copied. The storage
+ * map keeps its own wiring, because it has a gallery and therefore a reader
+ * choice to protect; these maps have no gallery, so the swap is
+ * unconditional.
  */
 import type ArcGISMap from "@arcgis/core/Map";
 import { resolveBasemap } from "../arcgis/basemaps";

@@ -499,7 +499,11 @@ for (const viewport of VIEWPORTS) {
         const objectid = layer.source.find((graphic) =>
           graphic.attributes?.name === name)?.attributes?.objectid;
         map.hitTest = async (_point, options) => {
-          window.__reservoirHitIncluded = options?.include === layer;
+          /* An array now, reservoirs first: the drainage outlines answer
+           * too, so a reader gets the area's combined storage where they
+           * are not over a reservoir. Order is the priority. */
+          window.__reservoirHitIncluded = Array.isArray(options?.include)
+            && options.include[0] === layer;
           return ({
             /* A newly materialized client-side layer view can return only the
              * object ID even though the source carries every field. Selection
@@ -523,7 +527,7 @@ for (const viewport of VIEWPORTS) {
       check(hoverText.includes(pointerName) && hoverText.includes("%"),
         `${label}: pointer hover did not summarize ${pointerName}`);
       check(await tab.evaluate(() => window.__reservoirHitIncluded === true),
-        `${label}: pointer hit test was not limited to the reservoir layer`);
+        `${label}: pointer hit test did not put the reservoir layer first`);
       const hoverBounds = await tab.evaluate(() => {
         const stage = document.querySelector(".map-stage").getBoundingClientRect();
         const card = document.querySelector("#map-hover").getBoundingClientRect();
@@ -1259,6 +1263,113 @@ for (const viewport of VIEWPORTS) {
   await context.close();
 }
 
+
+/*
+ * The parity every view map is held to against the storage map.
+ *
+ * Three maps of the same fourteen drainage areas that each open at a
+ * different box, carry a different control set, or let a reader pan to a
+ * different place are three maps a reader cannot flip between. Each fact is
+ * measured rather than assumed -- the framing especially, because it depends
+ * on the shape of the card, and the last time it was written as a zoom the
+ * component snapped it to an integer and the region spanned a continent.
+ */
+async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
+  const frame = await tab.evaluate(({ hostId, cardId }) => {
+    const element = document.querySelector("#" + hostId + " arcgis-map");
+    const view = element?.view;
+    if (!view?.ready) return null;
+    const host = document.querySelector("#" + hostId).getBoundingClientRect();
+    return {
+      controls: [...element.children].map((child) => child.tagName.toLowerCase()),
+      layers: view.map.layers.map((layer) => layer.id).toArray(),
+      bounded: Boolean(view.constraints.geometry),
+      minZoom: view.constraints.effectiveMinZoom,
+      scale: Math.round(view.scale),
+      card: Boolean(document.querySelector("#" + cardId)),
+      /* The card is placed inside the host, so the host has to be the box
+       * it is positioned against. A static host would put every card at the
+       * top left of the page instead. */
+      hostPositioned: getComputedStyle(document.querySelector("#" + hostId))
+        .position === "relative",
+      controlsInside: [...element.querySelectorAll(
+        "arcgis-zoom,arcgis-home,arcgis-fullscreen,arcgis-scale-bar")]
+        .every((control) => {
+          const box = control.getBoundingClientRect();
+          return box.right <= host.right + 1 && box.left >= host.left - 1
+            && box.bottom <= host.bottom + 1;
+        })
+    };
+  }, { hostId, cardId });
+  check(frame !== null, `${label}: ${hostId} has no ready view to measure`);
+  if (!frame) return;
+  check(frame.controls.join(",") ===
+    "arcgis-zoom,arcgis-home,arcgis-fullscreen,arcgis-scale-bar",
+  `${label}: ${hostId} carries ${frame.controls.join(",")}`);
+  check(frame.controlsInside,
+    `${label}: a map control on ${hostId} sits outside the card`);
+  check(frame.layers.join(",") === layerIds.join(","),
+    `${label}: ${hostId} draws ${frame.layers.join(",")}, expected ${layerIds.join(",")}`);
+  check(frame.bounded && frame.minZoom === 4,
+    `${label}: ${hostId} navigation bounds ${frame.bounded}, minimum zoom ${frame.minZoom}`);
+  /* The storage map opens near 1:10,700,000. A card is a different shape,
+   * so this is a band rather than a number -- but a view that has fallen
+   * out to the minimum zoom, which is what an unframed short card does,
+   * lands at 1:18,000,000 and fails it. */
+  check(frame.scale > 3000000 && frame.scale < 16000000,
+    `${label}: ${hostId} opens at 1:${frame.scale}, outside the storage map's band`);
+  check(frame.card && frame.hostPositioned,
+    `${label}: ${hostId} hover card ${frame.card}, host positioned ${frame.hostPositioned}`);
+}
+
+/*
+ * One hover on a view map, driven the way the storage map's is.
+ *
+ * `hitTest` is settled by the render loop, so it is stubbed here rather than
+ * pointed at a real feature: what is being proved is that a pointer move
+ * reaches the shared hover module, that the module limits the test to the
+ * map's own layers, and that the card it builds describes what was under
+ * the pointer and stays inside the map it belongs to.
+ */
+async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, expected) {
+  await tab.evaluate(({ hostId, layerId }) => {
+    const element = document.querySelector("#" + hostId + " arcgis-map");
+    const layer = element.view.map.findLayerById(layerId);
+    const source = layer.type === "feature" ? layer.source : layer.graphics;
+    const graphic = { attributes: source.at(0).attributes, layer };
+    element.hitTest = async (_point, options) => {
+      const included = options?.include;
+      window.__viewMapHitIncluded = Array.isArray(included)
+        ? included.includes(layer)
+        : included === layer;
+      return { results: [{ type: "graphic", layer, graphic }] };
+    };
+    element.dispatchEvent(new CustomEvent("arcgisViewPointerMove",
+      { detail: { x: 220, y: 140 } }));
+  }, { hostId, layerId });
+  await tab.waitForFunction(
+    (cardId) => document.querySelector("#" + cardId)?.hidden === false,
+    cardId, { timeout: 10000 });
+  const hover = await tab.evaluate(({ hostId, cardId }) => {
+    const host = document.querySelector("#" + hostId).getBoundingClientRect();
+    const card = document.querySelector("#" + cardId);
+    const box = card.getBoundingClientRect();
+    return {
+      text: card.innerText.trim(),
+      lines: card.querySelectorAll("span").length,
+      included: window.__viewMapHitIncluded,
+      inside: box.left >= host.left && box.top >= host.top
+        && box.right <= host.right && box.bottom <= host.bottom
+    };
+  }, { hostId, cardId });
+  check(hover.included === true,
+    `${label}: the ${hostId} hit test was not limited to the map's own layers`);
+  check(hover.text.includes(expected),
+    `${label}: the ${layerId} card reads ${JSON.stringify(hover.text)}`);
+  check(hover.lines > 0, `${label}: the ${layerId} card has no detail lines`);
+  check(hover.inside, `${label}: the ${layerId} card extends outside the map`);
+}
+
 /* The snowpack view (ADR-021). Loaded through a drainage-area deep link so
  * the shared `?area=` vocabulary is proven, then switched to the whole
  * region. The readiness counts protect against a page that paints the shell
@@ -1345,6 +1456,26 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map has no shown day`);
     check(mapState.slider && mapState.legendItems === 6,
       `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} of 6`);
+    /* The reservoirs, as reference. They are allowed to be absent -- their
+     * payload is a separate fetch and this page is about snow -- but they
+     * are not allowed to be present and unnamed, because being named is the
+     * whole reason they are drawn here. */
+    check(mapState.ready?.mapReservoirs > 0,
+      `${label}: the snow map placed ${mapState.ready?.mapReservoirs} reservoirs`);
+    check(mapState.ready?.mapReservoirLabels === true,
+      `${label}: the snow map drew reservoirs without their names`);
+
+    await checkViewMapParity(tab, check, label, "snow-map-host", "snow-map-hover",
+      ["snow-basins", "snow-sites", "reservoir-reference"]);
+    /* Three layers, three cards, one check each: the resolver walks the hits
+     * in layer order, so a mistake there shows up as one kind of feature
+     * answering with another kind of description. */
+    await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
+      "snow-basins", "of normal");
+    await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
+      "snow-sites", "of normal");
+    await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
+      "reservoir-reference", "Reservoir,");
 
     /* One site's season. Chosen through the picker the way a reader would;
      * the drawn-point count is what proves a curve, not a prompt, is on
@@ -1445,6 +1576,66 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map drew ${mapState.ready?.mapClassesDrawn} drought classes`);
     check(mapState.ready?.mapOutlines === mapState.ready?.units,
       `${label}: ${mapState.ready?.mapOutlines} outlines for ${mapState.ready?.units} areas`);
+    check(mapState.ready?.mapReservoirs > 0,
+      `${label}: the drought map placed ${mapState.ready?.mapReservoirs} reservoirs`);
+    check(mapState.ready?.mapReservoirLabels === true,
+      `${label}: the drought map drew reservoirs without their names`);
+
+    /* The hosted boundaries are optional, so the layer list is checked
+     * against what actually loaded rather than against a fixed list -- a
+     * refused state service is a supported outcome, and a test that failed
+     * on it would be testing Esri's uptime. */
+    const boundaryLayers = [
+      ...(mapState.ready?.mapCountyBoundaries ? ["reference-counties"] : []),
+      ...(mapState.ready?.mapStateBoundaries ? ["reference-states"] : [])
+    ];
+    console.log("  boundaries:", JSON.stringify({
+      states: mapState.ready?.mapStateBoundaries,
+      counties: mapState.ready?.mapCountyBoundaries
+    }));
+    await checkViewMapParity(tab, check, label, "drought-map-host", "drought-map-hover",
+      ["usdm-classes", ...boundaryLayers, "drainage-outlines", "reservoir-reference"]);
+    /* The label ladder: at the opening view the states are named and the
+     * reservoirs are not, which is the whole point of the thresholds. The
+     * counties are not even fetched yet. */
+    const ladder = await tab.evaluate(() => {
+      const view = document.querySelector("#drought-map-host arcgis-map").view;
+      const at = (id) => {
+        const layer = view.map.findLayerById(id);
+        if (!layer) return null;
+        const info = layer.labelingInfo?.[0];
+        return {
+          layerHidden: (layer.minScale > 0 && view.scale > layer.minScale),
+          labelsOn: Boolean(info)
+            && (info.minScale === 0 || view.scale <= info.minScale)
+            && (info.maxScale === 0 || view.scale >= info.maxScale),
+          size: info?.symbol?.font?.size ?? null
+        };
+      };
+      return {
+        scale: Math.round(view.scale),
+        states: at("reference-states"),
+        counties: at("reference-counties"),
+        reservoirs: at("reservoir-reference")
+      };
+    });
+    check(ladder.reservoirs?.labelsOn === false,
+      `${label}: reservoir names are already on at 1:${ladder.scale}`);
+    check(ladder.counties === null || ladder.counties.layerHidden === true,
+      `${label}: county outlines are already drawn at 1:${ladder.scale}`);
+    check(ladder.states === null || ladder.states.labelsOn === true,
+      `${label}: state names are not on at 1:${ladder.scale}`);
+    /* A name inside another name's shape is never larger than it. */
+    check(ladder.states === null
+      || ladder.states.size > ladder.reservoirs.size,
+    `${label}: state names (${ladder.states?.size}) are not larger than ` +
+      `reservoir names (${ladder.reservoirs?.size})`);
+    await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
+      "drainage-outlines", "of the land is");
+    await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
+      "usdm-classes", "Drought class");
+    await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
+      "reservoir-reference", "Reservoir,");
     await tab.screenshot({ path: `screenshots/drought-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);

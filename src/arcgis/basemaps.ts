@@ -27,16 +27,22 @@ export function installAnonymousAuthPolicy(
 /**
  * Basemaps in preference order, per theme.
  *
- * The calm canvas that matches the page's theme leads: light gray canvas
- * for the light theme, dark gray canvas for the dark one, so the map is not
- * a bright rectangle on a dark page. Topographic and the light canvas stay
- * in every chain as fallbacks -- the dark canvas is the same keyless
- * well-known-id family as the two the spike verified, and if Esri ever
- * gates it the chain falls through to a background that still serves rather
- * than failing dark readers specifically. The last candidate reaches the
- * topographic tiles as a plain portal item, which survives the well-known
- * id being retired or re-gated. There is no further fallback: running with
- * no basemap and saying so is better than a modal.
+ * **Oceans leads every chain, in both themes.** It carries bathymetry and
+ * shaded relief under a restrained label set, which is exactly the context
+ * a map of reservoirs, drainage areas, snow basins and drought classes
+ * needs: the reader can see the terrain the water sits in. The gray
+ * canvases it replaced are deliberately featureless, which is right for a
+ * map whose data is the only thing worth seeing and wrong for these, where
+ * the land is half the story. It is keyless -- a public tile service for
+ * the base and a public vector style for the reference labels, both
+ * verified anonymous.
+ *
+ * The theme canvases stay, one step down, and stay theme-aware: if Esri
+ * ever gates the oceans style the dark page falls to the dark canvas rather
+ * than to a bright rectangle. Topographic follows, and the last candidate
+ * reaches the topographic tiles as a plain portal item, which survives the
+ * well-known id being retired or re-gated. There is no further fallback:
+ * running with no basemap and saying so is better than a modal.
  */
 export type BasemapTheme = "light" | "dark";
 
@@ -60,6 +66,13 @@ function fromId(id: string): Basemap {
 const verifyBasemap = (basemap: Basemap): Promise<unknown> => basemap.loadAll();
 
 export function basemapCandidates(theme: BasemapTheme = "light"): Candidate<Basemap>[] {
+  /* The base is a raster tile service and the labels are a vector style, so
+   * this is the one candidate whose `loadAll` reaches two different kinds of
+   * public endpoint. Both were verified to serve anonymously before it was
+   * put at the front of the chain. */
+  const oceans: Candidate<Basemap> = {
+    name: "Oceans", create: () => fromId("oceans"), verify: verifyBasemap
+  };
   const darkCanvas: Candidate<Basemap> = {
     name: "Dark gray canvas", create: () => fromId("dark-gray-vector"), verify: verifyBasemap
   };
@@ -77,8 +90,8 @@ export function basemapCandidates(theme: BasemapTheme = "light"): Candidate<Base
     verify: verifyBasemap
   };
   return theme === "dark"
-    ? [darkCanvas, lightCanvas, topographic, directItem]
-    : [lightCanvas, topographic, directItem];
+    ? [oceans, darkCanvas, lightCanvas, topographic, directItem]
+    : [oceans, lightCanvas, topographic, directItem];
 }
 
 export function resolveBasemap(
