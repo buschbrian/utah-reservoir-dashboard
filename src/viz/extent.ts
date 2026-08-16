@@ -21,9 +21,16 @@
  * file has been fetched -- and a constraint that arrives late is a map that
  * can be panned away in the meantime. `extent.test.ts` recomputes it from
  * `huc6.geojson`, so it cannot drift from the file it describes.
+ *
+ * The exact extremes of the committed rings rather than a rounded box. Three
+ * decimals cannot express them without either clipping a divide or drifting
+ * further from the file than the test's tolerance allows, and this box has to
+ * *contain* every polygon. The values moved by about a hundred metres when
+ * the boundaries were refetched at 56 metres (ADR-037): finer geometry finds
+ * the true extremes that a 500-metre generalization had cut the corners off.
  */
 export const HUC6_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
-  [[-115.706, 35.109], [-105.627, 43.451]];
+  [[-115.70611, 35.1088], [-105.62642, 43.45212]];
 
 /** A bounding box scaled about its own centre. Two is one zoom level. */
 export function expandBounds(

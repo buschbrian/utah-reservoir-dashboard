@@ -189,7 +189,11 @@
    * committed file, so the moment the drainage areas change and this is not
    * regenerated, the build says so.
    */
-  var HUC6_BOUNDS = [[-115.706, 35.109], [-105.627, 43.451]];
+  /* The exact extremes of the committed rings, not a rounded box: the
+   * refetch at 56 metres (ADR-037) moved them by about a hundred metres,
+   * and three decimals cannot express that without either clipping a divide
+   * or drifting further from the file than the test allows. */
+  var HUC6_BOUNDS = [[-115.70611, 35.1088], [-105.62642, 43.45212]];
 
   /** A bounding box scaled about its own centre. Two is one zoom level. */
   function expandBounds(bounds, factor) {

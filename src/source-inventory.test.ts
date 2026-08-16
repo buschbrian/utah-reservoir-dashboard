@@ -41,13 +41,31 @@ describe("the authoritative source inventory", () => {
       .toContain(OLD_DAM_SERVICE);
   });
 
-  it("records the geometry default and the one accepted coarser exception", async () => {
+  /* The default for new committed geometry is 100 metres, and every file that
+   * departs from it has to say so with the record that decided it. There was
+   * one coarser exception (the 500-metre boundaries, ADR-005); there is now
+   * one finer one instead (56 metres, ADR-037), because the outlines became a
+   * drawn subject at close zoom and the generalization showed as slivers along
+   * shared divides. The default itself did not move. */
+  it("records the geometry default and the file that departs from it", async () => {
     const inventory = await read("docs/AUTHORITATIVE-SOURCE-INVENTORY.md");
     expect(inventory).toContain("about 100 metres");
-    expect(inventory).toContain("500-metre ADR-005 exception");
+    expect(inventory).toContain("about 56 metres, under ADR-037");
+    expect(inventory).not.toContain("500-metre ADR-005 exception");
     expect(await read("tools/fetch_watershed_scope.py"))
       .toContain('MAX_ALLOWABLE_OFFSET = "0.001"');
     expect(await read("tools/fetch_drought_monitor.py"))
       .toContain("MAX_ALLOWABLE_OFFSET = 0.001");
+  });
+
+  /* The committed boundaries must actually be at the resolution the record
+   * claims. A refetch at the old tolerance would otherwise pass every other
+   * test in the suite silently. */
+  it("carries the boundary tolerance in the file it produced", async () => {
+    const boundaries = JSON.parse(await read("huc6.geojson")) as {
+      geometry?: { max_allowable_offset_degrees?: number };
+    };
+
+    expect(boundaries.geometry?.max_allowable_offset_degrees).toBe(0.0005);
   });
 });

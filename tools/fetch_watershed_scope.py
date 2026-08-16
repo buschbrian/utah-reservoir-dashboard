@@ -28,8 +28,13 @@ from watershed_scopes import get_scope, validate_huc6_codes  # noqa: E402
 WBD_LAYER = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3"
 TIMEOUT = 90
 GEOMETRY_PRECISION = "5"
-# Roughly 100 metres north-to-south. New committed geometry starts here; the
-# 500-metre production huc6.geojson remains the measured ADR-005 exception.
+# Roughly 100 metres north-to-south. The default for new committed geometry;
+# the production scope now asks for finer, and says so on the command line.
+#
+# It is a flag rather than a constant because the tolerance is a decision
+# with a measured trade-off behind it (ADR-005, and ADR-037 which supersedes
+# it), not a detail of how the query is built. Anyone regenerating a file has
+# to state what they asked for.
 MAX_ALLOWABLE_OFFSET = "0.001"
 
 
@@ -211,6 +216,10 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--backend", choices=("rest", "arcgis"), default="rest",
                         help="use ArcGIS API for Python for ID discovery, or REST only")
+    parser.add_argument(
+        "--max-allowable-offset", default=MAX_ALLOWABLE_OFFSET,
+        help="generalization tolerance in degrees; 0.0005 is about 56 metres, "
+             "which is where this source stops adding detail")
     args = parser.parse_args()
 
     scope = get_scope(args.scope)
@@ -218,7 +227,9 @@ def main() -> int:
     object_ids = None
     if args.backend == "arcgis":
         object_ids = ArcGISFeatureLayerIdProvider(WBD_LAYER).object_ids(scope)
-    collection = ArcGISRestClient(WBD_LAYER).query(scope, object_ids=object_ids)
+    collection = ArcGISRestClient(WBD_LAYER).query(
+        scope, object_ids=object_ids,
+        max_allowable_offset=args.max_allowable_offset)
     normalized, report = normalize_collection(collection, scope)
     normalized.update({
         "source": WBD_LAYER,
@@ -227,7 +238,7 @@ def main() -> int:
         "unit_count": report["feature_count"],
         "geometry": {
             "coordinate_system": "WGS 84 (EPSG:4326)",
-            "max_allowable_offset_degrees": float(MAX_ALLOWABLE_OFFSET),
+            "max_allowable_offset_degrees": float(args.max_allowable_offset),
             "coordinate_decimal_places": int(GEOMETRY_PRECISION),
         },
     })

@@ -7,6 +7,17 @@ and is not listed here.
 
 ### Changed
 
+- **The drainage-area outlines are drawn from much finer boundaries.** They
+  were simplified to about 500 metres, which was invisible while they were
+  background context and obvious once you could zoom to a dam: neighbouring
+  areas whose shared ridge had been simplified separately no longer met, so
+  the map showed slivers and gaps that do not exist on the ground. They are
+  now at about 56 metres, which is the point where the source stops adding
+  detail — past it you are downloading decimal places, not shape. The
+  published drought figures moved by at most a tenth of a percentage point,
+  which confirms the coarse file was never producing wrong numbers; it just
+  drew badly up close.
+
 - **The drought map has a quieter background, and its key sits on the map.**
   It labels states itself, and the previous background labelled them too, so
   every state carried two names in two typefaces. It now uses the plain
