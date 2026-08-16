@@ -764,6 +764,7 @@ if (!supportsDashboard(browserCapabilities())) {
     month: selectedMonth(),
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,
+    basemapReferenceSunk: map.status.basemapReferenceSunk,
     masked: map.status.masked,
     boundaryPoints: map.status.boundaryPoints,
     drainageAreas: map.status.drainageAreas,

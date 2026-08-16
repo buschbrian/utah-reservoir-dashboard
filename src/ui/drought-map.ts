@@ -30,6 +30,7 @@ import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { ReferenceLayers } from "../arcgis/reference-layers";
+import { createHillshadeLayer } from "../arcgis/hillshade";
 import type { DrainageArea } from "../data/boundaries";
 import type { StorageContext } from "../drought-model";
 import type { UsdmPolygons } from "../data/usdm-load";
@@ -181,11 +182,28 @@ export async function createDroughtMap(
    * out: the classes are the subject, then the fourteen drainage outlines and
    * their reservoirs, because those are what the figures on the page describe.
    */
+  /*
+   * Terrain over the classes, not under them.
+   *
+   * The usual way round is to multiply thematic fills over a hillshade, but
+   * that darkens the fills themselves -- and these fills are the Drought
+   * Monitor's own published colours, which this site is not entitled to
+   * restate in a different hue. Putting the shade *above* the classes and
+   * multiplying it leaves every class the colour the monitor gave it and
+   * varies only its lightness with the ground, which is the part a reader
+   * was missing: the classes are drawn on the flattest possible background,
+   * so nothing said where the mountains that make the water actually are.
+   *
+   * Above the classes and below the outlines and reservoirs, so the shade
+   * never darkens this project's own reference geometry.
+   */
+  const hillshade = createHillshadeLayer();
   const map = new ArcGISMap({
     layers: [
       ...(boundaries.states ? [boundaries.states] : []),
       ...(boundaries.counties ? [boundaries.counties] : []),
       droughtLayer,
+      hillshade,
       outlineLayer,
       reference.layer
     ]

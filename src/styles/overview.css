@@ -297,13 +297,21 @@ body {
  * when it cannot arrive sits in the same box. */
 .view-map-host {
   position: relative;
-  /* Taller than the chart cards above it, and deliberately so. This box is
-     wide and short, an extent is a minimum, and the shorter it gets the
-     further out the map has to sit to hold the same fourteen drainage
-     areas -- at the old height the view opened past 1:18,000,000, a third
-     of the way out from the storage map. At this one it opens near
-     1:9,400,000, within half a zoom level of it. */
-  block-size: clamp(24rem, 62vh, 34rem);
+  /* Tall, and the reason is the region's shape rather than a preference.
+     
+     The drawn geography is 869 km wide by 923 km tall -- portrait, aspect
+     0.94. This card was 1200 x 444, aspect 2.70. An extent is a minimum, so
+     the view fits the taller side and spends the rest on width: measured at
+     that size it showed 2,509 km east to west for an 869 km region, which
+     is 2.9 times the region's actual width in empty ground either side.
+     No extent can fix that; it is the card's shape against the region's.
+
+     At 1200 x 736 the aspect is 1.63, the view opens near 1:4,700,000, and
+     the width shown falls to about 1,500 km -- 1.7 times the region instead
+     of 2.9. That also puts these two cards nearer to square than the
+     storage map's own stage at 1.96, which is what the pages are compared
+     against. */
+  block-size: clamp(26rem, 76vh, 46rem);
   overflow: hidden;
   border: 1px solid var(--app-border);
   border-radius: .4rem;
@@ -522,3 +530,40 @@ body {
   line-height: 1.5;
 }
 .weekly-section p:last-child { margin-block-end: 0; }
+
+/* The key under the histogram.
+ *
+ * A row rather than a rail, and under the chart rather than beside it: the
+ * histogram is the widest thing on this page, and a side legend would take
+ * its width from the bars and leave the card lopsided. Spread across the
+ * bottom it costs one line of height and keeps the chart centred.
+ *
+ * The swatches are lines, not blocks, because what they explain are lines --
+ * a square of colour would not distinguish the dashed middle value from the
+ * dotted standard deviation, which is the whole thing a reader needs. */
+.overlay-key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .35rem 1.5rem;
+  margin: .5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: .8125rem;
+  color: var(--app-muted);
+}
+.overlay-key li {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+.overlay-key-line {
+  flex: 0 0 auto;
+  inline-size: 1.75rem;
+  block-size: 0;
+  border-block-start-width: 2px;
+  border-block-start-color: var(--overlay-key-color, currentColor);
+}
+.overlay-key-solid { border-block-start-style: solid; }
+.overlay-key-dashed { border-block-start-style: dashed; }
+.overlay-key-dotted { border-block-start-style: dotted; border-block-start-width: 3px; }

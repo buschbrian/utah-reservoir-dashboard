@@ -12,6 +12,7 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
+import { sinkBasemapReferenceLayers } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
@@ -50,6 +51,8 @@ export interface MapStatus {
    * background at all, this says which one, and one field cannot answer
    * both without the readiness signal making two claims about one word. */
   basemapName: string | null;
+  /** Basemap reference layers moved below this project's own layers. */
+  basemapReferenceSunk: number;
 
   masked: boolean;
   boundaryPoints: number;
@@ -295,6 +298,10 @@ export async function loadMap(
   const maskLayer = createMaskLayer(utahBoundary ?? undefined);
   const highlightLayer = createHighlightLayer();
   map.add(maskLayer);
+  /* The basemap's boundaries and place names belong under this project's
+   * data, not over it. See `arcgis/basemap-reference.ts` -- this is the line
+   * that stops a borrowed grey state line drawing through Flaming Gorge. */
+  let referenceSunk = sinkBasemapReferenceLayers(map);
 
   const element = document.createElement("arcgis-map") as MapElement;
   /* The comparison MapView supplies padding in its constructor, before its
@@ -459,6 +466,11 @@ export async function loadMap(
       if (!next.resource || map.basemap !== assignedBasemap) return;
       (map as { basemap: unknown }).basemap = next.resource;
       assignedBasemap = next.resource;
+      /* A new basemap brings a new reference stack, which arrives on top
+       * again. Sink it, and keep the signal current rather than leaving it
+       * reporting the count from first paint. */
+      referenceSunk = sinkBasemapReferenceLayers(map);
+      status.basemapReferenceSunk = referenceSunk;
       status.basemapName = next.name;
       status.basemapDegraded = next.degraded;
     });
@@ -468,6 +480,10 @@ export async function loadMap(
     basemap: resolution.resource !== null,
     basemapDegraded: resolution.degraded,
     basemapName: resolution.resource ? resolution.name : null,
+    /* Reference layers moved out of the basemap and under this project's own
+     * data. Its own field because a map that quietly stopped moving them
+     * looks identical until someone sees a line through a reservoir. */
+    basemapReferenceSunk: referenceSunk,
     masked: map.layers.includes(maskLayer),
     boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
       sum + (polygon[0]?.length ?? 0), 0),
@@ -626,11 +642,17 @@ export async function loadMap(
       const result = createDrainageLayer(areas);
       drainageLayer = result.layer;
       drainageLabelLayer = result.labelLayer;
-      // Under the reservoirs and over the basemap: outlines and text are
-      // context. Text symbols obey this operational layer order; a
-      // FeatureLayer label pass can paint the same words above the points.
-      map.add(drainageLayer, 1);
-      map.add(drainageLabelLayer, 2);
+      /* Under the reservoirs and over the basemap: outlines and text are
+       * context. Text symbols obey this operational layer order; a
+       * FeatureLayer label pass can paint the same words above the points.
+       *
+       * Counted from the mask rather than from zero. The basemap's own
+       * reference layers are sunk to the bottom of this stack, so the
+       * literal 1 and 2 these used to be would now insert the drainage
+       * outlines underneath the mask that is supposed to sit below them. */
+      const base = map.layers.indexOf(maskLayer) + 1;
+      map.add(drainageLayer, base);
+      map.add(drainageLabelLayer, base + 1);
       status.drainageAreas = areas.length;
       status.drainageLabels = result.labels;
       syncDrainageLabelOrder();

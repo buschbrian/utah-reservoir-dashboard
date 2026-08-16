@@ -74,7 +74,7 @@ if (!root) throw new Error("Missing #snow-app root");
 
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
-    ${brandMarkup(1)}
+    ${brandMarkup(1, "snow")}
     ${pageLinksMarkup("snow")}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
@@ -131,7 +131,6 @@ function renderSnow(payload: SnowpackPayload): void {
         <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area is coloured by its mean percent of normal for the day shown, and each measurement site is a point on the same scale. The map opens on the day this season held the most snow, because that is the day the rest of the year is judged against; move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
-      <div class="drought-legend snow-map-legend" role="list" aria-label="Snow map classes and their colours"></div>
       <div id="snow-map-host" class="view-map-host" aria-busy="true"
         aria-label="A map of the drainage areas and snow measurement sites. The chart and tables on this page carry the same values as text."></div>
       <div class="snow-day-row">
@@ -211,8 +210,24 @@ function renderSnow(payload: SnowpackPayload): void {
     area.append(option);
   }
 
-  const legend = document.querySelector<HTMLElement>(".snow-map-legend");
-  if (legend) {
+  /*
+   * The key belongs on the map it explains.
+   *
+   * It sat in a band above the map, which is the arrangement the drought
+   * page already moved away from: a reader matching a colour to a class had
+   * to look away from the pattern to do it, and the band cost a strip of
+   * height from a card whose whole job is the map.
+   *
+   * Attached only once the map exists -- `createViewMap` calls
+   * `replaceChildren` on the host, so a key appended before that is silently
+   * thrown away. If the map cannot start it is attached anyway, without the
+   * inset class, because the same colours describe the chart below.
+   */
+  const legend = document.createElement("div");
+  legend.className = "drought-legend map-inset-legend snow-map-legend";
+  legend.setAttribute("role", "list");
+  legend.setAttribute("aria-label", "Snow map classes and their colours");
+  {
     const entries = [
       ...SNOW_CLASSES.map((entry) => ({ label: entry.label, color: entry.color as string | null })),
       { label: NO_VALUE_LABEL, color: null }
@@ -673,6 +688,10 @@ function renderSnow(payload: SnowpackPayload): void {
         : null;
       map = await createSnowMap(mapElement, card, areas, payload.sites, firstDay);
       map.setArea(currentArea);
+      /* After the map claims the host, never before: see the note beside the
+       * key's construction. */
+      mapHost.append(legend);
+      mapHost.classList.add("has-inset-legend");
       mapHost.setAttribute("aria-busy", "false");
       if (!map.status.basemap) {
         mapHost.append(mapStatusNote("The map background is unavailable. " +
@@ -690,6 +709,10 @@ function renderSnow(payload: SnowpackPayload): void {
       mapHost.setAttribute("aria-busy", "false");
       mapHost.replaceChildren(mapStatusNote(
         "The map could not start. The chart and tables carry the same values."));
+      /* The same colours describe the chart below, so the key is kept even
+       * when there is no map to put it over. */
+      legend.classList.remove("map-inset-legend");
+      mapHost.append(legend);
       publishReady();
     }
   })();

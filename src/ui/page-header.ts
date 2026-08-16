@@ -32,6 +32,30 @@ interface PageLink {
 }
 
 /**
+ * What each page is, said in full.
+ *
+ * Separate from the table above because the two lists are not the same list.
+ * `PAGES` is what appears in the bar, and the public data documentation is
+ * deliberately not in it — but it is still a page a reader can be on, and it
+ * still needs a name for a browser tab. Keying this by `PageId` rather than
+ * building it from `PAGES` is what lets the two differ without either one
+ * quietly losing an entry.
+ *
+ * These are longer than the bar's button text on purpose. The navigation
+ * clips rather than scrolls, so "Snowpack" is all that fits beside the other
+ * buttons; "Utah Snowpack" is what a tab, a bookmark or a shared link needs,
+ * where there is no bar around it to supply the context.
+ */
+const PAGE_SUBJECTS: Record<PageId, string> = {
+  map: "Utah Reservoir Storage",
+  overview: "Utah Storage Charts",
+  snow: "Utah Snowpack",
+  drought: "Utah Drought",
+  methods: "Methods and Sources",
+  data: "Public Data API"
+};
+
+/**
  * Every page a reader can reach from the bar, in one table.
  *
  * The menu and the buttons are generated from it, so the two cannot offer
@@ -76,16 +100,53 @@ const PAGES: readonly PageLink[] = [
  *
  * ADR-016 requires the official SDK name in the navigation, and this is it.
  */
-export function brandMarkup(headingLevel: 1 | 2): string {
+/**
+ * The site's name.
+ *
+ * It was "Utah Reservoir Dashboard", which was accurate when reservoirs were
+ * all there was. The site now carries mountain snow and the weekly drought
+ * map beside the storage, and two of its five surfaces are not about
+ * reservoirs at all, so the old name described a third of it.
+ */
+export const SITE_NAME = "Utah Water Dashboard";
+/** The same name where the bar is too narrow for the whole of it. */
+export const SITE_NAME_SHORT = "Utah Water";
+
+/** What a page calls itself in a browser tab, a bookmark or a shared link. */
+export function pageTitle(current: PageId): string {
+  return `${PAGE_SUBJECTS[current]} — ${SITE_NAME}`;
+}
+
+/**
+ * The product mark, the site name, and what this page is.
+ *
+ * Our own markup rather than calcite-navigation-logo: that component lays
+ * its description attribute out against the full 64px bar, which left an
+ * 11px gap under the heading and put the subtitle on the bottom edge. The
+ * arrangement that replaced it moved the SDK name into its own horizontal
+ * slot, where it cost about 180px of a bar that clips whatever does not fit.
+ *
+ * The heading names the page and not the site, which is the way round it
+ * should always have been: every page's `h1` was "Utah Reservoir Dashboard",
+ * so a reader moving between five surfaces was told the same thing five
+ * times and never which one they were on. The site name stays above it as
+ * ordinary text, because the site is the context and the page is the
+ * subject.
+ *
+ * ADR-016 requires the official SDK name in the navigation, and this is it.
+ */
+export function brandMarkup(headingLevel: 1 | 2, current: PageId): string {
   const tag = `h${headingLevel}`;
+  const subject = PAGE_SUBJECTS[current];
   return `
     <div id="brand" slot="logo">
       <calcite-icon icon="water-drop" scale="l" aria-hidden="true"></calcite-icon>
       <span class="brand-text">
-        <${tag} id="brand-title" aria-label="Utah Reservoir Dashboard">
-          <span class="brand-title-wide" aria-hidden="true">Utah Reservoir Dashboard</span>
-          <span class="brand-title-narrow" aria-hidden="true">Utah Reservoirs</span>
-        </${tag}>
+        <span id="site-name">
+          <span class="brand-title-wide" aria-hidden="true">${SITE_NAME}</span>
+          <span class="brand-title-narrow" aria-hidden="true">${SITE_NAME_SHORT}</span>
+        </span>
+        <${tag} id="brand-title">${subject}</${tag}>
         <span id="sdk-name">ArcGIS Maps SDK for JavaScript</span>
       </span>
     </div>`;

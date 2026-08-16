@@ -20,6 +20,10 @@ interface DashboardReady {
   late: number;
   basemap: boolean;
   basemapDegraded: boolean;
+  /** Basemap reference layers moved below this project's own layers. A
+   * basemap's reference stack draws above every operational layer, so this
+   * is what keeps a borrowed boundary off the reservoirs. */
+  basemapReferenceSunk: number;
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;

@@ -534,26 +534,32 @@ export function createReservoirReferenceLayer(
     renderer: {
       type: "simple",
       /*
-       * Quieter than it started, after seeing it over the drought classes.
+       * A dark core inside a light halo, because one colour cannot do it.
        *
-       * The first version was a translucent slate dot inside a near-opaque
-       * white ring, and the ring was the problem: at 5.5 pixels a 1-pixel
-       * white outline is a third of the symbol, so a field of them read as
-       * pale specks rather than dark points, and the white fought both the
-       * monitor's yellows and the muted canvas underneath.
+       * This sits on the drought classes, and that ramp runs from D0 yellow
+       * (#ffff00) to D4 maroon (#730000) -- relative luminance 0.93 down to
+       * 0.04. A single dark dot is 13:1 against the yellow end and about
+       * 1.2:1 against the maroon end, which is not a low contrast so much as
+       * no contrast: the reservoirs disappeared exactly where a reservoir
+       * inside extreme drought is the most worth seeing.
        *
-       * Solid fill, no halo, and a hairline of the same dark colour instead.
-       * The dot now reads as one mark at one value -- which is the whole
-       * claim, since these carry no data of their own -- and it separates
-       * from every drought class by darkness rather than by contrast with a
-       * white edge. Smaller, too: it is a locator, not a subject.
+       * An earlier version did carry a white ring and was removed for
+       * reading as a field of pale specks. That version's fill was
+       * *translucent* slate, so the ring was most of what showed; this one
+       * is opaque, so the mark reads dark and the halo only separates it
+       * from what is underneath. Slightly larger too, which is what lets the
+       * ring be a smaller fraction of the symbol than it was then.
+       *
+       * Still achromatic on purpose. These points carry no value of their
+       * own, so they must not introduce a second colour language competing
+       * with the monitor's.
        */
       symbol: {
         type: "simple-marker",
         style: "circle",
-        size: 5,
-        color: [31, 43, 51, 0.92],
-        outline: { color: "rgba(255,255,255,0.55)", width: 0.5 }
+        size: 6.5,
+        color: [31, 43, 51, 1],
+        outline: { color: "rgba(247,250,252,0.92)", width: 1.1 }
       }
     } as never
   });

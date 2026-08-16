@@ -418,8 +418,15 @@ for (const viewport of VIEWPORTS) {
      * an empty basemap with no way back except reloading. */
     check(ready.navigationBounds === true,
       `${label}: map navigation is not held inside the region`);
-    check(ready.minZoom === 4,
-      `${label}: the map can zoom out to ${ready.minZoom}, expected 4`);
+    check(ready.minZoom === 5,
+      `${label}: the map can zoom out to ${ready.minZoom}, expected 5`);
+    /* The basemap's own reference stack draws above every operational layer,
+     * so a boundary in it lands on top of the reservoirs no matter how the
+     * operational layers are ordered. Moving it below them is the only fix,
+     * and this is the count that says it happened. */
+    check(ready.basemapReferenceSunk >= 1,
+      `${label}: ${ready.basemapReferenceSunk} basemap reference layers were ` +
+      "moved below this project's own layers, expected at least one");
     check(ready.boundaryPoints > 100,
       `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
     check(ready.drainageAreas === expectedAreas,
@@ -1567,9 +1574,17 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
   `${label}: ${hostId} carries ${frame.controls.join(",")}`);
   check(frame.controlsInside,
     `${label}: a map control on ${hostId} sits outside the card`);
-  check(frame.layers.join(",") === layerIds.join(","),
-    `${label}: ${hostId} draws ${frame.layers.join(",")}, expected ${layerIds.join(",")}`);
-  check(frame.bounded && frame.minZoom === 4,
+  /* The expected list is what this project draws, in order. The basemap's
+   * own reference layer is sunk to the bottom of the same stack (see
+   * `arcgis/basemap-reference.ts`), so it is stripped before comparing --
+   * checking it is there at all is a separate assertion below, and folding
+   * the two together would let either one go missing unnoticed. */
+  const ownLayers = frame.layers.filter((id) => !/-reference-layer$/.test(id));
+  check(frame.layers.length > ownLayers.length,
+    `${label}: ${hostId} has no sunk basemap reference layer`);
+  check(ownLayers.join(",") === layerIds.join(","),
+    `${label}: ${hostId} draws ${ownLayers.join(",")}, expected ${layerIds.join(",")}`);
+  check(frame.bounded && frame.minZoom === 5,
     `${label}: ${hostId} navigation bounds ${frame.bounded}, minimum zoom ${frame.minZoom}`);
   /* The storage map opens near 1:10,700,000. A card is a different shape,
    * so this is a band rather than a number -- but a view that has fallen
@@ -1891,7 +1906,11 @@ for (const viewport of VIEWPORTS) {
       counties: mapState.ready?.mapCountyBoundaries
     }));
     await checkViewMapParity(tab, check, label, "drought-map-host", "drought-map-hover",
-      [...boundaryLayers, "usdm-classes", "drainage-outlines", "reservoir-reference"]);
+      /* Terrain shade sits above the classes and below the outlines: it
+       * varies the classes' lightness with the ground without darkening this
+       * project's own reference geometry. See `arcgis/hillshade.ts`. */
+      [...boundaryLayers, "usdm-classes", "terrain-shade",
+        "drainage-outlines", "reservoir-reference"]);
     /* The label ladder: at the opening view the states are named and the
      * reservoirs are not, which is the whole point of the thresholds. The
      * counties are not even fetched yet. */

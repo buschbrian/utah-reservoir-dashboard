@@ -15,11 +15,14 @@
  */
 import type ArcGISMap from "@arcgis/core/Map";
 import { resolveStyledBasemap, type BasemapStyle } from "../arcgis/basemaps";
+import { sinkBasemapReferenceLayers } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 
 export interface ThemeBasemapStatus {
   basemap: boolean;
   degraded: boolean;
+  /** Basemap reference layers moved below this project's own layers. */
+  referenceSunk: number;
 }
 
 /**
@@ -41,13 +44,19 @@ export async function followThemeBasemap(
      * signal report no background on a map that visibly has one. Only the
      * first load reports a failure, because then there really is nothing. */
     if (!resolution.resource) {
-      if (firstLoad) onChange({ basemap: false, degraded: resolution.degraded });
+      if (firstLoad) {
+        onChange({ basemap: false, degraded: resolution.degraded, referenceSunk: 0 });
+      }
       return;
     }
     /* The property is typed for autocast objects only under exact
      * optional properties; a real Basemap is what it wants at runtime. */
     (map as unknown as { basemap: unknown }).basemap = resolution.resource;
-    onChange({ basemap: true, degraded: resolution.degraded });
+    /* Every swap brings a fresh reference stack, and that stack draws above
+     * every operational layer -- so it has to be sunk again here, not just
+     * once at load. See `arcgis/basemap-reference.ts`. */
+    const referenceSunk = sinkBasemapReferenceLayers(map);
+    onChange({ basemap: true, degraded: resolution.degraded, referenceSunk });
   };
   await apply(true);
   let pending: Promise<void> = Promise.resolve();

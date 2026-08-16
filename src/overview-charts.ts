@@ -270,6 +270,39 @@ async function seriesSettled(model: SeriesModel, expected: number): Promise<void
   }
 }
 
+/**
+ * What the four lines across the histogram mean.
+ *
+ * The chart draws a mean, a median, a standard-deviation band and a fitted
+ * normal curve, in four different line styles, and the SDK's own legend is
+ * off (see `legendVisibility` below, and the reasons beside it). So the chart
+ * carried four unexplained lines: a reader could see that something was
+ * marked at 46% and had no way to learn what.
+ *
+ * Built from `CHART_INK` and the same dash patterns the symbols use, so the
+ * key cannot drift from the chart it explains -- changing a line's colour in
+ * one place changes both.
+ */
+export interface OverlayKeyEntry {
+  label: string;
+  color: string;
+  /** How the swatch is drawn, matching the symbol's own line style. */
+  style: "solid" | "dashed" | "dotted";
+}
+
+function inkToCss(ink: readonly [number, number, number, number]): string {
+  return `rgba(${ink[0]}, ${ink[1]}, ${ink[2]}, ${(ink[3] / 255).toFixed(3)})`;
+}
+
+export function distributionOverlayKey(): OverlayKeyEntry[] {
+  return [
+    { label: "Mean", color: inkToCss(CHART_INK.mean), style: "solid" },
+    { label: "Middle value", color: inkToCss(CHART_INK.median), style: "dashed" },
+    { label: "One standard deviation", color: inkToCss(CHART_INK.guide), style: "dotted" },
+    { label: "Fitted normal curve", color: inkToCss(CHART_INK.guide), style: "solid" }
+  ];
+}
+
 /** The legend the charts share with the map: the class table, in order. */
 export function storageLegendEntries(): { label: string; color: string }[] {
   return STORAGE_CLASSES.map((entry) => ({ label: entry.label, color: entry.color }));

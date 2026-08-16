@@ -56,14 +56,38 @@ export function expandBounds(
 export const MAP_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
   expandBounds(HUC6_BOUNDS, 2);
 
-/** Keeps a Utah dashboard from becoming a world map, while leaving the
- * connected Colorado River and Great Basin context visible. */
-export const MAP_MIN_ZOOM = 4;
+/**
+ * How far out any of the maps will go.
+ *
+ * Measured rather than chosen. In Web Mercator a zoom level is about
+ * 1:591,657,527 / 2^z, so this was 4, which is 1:37,000,000 -- most of North
+ * America, on a dashboard about one state's water. The three maps open
+ * between 1:5,000,000 and 1:11,000,000, so four levels of zoom-out were
+ * available and only the first was about Utah.
+ *
+ * 5 is 1:18,500,000, a little under two levels out from the widest opening
+ * view. That still holds the whole connected Colorado River and Great Basin
+ * geography this dashboard covers, which reaches from -115.7 to -105.6, and
+ * stops well short of a world map.
+ *
+ * `constraints.geometry` does not do this job. It restricts where the view's
+ * centre may go, so on its own it stops a reader panning to Europe and does
+ * nothing at all about zooming out until Europe is on screen anyway.
+ */
+export const MAP_MIN_ZOOM = 5;
 
 export const MAP_CENTER: readonly [number, number] = [-111.55, 39.50];
 
-/** The closest any of the maps will zoom. Deep enough to read a dam. */
-export const MAP_MAX_ZOOM = 23;
+/**
+ * The closest any of the maps will zoom. Deep enough to read a dam.
+ *
+ * 16 is about 1:9,000, which puts a single dam and its outlet across the
+ * canvas. It was 23, roughly 1:70 -- a scale at which a reservoir polygon is
+ * kilometres off screen in every direction and the basemap has no tiles left
+ * to draw. Nothing this site publishes is measured finely enough to reward
+ * going past a dam.
+ */
+export const MAP_MAX_ZOOM = 16;
 
 /**
  * How close selecting a reservoir gets. Chosen so the neighbours stay on

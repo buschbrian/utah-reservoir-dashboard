@@ -266,12 +266,40 @@ describe("a data-only commit deploys on its own", () => {
     expect(config).toContain('resolve(root, "legacy", "index.html")');
   });
 
-  it("names the primary ArcGIS surfaces by topic", async () => {
+  /*
+   * Two names per page, and they are not the same name.
+   *
+   * The bar's button text has to stay short because `calcite-navigation`
+   * clips rather than scrolls, so it says "Snowpack". A browser tab has no
+   * bar around it to supply the context, so it says "Utah Snowpack — Utah
+   * Water Dashboard". Both are checked here because the failure mode is one
+   * of them being changed and the other forgotten, which nothing else sees.
+   */
+  it("names every page by its subject, in the tab and in the bar", async () => {
     const header = await read("src/ui/page-header.ts");
+    // Short in the bar, where the width is the constraint.
     expect(header).toContain('text: "Storage map", menuText: "Storage map"');
     expect(header).toContain('text: "Storage charts", menuText: "Storage charts"');
-    expect(await read("index.html")).toContain("<title>Storage map —");
-    expect(await read("overview.html")).toContain("<title>Storage charts —");
+
+    const titles: Record<string, string> = {
+      "index.html": "Utah Reservoir Storage",
+      "modern.html": "Utah Reservoir Storage",
+      "overview.html": "Utah Storage Charts",
+      "snow.html": "Utah Snowpack",
+      "drought.html": "Utah Drought",
+      "methods.html": "Methods and Sources",
+      "data.html": "Public Data API"
+    };
+    for (const [file, subject] of Object.entries(titles)) {
+      expect(await read(file), `${file} must name its own subject`)
+        .toContain(`<title>${subject} — Utah Water Dashboard</title>`);
+      // And the subject the page header writes must be the same one.
+      expect(header, `${file}'s subject is missing from the header table`)
+        .toContain(`"${subject}"`);
+    }
+    /* The site is named once, in one place. A second literal spelling of it
+     * is how the bar and the tab drift apart. */
+    expect(header).toContain('export const SITE_NAME = "Utah Water Dashboard"');
   });
 
   /* Redirect paths remain public contracts, but complete comparison runtimes

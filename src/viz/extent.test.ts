@@ -24,11 +24,39 @@ const legacy = loadLegacyApi();
 const reservoirs = readPayload().reservoirs;
 
 describe("the navigable region", () => {
-  it("is the region both production maps already use", () => {
+  /*
+   * The geography stays pinned to the frozen module. Where a reader may go
+   * is a contract shared with the saved links the retired routes translate,
+   * and it must not drift.
+   *
+   * How far they may zoom is not, and is no longer checked against it. That
+   * parity was written when two production maps had to agree with each
+   * other; ADR-031 retired the second, and the frozen module is source-only
+   * and draws nothing. Holding the view's constraints to it meant a value
+   * measured against the real cards -- which is how 4 was found to be
+   * 1:37,000,000, most of a continent -- could not be corrected without
+   * editing an oracle whose job is colour.
+   *
+   * So these two are asserted for what they have to be true of instead.
+   */
+  it("is the region the retired routes still translate links into", () => {
     expect(MAP_BOUNDS.map((corner) => [...corner])).toEqual(legacy.MAP_BOUNDS.map((c) => [...c]));
-    expect(MAP_MIN_ZOOM).toBe(legacy.MAP_MIN_ZOOM);
-    expect(MAP_MAX_ZOOM).toBe(legacy.MAP_MAX_ZOOM);
     expect([...MAP_CENTER]).toEqual([...legacy.MAP_CENTER]);
+  });
+
+  it("keeps the zoom envelope between a world map and a dam", () => {
+    expect(MAP_MIN_ZOOM).toBeLessThan(MAP_MAX_ZOOM);
+    /* Web Mercator scale is about 1:591,657,527 / 2^z. Level 5 is
+     * 1:18,500,000, which still holds the whole connected geography this
+     * dashboard covers; anything lower starts showing the continent. */
+    expect(MAP_MIN_ZOOM).toBeGreaterThanOrEqual(5);
+    /* And far enough out that every map's opening view is reachable. The
+     * widest of them opens near 1:11,000,000, which is level 5.7. */
+    expect(MAP_MIN_ZOOM).toBeLessThanOrEqual(6);
+    /* Deep enough to read a dam, and no deeper: past about 1:9,000 there is
+     * nothing in this data finer to look at. */
+    expect(MAP_MAX_ZOOM).toBeGreaterThanOrEqual(14);
+    expect(MAP_MAX_ZOOM).toBeLessThanOrEqual(18);
   });
 
   it("describes the same box as an extent", () => {

@@ -153,14 +153,14 @@ export function renderShell(root: HTMLElement): void {
     <a class="skip-link" href="#map-host">Skip to the reservoir map</a>
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
-        ${brandMarkup(1)}
+        ${brandMarkup(1, "map")}
         ${pageLinksMarkup("map")}
         <!-- Icon only. With their text these were 152px and 145px in a bar
              whose contents have to fit inside the viewport, spent on two
              words each that the panel they open repeats as its own heading.
              The label attribute is what a screen reader announces either way. -->
         <calcite-action id="controls-toggle" slot="content-end" text="Storage summary"
-          icon="sliders-horizontal" label="Show or hide the storage summary" active></calcite-action>
+          icon="sliders-horizontal" label="Show or hide the storage summary"></calcite-action>
         <calcite-action id="detail-toggle" slot="content-end" text="Reservoir details"
           icon="information" label="Show or hide the reservoir details"></calcite-action>
         <calcite-action id="table-toggle" slot="content-end" text="Table and chart"

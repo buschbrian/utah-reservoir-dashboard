@@ -37,6 +37,38 @@ function setOpen(element: ToggleSurface, open: boolean): void {
   else element.collapsed = !open;
 }
 
+/**
+ * The header action that opens a surface, reporting whether it is open.
+ *
+ * All three panel toggles do this now. Two of them did not: the table's
+ * toggle reported its state and the other two did not, and the storage
+ * summary's `active` was written into the template as a literal -- so it was
+ * lit from first paint and stayed lit whether the panel was open or shut.
+ * Reporting a surface's state has to come from the surface, or it is a
+ * decoration that happens to be right once.
+ *
+ * `active` is what a reader sees; `aria-pressed` is the same fact for a
+ * reader who cannot see it. Both, always, or the header lies to one of them.
+ */
+function reportToggle(id: string, open: boolean): void {
+  const toggle = document.getElementById(id);
+  if (!toggle) return;
+  toggle.toggleAttribute("active", open);
+  toggle.setAttribute("aria-pressed", String(open));
+}
+
+/** The toggle that belongs to each surface, whichever width is in play. */
+const SURFACE_TOGGLES: Record<"start" | "detail", string> = {
+  start: "controls-toggle",
+  detail: "detail-toggle"
+};
+
+/** Opens or closes a surface and puts its header action at the same state. */
+function setSurfaceOpen(kind: "start" | "detail", open: boolean): void {
+  setOpen(activeSurface(kind), open);
+  reportToggle(SURFACE_TOGGLES[kind], open);
+}
+
 function isOpen(element: ToggleSurface): boolean {
   return "open" in element ? Boolean(element.open) : !element.collapsed;
 }
@@ -69,15 +101,23 @@ function syncResponsiveShell(): void {
     setOpen(detailSheet, false);
     setOpen(startPanel, true);
   }
+  /* Crossing the width changes which surface each toggle drives, and closes
+   * the pair belonging to the other width. The header has to follow, or a
+   * rotation leaves two actions describing surfaces that are no longer
+   * there. */
+  reportToggle(SURFACE_TOGGLES.start, isOpen(activeSurface("start")));
+  reportToggle(SURFACE_TOGGLES.detail, isOpen(activeSurface("detail")));
 }
 
 export function wirePanels(): void {
   const startSheet = elementById<ToggleSurface>("start-sheet");
   const detailSheet = elementById<ToggleSurface>("detail-sheet");
   startSheet.addEventListener("calciteSheetClose", () => {
+    reportToggle(SURFACE_TOGGLES.start, false);
     void elementById<CalciteFocusable>("controls-toggle").setFocus();
   });
   detailSheet.addEventListener("calciteSheetClose", () => {
+    reportToggle(SURFACE_TOGGLES.detail, false);
     /* On a phone, details open over the still-open storage summary. Return
      * to the selected reservoir in that sheet, not to navigation behind the
      * modal surface. Calcite restores focus on its own too, so wait until its
@@ -90,15 +130,19 @@ export function wirePanels(): void {
     });
   });
   elementById("controls-toggle").addEventListener("click", () => {
-    const surface = activeSurface("start");
-    setOpen(surface, !isOpen(surface));
+    setSurfaceOpen("start", !isOpen(activeSurface("start")));
   });
   elementById("detail-toggle").addEventListener("click", () => {
-    const surface = activeSurface("detail");
-    setOpen(surface, !isOpen(surface));
+    setSurfaceOpen("detail", !isOpen(activeSurface("detail")));
   });
-  elementById("start-sheet-close").addEventListener("click", () => setOpen(startSheet, false));
-  elementById("detail-sheet-close").addEventListener("click", () => setOpen(detailSheet, false));
+  elementById("start-sheet-close").addEventListener("click", () => {
+    setOpen(startSheet, false);
+    reportToggle(SURFACE_TOGGLES.start, false);
+  });
+  elementById("detail-sheet-close").addEventListener("click", () => {
+    setOpen(detailSheet, false);
+    reportToggle(SURFACE_TOGGLES.detail, false);
+  });
   mobileQuery.addEventListener("change", syncResponsiveShell);
   syncResponsiveShell();
 }
@@ -602,7 +646,7 @@ export function setDetail(view: DetailView | null, onExport?: () => void): void 
 
 /** Brings the details into view where the reader is: panel or sheet. */
 export function revealDetail(): void {
-  setOpen(activeSurface("detail"), true);
+  setSurfaceOpen("detail", true);
 }
 
 export function setSummary(

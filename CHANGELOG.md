@@ -7,6 +7,21 @@ and is not listed here.
 
 ### Added
 
+- **The drought map is drawn on terrain.** A public hillshade is multiplied
+  over the drought classes, so the pattern now sits on ground that shows
+  where the mountains and the desert basins are. It is drawn *above* the
+  classes rather than beneath them, which keeps every class exactly the
+  colour the Drought Monitor published and varies only its lightness.
+
+- **The snowpack map carries its key inside the map**, as the drought map
+  already did. Matching a colour to a class no longer means looking away
+  from the pattern.
+
+- **The histogram on the storage charts page says what its lines mean.** It
+  draws a mean, a middle value, a standard deviation band and a fitted
+  normal curve in four line styles, and carried no key at all. The key sits
+  under the chart, so the bars keep the full width of the card.
+
 - **You can choose which years "normal" means.** The storage map has a
   "Compare against" control with two periods: **1991 through 2020**, the
   standard thirty-year climate period and the same one the mountain snow
@@ -40,6 +55,56 @@ and is not listed here.
   yet. It describes the whole region and does not follow the filters below it.
 
 ### Changed
+
+- **Every page now names itself.** The site is the **Utah Water Dashboard** —
+  it carries mountain snow and the weekly drought map beside the storage, and
+  two of its five surfaces are not about reservoirs at all, so the old name
+  described a third of it. Each page is now "Utah Snowpack", "Utah Drought",
+  "Utah Reservoir Storage" and so on, in the browser tab and as the page's
+  own heading. Every page's heading used to be the site name, so moving
+  between five surfaces told you the same thing five times.
+
+- **Borrowed map boundaries no longer draw over the reservoirs.** A basemap
+  has two layer stacks, and its reference stack draws above everything a map
+  puts on top of the ground — so the background's own state boundaries were
+  landing on the data, most visibly as a line straight through Flaming Gorge,
+  which sits on the Utah–Wyoming border. Those layers are now moved beneath
+  this project's own. An earlier attempt reordered the wrong stack and could
+  never have worked.
+
+- **The reservoir details panel stacks its labels above their values.** The
+  two columns worked while every label was two words; once a label had to
+  name a period, the label column took 261 of 320 pixels and left the values
+  14 pixels to wrap inside.
+
+- **The maps hold a tighter zoom envelope.** They could be zoomed out to
+  about 1:37,000,000 — most of North America — and in to about 1:70, well
+  past the point where there is anything left to draw. The range is now
+  1:18,500,000 to about 1:9,000. Holding the view inside the region does not
+  do this on its own: that restricts where the centre may go, not how far
+  out you may zoom.
+
+- **The snow and drought maps are taller, and show far less empty ground.**
+  The drawn region is 869 km wide by 923 km tall and the cards were nearly
+  three times wider than they were tall, so the view fitted the height and
+  spent the rest on emptiness — 2,509 km of width for an 869 km region. They
+  are now slightly narrower in proportion than the storage map's own stage.
+
+- **Reservoirs on the drought map are a dark point inside a light ring.** A
+  single dark dot is clearly visible on the pale end of the drought ramp and
+  effectively invisible on the dark end, which is exactly where a reservoir
+  inside extreme drought is most worth seeing.
+
+- **The weekly summary follows the reservoirs you are looking at.** It always
+  described every published reservoir, so the Lake Powell switch above it did
+  nothing — and Lake Powell is roughly half of the region's weekly movement.
+  The snow and drought parts still describe the whole region, because they
+  are not made of reservoirs, and each says so.
+
+- **The header actions report whether their panel is open.** The storage
+  summary's was written as always-on in the markup, so it was lit from first
+  paint whether the panel was open or shut, and the reservoir details action
+  never lit at all.
 
 - **The map now opens on the standard climate period, so most numbers read
   lower than they did.** That is the correction, not a fault: comparing

@@ -296,15 +296,57 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   background: var(--app-surface);
   font-size: .8125rem;
 }
+/*
+ * The reservoir readings, stacked rather than in two columns.
+ *
+ * They were `minmax(0, auto) minmax(0, 1fr)`, and the auto track sizes to the
+ * longest label in the list. That was survivable while every label was two
+ * words. It stopped being survivable the moment a label had to name a period
+ * -- "Normal for this week, 1991 through 2020" -- because in a 320px panel
+ * the label track resolved to 261px and left the values 14px to wrap inside,
+ * which is what produced the overlapping wall of text.
+ *
+ * Capping the label track would only trade one bad column for another: the
+ * values here are long too ("3,788,900 acre-feet, measured as the normal full
+ * level"), and there is no split of 320px that gives both a fair share.
+ *
+ * So the label goes above its value. It costs vertical space in a panel that
+ * scrolls anyway, and it cannot break again as labels grow -- which they will,
+ * because a label naming what it measured is the house rule everywhere else on
+ * this site.
+ */
 .detail-rows {
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  gap: .35rem .75rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   margin: 0;
   font-size: .875rem;
 }
-.detail-rows dt { color: var(--app-muted); }
-.detail-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
+/* Smaller and quieter than its value, not shouted.
+ *
+ * These were briefly uppercased, which was wrong twice over. These labels now
+ * name a period -- "Normal for this week, 1991 through 2020" -- and a long
+ * uppercase string is markedly harder to read than a sentence-case one. It
+ * also changes the rendered text: `innerText` returns what CSS transformed,
+ * so the words a test (or anything else reading the page) sees stop being the
+ * words the code wrote. Size and colour separate the label from its value
+ * without touching either. */
+.detail-rows dt {
+  margin-block-start: .6rem;
+  color: var(--app-muted);
+  font-size: .75rem;
+  line-height: 1.35;
+}
+.detail-rows dt:first-child { margin-block-start: 0; }
+.detail-rows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  /* Long words in a narrow column -- a reservoir name inside a value, or a
+   * hyphenated measure -- break rather than push the panel sideways. No page
+   * on this site may scroll horizontally at 360px. */
+  overflow-wrap: anywhere;
+}
 .detail-export { margin-block-start: 1rem; }
 /* A fall, in the panel and in the table. Not colour alone: the value it
  * marks already carries a minus sign, so this is emphasis on a fact the
@@ -494,19 +536,41 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   gap: .0625rem;
   min-width: 0;
 }
+/* The page's own name, which is the heading. It is the largest of the three
+   lines because it is the one that changes as a reader moves around. */
 #brand-title {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.2;
 }
+/* The site above the page, small and quiet: it is the context, not the
+   subject, and it says the same thing on every page. */
+#site-name {
+  color: var(--app-muted);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
 #brand-title,
+#site-name,
 #sdk-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand-title-narrow { display: none; }
 #sdk-name {
   color: var(--app-muted);
   font-size: .75rem;
   line-height: 1.2;
+}
+/* Three lines do not fit the 64px bar. The SDK name is the one that goes:
+   ADR-016 requires it in the navigation, and it is still there on every
+   width wide enough to hold it, which is where a reader looking for it
+   would look. Below that width the page name wins the row, because a reader
+   who cannot tell which page they are on is worse off than one who cannot
+   see which SDK drew it. */
+@media (max-width: 75rem) {
+  #sdk-name { display: none; }
 }
 
 /* The links are buttons on a wide bar and one menu on a narrow one. Below

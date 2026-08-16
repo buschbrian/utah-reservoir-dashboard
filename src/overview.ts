@@ -12,7 +12,9 @@ import { weeklySummary } from "./weekly-model";
 import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
-import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
+import {
+  isLakePowell, isLate, statewideRollup, type ReservoirGeography
+} from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import {
   overviewStateFromSearch,
@@ -22,6 +24,7 @@ import {
 import { STORAGE_CLASSES } from "./viz/classes";
 import { contrastingTextColor } from "./viz/color";
 import {
+  distributionOverlayKey,
   renderArcgisBarChart,
   renderArcgisDistributionChart,
   renderArcgisNormalChart,
@@ -44,7 +47,9 @@ import {
   type OverviewCadence,
   type OverviewSort
 } from "./overview-model";
-import type { Reservoir } from "./types";
+import type {
+  DroughtCoveragePayload, Reservoir, SnowpackPayload
+} from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
@@ -61,7 +66,7 @@ root.innerHTML = `
          which said the same thing twice at two sizes; with that gone the
          bar has to be the h1, or the page has none at all. The map shell
          has always done it this way. -->
-    ${brandMarkup(1)}
+    ${brandMarkup(1, "overview")}
     ${pageLinksMarkup("overview")}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
@@ -138,7 +143,8 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       <div class="card-heading">
         <div>
           <h2 id="weekly-heading">What moved this week</h2>
-          <p>The last seven days across every published reservoir, worked out from the same files the rest of this site draws. It describes the whole region and does not change with the filters below. Nothing here is a forecast, and each part says what it could not measure.</p>
+          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so turning Lake Powell off changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
+          <p class="weekly-scope" data-weekly="scope" role="status" aria-live="polite"></p>
         </div>
       </div>
       <div class="weekly-sections"></div>
@@ -218,6 +224,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       <section class="overview-card" aria-labelledby="distribution-heading">
         <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">Histogram</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
+        <!-- Under the chart, not beside it. The histogram is the widest thing
+             on this page and a key in a side rail would take width from the
+             bars; a row underneath spreads across the full card and keeps the
+             chart symmetrical. -->
+        <ul class="overlay-key" id="distribution-key"
+          aria-label="What the lines across the histogram mean"></ul>
       </section>
       <section class="overview-card" aria-labelledby="spread-heading">
         <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">Box plot</span></div>
@@ -274,6 +286,22 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const trendHost = document.querySelector<HTMLElement>("#trend-chart");
   const normalHost = document.querySelector<HTMLElement>("#normal-chart");
   const distributionHost = document.querySelector<HTMLElement>("#distribution-chart");
+  /* Written once, from the chart module's own colours. It does not change
+   * with the filters -- the lines mean the same thing whatever is in view --
+   * so it is not rebuilt on every update. */
+  const distributionKey = document.querySelector<HTMLElement>("#distribution-key");
+  if (distributionKey) {
+    distributionKey.replaceChildren(...distributionOverlayKey().map((entry) => {
+      const item = document.createElement("li");
+      const swatch = document.createElement("span");
+      swatch.className = `overlay-key-line overlay-key-${entry.style}`;
+      swatch.style.setProperty("--overlay-key-color", entry.color);
+      const text = document.createElement("span");
+      text.textContent = entry.label;
+      item.append(swatch, text);
+      return item;
+    }));
+  }
   const spreadHost = document.querySelector<HTMLElement>("#spread-chart");
   const chartLimit = document.querySelector<HTMLSelectElement>("#chart-limit");
   const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
@@ -376,6 +404,17 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       ? matching
       : matching.filter((reservoir) => classIndexOf(reservoir) === storageClassFilter);
     updateKpis(visible);
+    /* The digest follows the scope, not the filters.
+     *
+     * That is the same line the map draws (ADR-011): a scope changes which
+     * reservoirs exist, a filter changes which of them are picked out. A
+     * digest that answered the search box would be describing a text query;
+     * one that ignores the Lake Powell switch is worse, because Powell is
+     * 25 of the region's 34 million acre-feet and "the measured reservoirs
+     * lost 69,480 acre-feet" is very nearly a sentence about Powell alone.
+     * Turning it off has to change the sentence, or the switch is decorative
+     * on this card. */
+    void renderWeekly(scoped);
     renderClassStrip(matching);
     exportRows = filterAndSort(visible, "", sort.value as OverviewSort);
     renderRows(tbody, exportRows);
@@ -532,12 +571,19 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
  * paragraph and nothing else -- which is why the model takes them as
  * nullable rather than requiring all three.
  */
-async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
-  const card = document.querySelector<HTMLElement>("#weekly-summary");
-  const host = card?.querySelector<HTMLElement>(".weekly-sections");
-  if (!card || !host) return;
+/*
+ * The two extra payloads, fetched once.
+ *
+ * The digest is redrawn whenever the reader changes the scope, and the snow
+ * file is 1.9 MB. Refetching it to answer "what if Lake Powell were not
+ * counted" would be a megabyte of network for a question about sixty-eight
+ * other reservoirs.
+ */
+let weeklyContext: Promise<[SnowpackPayload | null, DroughtCoveragePayload | null]>
+  | null = null;
 
-  const [snow, drought] = await Promise.all([
+function weeklyPayloads(): Promise<[SnowpackPayload | null, DroughtCoveragePayload | null]> {
+  weeklyContext ??= Promise.all([
     loadSnowpack().catch((error: unknown) => {
       console.warn("The weekly summary has no snow measurements:", error);
       return null;
@@ -547,6 +593,27 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
       return null;
     })
   ]);
+  return weeklyContext;
+}
+
+async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
+  const card = document.querySelector<HTMLElement>("#weekly-summary");
+  const host = card?.querySelector<HTMLElement>(".weekly-sections");
+  if (!card || !host) return;
+
+  const [snow, drought] = await weeklyPayloads();
+
+  /* Which reservoirs these figures are about, in the card rather than only in
+   * the controls that set it. A reader who arrives at the digest first should
+   * not have to look elsewhere to find out what "the measured reservoirs"
+   * means this time. */
+  const scopeLine = document.querySelector<HTMLElement>('[data-weekly="scope"]');
+  if (scopeLine) {
+    const hasPowell = reservoirs.some(isLakePowell);
+    scopeLine.textContent =
+      `Storage covers ${reservoirs.length} reservoirs, Lake Powell ` +
+      `${hasPowell ? "included" : "excluded"}.`;
+  }
 
   const sections = describeWeek(weeklySummary(reservoirs, snow, drought));
   host.replaceChildren(...sections.map((section) => {
@@ -574,7 +641,6 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
 try {
   const payload = await loadReservoirs();
   await renderOverview(payload.reservoirs, payload.generated_at);
-  await renderWeekly(payload.reservoirs);
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");
