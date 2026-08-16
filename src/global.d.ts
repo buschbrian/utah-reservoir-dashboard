@@ -71,6 +71,19 @@ interface Window {
     charts: number;
     lakePowellExcluded: boolean;
   };
+  /** The snowpack view finished drawing. `sites` and `basins` are what the
+   * payload provided; `tableRows` and `curvePoints` are what the page
+   * actually rendered, which is what catches a page that loads its data and
+   * draws none of it. `area` is the drainage-area narrowing, or null for the
+   * whole region. */
+  __snowReady?: {
+    sites: number;
+    late: number;
+    basins: number;
+    curvePoints: number;
+    tableRows: number;
+    area: string | null;
+  };
   /* The methods page settles whether or not the payload can be read: the
    * rules on it do not depend on the data. This reports that it finished,
    * which is the fact a test needs to know the page is not still waiting. */

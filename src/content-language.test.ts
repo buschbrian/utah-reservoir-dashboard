@@ -32,7 +32,13 @@ const userTextFiles = [
   // API field names are exact machine identifiers under ADR-026, but all
   // surrounding explanations on the page still follow ADR-006.
   "src/data-docs.ts",
-  "src/ui/page-header.ts"
+  "src/ui/page-header.ts",
+  // The snowpack view writes all of its own visible text, including the
+  // seasonal caveat and the axis words on the curve.
+  "snow.html",
+  "src/snow.ts",
+  "src/snow-model.ts",
+  "src/viz/snow-curve.ts"
 ];
 
 const oldUnexplainedTerms = [

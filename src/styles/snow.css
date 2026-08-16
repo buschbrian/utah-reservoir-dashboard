@@ -1,0 +1,21 @@
+/* The snowpack view's own styles: only the seasonal curve. The page layout,
+ * navigation, cards, filter bar and tables reuse the workspace stylesheet,
+ * so the two data pages stay one design that is edited in one place. */
+
+.snow-curve { display: block; }
+.snow-grid { stroke: var(--app-border); stroke-width: 1; }
+.snow-month-tick { stroke: var(--app-muted); }
+.snow-axis { font-size: 10px; fill: var(--app-muted); }
+.snow-normal-line { stroke: var(--app-muted); stroke-width: 1.25; stroke-dasharray: 5 4; }
+.snow-line {
+  fill: none;
+  stroke: var(--app-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.snow-line-dot, .snow-latest { fill: var(--app-accent); }
+.snow-latest { stroke: var(--app-surface-raised); stroke-width: 1.5; }
+
+.snow-month-details { margin-block-start: .75rem; }
+.snow-month-details summary { color: var(--app-muted); font-size: .8rem; cursor: pointer; }

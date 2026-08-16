@@ -315,21 +315,21 @@ for (const viewport of VIEWPORTS) {
       };
       return {
         menu: shown("#page-menu"),
-        buttons: ["#overview-link", "#methods-link"].filter(shown),
+        buttons: ["#overview-link", "#snow-link", "#methods-link"].filter(shown),
         menuItems: [...document.querySelectorAll("#page-menu calcite-dropdown-item")]
           .map((item) => item.getAttribute("href")),
-        buttonHrefs: ["#overview-link", "#methods-link"]
+        buttonHrefs: ["#overview-link", "#snow-link", "#methods-link"]
           .map((selector) => document.querySelector(selector)?.getAttribute("href"))
       };
     });
     const wideBar = viewport.width >= 1024;
     check(pageLinks.menu === !wideBar,
       `${label}: the page menu is ${pageLinks.menu ? "showing" : "hidden"} at ${viewport.width}px`);
-    check(pageLinks.buttons.length === (wideBar ? 2 : 0),
+    check(pageLinks.buttons.length === (wideBar ? 3 : 0),
       `${label}: ${pageLinks.buttons.length} page link buttons are showing at ${viewport.width}px`);
-    check(pageLinks.menuItems.join(",") === "./,./overview.html,./methods.html",
+    check(pageLinks.menuItems.join(",") === "./,./overview.html,./snow.html,./methods.html",
       `${label}: the page menu offers ${pageLinks.menuItems.join(", ")}`);
-    check(pageLinks.buttonHrefs.join(",") === "./overview.html,./methods.html",
+    check(pageLinks.buttonHrefs.join(",") === "./overview.html,./snow.html,./methods.html",
       `${label}: the page link buttons point at ${pageLinks.buttonHrefs.join(", ")}`);
     check(await tab.locator(".map-stage > .map-alternative").count() === 0,
       `${label}: the old table and charts overlay still covers the map`);
@@ -690,7 +690,7 @@ for (const viewport of VIEWPORTS) {
       /* Whatever is actually on the bar at this width. The link buttons
        * swap for the menu below 64rem, so naming a fixed set here would
        * measure a control that is display:none and pass on a zero box. */
-      const ids = ["brand", "page-menu", "overview-link", "methods-link",
+      const ids = ["brand", "page-menu", "overview-link", "snow-link", "methods-link",
         "controls-toggle", "detail-toggle", "table-toggle", "theme-toggle"]
         .filter((id) => {
           const element = document.getElementById(id);
@@ -1171,7 +1171,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       // The header's own links swap for the menu below 64rem, so only
       // whichever is actually showing at this width is measured.
       ...(viewport.width >= 1024
-        ? { "map-link": "./", "methods-link": "./methods.html" }
+        ? { "map-link": "./", "snow-link": "./snow.html", "methods-link": "./methods.html" }
         : { "page-menu-trigger": null })
     };
     const navControls = await tab.evaluate((ids) => ids.map((id) => {
@@ -1248,6 +1248,70 @@ for (const viewport of VIEWPORTS) {
     check(state.scroll <= state.viewport + 1,
       `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
     await tab.screenshot({ path: `screenshots/data-${viewport.name}.png`, fullPage: false });
+  } catch (err) {
+    failures.push(`${label}: ${err.message}`);
+  }
+  for (const err of errors) failures.push(`${label}: ${err}`);
+  await context.close();
+}
+
+/* The snowpack view (ADR-021). Loaded through a drainage-area deep link so
+ * the shared `?area=` vocabulary is proven, then switched to the whole
+ * region. The readiness counts protect against a page that paints the shell
+ * and draws no snow at all; the curve check is consistency, not presence,
+ * because in the first days of October no day has met the reporting floor
+ * yet and an empty chart with an explanation is the correct page. */
+for (const viewport of VIEWPORTS) {
+  const context = await browser.newContext({ viewport });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
+  });
+  const label = `Snowpack view (${viewport.name} ${viewport.width}px)`;
+  console.log(`\n=== ${label}`);
+  try {
+    await tab.goto(`${URL}snow.html?area=140100`, {
+      waitUntil: "domcontentloaded", timeout: 60000
+    });
+    await tab.waitForFunction("window.__snowReady !== undefined", { timeout: 60000 });
+    const linked = await tab.evaluate(() => ({
+      ready: window.__snowReady,
+      tableRows: document.querySelectorAll("#snow-site-rows tr").length,
+      areaControl: document.querySelector("#snow-area")?.value
+    }));
+    console.log("  ready:", JSON.stringify(linked.ready));
+    check(linked.ready?.area === "140100" && linked.areaControl === "140100",
+      `${label}: the shared link restored area ${linked.ready?.area}, control ${linked.areaControl}`);
+    check(linked.tableRows === linked.ready?.tableRows && linked.tableRows > 0,
+      `${label}: ${linked.tableRows} site rows rendered, readiness reported ${linked.ready?.tableRows}`);
+    check(linked.tableRows < linked.ready?.sites,
+      `${label}: a narrowed view shows ${linked.tableRows} of ${linked.ready?.sites} sites`);
+
+    await tab.selectOption("#snow-area", "all");
+    await tab.waitForFunction(
+      "window.__snowReady && window.__snowReady.area === null", { timeout: 10000 });
+    const state = await tab.evaluate(() => ({
+      ready: window.__snowReady,
+      tableRows: document.querySelectorAll("#snow-site-rows tr").length,
+      monthRows: document.querySelectorAll("#snow-month-rows tr").length,
+      curveDrawn: Boolean(document.querySelector("#snow-curve-host svg")),
+      search: window.location.search,
+      viewport: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth
+    }));
+    check(state.tableRows === state.ready?.sites && state.tableRows > 0,
+      `${label}: the whole region renders ${state.tableRows} of ${state.ready?.sites} sites`);
+    check(state.curveDrawn === (state.ready?.curvePoints > 0),
+      `${label}: curve drawn ${state.curveDrawn}, readiness holds ${state.ready?.curvePoints} points`);
+    check(state.ready?.curvePoints === 0 || state.monthRows > 0,
+      `${label}: a drawn curve published no month table rows`);
+    check(!state.search.includes("area="),
+      `${label}: the whole region still carries ${state.search}`);
+    check(state.scroll <= state.viewport + 1,
+      `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
+    await tab.screenshot({ path: `screenshots/snow-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);
   }

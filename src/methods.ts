@@ -80,15 +80,28 @@ root.innerHTML = `
         <dt>Full level for Bureau of Reclamation sites</dt>
         <dd>The U.S. Army Corps of Engineers National Inventory of Dams. These figures are
           committed to the repository rather than requested each morning, because a full
-          level is a property of the dam and does not change daily.</dd>
+          level is a property of the dam and does not change daily. Read the source at
+          <a href="https://nid.sec.usace.army.mil/" target="_blank"
+            rel="noreferrer">the National Inventory of Dams</a>.</dd>
         <dt>Full level for the other sites</dt>
         <dd>The reservoir details published by the Natural Resources Conservation Service
           alongside the storage readings.</dd>
+        <dt>Snow measurements</dt>
+        <dd>Daily snow water equivalent for the mountain sites on the snowpack page, from
+          the same Natural Resources Conservation Service water and climate service the
+          storage readings use. Each reading is compared with the middle value for the
+          same day in the years 1991 through 2020, the standard comparison period that
+          service publishes.</dd>
         <dt>Drainage areas</dt>
-        <dd>The U.S. Geological Survey Watershed Boundary Dataset, at the six-digit level.</dd>
+        <dd>The U.S. Geological Survey Watershed Boundary Dataset, at the six-digit level.
+          Read the source at
+          <a href="https://www.usgs.gov/national-hydrography/watershed-boundary-dataset"
+            target="_blank" rel="noreferrer">the Watershed Boundary Dataset</a>.</dd>
         <dt>State outline</dt>
         <dd>The Utah Geospatial Resource Center's maintained Utah State Boundary. It draws
-          the shaded area on the map and decides which reservoirs count as reaching Utah.</dd>
+          the shaded area on the map and decides which reservoirs count as reaching Utah.
+          Read the source at
+          <a href="https://gis.utah.gov/" target="_blank" rel="noreferrer">gis.utah.gov</a>.</dd>
       </dl>
     </section>
 
@@ -214,16 +227,30 @@ root.innerHTML = `
       <p>This dashboard displays public data collected and published by others. The
         measurements are theirs; the presentation is this project's.</p>
       <ul class="methods-plain">
-        <li>Bureau of Reclamation, for the daily reservoir storage record.</li>
-        <li>Natural Resources Conservation Service, for the statewide storage inventory.</li>
-        <li>U.S. Army Corps of Engineers, for the National Inventory of Dams.</li>
-        <li>U.S. Geological Survey, for the Watershed Boundary Dataset.</li>
-        <li>Utah Geospatial Resource Center, for the maintained state boundary.</li>
-        <li>Esri, for the ArcGIS Maps SDK for JavaScript, the Calcite design system and the
-          basemap services.</li>
-        <li>MapLibre and CARTO, for the second map engine kept alongside this one for
-          comparison.</li>
+        <li><a href="https://data.usbr.gov/" target="_blank" rel="noreferrer">Bureau of
+          Reclamation</a>, for the daily reservoir storage record.</li>
+        <li><a href="https://wcc.sc.egov.usda.gov/" target="_blank"
+          rel="noreferrer">Natural Resources Conservation Service</a>, for the statewide
+          storage inventory and the snow measurements.</li>
+        <li><a href="https://nid.sec.usace.army.mil/" target="_blank"
+          rel="noreferrer">U.S. Army Corps of Engineers</a>, for the National Inventory
+          of Dams.</li>
+        <li><a href="https://www.usgs.gov/national-hydrography/watershed-boundary-dataset"
+          target="_blank" rel="noreferrer">U.S. Geological Survey</a>, for the Watershed
+          Boundary Dataset.</li>
+        <li><a href="https://gis.utah.gov/" target="_blank" rel="noreferrer">Utah
+          Geospatial Resource Center</a>, for the maintained state boundary.</li>
+        <li><a href="https://developers.arcgis.com/javascript/" target="_blank"
+          rel="noreferrer">Esri</a>, for the ArcGIS Maps SDK for JavaScript, the Calcite
+          design system and the basemap services.</li>
+        <li><a href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre</a>
+          and <a href="https://carto.com/" target="_blank" rel="noreferrer">CARTO</a>,
+          for the second map engine kept alongside this one for comparison.</li>
       </ul>
+      <p>The complete source code, the daily refresh pipeline and every architecture
+        decision record are public at
+        <a href="https://github.com/buschbrian/utah-reservoir-dashboard" target="_blank"
+          rel="noreferrer">github.com/buschbrian/utah-reservoir-dashboard</a>.</p>
     </section>
   </main>`;
 wireTheme();

@@ -4,7 +4,8 @@
  * bundle -- so this helper stays out of the module graph of `main.ts`.
  */
 import { readFileSync } from "node:fs";
-import type { ReservoirPayload } from "../types";
+import type { ReservoirPayload, SnowpackPayload } from "../types";
+import { validateSnowpackPayload } from "./snow-validate";
 import { validateReservoirPayload } from "./validate";
 
 export function readPayload(): ReservoirPayload {
@@ -23,6 +24,12 @@ export function readPayloadWithoutNormalMetadata(): ReservoirPayload {
   delete value.normal_period;
   delete value.normal_window_days;
   return validateReservoirPayload(value);
+}
+
+/** The committed snow payload, through the same validator the browser uses. */
+export function readSnowpack(): SnowpackPayload {
+  const source = readFileSync(new URL("../../snowpack.json", import.meta.url), "utf8");
+  return validateSnowpackPayload(JSON.parse(source) as unknown);
 }
 
 export function readDrainageGeoJson(): unknown {

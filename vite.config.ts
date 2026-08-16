@@ -66,6 +66,7 @@ export default defineConfig({
         index: resolve(root, "index.html"),
         modern: resolve(root, "modern.html"),
         overview: resolve(root, "overview.html"),
+        snow: resolve(root, "snow.html"),
         methods: resolve(root, "methods.html"),
         data: resolve(root, "data.html"),
         explore: resolve(root, "explore.html")

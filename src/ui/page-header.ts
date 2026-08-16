@@ -17,7 +17,7 @@ import "@esri/calcite-components/components/calcite-dropdown-group";
 import "@esri/calcite-components/components/calcite-dropdown-item";
 import "@esri/calcite-components/components/calcite-icon";
 
-export type PageId = "map" | "overview" | "methods" | "data";
+export type PageId = "map" | "overview" | "snow" | "methods" | "data";
 
 interface PageLink {
   id: PageId;
@@ -47,6 +47,11 @@ const PAGES: readonly PageLink[] = [
     id: "overview", href: "./overview.html", icon: "table",
     text: "Storage charts", menuText: "Storage charts",
     label: "Open the storage charts and table"
+  },
+  {
+    id: "snow", href: "./snow.html", icon: "snow",
+    text: "Snowpack", menuText: "Snowpack",
+    label: "Open the mountain snowpack view"
   },
   {
     id: "methods", href: "./methods.html", icon: "question",
@@ -96,7 +101,7 @@ export function pageLinksMarkup(current: PageId): string {
           icon-start="${page.icon}"${page.id === current ? ' selected aria-current="page"' : ""}
           >${page.menuText}</calcite-dropdown-item>`).join("");
   const buttons = others.map((page) => `
-    <calcite-button id="${page.id}-link" slot="content-end" href="${page.href}"
+    <calcite-button id="${page.id}-link" class="page-link" slot="content-end" href="${page.href}"
       appearance="transparent" kind="neutral" icon-start="${page.icon}"
       label="${page.label}"><span class="page-link-text">${page.text}</span></calcite-button>`).join("");
 

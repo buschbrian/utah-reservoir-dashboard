@@ -7,6 +7,29 @@ and is not listed here.
 
 ### Added
 
+- **A snowpack view.** The navigation now carries a Snowpack page showing the
+  water stored in mountain snow: the seasonal curve of mean percent of normal
+  for the whole region or one drainage area, the value on the first day of
+  each month, and a table of every measurement site with its newest reading.
+  Normal is the middle value for the same day in the years 1991 through 2020,
+  and the page says so. Headline numbers require at least half the sites to
+  report, so October's first flurries and June's last unmelted stations
+  cannot become the page's largest numbers; the curve keeps the published
+  two-site floor and breaks where it is not met. A shared link carries the
+  drainage-area choice with the same name the storage map uses. The snow
+  payload is validated at the fetch boundary like the reservoir payload, and
+  a unit test holds the page's percent arithmetic to the pipeline's rollups
+  value for value.
+
+- **Every source on the methods page is now a link.** The sources and credit
+  sections link to the pages the data is actually driven from — the
+  Reclamation open-data service, the Natural Resources Conservation Service
+  water and climate service, the National Inventory of Dams, the Watershed
+  Boundary Dataset, the Utah Geospatial Resource Center, and the map and
+  design tooling — and the credit section links the public repository with
+  its pipeline and decision records. A new snow measurements entry names the
+  1991 through 2020 comparison period the snowpack page uses.
+
 - **A ranking chart beside the table under the map.** The bottom row now
   pairs the sortable table with a bar chart that ranks every reservoir the
   analysis controls match, lowest percent full first. It is drawn from the

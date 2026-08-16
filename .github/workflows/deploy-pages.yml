@@ -66,7 +66,7 @@ jobs:
         run: |
           missing=0
           for path in index.html modern.html legacy/index.html \
-                      overview.html methods.html data.html \
+                      overview.html snow.html methods.html data.html \
                       explore.html maplibre/index.html retired-route.js \
                       reservoirs.json capacities.json \
                       snow_sites.json snowpack.json \

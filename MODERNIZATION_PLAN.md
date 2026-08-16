@@ -1,12 +1,16 @@
 # Modernization Plan — Utah Reservoir Drought Dashboard
 
 **Status (2026-08-15):** Phases 0, 1, 1.5, 2, 3, and 5 are complete. The
-inventory portion of Phase 1.6 added Fontenelle; snowpack and drought context
-are not implemented. Phase 4 is underway: the chart workspace is live, its
-class colours, storage bands and reservoir summaries have completed their first
-accessibility pass, and the layer-driven ranking chart now runs on the primary
-application's bottom row. The ArcGIS 5.1 application is the root production
-view, and the earlier pages remain available as comparisons.
+inventory portion of Phase 1.6 added Fontenelle; drought context remains data
+only. Phase 4 is underway: the chart workspace is live, its class colours,
+storage bands and reservoir summaries have completed their first accessibility
+pass, and the layer-driven ranking chart now runs on the primary application's
+bottom row. The ArcGIS 5.1 application is the root production view. The first
+snowpack view shipped late on 2026-08-15: a fourth navigation surface with the
+seasonal percent-of-normal curve, drainage-area narrowing over `?area=`, and
+the full site table, validated at the fetch boundary and gated by its own
+browser smoke sections. Its map rendering (the basin choropleth) is still to
+build under slice 5.
 
 **Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
 unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
@@ -1267,11 +1271,25 @@ marked as implemented remains proposed until its named decision is accepted.
    time-series statistics, or uncertainty calculations. Publish small tested
    results by HUC6 before adding the view, then add the map, summaries, chart
    equivalents, deadlines, and readiness signal.
-5. **Build snowpack as its own vertical slice.** Finish the Phase 1.6 refresh
-   contract, validate `snowpack.json`, and expose reporting-site counts and
-   late readings. Then add one ArcGIS 5.1 snowpack view tied to the same HUC6
-   choices and shared links as storage. Do not put snow symbols or a second
-   colour table on the reservoir map.
+5. **Build snowpack as its own vertical slice — first version implemented
+   2026-08-15.** `snow.html` is a fourth navigation surface on the shared
+   shell: the seasonal curve for the whole region or one drainage area, the
+   first-of-month table behind it, headline values held to a half-the-sites
+   floor, the complete site table with late handling, and `?area=` deep
+   links. `snowpack.json` is validated at the fetch boundary
+   (`src/data/snow-validate.ts`), a unit test holds the client's percent
+   arithmetic to the pipeline's rollups, and the browser suite gates the
+   page at all three widths. Still to build: the ArcGIS basin-fill
+   choropleth and site markers, per-site accumulation curves with the
+   published normal timing, and the snow entry in the data reference. Do not
+   put snow symbols or a second colour table on the reservoir map. Design
+   decisions adopted from the external product review above: HUC6 basin-fill choropleth by percent of
+   the 1991–2020 normal median with sites reading on the same scale, the
+   seasonal accumulation curve as the subject rather than a current-value
+   headline, percent-of-normal before inches everywhere, and the full URL
+   state contract from day one. `snowpack.json` is 1.9 MB — roughly seven
+   times the reservoir payload — so the snow route fetches it on entry, not
+   with the shell.
 6. **Audit service and geometry sources — inventory begun and default enforced
    2026-08-15.** The source owner, exact endpoint, copy policy, update behavior,
    runtime failure behavior, and geometry treatment are now recorded in
@@ -1304,6 +1322,63 @@ marked as implemented remains proposed until its named decision is accepted.
    multi-state explorer. When that product is scoped, begin with a separate
    route and explicit region definitions rather than widening the Utah view
    silently.
+
+### External product review — 2026-08-15
+
+Two inputs were reviewed against this plan: the competitive landscape survey
+and its gap-action list (kept in the project owner's notes, assessed at commit
+`9a1f898`), and a direct read of the NRCS NWCC iMap — the interactive map the
+agency itself builds on the same AWDB API this pipeline calls. The four Tier 1
+gap actions (baseline disclosure, CSV export on the primary surfaces, the
+documented public API page, extended URL state) shipped 2026-08-14 and are not
+repeated here. What follows is what the review adds to the plan.
+
+**Adopted as plan rules:**
+
+1. **External products are sources, never surfaces.** No embed, iframe, or
+   link-out-as-feature for USDM, iMap, RISE, or any other product on the
+   landscape list. Each enters only as data through the existing pipeline
+   conventions: fetched by a tool, verified, committed or refreshed, rendered
+   in this project's symbology, vocabulary, and freshness handling. The
+   survey's sharpest finding is that fragmentation — five products, three
+   different reservoir counts, no canonical answer — is the incumbent's
+   defining failure. One product, one answer.
+2. **Credit the upstream products where the reader can find them.** The
+   methods and data pages name and link the authoritative sources. That is
+   cheap trust, and it is the honest version of what the agency products
+   themselves rarely do.
+3. **Mobile is a stated differentiator, not a test artifact.** Nearly every
+   product on the landscape list fails on a phone; the USGS National Water
+   Dashboard is the only exception and it is the best federal product partly
+   for that reason. The existing 1280/390/360 test widths are the enforcement
+   mechanism. Every new view is built and tested at those widths from its
+   first commit, not adapted later.
+4. **The showcase constraint cuts both ways.** This project deliberately
+   shows off the current SDK generation — components, charts, composed
+   symbols, and whatever 5.x adds next. iMap is the proof that capability
+   without restraint produces an analyst console: its URL carries roughly
+   forty parameters of element, depth, duration, day-part and four opacity
+   sliders. New features earn a place by serving a reading a normal end user
+   actually has, and the Simplified Technical English tests hold on every
+   view.
+
+**Adopted into the snow view design (slice 5 below):** the one idiom iMap
+gets right is the basin-fill choropleth — each hydrologic unit filled by
+percent of normal, stations on top as points reading on the same scale. That
+is the snow view's core rendering at HUC6. Percent of the 1991–2020 normal
+median is the default framing everywhere, never raw inches first. Out-of-season
+honesty stays as Phase 1.6a wrote it: the seasonal accumulation curve is the
+subject, and the page says what part of the year the number describes rather
+than coloring a headline on August snow. Total URL state carries over from the
+storage view. What is deliberately not copied: the control sprawl, and the
+`WTEQ % of Median (POR)` vocabulary the content-language tests already reject.
+
+**Remaining gap actions, in the order they pay back** (Tier 1 shipped):
+the snow view (slice 5), the drought layer with per-unit coverage statistics
+(slice 4), county and conservancy-district aggregation axes, per-reservoir
+permanent pages, the auto-generated weekly "what moved" summary, and the
+selectable normal baseline. The last two are the category-level
+differentiators; the survey found no product in the West that has either.
 
 ---
 

@@ -81,6 +81,76 @@ export interface NormalPeriod {
   end_year: number;
 }
 
+/**
+ * One published day in a snow station's water-year series, as the columnar
+ * triple the pipeline writes: date, snow water equivalent in inches, and the
+ * 1991–2020 normal median for that day. Field names are declared once in the
+ * payload header (`site_series_fields`) rather than repeated on ~70,000 rows.
+ */
+export type SnowSeriesRow = [string, NullableNumber, NullableNumber];
+
+/** A calendar day of the normal snow year; `value` is inches where published. */
+export interface SnowNormalTimingPoint {
+  month: number;
+  day: number;
+  value?: NullableNumber;
+}
+
+export interface SnowNormalTiming {
+  peak: SnowNormalTimingPoint | null;
+  onset: SnowNormalTimingPoint | null;
+  meltout: SnowNormalTimingPoint | null;
+}
+
+export interface SnowSite {
+  station: string;
+  name: string;
+  state: string;
+  county: string;
+  lat: number;
+  lon: number;
+  elevation_feet: number;
+  begins: string;
+  huc6: string;
+  huc6_name: string;
+  /** The provider's own drainage assignment, kept beside ours for review. */
+  provider_huc6: string | null;
+  latest_date: string;
+  late: boolean;
+  normal_timing: SnowNormalTiming;
+  series: SnowSeriesRow[];
+}
+
+export interface SnowRollupDay {
+  date: string;
+  reporting_site_count: number;
+  /** Null when fewer sites report than `minimum_reporting_sites` allows. */
+  mean_percent_of_normal_median: NullableNumber;
+}
+
+export interface SnowRollup {
+  huc6: string;
+  huc6_name: string;
+  site_count: number;
+  minimum_reporting_sites: number;
+  series: SnowRollupDay[];
+}
+
+export interface SnowpackPayload {
+  schema_version: number;
+  generated_at: string;
+  as_of: string;
+  water_year: number;
+  normal_period: NormalPeriod;
+  units: "inches";
+  site_series_fields: [string, string, string];
+  source: string;
+  site_count: number;
+  late_site_count: number;
+  rollups: SnowRollup[];
+  sites: SnowSite[];
+}
+
 export interface ReservoirPayload {
   schema_version?: number;
   generated_at: string;
