@@ -1869,6 +1869,90 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    command that fixes it. The deliberate absence from `package.json` is kept,
    so the lockfile still stays exactly what `npm ci` produced.
 
+### Next slice — interface polish, from a read of the live site — 2026-08-16
+
+Notes taken against the published site rather than a local build, so these are
+what a reader actually meets. Ordered roughly by payoff over effort. Two of
+them were measured before being written down, because both had a plausible
+answer that turns out to be wrong.
+
+1. **The map key on the storage map is not aligned inside its own box.**
+   ([#19](https://github.com/buschbrian/utah-reservoir-dashboard/issues/19))
+   The panel that explains what the circles mean sits off-centre in its
+   container. Small, visible, and on the primary surface.
+
+2. **The month table in the reservoir details panel scrolls sideways.**
+   ([#19](https://github.com/buschbrian/utah-reservoir-dashboard/issues/19))
+   Twelve months of values do not fit, so the panel grows a horizontal
+   scrollbar inside an already-narrow column. Stack the headers or step the
+   type down until they fit; a nested sideways scroller is the thing the
+   layout rules in `CLAUDE.md` already warn about.
+
+3. **The storage charts table and chart should share the map frame.**
+   ([#21](https://github.com/buschbrian/utah-reservoir-dashboard/issues/21)) Today
+   they are stacked surfaces. The reading a user is trying to make is
+   table-and-map together — click a row, see it on the map — and that wants a
+   split the reader can size, with both panes live, rather than scrolling
+   between them.
+
+4. **The drought view needs work on its charting and general polish.**
+   ([#22](https://github.com/buschbrian/utah-reservoir-dashboard/issues/22)) The
+   scatter answers the page's own question and the coverage bars are sound,
+   but the rest has had the least design attention of the five surfaces.
+   Treat as its own slice rather than a checklist item.
+
+5. **The snow map's legend belongs on the map, and the framing needs fixing
+   on both cards.** ([#19](https://github.com/buschbrian/utah-reservoir-dashboard/issues/19)
+   and [#20](https://github.com/buschbrian/utah-reservoir-dashboard/issues/20))
+   The legend move was done for drought and not for snow;
+   `.map-inset-legend` already exists and is tested, so that half is small.
+
+   The framing half is not a framing bug, and this is the part worth
+   recording. The drawn region is **869 km wide by 923 km tall -- portrait,
+   aspect 0.94**. The view cards are **1200 x 444, aspect 2.70**. To fit the
+   region's north-south extent a card that shape has to show 2,493 km
+   east-west, which is **2.9 times the region's actual width**. The map is
+   therefore mostly empty ground on either side, and no change of extent can
+   fix that: it is the card's shape against the region's shape. The fix is a
+   taller, closer-to-square map card, which also brings the two views nearer
+   the storage stage's 1.96.
+
+6. **Draw in UTM zone 12N where it is actually available, which is not the
+   interactive map.** ([#23](https://github.com/buschbrian/utah-reservoir-dashboard/issues/23))
+   Measured both halves before filing:
+
+   - *The basemaps forbid it.* Esri's tiled basemaps are Web Mercator
+     (WKID 3857), and the SDK requires the view's spatial reference to match a
+     tile layer's `tileInfo`; where it does not, the layer view suspends. A
+     UTM view would draw this project's own data on a blank background. That
+     is the "service that will absolutely break it" case, and it is a hard
+     constraint rather than a preference.
+   - *And the geography is wider than one zone.* Zone 12N covers 114 W to
+     108 W, which contains Utah exactly. It does not contain this dashboard's
+     geography: the connected drainage areas reach -115.71 (**zone 11**) and
+     -105.63 (**zone 13**). UTM is designed for single-zone work, so 12N would
+     carry real distortion at both edges of the drawn region.
+
+   Where a projection genuinely belongs is the **area arithmetic**, which
+   currently runs as a cosine-latitude-weighted scanline over geographic
+   coordinates. For a region spanning ten degrees of longitude the defensible
+   choice is a conic equal-area projection -- Albers Equal Area, the USGS
+   standard for this kind of extent -- rather than UTM, which is conformal and
+   preserves shape rather than area. That is the change worth making, and it
+   should come with a measured error bound against the present method.
+
+7. **Work the older backlog.** Reviewed alongside these. What is genuinely
+   still open, after this week closed most of it: the **county and conservancy
+   district aggregation axes** and **per-reservoir permanent pages** from the
+   landscape gap list, both unstarted and both real product additions; the
+   **auto-generated weekly "what moved" summary** and the **selectable
+   baseline**, which that survey called the two category-level differentiators
+   nobody in the West has; and the **dam inventory migration** in the source
+   inventory, which is a parity exercise rather than a feature. Everything else
+   on the old list has either shipped or been superseded -- the four Tier 1 gap
+   actions, the snow view, the drought layer, the multi-view shell, the
+   geometry default, and Phases 0 through 7 entire.
+
 ---
 
 ## 4. Risks and traps
