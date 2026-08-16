@@ -119,6 +119,16 @@ you run it on, and refuses to run in CI rather than report a perfect score from
 a renderer that never drew. Leave the window in front for the duration. The
 result of the 2026-08-13 run is in the modernization plan.
 
+**Playwright is not in `package.json` on purpose, so `npm install` deletes
+it.** CI installs it with `--no-save --no-package-lock` to keep the lockfile
+exactly what `npm ci` produced, which means any ordinary `npm install` prunes
+it as extraneous and every browser test stops resolving `playwright`. Put it
+back the same way:
+
+```bash
+npm install --no-save --no-package-lock playwright
+```
+
 All three browser tools take `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. A machine
 with Google Chrome installed does not need a second Chromium downloaded to run
 them:

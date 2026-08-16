@@ -1808,6 +1808,57 @@ become eager -- are now gates. If a Lighthouse run is wanted before a release,
 run it by hand against `dist/`; nothing in the project needs it to be
 reproducible.
 
+### Items to review — opened 2026-08-16
+
+Things that are deliberately unresolved rather than forgotten. Each one is
+either waiting on somebody's decision or on somebody else's release, and each
+has a GitHub issue so it does not live only here: [#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15),
+[#16](https://github.com/buschbrian/utah-reservoir-dashboard/issues/16),
+[#17](https://github.com/buschbrian/utah-reservoir-dashboard/issues/17) and
+[#18](https://github.com/buschbrian/utah-reservoir-dashboard/issues/18).
+
+1. **The `b1c0ed9` commit message is not the one its author wrote.** That
+   commit carries the map-parity work with an auto-generated summary: while a
+   `git commit` was blocked on an index lock, another process in the working
+   environment committed the already-staged changes and pushed them. The
+   content is right and the message is vague rather than wrong.
+
+   Fixing it is not a one-commit edit. It now sits eleven commits deep under
+   two merges, so a rewrite changes eleven SHAs, diverges five local and five
+   remote branches, needs a force-push to a branch that deploys, and leaves
+   merged PR #14 pointing at commits no longer on any branch. `git notes` is
+   the no-risk alternative and fixes the local record but not GitHub's.
+   Open because the trade is the repository owner's to make, not because
+   nobody has looked at it. ([#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15))
+
+2. **Two accessibility exceptions live in vendor components.** `arcgis-chart`
+   renders an inner element carrying an `aria-label` with no role for it to
+   attach to, so that label is inert; every chart is named by the section
+   heading around it instead. And Calcite's slider leaves its own handle
+   unnamed, which `src/ui/slider-label.ts` works around by naming the handle
+   directly. Both are recorded in `AXE_EXCEPTIONS`. Re-check on the next SDK
+   upgrade: if either vendor fixes theirs, the exception starts matching
+   nothing and the workaround should stand aside.
+   ([#16](https://github.com/buschbrian/utah-reservoir-dashboard/issues/16))
+
+3. **The content policy's `script-src` is permissive by necessity.** It has to
+   allow the ArcGIS CDN, because the SDK's workers import their own code from
+   it, and `unsafe-eval`, because the charts package compiles JSON schemas
+   with `new Function`. Both were confirmed by removing them and watching
+   pages fail. The other directives do real work; this one does not. Worth
+   re-measuring with `tools/audit-transfer.mjs` on each SDK upgrade to see
+   whether either requirement has gone away.
+   ([#17](https://github.com/buschbrian/utah-reservoir-dashboard/issues/17))
+
+4. **Playwright is deliberately not a declared dependency, and that is a
+   footgun.** CI installs it with `--no-save --no-package-lock` so the
+   lockfile stays exactly what `npm ci` produced. The consequence is that any
+   ordinary `npm install` prunes it as extraneous and every browser test
+   stops resolving `playwright` until it is reinstalled the same way. It cost
+   a debugging detour in this session. Either the reason should be written
+   where someone hits it, or the trade should be revisited.
+   ([#18](https://github.com/buschbrian/utah-reservoir-dashboard/issues/18))
+
 ---
 
 ## 4. Risks and traps
@@ -1836,7 +1887,7 @@ reproducible.
 3. ~~**Validation library**~~ — **resolved 2026-08-10: keep the hand-written
    guard.** The payload is small and stable, the complete runtime contract is
    covered by focused tests, and no additional dependency is required.
-4. **Fate of `explore.html`** — recommend keeping it as the deliberate no-SDK fallback rather than retiring it.
+4. ~~**Fate of `explore.html`**~~ — **resolved 2026-08-15 by ADR-031: retired to a compatibility redirect.** The recommendation here was to keep it as a deliberate no-SDK fallback, and that property was real — it was the page that survived a CDN outage. It was overtaken anyway: the page had drifted into a second implementation of the same product, and carrying two answers to one question cost more than the fallback was worth. Recorded rather than deleted, because the reasoning against was sound and a future outage may reopen it.
 5. ~~**Phase 2 framework and entry**~~ — **resolved 2026-08-10: vanilla
    TypeScript with ArcGIS and Calcite web components at `modern.html`.** Keep
    the production entry unchanged until a later cutover review (ADR-012).
