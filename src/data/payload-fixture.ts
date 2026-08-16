@@ -4,7 +4,12 @@
  * bundle -- so this helper stays out of the module graph of `main.ts`.
  */
 import { readFileSync } from "node:fs";
-import type { ReservoirPayload, SnowpackPayload } from "../types";
+import type {
+  DroughtCoveragePayload,
+  ReservoirPayload,
+  SnowpackPayload
+} from "../types";
+import { validateDroughtCoverage } from "./drought-validate";
 import { validateSnowpackPayload } from "./snow-validate";
 import { validateReservoirPayload } from "./validate";
 
@@ -30,6 +35,13 @@ export function readPayloadWithoutNormalMetadata(): ReservoirPayload {
 export function readSnowpack(): SnowpackPayload {
   const source = readFileSync(new URL("../../snowpack.json", import.meta.url), "utf8");
   return validateSnowpackPayload(JSON.parse(source) as unknown);
+}
+
+/** The committed weekly drought coverage, through the browser's validator. */
+export function readDroughtCoverage(): DroughtCoveragePayload {
+  const source = readFileSync(
+    new URL("../../data/drought/usdm-huc6.json", import.meta.url), "utf8");
+  return validateDroughtCoverage(JSON.parse(source) as unknown);
 }
 
 export function readDrainageGeoJson(): unknown {

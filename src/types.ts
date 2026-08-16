@@ -151,6 +151,46 @@ export interface SnowpackPayload {
   sites: SnowSite[];
 }
 
+/** Percent of a drainage area's land in each exclusive drought class, plus
+ * the share in none of them. Written by `tools/compute_drought_coverage.py`. */
+export interface DroughtShares {
+  none: number;
+  d0: number;
+  d1: number;
+  d2: number;
+  d3: number;
+  d4: number;
+}
+
+/** "This class or worse", as sums of the disjoint exclusive shares. */
+export interface DroughtAtLeast {
+  d0: number;
+  d1: number;
+  d2: number;
+  d3: number;
+  d4: number;
+}
+
+export interface DroughtUnit {
+  huc6: string;
+  huc6_name: string;
+  percent_of_area: DroughtShares;
+  percent_of_area_at_least: DroughtAtLeast;
+}
+
+export interface DroughtCoveragePayload {
+  schema_version: number;
+  /** The week the monitor's map describes. */
+  map_date: string;
+  /** The Thursday the monitor published it. */
+  release_date: string;
+  source: string;
+  attribution: string;
+  method: Record<string, unknown>;
+  unit_count: number;
+  units: DroughtUnit[];
+}
+
 export interface ReservoirPayload {
   schema_version?: number;
   generated_at: string;

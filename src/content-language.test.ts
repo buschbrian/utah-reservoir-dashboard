@@ -38,7 +38,13 @@ const userTextFiles = [
   "snow.html",
   "src/snow.ts",
   "src/snow-model.ts",
-  "src/viz/snow-curve.ts"
+  "src/viz/snow-curve.ts",
+  // The drought view's visible text, and the class table whose labels are
+  // the monitor's own official names.
+  "drought.html",
+  "src/drought.ts",
+  "src/drought-model.ts",
+  "src/viz/drought-classes.ts"
 ];
 
 const oldUnexplainedTerms = [

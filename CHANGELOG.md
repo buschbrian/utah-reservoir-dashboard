@@ -7,6 +7,19 @@ and is not listed here.
 
 ### Added
 
+- **A drought view.** The navigation now carries a Drought page reading the
+  U.S. Drought Monitor's weekly map by drainage area, most severe first.
+  Each area shows the share of its land in each class as a bar in the
+  monitor's own colours, with the exact values in a table behind it — and
+  beside each area, the combined reservoir storage that drains it, because
+  the two can disagree and that disagreement is the story. The page states
+  the map's week, its release date, and its age, and marks the data late
+  when a weekly release has been missed. Each area links across to the
+  storage map and the snowpack view with the same shared address. If the
+  reservoir payload cannot be read the drought figures still render and
+  each row says the storage comparison is missing. The methods page gains
+  the Drought Monitor as a named, linked source.
+
 - **Weekly drought coverage by drainage area, as published data.** A new
   analysis tool reads the committed U.S. Drought Monitor polygons and writes
   the percent of each drainage area's land in each drought class, with the

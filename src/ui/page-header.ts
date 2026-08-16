@@ -17,7 +17,7 @@ import "@esri/calcite-components/components/calcite-dropdown-group";
 import "@esri/calcite-components/components/calcite-dropdown-item";
 import "@esri/calcite-components/components/calcite-icon";
 
-export type PageId = "map" | "overview" | "snow" | "methods" | "data";
+export type PageId = "map" | "overview" | "snow" | "drought" | "methods" | "data";
 
 interface PageLink {
   id: PageId;
@@ -52,6 +52,11 @@ const PAGES: readonly PageLink[] = [
     id: "snow", href: "./snow.html", icon: "snow",
     text: "Snowpack", menuText: "Snowpack",
     label: "Open the mountain snowpack view"
+  },
+  {
+    id: "drought", href: "./drought.html", icon: "gauge",
+    text: "Drought", menuText: "Drought",
+    label: "Open the weekly drought conditions"
   },
   {
     id: "methods", href: "./methods.html", icon: "question",

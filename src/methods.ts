@@ -92,6 +92,14 @@ root.innerHTML = `
           storage readings use. Each reading is compared with the middle value for the
           same day in the years 1991 through 2020, the standard comparison period that
           service publishes.</dd>
+        <dt>Drought conditions</dt>
+        <dd>The U.S. Drought Monitor's weekly national map, produced by the National
+          Drought Mitigation Center with the U.S. Department of Agriculture and the
+          National Oceanic and Atmospheric Administration. The polygons are downloaded
+          each week, and the share of each drainage area's land in each class is
+          calculated from them and published beside them. Read the source at
+          <a href="https://droughtmonitor.unl.edu/" target="_blank"
+            rel="noreferrer">droughtmonitor.unl.edu</a>.</dd>
         <dt>Drainage areas</dt>
         <dd>The U.S. Geological Survey Watershed Boundary Dataset, at the six-digit level.
           Read the source at
@@ -238,6 +246,10 @@ root.innerHTML = `
         <li><a href="https://www.usgs.gov/national-hydrography/watershed-boundary-dataset"
           target="_blank" rel="noreferrer">U.S. Geological Survey</a>, for the Watershed
           Boundary Dataset.</li>
+        <li><a href="https://droughtmonitor.unl.edu/" target="_blank"
+          rel="noreferrer">The National Drought Mitigation Center</a>, with the
+          U.S. Department of Agriculture and the National Oceanic and Atmospheric
+          Administration, for the U.S. Drought Monitor.</li>
         <li><a href="https://gis.utah.gov/" target="_blank" rel="noreferrer">Utah
           Geospatial Resource Center</a>, for the maintained state boundary.</li>
         <li><a href="https://developers.arcgis.com/javascript/" target="_blank"

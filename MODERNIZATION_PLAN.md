@@ -1285,8 +1285,18 @@ marked as implemented remains proposed until its named decision is accepted.
    download; wiring both into a weekly scheduled job remains open. The
    first read of the current week: all fourteen drainage areas are entirely
    in drought or unusually dry, with Colorado Headwaters at 59.7% D4.
-   Remaining product work: the map layer, summaries, chart equivalents,
-   deadlines, and readiness signal.
+   **The view shipped 2026-08-15, the same evening:** `drought.html` is the
+   fifth navigation surface, rendering the committed coverage as one bar
+   per drainage area in the monitor's own palette (a second colour table,
+   owned by `src/viz/drought-classes.ts`, never shown on the reservoir
+   map), ordered most severe first, with the exact values in a table
+   behind the bars. The join this category lacks is on the page: combined
+   reservoir storage beside each area's land conditions, degrading to a
+   visible note when the reservoir payload cannot be read. Freshness
+   follows the weekly cadence — the map's week, release date and age are
+   stated, and nine days without a release marks the data late. Cross
+   links carry `?area=` to the storage map and the snow view. Remaining:
+   the USDM polygon layer on a map surface, and the weekly automation.
 5. **Build snowpack as its own vertical slice — first version implemented
    2026-08-15.** `snow.html` is a fourth navigation surface on the shared
    shell: the seasonal curve for the whole region or one drainage area, the

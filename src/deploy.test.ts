@@ -110,7 +110,8 @@ describe("a data-only commit deploys on its own", () => {
   it("still checks the published output for every current URL, the shell included", async () => {
     const workflow = await read(".github/workflows/deploy-pages.yml");
     for (const path of ["index.html", "modern.html", "legacy/index.html",
-      "overview.html", "snow.html", "methods.html", "explore.html",
+      "overview.html", "snow.html", "drought.html", "methods.html", "explore.html",
+      "data/drought/usdm-huc6.json",
       "data.html", "api/reservoirs.json", "api/snowpack.json", "api/reference.json",
       "maplibre/index.html", "retired-route.js",
       "data/reservoirs.json", "data/snow_sites.json",

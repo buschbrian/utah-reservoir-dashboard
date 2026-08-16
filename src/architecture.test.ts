@@ -102,7 +102,7 @@ describe("SDK architecture boundaries", () => {
     const icons = [
       "arrowRightLeft", "basemap", "brightness", "chevronDown", "chevronsRight", "cursorSelection", "erase",
       "exclamationMarkTriangle",
-      "export", "extentFilter", "fullScreen", "fullScreenExit", "hamburger", "home",
+      "export", "extentFilter", "fullScreen", "fullScreenExit", "gauge", "hamburger", "home",
       "information", "legend", "magnifyingGlass", "map", "minus", "plus", "question",
       "rotate", "selectionFilter", "slidersHorizontal", "snow",
       "table", "waterDrop", "x", "zoomInFixed", "zoomOutFixed"

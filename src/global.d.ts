@@ -84,6 +84,18 @@ interface Window {
     tableRows: number;
     area: string | null;
   };
+  /** The drought view finished drawing. `units` is what the coverage file
+   * provided; `rows` is what the page rendered; `storageJoined` counts the
+   * areas whose reservoir context arrived, 0 when that payload failed. */
+  __droughtReady?: {
+    units: number;
+    rows: number;
+    worstClass: string | null;
+    mapDate: string;
+    daysOld: number;
+    lateData: boolean;
+    storageJoined: number;
+  };
   /* The methods page settles whether or not the payload can be read: the
    * rules on it do not depend on the data. This reports that it finished,
    * which is the fact a test needs to know the page is not still waiting. */
