@@ -5,7 +5,25 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Added
+
+- **A weekly summary of what moved.** The storage charts page opens with the
+  last seven days in plain sentences: how much water the region gained or
+  lost, how far the combined level moved, how many reservoirs rose and fell,
+  and which ones moved most — by volume, and separately by share of their own
+  size, because those are usually different reservoirs and calling either one
+  "the biggest" without saying which measure would mislead. It also says what
+  it could not measure: the twenty-nine reservoirs that report monthly cannot
+  show a weekly change, snow has no comparison once the sites melt out, and
+  only one week of drought coverage is kept so there is no change to report
+  yet. It describes the whole region and does not follow the filters below it.
+
 ### Changed
+
+- **State and county outlines now draw behind everything else on the map.**
+  They are borrowed reference geography — they say which land the pattern
+  crosses — and drawing them over the drought classes put a borrowed line on
+  top of the subject. Their names are unaffected and still read clearly.
 
 - **The snowpack map opens on the season's peak snow.** It used to open on the
   most recent day half the sites reported — which, late in the melt season, is
