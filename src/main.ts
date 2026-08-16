@@ -47,7 +47,10 @@ import {
   type TableRow,
   type TableSort
 } from "./state/table";
-import { connectSelectionToUrl, stateFromSearch, writeUrlState } from "./state/url";
+import {
+  connectSelectionToUrl, stateFromSearch, writeUrlState, type DashboardUrlState
+} from "./state/url";
+import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/baseline";
 import { supportsDashboard } from "./state/shell";
 import { renderLegend } from "./ui/legend";
 import { loadMap, type MapController } from "./ui/map";
@@ -60,6 +63,7 @@ import {
   setDataState,
   setDetail,
   setDrainageAreaOptions,
+  setBaselineControl,
   setFilterControls,
   setFilterState,
   setMonthControl,
@@ -79,7 +83,7 @@ import {
 import { renderShell } from "./ui/shell-template";
 import { markSelectedInTable, renderTable } from "./ui/table";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
-import type { Reservoir } from "./types";
+import type { BaselineChoice, BaselineId, Reservoir } from "./types";
 import { STORAGE_CLASSES, storageColor } from "./viz/classes";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import { headlinePercent } from "./viz/symbols";
@@ -149,6 +153,16 @@ async function loadData(): Promise<readonly Reservoir[] | null> {
       return null;
     }
     publishedAt = data.generated_at.slice(0, 10);
+    /* The periods this payload can actually offer, and which one it opens on.
+     * Both come from the data rather than from a constant here, so a change of
+     * default in the pipeline reaches the page without a code change and a
+     * payload that carries only one period simply does not show the control. */
+    baselineMinimumYears = data.climate_normals?.minimum_years ?? 0;
+    baselineOptions = baselineChoices(data);
+    const preferred = data.default_baseline ?? "recent";
+    activeBaselineId = baselineOptions.some((choice) => choice.id === preferred)
+      ? preferred
+      : baselineOptions[0]?.id ?? "recent";
     setDataState({ kind: "ready", count: data.reservoir_count });
     return data.reservoirs;
   } catch (error) {
@@ -217,16 +231,7 @@ let shownRows: readonly TableRow[] = [];
 
 /* Everything the address bar carries except the selection, which the store
  * owns. One function, so the writer cannot go stale as controls are added. */
-function viewState(): {
-  storageClass: number | null;
-  reporting: FilterState["reporting"];
-  drainageArea: string | null;
-  lakePowell: LakePowellChoice;
-  geography: ReservoirGeography;
-  month: string | null;
-  tableOpen: boolean;
-  tableSort: TableSort;
-} {
+function viewState(): Omit<DashboardUrlState, "reservoir"> {
   return {
     storageClass: filterState.storageClass,
     reporting: filterState.reporting,
@@ -235,9 +240,27 @@ function viewState(): {
     geography: scope.geography,
     month: selectedMonth(),
     tableOpen,
-    tableSort
+    tableSort,
+    /* Null until the reader picks one, so an untouched page produces no
+     * parameter and a link carries a choice only when a choice was made. */
+    baseline: chosenBaseline
   };
 }
+
+/* Which period the details panel measures against.
+ *
+ * Two variables rather than one, because they are two different facts: what
+ * the reader picked (null until they pick), and what the page is currently
+ * showing (always a real period). Folding them together would make "opened on
+ * the payload's default" indistinguishable from "chose the payload's default",
+ * and only the second belongs in a shared link. */
+let chosenBaseline: BaselineId | null = null;
+let activeBaselineId: BaselineId = "recent";
+let baselineOptions: readonly BaselineChoice[] = FALLBACK_CHOICES;
+/* How many years a period needs before a reservoir may be measured against
+ * it. Published rather than decided here, so the pipeline and the page cannot
+ * disagree about what counts as a normal. */
+let baselineMinimumYears = 0;
 
 /**
  * The table under the map, rebuilt from the state the map is already drawn
@@ -442,6 +465,62 @@ function wireFilters(map: MapController): void {
   apply();
 }
 
+/**
+ * The sentence under the baseline control.
+ *
+ * It says two things the number cannot: why a reader would pick this period,
+ * and how many reservoirs can actually answer for it. The second matters most
+ * when switching to the standard period, because a handful of reservoirs are
+ * younger than 1991 and fall back to the other one -- better to know that
+ * before reading the map than to find one row disagreeing with the rest.
+ */
+function baselineNote(): string {
+  const choice = baselineOptions.find((entry) => entry.id === activeBaselineId);
+  if (!choice) return "";
+  const { covered, total } = baselineCoverage(
+    published, activeBaselineId, baselineMinimumYears);
+  const reach = covered >= total
+    ? `All ${total} reservoirs have readings from ${choice.period_label}.`
+    : `${covered} of the ${total} reservoirs on this site have enough years in ` +
+      `${choice.period_label}. The others are newer than that, and each one says so.`;
+  return `${choice.note} ${reach}`;
+}
+
+function baselineControlOptions(): { value: string; label: string }[] {
+  return baselineOptions.map((choice) => ({
+    value: choice.id, label: `${choice.label}, ${choice.period_label}`
+  }));
+}
+
+/** Puts the control, its sentence and the open details panel at one period. */
+function applyBaseline(): void {
+  setBaselineControl(baselineControlOptions(), activeBaselineId, baselineNote());
+  renderDetail();
+  if (window.__dashboardReady) window.__dashboardReady.baseline = activeBaselineId;
+}
+
+/**
+ * Registered once, like every other control here.
+ *
+ * `applyBaseline` deliberately does not pass a handler: it runs again every
+ * time the period changes, and a listener added on each of those runs would
+ * fire once more than the last time.
+ */
+function wireBaseline(): void {
+  setBaselineControl(
+    baselineControlOptions(), activeBaselineId, baselineNote(),
+    (value) => {
+      if (!baselineOptions.some((choice) => choice.id === value)) return;
+      activeBaselineId = value as BaselineId;
+      // Now an explicit choice, so it belongs in a shared link -- which is
+      // the difference between this and the period the page opened on.
+      chosenBaseline = activeBaselineId;
+      applyBaseline();
+      writeUrlState({ ...viewState(), reservoir: selection.get() });
+    }
+  );
+}
+
 /** The list is rebuilt whenever the scope changes; its buttons are new. */
 function renderReservoirList(): void {
   setReservoirList(
@@ -456,18 +535,34 @@ function renderReservoirList(): void {
   markSelectedInList(selection.get());
 }
 
+/**
+ * The details panel for whatever is selected now.
+ *
+ * Its own function because two different things change it: the selection, and
+ * the period the reader is comparing against. The selection store refuses to
+ * re-announce a name that has not changed -- which is what stops the map and
+ * the list calling each other -- so a period change cannot go through it and
+ * has to redraw the panel directly.
+ */
+function renderDetail(): void {
+  const reservoir = findReservoir(inScope, selection.get());
+  setDetail(
+    reservoir ? describeReservoir(
+      reservoir, storageColor(headlinePercent(reservoir)),
+      activeBaselineId, baselineOptions, baselineMinimumYears) : null,
+    reservoir ? () => downloadCsv(
+      reservoirHistoryCsv(reservoir), reservoirCsvFilename(reservoir.name, publishedAt)
+    ) : undefined
+  );
+}
+
 /** Registered once. It reads the live scope, so it survives a redraw. */
 function wireSelection(): void {
   selection.subscribe((name) => {
     const reservoir = findReservoir(inScope, name);
     markSelectedInList(reservoir?.name ?? null);
     markSelectedInTable(reservoir?.name ?? null);
-    setDetail(
-      reservoir ? describeReservoir(reservoir, storageColor(headlinePercent(reservoir))) : null,
-      reservoir ? () => downloadCsv(
-        reservoirHistoryCsv(reservoir), reservoirCsvFilename(reservoir.name, publishedAt)
-      ) : undefined
-    );
+    renderDetail();
     if (reservoir) revealDetail();
     // The readiness signal is written once, after the first draw; the
     // selection keeps changing after that, so the field is kept current
@@ -625,6 +720,13 @@ if (!supportsDashboard(browserCapabilities())) {
     monthIndex = askedFor >= 0 ? askedFor : months.length;
     tableSort = wanted.tableSort;
     tableOpen = wanted.tableOpen;
+    /* A link to a period this payload does not offer opens on the payload's
+     * own default rather than on nothing -- the same rule the month and the
+     * drainage area already follow. */
+    if (wanted.baseline && baselineOptions.some((c) => c.id === wanted.baseline)) {
+      activeBaselineId = wanted.baseline;
+      chosenBaseline = wanted.baseline;
+    }
     setTableRowOpen(tableOpen);
     setScopeValue({
       geography: scope.geography,
@@ -641,6 +743,8 @@ if (!supportsDashboard(browserCapabilities())) {
     deepLink = findReservoir(inScope, wanted.reservoir);
     if (deepLink) selection.set(deepLink.name, { source: "url" });
   }
+  wireBaseline();
+  applyBaseline();
   await loadContext(map);
 
   /* One fact per field, and fields are only ever added (never removed or
@@ -668,6 +772,11 @@ if (!supportsDashboard(browserCapabilities())) {
     /* The chosen area, which is not `drainageAreas` -- that one counts the
      * boundaries the map drew. One fact per field. */
     areaFilter: filterStatus.drainageArea,
+    /* Two facts, two fields: which period the panel is measuring against, and
+     * how many periods the reader is being offered. The second is what tells
+     * a test whether the control should be on screen at all. */
+    baseline: activeBaselineId,
+    baselineChoices: baselineOptions.length,
     listItems: document.querySelectorAll("#start-panel .list-btn").length,
     filtered: filterStatus.filtered,
     shown: filterStatus.shown,

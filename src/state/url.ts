@@ -14,6 +14,8 @@
  */
 
 import type { LakePowellChoice, ReservoirGeography } from "../data/rollup";
+import { isBaselineId } from "./baseline";
+import type { BaselineId } from "../types";
 import type { Reporting } from "./filters";
 import { normalizeSelectionValue, type SelectionStore } from "./selection";
 import { DEFAULT_SORT, sortFromToken, sortToken, type TableSort } from "./table";
@@ -42,7 +44,11 @@ const SELECTION_PARAMS = {
    * to a table sorted by storage means both, and one parameter carrying two
    * answers is how the second one goes missing. */
   tableOpen: "table",
-  tableSort: "sort"
+  tableSort: "sort",
+  /* Which period "normal" means. Absent is not "recent" -- it is "whichever
+   * the payload opens on", so a link written today still means what it said
+   * if that default ever changes. */
+  baseline: "baseline"
 } as const;
 
 /* Links written before the public URL contract used the overview page's
@@ -85,6 +91,13 @@ export interface DashboardUrlState {
   /** The table's order. A separate fact from whether the table is open --
    * a link can carry a sort the reader has to open the row to see. */
   tableSort: TableSort;
+  /**
+   * The period the reader chose to measure against, or null for the one the
+   * payload opens on. Null rather than "recent" on purpose: the page's
+   * default is data, not a constant, and a shared link should carry a choice
+   * only when a choice was made.
+   */
+  baseline: BaselineId | null;
 }
 
 export const DEFAULT_URL_STATE: DashboardUrlState = {
@@ -96,7 +109,8 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   geography: "utah",
   month: null,
   tableOpen: false,
-  tableSort: DEFAULT_SORT
+  tableSort: DEFAULT_SORT,
+  baseline: null
 };
 
 /**
@@ -193,6 +207,8 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
   /* An unrecognised sort opens the table in its default order rather than
    * refusing the link -- the same rule every other parameter here follows. */
   state.tableSort = sortFromToken(lastValue(pairs, SELECTION_PARAMS.tableSort) ?? null);
+  const baseline = lastValue(pairs, SELECTION_PARAMS.baseline);
+  state.baseline = isBaselineId(baseline) ? baseline : null;
   return state;
 }
 
@@ -237,6 +253,9 @@ export function searchWithState(
   if (full.tableOpen) parts.push(`${SELECTION_PARAMS.tableOpen}=open`);
   const sort = sortToken(full.tableSort);
   if (sort !== null) parts.push(`${SELECTION_PARAMS.tableSort}=${sort}`);
+  if (full.baseline !== null && isBaselineId(full.baseline)) {
+    parts.push(`${SELECTION_PARAMS.baseline}=${full.baseline}`);
+  }
 
   for (const [key, existing] of parseQuery(currentSearch)) {
     if (OWNED_PARAMS.has(key)) continue;

@@ -50,6 +50,7 @@ SEASONAL_WINDOW_DAYS = 7
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
+NORMALS_PATH = Path(__file__).parent / "normals.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
 
 # A reservoir whose newest observation is older than this many days is
@@ -58,6 +59,23 @@ EXPORT_PATH = Path(__file__).parent / "reference.json"
 # so anything past "yesterday, plus a day of slack" is a real signal.
 STALE_AFTER_DAYS = 2
 AWDB_MONTHLY_STALE_AFTER_DAYS = 45
+
+# Which baseline the site opens on.
+#
+# "climate" is the 1991-2020 standard, and it is the default because the
+# alternative was never a choice anybody made: the recent baseline exists only
+# because START_DATE is 2015, and 2015 onward is the driest stretch in the
+# modern record here. A reservoir measured against it is measured against the
+# drought, so a bad year reads as ordinary. The snowpack half of the site has
+# always used 1991-2020, so this also makes one dashboard use one definition
+# of normal. Change this one constant to open on the recent baseline instead;
+# both are published either way and the reader can switch.
+DEFAULT_BASELINE = "climate"
+
+# A baseline built from fewer than this many calendar years is published with
+# its year count, but is not offered as the default for that reservoir. Ten
+# years is where a median stops being a description of one decade's weather.
+MIN_BASELINE_YEARS = 10
 
 # Version of the reference export's shape, not of the numbers in it. It is
 # here so a reader that finds a payload it does not understand can say so
@@ -412,6 +430,68 @@ def normal_period(run_date: pd.Timestamp) -> dict[str, int]:
     }
 
 
+def load_normals() -> dict:
+    """The committed 1991-2020 climate normals, or an empty table.
+
+    Missing is not fatal. A run without normals.json publishes the recent
+    baseline alone and every reservoir says the climate baseline is
+    unavailable, which is a smaller failure than not publishing at all. It is
+    reported loudly, because the file not being there is a mistake rather than
+    a state anyone wants.
+    """
+    if not NORMALS_PATH.exists():
+        print(f"WARNING: {NORMALS_PATH.name} is missing -- publishing the recent "
+              "baseline only. Build it with tools/build_normal_baselines.py")
+        return {}
+    try:
+        payload = json.loads(NORMALS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        print(f"WARNING: {NORMALS_PATH.name} could not be read ({error}) -- "
+              "publishing the recent baseline only")
+        return {}
+    return {
+        "period": payload.get("period", {}),
+        "window_days": payload.get("window_days"),
+        "built": payload.get("built"),
+        "by_name": {r["name"]: r for r in payload.get("reservoirs", [])},
+    }
+
+
+def climate_baseline(normals: dict, name: str, ref_date: pd.Timestamp,
+                     current: float) -> dict | None:
+    """One reservoir's 1991-2020 normal for today, read out of the committed table.
+
+    The lookup is `ref_date.dayofyear` against a table built with the same
+    expression, so the daily and climate baselines describe the same window of
+    the year. `dayofyear` shifts by one after February in a leap year, and
+    that shift is present on both sides of the comparison rather than on one.
+
+    Returns None when this reservoir has no usable climate normal -- a dam
+    younger than the period, or a station the provider would not answer for.
+    The site says so instead of falling back to the other baseline behind the
+    reader's back, because a comparison silently swapping its own denominator
+    is the failure this whole change exists to fix.
+    """
+    record = (normals.get("by_name") or {}).get(name)
+    if not record or not record.get("available"):
+        return None
+    table = record.get("day_of_year") or {}
+    medians = table.get("median_af") or []
+    counts = table.get("years") or []
+    day = int(ref_date.dayofyear)
+    if day >= len(medians) or medians[day] is None:
+        return None
+    normal = float(medians[day])
+    years = int(counts[day]) if day < len(counts) else 0
+    return {
+        "normal_af": _round(normal),
+        "pct_of_normal": _pct(current, normal),
+        "sample_years": years,
+        "covers_full_period": bool(record.get("covers_full_period")),
+        "first_obs": record.get("first_obs"),
+    }
+
+
 def seasonal_percentile(series: pd.Series, ref_date: pd.Timestamp, current: float,
                         window_days: int = SEASONAL_WINDOW_DAYS) -> float:
     """Where `current` ranks against *prior years'* values in the day-of-year window.
@@ -442,13 +522,19 @@ def value_asof(series: pd.Series, when: pd.Timestamp, tolerance_days: int = 10) 
     return float(sub.iloc[-1])
 
 
-def monthly_history(series: pd.Series, months: int = 12) -> list[dict]:
-    """Last `months` calendar months: observed mean/min/max/end + a prior-years normal.
+def monthly_history(series: pd.Series, months: int = 12,
+                    climate_months: list | None = None) -> list[dict]:
+    """Last `months` calendar months: observed mean/min/max/end + two normals.
 
     `normal_af` is the median of that same calendar month's mean storage
     across every *earlier* year in the record, which is what makes the
     dashboard's 12-month chart readable as "above or below normal" rather
     than just "up or down".
+
+    `climate_normal_af` is the same statistic over 1991-2020, read from the
+    committed table. Both are published for every month so the chart can
+    switch between them without refetching, and so the difference between them
+    is visible rather than being a claim the reader has to take on trust.
     """
     if series.empty:
         return []
@@ -461,6 +547,9 @@ def monthly_history(series: pd.Series, months: int = 12) -> list[dict]:
         same_month = monthly_means[monthly_means.index.month == period.month]
         prior_years = same_month[same_month.index.year < period.year].dropna()
         normal = float(prior_years.median()) if not prior_years.empty else None
+        climate = (climate_months[period.month]
+                   if climate_months and period.month < len(climate_months)
+                   else None)
         out.append({
             "month": period.strftime("%Y-%m"),
             "mean_af": _round(row["mean"]),
@@ -469,6 +558,7 @@ def monthly_history(series: pd.Series, months: int = 12) -> list[dict]:
             "end_af": _round(row["last"]),
             "days": int(row["count"]) if not pd.isna(row["count"]) else 0,
             "normal_af": _round(normal),
+            "climate_normal_af": _round(climate),
         })
     return out
 
@@ -496,7 +586,8 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
               source_url: str = "https://data.usbr.gov/rise-api",
               data_frequency: str = "daily", stale_after_days: int = STALE_AFTER_DAYS,
               change_tolerance_days: int = 10,
-              source_station_id: str | None = None) -> dict:
+              source_station_id: str | None = None,
+              normals: dict | None = None) -> dict:
     """Turn one storage series into the record the dashboards consume."""
     series = df.set_index("date")["storage_af"].sort_index()
     last_date = series.index[-1]
@@ -514,6 +605,39 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
     population = seasonal_window(prior_years(series, last_date), last_date)
     seasonal_normal = float(population.median()) if not population.empty else None
     seasonal_years = int(population.index.year.nunique()) if not population.empty else 0
+
+    # The two baselines, side by side and each carrying its own coverage.
+    #
+    # They are published together rather than one being chosen here, because
+    # which one is right depends on the question. "Is this a normal year for
+    # this reservoir?" wants the climate normal. "How does this compare with
+    # the rest of the drought?" wants the recent one. The site lets the reader
+    # ask either, and neither can be mistaken for the other because both name
+    # their period and their sample size.
+    climate = climate_baseline(normals or {}, name, last_date, current)
+    climate_record = ((normals or {}).get("by_name") or {}).get(name) or {}
+    climate_month_medians = ((climate_record.get("month") or {}).get("median_af")
+                             if climate_record.get("available") else None)
+    baselines = {
+        "recent": {
+            "normal_af": _round(seasonal_normal),
+            "pct_of_normal": _pct(current, seasonal_normal),
+            "sample_years": seasonal_years,
+            # The recent baseline is every prior year we hold, so it always
+            # covers its own period by construction. The field exists so both
+            # baselines have the same shape and the client needs one code path.
+            "covers_full_period": True,
+            "first_obs": series.index[0].date().isoformat(),
+        } if seasonal_normal is not None else None,
+        "climate": climate,
+    }
+    # A reservoir younger than the climate period, or one with too few years in
+    # it, falls back to the recent baseline rather than opening on a median
+    # over three winters.
+    usable_climate = (climate is not None
+                      and climate["sample_years"] >= MIN_BASELINE_YEARS)
+    baselines["default"] = (DEFAULT_BASELINE if DEFAULT_BASELINE != "climate"
+                            or usable_climate else "recent")
 
     this_year = series[series.index.year == last_date.year]
     peak_af = float(this_year.max()) if not this_year.empty else None
@@ -576,12 +700,18 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         # so rather than presenting both as equally solid.
         "seasonal_sample_years": seasonal_years,
 
+        # --- the same question, asked against a choice of period ---
+        # `seasonal_normal_af` above is the recent baseline and stays exactly
+        # what it was, so nothing that already reads this payload changes
+        # meaning. `baselines` is the addition.
+        "baselines": baselines,
+
         # --- trend ---
         **changes,
         "peak_this_year_af": _round(peak_af),
         "peak_this_year_date": peak_date,
         "pct_of_peak_this_year": _pct(current, peak_af),
-        "monthly": monthly_history(series),
+        "monthly": monthly_history(series, climate_months=climate_month_medians),
 
         # --- provenance ---
         "first_obs": series.index[0].date().isoformat(),
@@ -875,6 +1005,13 @@ def main() -> int:
     end = (today + pd.Timedelta(days=1)).strftime("%Y%m%d")
     previous = load_previous(OUTPUT_PATH)
     capacities = load_capacities()
+    normals = load_normals()
+    if normals:
+        available = sum(1 for r in normals["by_name"].values() if r.get("available"))
+        period = normals["period"]
+        print(f"Climate normals available: {available} of {len(normals['by_name'])} "
+              f"reservoirs, {period.get('start_year')} through {period.get('end_year')} "
+              f"(built {normals.get('built')})")
     print(f"NID capacity records available: {len(capacities)} "
           f"({len(RESERVOIRS)} Reclamation, {len(CONNECTED_RESERVOIRS)} connected)")
 
@@ -911,7 +1048,7 @@ def main() -> int:
             continue
 
         records.append(summarize(name, item_id, lat, lon, df, today,
-                                 capacities.get(name)))
+                                 capacities.get(name), normals=normals))
         time.sleep(0.5)  # be polite to RISE's server
 
     for name, (station_triplet, lat, lon, capacity_af, cadence) in awdb_targets.items():
@@ -946,6 +1083,7 @@ def main() -> int:
             data_frequency=cadence, stale_after_days=stale_after,
             change_tolerance_days=45 if cadence == "monthly" else 10,
             source_station_id=station_triplet,
+            normals=normals,
         ))
         time.sleep(0.1)
 
@@ -998,6 +1136,44 @@ def main() -> int:
         "start_date": dt.datetime.strptime(START_DATE, "%Y%m%d").date().isoformat(),
         "normal_period": normal_period(today),
         "normal_window_days": SEASONAL_WINDOW_DAYS,
+        # The periods a reader can measure against, and which one the site
+        # opens on. The recent period's end year moves with the calendar; the
+        # climate period is fixed, which is the point of it.
+        "baselines": [
+            {
+                "id": "recent",
+                "label": "Recent years",
+                "period_label": (f"{normal_period(today)['start_year']} through "
+                                 f"{normal_period(today)['end_year']}"),
+                **normal_period(today),
+                "note": ("Every earlier year this site holds. It begins in 2015 "
+                         "because that is when this site starts collecting, and "
+                         "those years have been unusually dry, so a reservoir "
+                         "can look ordinary against them and still be low."),
+            },
+            {
+                "id": "climate",
+                "label": "Standard climate period",
+                "period_label": (
+                    f"{(normals.get('period') or {}).get('start_year', 1991)} through "
+                    f"{(normals.get('period') or {}).get('end_year', 2020)}"),
+                "start_year": (normals.get("period") or {}).get("start_year", 1991),
+                "end_year": (normals.get("period") or {}).get("end_year", 2020),
+                "note": ("The thirty year period the World Meteorological "
+                         "Organization defines as standard, and the same period "
+                         "the mountain snow measurements use. Not every reservoir "
+                         "existed for all of it, and each one reports how many "
+                         "years it has."),
+            },
+        ],
+        "default_baseline": DEFAULT_BASELINE,
+        "climate_normals": {
+            "built": normals.get("built"),
+            "file": NORMALS_PATH.name,
+            "available_count": sum(
+                1 for r in records if (r.get("baselines") or {}).get("climate")),
+            "minimum_years": MIN_BASELINE_YEARS,
+        },
         "stale_after_days": STALE_AFTER_DAYS,
         "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
                                          "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},

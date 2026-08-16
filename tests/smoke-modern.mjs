@@ -733,6 +733,41 @@ for (const viewport of VIEWPORTS) {
       `${label}: map pointer selection did not open ${pointerName}`);
     }
 
+    /* Which period "normal" means.
+     *
+     * The two facts worth a browser check are the ones no unit test can see:
+     * that the control is actually on screen with both periods in it, and
+     * that changing it reaches the details panel and the address bar. The
+     * arithmetic behind each period is held by the unit tests. */
+    const baselineSelect = mobile
+      ? "#start-sheet [data-baseline=\"period\"]"
+      : "#start-panel [data-baseline=\"period\"]";
+    const baselineState = await tab.evaluate((selector) => {
+      const select = document.querySelector(selector);
+      return {
+        present: Boolean(select),
+        options: select
+          ? [...select.querySelectorAll("calcite-option")].map((option) => option.value)
+          : [],
+        value: select ? select.value : null,
+        note: document.querySelector('[data-baseline="note"]')?.textContent ?? "",
+        signal: window.__dashboardReady.baseline,
+        choices: window.__dashboardReady.baselineChoices
+      };
+    }, baselineSelect);
+    check(baselineState.present, `${label}: the comparison period control is missing`);
+    check(baselineState.choices >= 2,
+      `${label}: only ${baselineState.choices} comparison period on offer`);
+    check(baselineState.options.includes("climate") && baselineState.options.includes("recent"),
+      `${label}: the comparison period control offers ${baselineState.options.join(", ")}`);
+    check(baselineState.value === baselineState.signal,
+      `${label}: the control shows ${baselineState.value} while the page uses ` +
+      `${baselineState.signal}`);
+    /* The sentence is the control's whole point -- the two periods produce
+     * different numbers and nothing in the number says which is which. */
+    check(baselineState.note.length > 40,
+      `${label}: the comparison period has no explanation beside it`);
+
     // Selection, through the list rather than the map: `hitTest` is resolved
     // by the render loop, which does not run reliably in headless Chromium.
     const listSelector = mobile ? "#start-sheet .list-btn" : "#start-panel .list-btn";
@@ -770,6 +805,36 @@ for (const viewport of VIEWPORTS) {
       `${label}: four more selections added ${afterMore.grewBy} history entries`);
     check(afterMore.search === `?reservoir=${encodeURIComponent(afterMore.last)}`,
       `${label}: the address bar lagged behind the selection`);
+
+    /* Changing the period has to reach the open panel and the address bar.
+     * The panel is the surface it changes, and the selection store refuses to
+     * re-announce an unchanged name, so this is the exact path that would go
+     * quiet if the panel were ever redrawn through the store again. */
+    const switched = await tab.evaluate(async (args) => {
+      const [selector, detail] = args;
+      const before = document.querySelector(detail).innerText;
+      const select = document.querySelector(selector);
+      const other = select.value === "climate" ? "recent" : "climate";
+      select.value = other;
+      select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        other,
+        changed: document.querySelector(detail).innerText !== before,
+        signal: window.__dashboardReady.baseline,
+        search: window.location.search,
+        names: document.querySelector(detail).innerText.includes("through")
+      };
+    }, [baselineSelect, detailSelector]);
+    check(switched.signal === switched.other,
+      `${label}: the page stayed on ${switched.signal} after choosing ${switched.other}`);
+    check(switched.changed,
+      `${label}: choosing ${switched.other} did not change the details panel`);
+    check(switched.search.includes(`baseline=${switched.other}`),
+      `${label}: the chosen period is missing from "${switched.search}"`);
+    check(switched.names,
+      `${label}: the comparison does not name the years it came from`);
+
     if (mobile) {
       // The detail sheet is modal. Close it before exercising another real
       // list click; clicking through its overlay tests an impossible user

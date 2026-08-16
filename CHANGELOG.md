@@ -7,6 +7,27 @@ and is not listed here.
 
 ### Added
 
+- **You can choose which years "normal" means.** The storage map has a
+  "Compare against" control with two periods: **1991 through 2020**, the
+  standard thirty-year climate period and the same one the mountain snow
+  measurements already used, and **2015 through last year**, every year this
+  site collects. Each reservoir's details now name the period its comparison
+  came from and how many years stand behind it.
+
+  This matters more than it sounds. The site's only "normal" used to be the
+  2015-onward one, and it was that period by accident — 2015 is simply where
+  the data pipeline starts asking. Those years are the driest stretch in the
+  modern record here, so every reservoir was being measured against a drought.
+  Lake Powell reads **44.6% of normal against 2015 through 2025 and 35.0%
+  against 1991 through 2020**. Both are correct; the second is the standard.
+
+  Sixty-three of the sixty-nine reservoirs have enough years for the standard
+  period. The rest are newer than it — Jackson Flat's dam dates from 2017 —
+  and their details say so and show the other period instead of a middle value
+  drawn from three years. The history rank is unaffected and still uses the
+  years this site collects, which the reservoir details and the methods page
+  both state.
+
 - **A weekly summary of what moved.** The storage charts page opens with the
   last seven days in plain sentences: how much water the region gained or
   lost, how far the combined level moved, how many reservoirs rose and fell,
@@ -19,6 +40,13 @@ and is not listed here.
   yet. It describes the whole region and does not follow the filters below it.
 
 ### Changed
+
+- **The map now opens on the standard climate period, so most numbers read
+  lower than they did.** That is the correction, not a fault: comparing
+  against a period that includes wet years is a higher bar than comparing
+  against a decade of drought. Choose "Recent years" in the "Compare against"
+  control to see the previous figures, and a shared link carries whichever you
+  picked.
 
 - **State and county outlines now draw behind everything else on the map.**
   They are borrowed reference geography — they say which land the pattern

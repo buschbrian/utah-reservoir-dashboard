@@ -11,7 +11,10 @@
 
 import { monthLabel } from "../data/months";
 import { isLate, sizeBasis } from "../data/rollup";
-import type { Reservoir, SourceKey } from "../types";
+import type { BaselineChoice, BaselineId, Reservoir, SourceKey } from "../types";
+import {
+  activeBaseline, baselineRowLabel, describeBaseline, FALLBACK_CHOICES
+} from "./baseline";
 import { storageColor } from "../viz/classes";
 import { formatAcreFeet, formatDate, formatPercent } from "../viz/format";
 import { headlineBasis, headlinePercent } from "../viz/symbols";
@@ -36,6 +39,15 @@ export interface DetailMonth {
   color: string;
 }
 
+/** Which period the chart's normal line is drawn from. */
+export interface DetailBaseline {
+  /** The row's own heading, which names the period rather than saying "normal". */
+  label: string;
+  value: string;
+  /** True when this reservoir has no figures for the period the reader chose. */
+  substituted: boolean;
+}
+
 export interface DetailView {
   name: string;
   percent: string;
@@ -49,6 +61,8 @@ export interface DetailView {
   months: DetailMonth[];
   /** Where the numbers came from, and what the history rank means. */
   note: string;
+  /** The period the comparison used, and whether it is the one asked for. */
+  baseline: DetailBaseline;
 }
 
 const PROVIDER_NAMES: Record<SourceKey, string> = {
@@ -80,27 +94,6 @@ function formatChange(amount: number | null, percent: number | null): string {
   const acreFeet = formatSignedAcreFeet(amount);
   if (acreFeet === "—" || percent === null || !Number.isFinite(percent)) return acreFeet;
   return `${acreFeet} (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
-}
-
-/**
- * A reference value, and where the reservoir sits against it.
- *
- * "(now at 80.0%)" rather than the legacy popup's "(80.0% of it)": the row
- * already names what the number is normal *for*, and "of it" left the reader
- * to work out which of the two numbers on the line the percentage divided.
- */
-function withShare(value: number | null, share: number | null): string {
-  const amount = value === null || !Number.isFinite(value)
-    ? "—" : `${formatAcreFeet(value)} acre-feet`;
-  if (amount === "—" || share === null || !Number.isFinite(share)) return amount;
-  return `${amount} (now at ${formatPercent(share)})`;
-}
-
-function withComparisonYears(value: number | null, share: number | null, years: number): string {
-  const reading = withShare(value, share);
-  if (!Number.isFinite(years) || years <= 0) return reading;
-  const rounded = Math.floor(years);
-  return `${reading}; compared with ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
 }
 
 /**
@@ -161,14 +154,24 @@ const SCHEDULE_NAMES: Record<string, string> = {
  * circle that used a different denominator would be a second answer to the
  * question the circle already answered.
  */
-export function monthlyDetail(reservoir: Reservoir): DetailMonth[] {
+export function monthlyDetail(
+  reservoir: Reservoir, baseline: BaselineId = "recent"
+): DetailMonth[] {
   const basis = sizeBasis(reservoir);
   return reservoir.monthly.map((entry) => {
     const storage = entry.mean_af !== null && Number.isFinite(entry.mean_af)
       ? entry.mean_af : null;
     const percent = storage !== null && basis ? (storage / basis) * 100 : null;
-    const normal = entry.normal_af !== null && Number.isFinite(entry.normal_af)
-      ? entry.normal_af : null;
+    /* The climate line falls back to the recent one rather than vanishing:
+     * a chart that loses its reference line when the reader changes period
+     * reads as a broken chart, and the panel's own row says which period the
+     * reservoir could actually answer for. */
+    const chosen = baseline === "climate" && entry.climate_normal_af !== undefined
+      && entry.climate_normal_af !== null
+      ? entry.climate_normal_af
+      : entry.normal_af;
+    const normal = chosen !== null && chosen !== undefined && Number.isFinite(chosen)
+      ? chosen : null;
     return {
       key: entry.month,
       label: monthLabel(entry.month),
@@ -181,7 +184,19 @@ export function monthlyDetail(reservoir: Reservoir): DetailMonth[] {
   });
 }
 
-export function describeReservoir(reservoir: Reservoir, color: string): DetailView {
+export function describeReservoir(
+  reservoir: Reservoir,
+  color: string,
+  baseline: BaselineId = "recent",
+  choices: readonly BaselineChoice[] = FALLBACK_CHOICES,
+  minimumYears = 0
+): DetailView {
+  const active = activeBaseline(reservoir, baseline, minimumYears);
+  const comparison = {
+    label: baselineRowLabel(active, choices),
+    value: describeBaseline(active, choices),
+    substituted: active.substituted
+  };
   const percent = headlinePercent(reservoir);
   const basis = headlineBasis(reservoir);
   const capacityLabel = basis === "capacity" ? "Capacity" : "Highest recorded storage";
@@ -207,14 +222,7 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
             ? `, measured as ${capacityBasisName(reservoir.capacity_basis)}`
             : ""}`
       },
-      {
-        label: "Normal for this week",
-        value: withComparisonYears(
-          reservoir.seasonal_normal_af,
-          reservoir.pct_of_seasonal_normal,
-          reservoir.seasonal_sample_years
-        )
-      },
+      { label: comparison.label, value: comparison.value },
       {
         label: "Change in 30 days",
         value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct),
@@ -249,14 +257,16 @@ export function describeReservoir(reservoir: Reservoir, color: string): DetailVi
     ],
     late: lateMessage(reservoir),
     color,
-    months: monthlyDetail(reservoir),
+    months: monthlyDetail(reservoir, active.shown ?? "recent"),
+    baseline: comparison,
     /* The history rank is the one number here a reader cannot work out from
      * the others, and the legacy popup explained it every time rather than
      * once somewhere else. */
     note: `History rank compares this value with values near the same date in earlier ` +
-      `years: 90% means it is higher than 90% of them. The record starts in 2015, so ` +
-      `a rank rests on a small number of years and is an indication rather than a ` +
-      `measurement. Storage data from the ${providerName(reservoir)}, which can ` +
-      `revise these values later.`
+      `years: 90% means it is higher than 90% of them. The rank always uses the years ` +
+      `this site collects, which start in 2015, so it rests on a small number of ` +
+      `years and is an indication rather than a measurement. The normal value above ` +
+      `uses the period named beside it. Storage data from the ` +
+      `${providerName(reservoir)}, which can revise these values later.`
   };
 }

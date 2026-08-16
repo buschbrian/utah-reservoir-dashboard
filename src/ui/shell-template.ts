@@ -90,6 +90,18 @@ function panelContents(suffix: string): string {
           <calcite-switch data-scope="powell"
             label="Include Lake Powell in every total"></calcite-switch>
         </calcite-label>
+        <!-- Which period "normal" means. Not a filter and not a scope: it
+             changes nothing about which reservoirs are drawn, only what the
+             details panel compares them against. It lives here because it is
+             the reader's choice and this is where the reader's choices are,
+             and it carries its own sentence because the two periods answer
+             genuinely different questions. -->
+        <calcite-label>
+          Compare against
+          <calcite-select data-baseline="period"
+            label="Which years to compare each reservoir against"></calcite-select>
+        </calcite-label>
+        <p class="baseline-note" data-baseline="note"></p>
         <p class="filter-summary" data-filter="summary" role="status" aria-live="polite"></p>
         <calcite-button data-filter="reset" appearance="outline" icon-start="erase"
           width="full" hidden>

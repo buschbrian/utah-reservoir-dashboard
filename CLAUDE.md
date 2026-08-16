@@ -23,6 +23,7 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `shared/reservoir-viz.js` | Frozen source-only color-table owner and test oracle. It is not published. |
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
+| `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
 
 ## Rules
 
@@ -48,6 +49,16 @@ a test asserting a literal percentage would turn the build red on a morning
 when no code changed — and a red build freezes the published numbers. Compare
 against `shared/reservoir-viz.js` in a `node:vm` sandbox instead; see
 `src/data/legacy-harness.ts`.
+
+**A normal names the years it came from** (ADR-041). Two comparison periods
+are published per reservoir and the reader picks; `normals.json` holds the
+standard 1991-2020 one and is rebuilt by `tools/build_normal_baselines.py`, not
+by the daily refresh — a median over a period that has ended cannot change. Two
+rules have tests behind them: a comparison never answers with a period it was
+not asked for without saying so, and a median never appears without the number
+of years behind it. A baseline thinner than the payload's own `minimum_years`
+counts as unavailable, because a three-year median labelled "1991 through 2020"
+is true in every word and wrong as a whole.
 
 **Retired routes preserve bookmarks, not runtimes** (ADR-031). Keep
 `legacy/`, `maplibre/`, and `explore.html` as small accessible redirects. Do
@@ -107,7 +118,14 @@ On demand, not part of the build and not runnable in CI:
 ```bash
 node tools/profile-symbols.mjs   # needs a real, visible browser window
 node tools/audit-transfer.mjs    # needs a built dist/ and Playwright Chromium
+python tools/build_normal_baselines.py   # ~20 min; rewrites normals.json
 ```
+
+`build_normal_baselines.py` fetches thirty years of readings for all 69
+reservoirs, so it is slow and deliberately not part of any build. Run it when
+the standard climate period moves (2021-2050 becomes standard in 2031) or when
+a reservoir joins the roster. `--dry-run` prints the coverage summary without
+writing, and `--only "Name"` builds one.
 
 `audit-transfer.mjs` reports what each page actually requests and from which
 hosts. It is the measurement the content policy was written from: if a new

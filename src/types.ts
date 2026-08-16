@@ -9,7 +9,50 @@ export interface MonthlyRecord {
   max_af: NullableNumber;
   end_af: NullableNumber;
   days: number;
+  /** The recent baseline's normal for this calendar month. */
   normal_af: NullableNumber;
+  /**
+   * The 1991-2020 normal for this calendar month.
+   *
+   * Optional because payloads written before the selectable baseline remain
+   * readable, and null for a reservoir that has no climate record. Both cases
+   * mean the same thing to a chart -- draw no climate line -- and neither may
+   * be quietly answered with `normal_af` instead.
+   */
+  climate_normal_af?: NullableNumber;
+}
+
+/** Which period a comparison is measured against. */
+export type BaselineId = "recent" | "climate";
+
+/**
+ * One reservoir measured against one period.
+ *
+ * `sample_years` is not decoration. A median over thirty years and a median
+ * over three are both "the normal", and only one of them means what a reader
+ * assumes it means, so every surface that shows a normal shows this too.
+ */
+export interface Baseline {
+  normal_af: NullableNumber;
+  pct_of_normal: NullableNumber;
+  sample_years: number;
+  /** False for a reservoir younger than the period it is measured against. */
+  covers_full_period: boolean;
+  first_obs: string;
+}
+
+/**
+ * Both baselines for one reservoir, and which one it opens on.
+ *
+ * `climate` is null where there is no record to build one from -- a dam
+ * younger than 1991, or a station the provider would not answer for. It is
+ * never filled in from `recent` as a stand-in: a comparison that silently
+ * swaps its own denominator is the failure this exists to fix.
+ */
+export interface ReservoirBaselines {
+  recent: Baseline | null;
+  climate: Baseline | null;
+  default: BaselineId;
 }
 
 export interface Reservoir {
@@ -39,6 +82,14 @@ export interface Reservoir {
   seasonal_normal_af: NullableNumber;
   pct_of_seasonal_normal: NullableNumber;
   seasonal_sample_years: number;
+  /**
+   * The same question against a choice of period. Optional while payloads
+   * written before the selectable baseline remain readable; the three
+   * `seasonal_*` fields above stay exactly what they were and carry the
+   * recent baseline, so nothing that already reads this payload changes
+   * meaning.
+   */
+  baselines?: ReservoirBaselines;
   change_7d_af: NullableNumber;
   change_7d_pct: NullableNumber;
   change_30d_af: NullableNumber;
@@ -191,6 +242,24 @@ export interface DroughtCoveragePayload {
   units: DroughtUnit[];
 }
 
+/** A period offered in the baseline control, described in its own words. */
+export interface BaselineChoice {
+  id: BaselineId;
+  label: string;
+  period_label: string;
+  start_year: number;
+  end_year: number;
+  /** Why a reader might pick this one, and what it cannot tell them. */
+  note: string;
+}
+
+export interface ClimateNormalsMeta {
+  built: string | null;
+  file: string;
+  available_count: number;
+  minimum_years: number;
+}
+
 export interface ReservoirPayload {
   schema_version?: number;
   generated_at: string;
@@ -198,6 +267,10 @@ export interface ReservoirPayload {
   /** Optional while payloads generated before the disclosure remain readable. */
   normal_period?: NormalPeriod;
   normal_window_days?: number;
+  /** The periods a reader can measure against. Optional for older payloads. */
+  baselines?: BaselineChoice[];
+  default_baseline?: BaselineId;
+  climate_normals?: ClimateNormalsMeta;
   stale_after_days: number;
   stale_after_days_by_cadence: Record<DataFrequency, number>;
   source: string;

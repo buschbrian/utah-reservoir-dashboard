@@ -94,34 +94,113 @@ describe("the details a reader sees", () => {
   it("carries every reading the legacy popup carried", () => {
     for (const view of views) {
       expect(view.rows.map((row) => row.label)).toEqual(expect.arrayContaining([
-        "Stored now", "Normal for this week", "History rank", "Change in 30 days",
+        "Stored now", "History rank", "Change in 30 days",
         "Change in 1 year", "Highest value this year", "Reading date",
         "Update schedule", "Measured by"
       ]));
+      /* The comparison row is still there, but its label now names the period
+       * rather than saying "normal" and leaving the reader to guess which
+       * normal. That naming is the point of the row, so it is asserted as a
+       * shape rather than as a fixed string. */
+      expect(view.rows.some((row) => row.label.startsWith("Normal for this week,")))
+        .toBe(true);
     }
   });
+
+  const comparisonRow = (view: { rows: { label: string; value: string }[] }) =>
+    view.rows.find((entry) => entry.label.startsWith("Normal for this week"));
 
   it("states how many earlier years support the weekly comparison", () => {
     const reservoir = reservoirs.find((candidate) => candidate.seasonal_sample_years > 0);
     expect(reservoir).toBeDefined();
     if (reservoir) {
-      const row = describeReservoir(reservoir, "#000").rows
-        .find((entry) => entry.label === "Normal for this week");
-      expect(row?.value).toContain(`compared with ${reservoir.seasonal_sample_years} earlier years`);
+      const row = comparisonRow(describeReservoir(reservoir, "#000"));
+      expect(row?.value).toContain(`${reservoir.seasonal_sample_years} years`);
     }
 
     const base = reservoirs[0];
     expect(base).toBeDefined();
     if (!base) return;
+    /* The key is removed rather than set to undefined: `exactOptionalPropertyTypes`
+     * treats "absent" and "present and undefined" as different, and the case
+     * under test is a payload written before the control existed. */
+    const { baselines: _unused, ...withoutBaselines } = base;
     const withoutComparison = {
-      ...base,
+      ...withoutBaselines,
       seasonal_normal_af: null,
       pct_of_seasonal_normal: null,
       seasonal_sample_years: 0
     };
-    const row = describeReservoir(withoutComparison, "#000").rows
-      .find((entry) => entry.label === "Normal for this week");
-    expect(row?.value).toBe("—");
+    const row = comparisonRow(describeReservoir(withoutComparison, "#000"));
+    expect(row?.value).toBe("No earlier years to compare with.");
+  });
+
+  it("names the period in the row, so two normals cannot be confused", () => {
+    /* The whole point of the change. A reader looking at "44.6% of normal"
+     * has to be able to see which years that normal came from, because the
+     * same reservoir reads 35.0% against 1991-2020 -- a ten point difference
+     * that is invisible in the number itself. */
+    const base = reservoirs[0];
+    expect(base).toBeDefined();
+    if (!base) return;
+    const reservoir = {
+      ...base,
+      baselines: {
+        recent: {
+          normal_af: 1000, pct_of_normal: 90, sample_years: 11,
+          covers_full_period: true, first_obs: "2015-01-01"
+        },
+        climate: {
+          normal_af: 1400, pct_of_normal: 64.3, sample_years: 30,
+          covers_full_period: true, first_obs: "1991-01-01"
+        },
+        default: "climate" as const
+      }
+    };
+    const choices = [
+      { id: "recent" as const, label: "Recent years", period_label: "2015 through 2025",
+        start_year: 2015, end_year: 2025, note: "" },
+      { id: "climate" as const, label: "Standard climate period",
+        period_label: "1991 through 2020", start_year: 1991, end_year: 2020, note: "" }
+    ];
+    const climate = describeReservoir(reservoir, "#000", "climate", choices);
+    expect(comparisonRow(climate)?.label).toContain("1991 through 2020");
+    expect(comparisonRow(climate)?.value).toContain("30 years");
+    expect(climate.baseline.substituted).toBe(false);
+
+    const recent = describeReservoir(reservoir, "#000", "recent", choices);
+    expect(comparisonRow(recent)?.label).toContain("2015 through 2025");
+    expect(comparisonRow(recent)?.value).toContain("11 years");
+  });
+
+  it("says when a reservoir cannot answer for the period the reader chose", () => {
+    /* Five reservoirs are younger than 1991. Showing the other period's
+     * number under the label the reader selected would make the control a
+     * lie, so the substitution is stated in the same sentence. */
+    const base = reservoirs[0];
+    expect(base).toBeDefined();
+    if (!base) return;
+    const young = {
+      ...base,
+      baselines: {
+        recent: {
+          normal_af: 1000, pct_of_normal: 90, sample_years: 8,
+          covers_full_period: true, first_obs: "2017-06-01"
+        },
+        climate: null,
+        default: "recent" as const
+      }
+    };
+    const choices = [
+      { id: "recent" as const, label: "Recent years", period_label: "2015 through 2025",
+        start_year: 2015, end_year: 2025, note: "" },
+      { id: "climate" as const, label: "Standard climate period",
+        period_label: "1991 through 2020", start_year: 1991, end_year: 2020, note: "" }
+    ];
+    const view = describeReservoir(young, "#000", "climate", choices);
+    expect(view.baseline.substituted).toBe(true);
+    expect(comparisonRow(view)?.label).toContain("2015 through 2025");
+    expect(comparisonRow(view)?.value).toContain("no 1991 through 2020 comparison");
   });
 
   it("signs a change and marks a fall, so a drop cannot read as a rise", () => {

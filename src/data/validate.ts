@@ -1,6 +1,9 @@
 import type {
+  Baseline,
+  BaselineChoice,
   MonthlyRecord,
   Reservoir,
+  ReservoirBaselines,
   ReservoirPayload,
   ReservoirSource
 } from "../types";
@@ -28,7 +31,49 @@ function isMonthlyRecord(value: unknown): value is MonthlyRecord {
     hasNullableNumber(value.min_af) &&
     hasNullableNumber(value.max_af) &&
     hasNullableNumber(value.end_af) &&
-    hasNullableNumber(value.normal_af);
+    hasNullableNumber(value.normal_af) &&
+    (value.climate_normal_af === undefined ||
+      hasNullableNumber(value.climate_normal_af));
+}
+
+function isBaseline(value: unknown): value is Baseline {
+  return isObject(value) &&
+    hasNullableNumber(value.normal_af) &&
+    hasNullableNumber(value.pct_of_normal) &&
+    hasNumber(value.sample_years) &&
+    typeof value.covers_full_period === "boolean" &&
+    typeof value.first_obs === "string";
+}
+
+function isBaselineId(value: unknown): boolean {
+  return value === "recent" || value === "climate";
+}
+
+/**
+ * Both baselines, or a clear absence.
+ *
+ * The one thing this refuses is a `default` naming a baseline that is not
+ * there. A control offering a period with nothing behind it renders an empty
+ * comparison that looks like a measurement, which is worse than the payload
+ * being rejected outright.
+ */
+function isReservoirBaselines(value: unknown): value is ReservoirBaselines {
+  if (!isObject(value)) return false;
+  if (!isBaselineId(value.default)) return false;
+  if (value.recent !== null && !isBaseline(value.recent)) return false;
+  if (value.climate !== null && !isBaseline(value.climate)) return false;
+  return value[value.default as string] !== null;
+}
+
+function isBaselineChoice(value: unknown): value is BaselineChoice {
+  return isObject(value) &&
+    isBaselineId(value.id) &&
+    typeof value.label === "string" &&
+    typeof value.period_label === "string" &&
+    Number.isInteger(value.start_year) &&
+    Number.isInteger(value.end_year) &&
+    (value.start_year as number) <= (value.end_year as number) &&
+    typeof value.note === "string";
 }
 
 function isReservoirSource(value: unknown): value is ReservoirSource {
@@ -70,6 +115,7 @@ function isReservoir(value: unknown): value is Reservoir {
     hasNullableNumber(value.seasonal_normal_af) &&
     hasNullableNumber(value.pct_of_seasonal_normal) &&
     hasNumber(value.seasonal_sample_years) &&
+    (value.baselines === undefined || isReservoirBaselines(value.baselines)) &&
     hasNullableNumber(value.change_7d_af) &&
     hasNullableNumber(value.change_7d_pct) &&
     hasNullableNumber(value.change_30d_af) &&
@@ -120,6 +166,21 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
        !Number.isInteger(normalPeriod.end_year) ||
        (normalPeriod.start_year as number) > (normalPeriod.end_year as number))) {
     throw new Error("reservoirs.json has invalid normal period metadata");
+  }
+  if (value.baselines !== undefined &&
+      (!Array.isArray(value.baselines) ||
+       !value.baselines.every(isBaselineChoice))) {
+    throw new Error("reservoirs.json has invalid baseline metadata");
+  }
+  if (value.default_baseline !== undefined && !isBaselineId(value.default_baseline)) {
+    throw new Error("reservoirs.json names an unknown default baseline");
+  }
+  /* A default the control cannot offer would leave the page with no selected
+   * period at all, so the two have to agree before anything renders. */
+  if (value.default_baseline !== undefined && Array.isArray(value.baselines) &&
+      !value.baselines.some((choice) =>
+        isObject(choice) && choice.id === value.default_baseline)) {
+    throw new Error("reservoirs.json names a default baseline it does not offer");
   }
   if (value.normal_window_days !== undefined &&
       (!hasNumber(value.normal_window_days) ||

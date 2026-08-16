@@ -192,11 +192,27 @@ root.innerHTML = `
           basis rather than silently converting between them, because converting would mean
           inventing numbers the dam owners have not published.</dd>
         <dt>Normal for this week</dt>
-        <dd>The middle value of readings from 2015 through the year before the current
-          reading, taken within seven days before or after the same date. It answers "is
-          this a normal amount of water for the time of year", which percent full on its
-          own cannot: the same percentage means different things in April and in
-          September.</dd>
+        <dd>The middle value of readings taken within seven days before or after the same
+          date in earlier years. It answers "is this a normal amount of water for the time
+          of year", which percent full on its own cannot: the same percentage means
+          different things in April and in September.
+          <br /><strong>You choose which years.</strong> The storage map has a
+          "Compare against" control with two periods, and each reservoir says which one its
+          number came from and how many years stand behind it.
+          <ul>
+            <li><strong>1991 through 2020</strong> is the thirty-year period the World
+              Meteorological Organization defines as standard, and the same period the
+              mountain snow measurements use. The map opens on it. It is built once from
+              the full provider records and kept in the repository, because a middle value
+              over a period that has ended cannot change.</li>
+            <li><strong>2015 through last year</strong> is every year this site collects.
+              Those years have been unusually dry here, so a reservoir can look ordinary
+              against them and still be low.</li>
+          </ul>
+          Sixty-three of the sixty-nine reservoirs have enough years for the standard
+          period. The rest are newer than it — Jackson Flat's dam dates from 2017 — and
+          their details say so and give the other period's value instead of a middle value
+          taken from three or four years.</dd>
         <dt>History rank</dt>
         <dd>How this reading compares with readings near the same date in earlier years.
           90% means it is higher than 90% of them. The current year is not counted against
@@ -211,8 +227,11 @@ root.innerHTML = `
           days before it, where the provider publishes often enough to support it.</dd>
         <dt>The last 12 months</dt>
         <dd>For each month, the average, lowest, highest and closing storage, and the normal
-          value for that month. The chart in the reservoir details shows the average, and
-          the percentages under it use the same full level the map colours by.</dd>
+          value for that month against whichever period is selected. The chart in the
+          reservoir details shows the average, and the percentages under it use the same
+          full level the map colours by. A monthly normal value is the middle of that
+          calendar month's average storage across the years in the period, so a reservoir
+          read once a month and one read every day are weighted the same.</dd>
         <dt>Combined percentages</dt>
         <dd>Storage added up across reservoirs, divided by their full levels added up. A
           large reservoir therefore counts for more than a small one, which is why Lake
@@ -265,19 +284,19 @@ root.innerHTML = `
         <li>A full level taken from the highest storage since 2015 is a floor, not a
           capacity: a reservoir that has never filled during that period will read higher
           than it would against its true capacity.</li>
-        <li>The storage record starts in 2015, and those years were predominantly dry in
-          this region. A normal built from this record is a dry-period normal. A reservoir
-          near 100% of that normal is near normal for a dry period, not near its long-term
-          average.</li>
-        <li><strong>Storage and snow are compared against different periods, and the two
-          numbers are not equivalent.</strong> Snow is compared with 1991 through 2020, the
-          thirty-year period the measuring service publishes and the standard length for a
-          climate comparison. Storage is compared with 2015 onward, because that is where
-          the storage record this site collects begins. So "snow at 70% of normal" is
-          measured against thirty years including wet ones, while "storage near normal" is
-          measured against eleven mostly dry ones. Storage will therefore tend to look
-          better against its normal than snow does against its own. Read each against its
-          own period, and do not read one as confirming the other.</li>
+        <li><strong>The years you compare against change the answer, and by a lot.</strong>
+          Lake Powell in August 2026 is at 44.6% of normal measured against 2015 through
+          2025, and at 35.0% measured against 1991 through 2020. Both are correct. The
+          second is the standard period; the first is measured against a decade of drought,
+          which is a lower bar. The map opens on the standard period for that reason, and
+          every comparison on the site names the years it used.</li>
+        <li>The history rank is a separate measure and always uses the years this site
+          collects, which start in 2015. It is not affected by the "Compare against"
+          control. A rank therefore rests on eight to eleven years however the normal value
+          beside it is measured.</li>
+        <li>A full level taken from the highest storage since 2015 is still a floor rather
+          than a capacity, whichever period the normal value uses. The two are different
+          denominators answering different questions.</li>
         <li><strong>These reservoirs are operated, and much of what the numbers show is
           operation rather than weather.</strong> Water is released to meet downstream
           deliveries, power generation, environmental flows and obligations between states.

@@ -22,6 +22,9 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("start_date", "date", "First date requested from the storage providers."),
     f("normal_period", "object", "First and last years that can support the weekly comparison.", true),
     f("normal_window_days", "days", "Days before or after the same date used for the weekly comparison.", true),
+    f("baselines", "array", "Periods a reader can measure each reservoir against.", true),
+    f("default_baseline", "identifier", "Period the map opens on.", true),
+    f("climate_normals", "object", "Where the standard-period values came from.", true),
     f("stale_after_days", "days", "Default number of days allowed before a daily reading is late."),
     f("stale_after_days_by_cadence", "object", "Late-data limits for each update schedule."),
     f("source", "text", "Short description of the storage providers."),
@@ -37,6 +40,22 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("start_year", "year", "First year that can support the weekly comparison."),
     f("end_year", "year", "Last year that can support the weekly comparison.")
   ]},
+  { id: "reservoir-baseline-choice", title: "Comparison period",
+    path: "baselines[]", fields: [
+      f("id", "identifier", "Stable key used by each reservoir record."),
+      f("label", "text", "Short name for the period."),
+      f("period_label", "text", "First and last year of the period, in words."),
+      f("start_year", "year", "First year of the period."),
+      f("end_year", "year", "Last year of the period."),
+      f("note", "text", "What this period can and cannot show.")
+    ]},
+  { id: "reservoir-climate-normals", title: "Standard-period values",
+    path: "climate_normals", fields: [
+      f("built", "date", "Date the standard-period values were last worked out."),
+      f("file", "text", "Name of the file that holds the standard-period values."),
+      f("available_count", "reservoirs", "Records with a standard-period value."),
+      f("minimum_years", "years", "Fewest years a period needs before a record opens on it.")
+    ]},
   { id: "reservoir-schedules", title: "Update limits", path: "stale_after_days_by_cadence", fields: [
     f("daily", "days", "Limit for readings expected every day."),
     f("monthly", "days", "Limit for readings expected once a month.")
@@ -89,6 +108,7 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("seasonal_normal_af", "acre-feet", "Middle earlier-year reading near the same date."),
     f("pct_of_seasonal_normal", "percent", "Current storage divided by the weekly normal value."),
     f("seasonal_sample_years", "years", "Number of earlier calendar years in the weekly comparison."),
+    f("baselines", "object", "The same comparison against each period on offer.", true),
     f("change_7d_af", "acre-feet", "Storage change over about seven days."),
     f("change_7d_pct", "percent", "Seven-day change divided by the earlier reading."),
     f("change_30d_af", "acre-feet", "Storage change over about 30 days."),
@@ -116,8 +136,25 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("max_af", "acre-feet", "Highest storage during the month."),
     f("end_af", "acre-feet", "Last usable storage reading in the month."),
     f("days", "readings", "Number of readings in the monthly summary."),
-    f("normal_af", "acre-feet", "Middle earlier-year value for the month.")
-  ]}
+    f("normal_af", "acre-feet", "Middle earlier-year value for the month."),
+    f("climate_normal_af", "acre-feet",
+      "Middle value for the month across the standard climate period.", true)
+  ]},
+  { id: "reservoir-baselines", title: "Comparison periods for one reservoir",
+    path: "reservoirs[].baselines", fields: [
+      f("recent", "object", "Comparison against the years this site collects."),
+      f("climate", "object", "Comparison against the standard climate period, or null."),
+      f("default", "identifier", "Period this reservoir opens on.")
+    ]},
+  { id: "reservoir-baseline", title: "One comparison",
+    path: "reservoirs[].baselines.recent", fields: [
+      f("normal_af", "acre-feet", "Middle reading near the same date across the period."),
+      f("pct_of_normal", "percent", "Current storage divided by that middle reading."),
+      f("sample_years", "years", "Calendar years behind the middle reading."),
+      f("covers_full_period", "true or false",
+        "False when the reservoir is newer than the period."),
+      f("first_obs", "date", "First reading used for this comparison.")
+    ]}
 ];
 
 export const SNOW_GROUPS: readonly ApiFieldGroup[] = [

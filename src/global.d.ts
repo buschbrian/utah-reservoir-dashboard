@@ -30,6 +30,11 @@ interface DashboardReady {
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;
+  /** The period the details panel is currently measuring against. One fact:
+   * what the reader would see, not what the payload prefers. */
+  baseline: string;
+  /** Periods the baseline control offers. Fewer than two hides it. */
+  baselineChoices: number;
   listItems: number;
   /** True when the reader has narrowed the map with the analysis controls. */
   filtered: boolean;

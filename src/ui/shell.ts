@@ -321,6 +321,49 @@ export function setDrainageAreaOptions(options: readonly FilterOption[]): void {
   fillFilter("drainage", options);
 }
 
+/**
+ * The baseline control, and the sentence under it.
+ *
+ * Both copies of the control -- desktop panel and phone sheet -- are filled
+ * and kept at one value for the same reason the filters are: two surfaces
+ * showing different periods would be two answers to one question, and this is
+ * the question the rest of the panel's numbers are answers to.
+ *
+ * The note is not decoration. The two periods measure genuinely different
+ * things, and the difference is not visible in the number they produce, so
+ * the words have to carry it.
+ */
+export function setBaselineControl(
+  options: readonly FilterOption[],
+  value: string,
+  note: string,
+  onChange?: (value: string) => void
+): void {
+  document.querySelectorAll<CalciteSelect>('[data-baseline="period"]').forEach((select) => {
+    if (options.length) {
+      select.replaceChildren(...options.map((option) => {
+        const element = document.createElement("calcite-option");
+        element.setAttribute("value", option.value);
+        element.textContent = option.label;
+        return element;
+      }));
+    }
+    select.value = value;
+    if (onChange) {
+      select.addEventListener("calciteSelectChange", () => onChange(select.value));
+    }
+    /* One period on offer is not a choice. The control is hidden rather than
+     * shown disabled, because a disabled control asks the reader to work out
+     * why it is disabled. */
+    const label = select.closest("calcite-label");
+    if (label) (label as HTMLElement).hidden = options.length < 2;
+  });
+  document.querySelectorAll<HTMLElement>('[data-baseline="note"]').forEach((element) => {
+    element.textContent = note;
+    element.hidden = note.length === 0;
+  });
+}
+
 type CalciteSwitch = HTMLElement & { checked: boolean };
 
 export interface ScopeControls {

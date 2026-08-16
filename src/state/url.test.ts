@@ -138,6 +138,21 @@ describe("the rest of the view in the link", () => {
     expect(search.indexOf("reservoir=")).toBeLessThan(search.indexOf("late="));
   });
 
+  it("carries a chosen period, and writes nothing when none was chosen", () => {
+    /* The parameter is the reader's choice, not the page's default. Writing
+     * it unconditionally would freeze today's default into every shared link,
+     * so a link made now would keep meaning "recent years" after the site
+     * moved on -- which is the opposite of what the sharer intended. */
+    expect(searchWithState({ baseline: null })).toBe("");
+    expect(searchWithState({ baseline: "climate" })).toContain("baseline=climate");
+    expect(stateFromSearch("?baseline=climate").baseline).toBe("climate");
+    expect(stateFromSearch("?baseline=recent").baseline).toBe("recent");
+    // A period this page does not know opens on the payload's default rather
+    // than breaking the link.
+    expect(stateFromSearch("?baseline=1991").baseline).toBeNull();
+    expect(stateFromSearch("").baseline).toBeNull();
+  });
+
   it("survives a round trip in every combination the controls can reach", () => {
     for (const storageClass of CLASSES) {
       for (const reporting of ["all", "late", "current"] as const) {
@@ -151,7 +166,11 @@ describe("the rest of the view in the link", () => {
                   /* The bottom row has its own round trip below. Held at its
                    * default here so this loop keeps testing the controls it
                    * was written for rather than multiplying by two more. */
-                  tableOpen: false, tableSort: DEFAULT_SORT
+                  tableOpen: false, tableSort: DEFAULT_SORT,
+                  /* Null is "whichever period the payload opens on", which is
+                   * the state an untouched page is in and the one that writes
+                   * no parameter. The two real values round trip below. */
+                  baseline: null
                 };
                 expect(stateFromSearch(searchWithState(state))).toEqual(state);
               }
