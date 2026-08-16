@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **The snowpack view has its map.** A map card now sits above the seasonal
+  curve: each drainage area is filled by its mean percent of normal for a
+  chosen day, and every measurement site is a point on the same red-to-blue
+  scale, with its own legend and a day control across the whole water year.
+  The day opens on the newest one where at least half the sites reported —
+  the same floor the headline values use — and a shared link carries the
+  chosen day. Areas and sites without a fair value for the shown day stay
+  grey rather than borrowing a colour. The view frames the fourteen
+  drainage areas exactly, the basemap uses the same keyless fallback chain
+  as the storage map, and a map that cannot start leaves every number on
+  the page in the chart and tables with a visible note.
+
 - **A drought view.** The navigation now carries a Drought page reading the
   U.S. Drought Monitor's weekly map by drainage area, most severe first.
   Each area shows the share of its land in each class as a bar in the

@@ -1311,6 +1311,36 @@ for (const viewport of VIEWPORTS) {
       `${label}: the whole region still carries ${state.search}`);
     check(state.scroll <= state.viewport + 1,
       `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
+
+    /* The map half. Its readiness fields arrive after the figures, so this
+     * is a second wait; the counts prove the choropleth and the sites were
+     * actually built, which a blank-canvas screenshot cannot. */
+    await tab.waitForFunction(
+      "window.__snowReady && window.__snowReady.mapDay !== undefined",
+      { timeout: 60000 });
+    const mapState = await tab.evaluate(() => ({
+      ready: window.__snowReady,
+      slider: Boolean(document.querySelector("#snow-day")),
+      legendItems: document.querySelectorAll(".snow-map-legend .drought-legend-item").length
+    }));
+    console.log("  map:", JSON.stringify({
+      basins: mapState.ready?.mapBasins,
+      sites: mapState.ready?.mapSites,
+      withValues: mapState.ready?.mapBasinsWithValues,
+      day: mapState.ready?.mapDay,
+      basemap: mapState.ready?.mapBasemap
+    }));
+    check(mapState.ready?.mapBasins === mapState.ready?.basins,
+      `${label}: the map drew ${mapState.ready?.mapBasins} basins of ${mapState.ready?.basins}`);
+    check(mapState.ready?.mapSites === mapState.ready?.sites,
+      `${label}: the map drew ${mapState.ready?.mapSites} sites of ${mapState.ready?.sites}`);
+    check(mapState.ready?.mapBasinsWithValues > 0 && mapState.ready?.mapSitesWithValues > 0,
+      `${label}: the shown day coloured ${mapState.ready?.mapBasinsWithValues} basins ` +
+      `and ${mapState.ready?.mapSitesWithValues} sites`);
+    check(typeof mapState.ready?.mapDay === "string",
+      `${label}: the map has no shown day`);
+    check(mapState.slider && mapState.legendItems === 6,
+      `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} of 6`);
     await tab.screenshot({ path: `screenshots/snow-${viewport.name}.png`, fullPage: false });
   } catch (err) {
     failures.push(`${label}: ${err.message}`);

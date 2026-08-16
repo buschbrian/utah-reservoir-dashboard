@@ -189,6 +189,41 @@ export function seasonHighPoint(
   return best;
 }
 
+/** Everything the map colours for one day of the water year. */
+export interface MapDayValues {
+  /** Mean percent of normal per drainage area, from the published rollups. */
+  basins: Map<string, number | null>;
+  /** Percent of normal per station, from each site's own series. */
+  sites: Map<string, number | null>;
+}
+
+export function mapDayValues(
+  payload: SnowpackPayload, date: string
+): MapDayValues {
+  const basins = new Map<string, number | null>();
+  for (const rollup of payload.rollups) {
+    const day = rollup.series.find((entry) => entry.date === date);
+    basins.set(rollup.huc6, day ? day.mean_percent_of_normal_median : null);
+  }
+  const sites = new Map<string, number | null>();
+  for (const site of payload.sites) {
+    const row = site.series.find((entry) => entry[0] === date);
+    sites.set(site.station, row ? percentOfNormal(row[1], row[2]) : null);
+  }
+  return { basins, sites };
+}
+
+/**
+ * The day the map opens on: the newest one where at least half the sites
+ * reported, the same floor the headline values hold to. In August that is a
+ * late-spring day, and the caption says so rather than colouring the region
+ * from two melted stations.
+ */
+export function defaultMapDay(payload: SnowpackPayload): string | null {
+  const region = regionCurve(payload);
+  return newestHeadline(region, headlineFloor(payload.site_count, 2))?.date ?? null;
+}
+
 export interface MonthReading {
   /** "2025-10" */
   key: string;

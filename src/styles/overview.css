@@ -260,6 +260,37 @@ body {
 .overview-table td:nth-child(n + 3), .overview-table th:nth-child(n + 3) { text-align: end; font-variant-numeric: tabular-nums; }
 .overview-table tbody tr:hover { background: color-mix(in srgb, var(--app-accent) 8%, transparent); }
 .late-badge { color: #7f461d; font-weight: 700; }
+
+/* Class-legend chips, shared by the drought bars and the snow map. The
+ * names keep the drought- prefix they were born with; what matters is that
+ * every page rendering the chips gets these rules from the one stylesheet
+ * they all import, not from a page-scoped file another page forgets. */
+.drought-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .9rem;
+  margin: .25rem 0 1rem;
+}
+.drought-legend-item {
+  display: inline-flex;
+  gap: .4rem;
+  align-items: center;
+  color: var(--app-muted);
+  font-size: .78rem;
+}
+.drought-swatch {
+  inline-size: .85rem;
+  block-size: .85rem;
+  border: 1px solid var(--app-border);
+  border-radius: .2rem;
+}
+/* The "none of the classes" fill: a neutral hatch, used by a coverage bar
+ * segment, a legend chip, or anything else that has to say "no value". */
+.drought-segment-none {
+  background:
+    repeating-linear-gradient(135deg,
+      transparent 0 6px, color-mix(in srgb, var(--app-muted) 18%, transparent) 6px 8px);
+}
 :root[data-theme="dark"] .late-badge { color: #f0b48b; }
 .overview-error { padding: 2rem; border-inline-start: .3rem solid var(--app-terracotta); background: var(--app-surface-raised); }
 

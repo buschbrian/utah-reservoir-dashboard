@@ -1,28 +1,10 @@
-/* The drought view's own styles: the class legend and the coverage bars.
- * Layout, navigation, cards and tables reuse the workspace stylesheet. The
- * segment colours are data -- the monitor's own palette from
- * `src/viz/drought-classes.ts` -- and are set inline by the page, never
- * here, so this file cannot disagree with the class table. */
-
-.drought-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .4rem .9rem;
-  margin: .25rem 0 1rem;
-}
-.drought-legend-item {
-  display: inline-flex;
-  gap: .4rem;
-  align-items: center;
-  color: var(--app-muted);
-  font-size: .78rem;
-}
-.drought-swatch {
-  inline-size: .85rem;
-  block-size: .85rem;
-  border: 1px solid var(--app-border);
-  border-radius: .2rem;
-}
+/* The drought view's own styles: the coverage bars and their rows. The
+ * class-legend chips moved to the shared workspace stylesheet the day the
+ * snow map reused them and rendered unstyled -- a page-scoped rule for a
+ * shared class name is a drift trap. The segment colours are data -- the
+ * monitor's own palette from `src/viz/drought-classes.ts` -- and are set
+ * inline by the page, never here, so this file cannot disagree with the
+ * class table. */
 
 .drought-rows { display: grid; gap: .75rem; }
 .drought-row {
@@ -52,11 +34,6 @@
   border-radius: .35rem;
 }
 .drought-segment { min-inline-size: 0; }
-.drought-segment-none {
-  background:
-    repeating-linear-gradient(135deg,
-      transparent 0 6px, color-mix(in srgb, var(--app-muted) 18%, transparent) 6px 8px);
-}
 
 .drought-row-reading { color: var(--app-muted); font-size: .78rem; }
 .drought-row-links { display: flex; flex-wrap: wrap; gap: .35rem .9rem; font-size: .78rem; }

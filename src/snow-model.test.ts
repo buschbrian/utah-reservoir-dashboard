@@ -3,7 +3,9 @@ import { readSnowpack } from "./data/payload-fixture";
 import {
   basinChoices,
   basinCurve,
+  defaultMapDay,
   headlineFloor,
+  mapDayValues,
   monthReadings,
   newestHeadline,
   percentOfNormal,
@@ -168,6 +170,44 @@ describe("headline readings", () => {
     // Data-independent: any real season has at least one broad reading.
     expect(seasonHighPoint(region, floor)).not.toBeNull();
     expect(newestHeadline(region, floor)).not.toBeNull();
+  });
+});
+
+describe("the map day", () => {
+  it("opens on the newest day at least half the sites reported", () => {
+    const day = defaultMapDay(payload);
+    expect(day).not.toBeNull();
+    const region = regionCurve(payload);
+    const floor = headlineFloor(payload.site_count, 2);
+    expect(day).toBe(newestHeadline(region, floor)?.date);
+  });
+
+  it("reads the same basin values the published rollups carry", () => {
+    const day = defaultMapDay(payload)!;
+    const values = mapDayValues(payload, day);
+    expect(values.basins.size).toBe(payload.rollups.length);
+    for (const rollup of payload.rollups) {
+      const published = rollup.series.find((entry) => entry.date === day);
+      expect(values.basins.get(rollup.huc6))
+        .toBe(published ? published.mean_percent_of_normal_median : null);
+    }
+  });
+
+  it("answers for every site, with null for a day it did not report", () => {
+    const day = defaultMapDay(payload)!;
+    const values = mapDayValues(payload, day);
+    expect(values.sites.size).toBe(payload.site_count);
+    const withValues = [...values.sites.values()]
+      .filter((value) => value !== null).length;
+    // The default day met the half-the-sites floor by construction.
+    expect(withValues).toBeGreaterThanOrEqual(
+      headlineFloor(payload.site_count, 2));
+  });
+
+  it("returns all null for a day outside the season", () => {
+    const values = mapDayValues(payload, "1999-01-01");
+    expect([...values.basins.values()].every((value) => value === null)).toBe(true);
+    expect([...values.sites.values()].every((value) => value === null)).toBe(true);
   });
 });
 

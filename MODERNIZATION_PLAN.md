@@ -1305,9 +1305,16 @@ marked as implemented remains proposed until its named decision is accepted.
    links. `snowpack.json` is validated at the fetch boundary
    (`src/data/snow-validate.ts`), a unit test holds the client's percent
    arithmetic to the pipeline's rollups, and the browser suite gates the
-   page at all three widths. Still to build: the ArcGIS basin-fill
-   choropleth and site markers, per-site accumulation curves with the
-   published normal timing, and the snow entry in the data reference. Do not
+   page at all three widths. **The map half landed later the same
+   evening:** an ArcGIS map card with the basin-fill choropleth and site
+   markers on one red-to-blue percent-of-normal scale
+   (`src/viz/snow-classes.ts`, its own table), a day control across the
+   water year carried by `?day=`, the same keyless basemap chain as the
+   storage map, an exact fit to the fourteen units (a written zoom cannot
+   do this — the component snaps fractional zoom, and one step out spans
+   Oregon to Minnesota), and graceful degradation to a visible note.
+   Still to build: per-site accumulation curves with the published normal
+   timing, and the snow entry in the data reference. Do not
    put snow symbols or a second colour table on the reservoir map. Design
    decisions adopted from the external product review above: HUC6 basin-fill choropleth by percent of
    the 1991–2020 normal median with sites reading on the same scale, the

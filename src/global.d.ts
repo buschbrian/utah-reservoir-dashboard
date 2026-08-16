@@ -83,6 +83,16 @@ interface Window {
     curvePoints: number;
     tableRows: number;
     area: string | null;
+    /* The map half, present once the map module has resolved. Added fields,
+     * never replacements: the page's figures are complete without a map. */
+    mapBasins?: number;
+    mapSites?: number;
+    /** Basins and sites holding a class colour on the shown day. */
+    mapBasinsWithValues?: number;
+    mapSitesWithValues?: number;
+    mapDay?: string | null;
+    mapBasemap?: boolean;
+    mapViewReady?: boolean;
   };
   /** The drought view finished drawing. `units` is what the coverage file
    * provided; `rows` is what the page rendered; `storageJoined` counts the

@@ -19,3 +19,42 @@
 
 .snow-month-details { margin-block-start: .75rem; }
 .snow-month-details summary { color: var(--app-muted); font-size: .8rem; cursor: pointer; }
+
+/* The map card. A fixed-height stage: the layout must not move when the
+ * WebGL view arrives, and the note shown when it cannot arrive sits in the
+ * same box. */
+.snow-map-host {
+  position: relative;
+  block-size: clamp(20rem, 52vh, 28rem);
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: .4rem;
+  background: color-mix(in srgb, var(--app-muted) 8%, transparent);
+}
+.snow-map-host arcgis-map { display: block; block-size: 100%; }
+.snow-map-host .chart-empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inline-size: 100%;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.snow-day-row {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  margin-block-start: .6rem;
+}
+.snow-day-label { color: var(--app-muted); font-size: .8rem; white-space: nowrap; }
+.snow-day-row calcite-slider { flex: 1 1 auto; min-inline-size: 0; }
+.snow-day-reading {
+  color: var(--app-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 42rem) {
+  .snow-day-row { flex-wrap: wrap; }
+  .snow-day-row calcite-slider { flex-basis: 100%; order: 3; }
+}
