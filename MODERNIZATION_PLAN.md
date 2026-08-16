@@ -1424,6 +1424,102 @@ permanent pages, the auto-generated weekly "what moved" summary, and the
 selectable normal baseline. The last two are the category-level
 differentiators; the survey found no product in the West that has either.
 
+### Map parity across the three views — 2026-08-16
+
+The snow and drought maps shipped as pictures: a basemap, some graphics, and
+one zoom control. The storage map had a year of interaction work in it that
+neither could reach. This slice closed that, and the reviews it went through
+changed three of the decisions along the way.
+
+**One hover, three maps.** The storage map's pointer machinery -- one hit test
+per animation frame, stale answers discarded, the SDK's own named highlight
+for emphasis, a card kept inside its stage at every edge -- is now
+`src/ui/map-hover.ts`, and all three maps wire it. Only what the card *says*
+differs per map, so that is the parameter; the sentences themselves live in
+`src/ui/hover-content.ts`, which is pure, unit-tested, and read by the
+Simplified Technical English test like any other visible text. Two changes were
+made for fluidity while extracting it: the card is repositioned on every frame
+the pointer moves rather than only on frames a hit test resolves on (an async
+answer lands one to three frames behind the pointer, and a card that waits for
+it visibly lurches), and its nodes are rewritten only when the words change,
+so tracking across one reservoir is two style writes rather than a subtree
+replacement.
+
+What the cards now answer: on the storage map, a reservoir gives its
+percentage *and the basis it is of* -- capacity and highest recorded storage
+are different claims drawn with the same circle -- plus volume, 30-day
+direction and reading date. On the snow map, a basin gives its mean and how
+many sites reported it (eleven sites and two draw the same colour), a site
+gives percent of normal beside the actual depth, and a reservoir names its
+drainage area. On the drought map, an area gives its worst class *with the
+share in it or worse* and the storage banked in it, which is the join no other
+product in this category makes.
+
+**The drainage areas answer too.** The fourteen outlines were decoration on
+every map -- a boundary and a name and nothing about what was inside it. The
+storage map's hit test now includes them behind the reservoirs, so pointing at
+an area gives its combined percent full over the reservoirs in view, the same
+ADR-011 arithmetic the drought view joins by. A true click-to-open panel for a
+drainage area is the obvious next step and is *not* done: it needs a decision
+about what clicking empty space means, since clicking the basemap currently
+clears the reservoir selection. Recorded here rather than built.
+
+**Reservoir names on every map, and a label ladder to hold them.** The first
+attempt put 9-pixel bold names on at every scale and was wrong twice over: too
+loud beside the drainage names they sit inside, and a wall of text on the
+opening view. `src/viz/label-scales.ts` now owns the whole ladder as one
+table, on the same one-table rule as the colour tables (ADR-008), and it
+encodes two relationships rather than four numbers. Scale follows containment,
+so the tiers hand off instead of piling up -- states carry the widest views
+and step aside, drainage areas hold the middle, reservoirs arrive one zoom
+step in from where the maps open, counties last of all, and at no reachable
+scale are three tiers on at once. Size follows containment inverted, so a name
+is never larger than the shape it sits in: 12, 11, 9, 8.5 pixels, with only
+the drainage names -- the subject of these maps -- drawn bold. The thresholds
+are placed against measured opening scales (1:10,700,000 on the storage map,
+about 1:7,900,000 on the two cards), not guessed, and a unit test holds the
+order while leaving the numbers free to move.
+
+**State and county context, from the services rather than from files.** The
+drought map draws the national sweep whole, which needs something that says
+which land it crosses. `src/arcgis/reference-layers.ts` takes both from Esri's
+generalized hosted layers -- the plan's own preference for optional map
+context, and the first runtime service dependency a view has taken. The
+condition is enforced rather than assumed: each layer loads against an
+8-second deadline and is added only if it answered, so a refusal costs
+outlines and nothing else. The counties are scale-limited as a *layer*, not
+only in their labels, so they do not fetch three thousand features nobody will
+see.
+
+**Oceans as the background on every map.** The theme-matching gray canvases
+are deliberately featureless, which is right for a map whose data is the only
+thing worth seeing and wrong for these, where the land is half the story.
+`oceans` now leads both theme chains: bathymetry and shaded relief under a
+restrained label set, keyless, with the theme canvases kept one step down so a
+dark reader whose oceans style is blocked still falls to a dark background
+rather than a bright rectangle.
+
+**Framing, controls and bounds.** All three maps now carry zoom, home,
+fullscreen and a scale bar, refuse to navigate outside the region, and stop at
+the same minimum zoom. The opening box is deliberately *not* copied verbatim:
+the storage map has a whole viewport and opens at `regionExtent`, while the
+two cards are wide and short, and an extent is a minimum -- asking a short box
+to contain that much latitude pushed the view out to 1:18,000,000, a third of
+the way out from the storage map. The cards open on `drainageExtent` instead
+and land within half a zoom level of it. The card height moved from
+`clamp(20rem, 52vh, 28rem)` to `clamp(24rem, 62vh, 34rem)` for the same
+reason. Same subject, same bounds, framed for the box each one is in.
+
+**What the browser suite gained.** Two shared helpers, run against both view
+maps at all three widths: one measures the control set, layer order,
+navigation bounds, opening scale band and hover-card placement; the other
+drives one hover per layer with `hitTest` stubbed, since the render loop that
+settles a real one does not run headless. Plus the ladder itself -- at the
+opening view the states must be named and the reservoirs must not, and the
+state type must be larger than the reservoir type. Five failures on the first
+full run were all one cause, worth recording: the suite serves `dist/`, so it
+was testing a build from before the fix.
+
 ---
 
 ## 4. Risks and traps

@@ -30,6 +30,19 @@ export interface ReservoirHit<T> {
 }
 
 /**
+ * Which layer a hit came from, from whichever of the two places carries it.
+ *
+ * The SDK documents `graphic.layer` as set only "if applicable", and the 2D
+ * feature layer view assigns it for track and aggregate hits only -- while a
+ * graphic added to a `GraphicsLayer` does carry it. The snow and drought maps
+ * put three and four layers into one hit test and tell them apart by this, so
+ * both places are read rather than the one that happened to work first.
+ */
+export function hitLayerId(result: GraphicHit): string | null {
+  return result.layer?.id ?? result.graphic?.layer?.id ?? null;
+}
+
+/**
  * Resolves a map hit without assuming the layer view returned every field.
  *
  * ArcGIS can materialize a new client-side layer view with only the fields

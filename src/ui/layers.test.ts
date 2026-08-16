@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { DrainageArea } from "../data/boundaries";
 import type { Reservoir } from "../types";
+import { STORAGE_CLASSES } from "../viz/classes";
+import {
+  DRAINAGE_LABEL_SIZE_PX,
+  RESERVOIR_LABEL_SCALE
+} from "../viz/label-scales";
 import { cssPixelsToPoints } from "../viz/units";
 import {
   DRAINAGE_LABEL_HALO_COLOR,
@@ -8,8 +13,11 @@ import {
   DRAINAGE_LABEL_HALO_PX,
   DRAINAGE_NAME_FIELD,
   NAME_FIELD,
+  RESERVOIR_REFERENCE_LAYER_ID,
   createDrainageLayer,
-  createReservoirLayer
+  createReservoirLayer,
+  createReservoirReferenceLayer,
+  reservoirLabelingInfo
 } from "./layers";
 
 const square = (west: number, south: number): [number, number][] => [
@@ -17,18 +25,20 @@ const square = (west: number, south: number): [number, number][] => [
   [west, south + 1], [west, south]
 ];
 
+const reservoirNamed = (name: string): Reservoir => ({
+  name,
+  lon: -111,
+  lat: 40,
+  current_storage_af: 1000,
+  capacity_af: 2000,
+  pct_of_capacity: 50,
+  as_of: "2026-08-14",
+  source_key: "rise",
+  monthly: []
+} as unknown as Reservoir);
+
 describe("the reservoir layer", () => {
-  const reservoir = (name: string): Reservoir => ({
-    name,
-    lon: -111,
-    lat: 40,
-    current_storage_af: 1000,
-    capacity_af: 2000,
-    pct_of_capacity: 50,
-    as_of: "2026-08-14",
-    source_key: "rise",
-    monthly: []
-  } as unknown as Reservoir);
+  const reservoir = reservoirNamed;
 
   /**
    * The regression this pins is invisible in the source and only appears in
@@ -97,5 +107,104 @@ describe("the drainage-area layer", () => {
       .toBe(cssPixelsToPoints(DRAINAGE_LABEL_HALO_PX));
     expect((symbol as { haloColor?: { toCss(alpha?: boolean): string } } | null | undefined)
       ?.haloColor?.toCss(true).replaceAll(" ", "")).toBe(DRAINAGE_LABEL_HALO_COLOR);
+  });
+});
+
+describe("reservoir names", () => {
+  /* The drainage names could not use the label engine -- they have to sit
+   * under the reservoirs and the label pass always paints above (ADR-030).
+   * Reservoir names want exactly what that pass gives, including the
+   * deconfliction a layer of text symbols cannot do, so the two label
+   * treatments are deliberately different mechanisms and this holds them
+   * apart: the drainage layer has no labelling info, the reservoir layer
+   * does. */
+  it("labels the reservoir layer through the SDK label engine", () => {
+    const result = createReservoirLayer([reservoirNamed("Jordanelle")]);
+
+    expect(result.labelled).toBe(true);
+    expect(result.layer.labelsVisible).toBe(true);
+    expect(result.layer.labelingInfo).toHaveLength(1);
+  });
+
+  it("names reservoirs from the field selection reads", () => {
+    const [label] = reservoirLabelingInfo() as {
+      labelExpressionInfo: { expression: string };
+      labelPlacement: string;
+    }[];
+
+    expect(label?.labelExpressionInfo.expression).toBe(`$feature.${NAME_FIELD}`);
+    /* Above the symbol, not beside it: the circles range from 8 to 36
+     * pixels and the label engine offsets from each symbol's own box, so
+     * every name clears the ring it belongs to. */
+    expect(label?.labelPlacement).toBe("above-center");
+  });
+
+  /* Measured against the surfaces rather than chosen: the storage map opens
+   * at 1:10,700,000 and the snow and drought cards near 1:7,900,000, so a
+   * threshold above either of those would put fifty-one names on the first
+   * frame of a map nobody has asked anything yet. */
+  it("holds the names back until the reader has zoomed past the opening view", () => {
+    const [label] = reservoirLabelingInfo() as { minScale: number; maxScale: number }[];
+
+    expect(label?.minScale).toBe(RESERVOIR_LABEL_SCALE.minScale);
+    expect(label?.maxScale).toBe(RESERVOIR_LABEL_SCALE.maxScale);
+    expect(RESERVOIR_LABEL_SCALE.minScale).toBeGreaterThan(0);
+    expect(RESERVOIR_LABEL_SCALE.minScale).toBeLessThan(7_000_000);
+  });
+
+  /* The containment rule from `viz/label-scales.ts`: a name inside another
+   * name's shape is never larger than it. A reservoir sits inside a drainage
+   * area, so its name has to be smaller and lighter than the drainage name
+   * -- which is the one label on these maps drawn bold. */
+  it("is smaller and lighter than the drainage-area name it sits inside", () => {
+    const [label] = reservoirLabelingInfo() as {
+      symbol: { font: { size: number; weight: string } };
+    }[];
+
+    expect(label?.symbol.font.size).toBeLessThan(DRAINAGE_LABEL_SIZE_PX);
+    expect(label?.symbol.font.weight).toBe("normal");
+  });
+});
+
+describe("the reservoir reference layer", () => {
+  const reservoirs = [reservoirNamed("Jordanelle"), reservoirNamed("Deer Creek")];
+
+  it("draws and labels every reservoir under its own layer identity", () => {
+    const result = createReservoirReferenceLayer(reservoirs);
+
+    expect(result.drawn).toBe(2);
+    expect(result.labelled).toBe(true);
+    expect(result.layer.id).toBe(RESERVOIR_REFERENCE_LAYER_ID);
+    expect(result.layer.labelingInfo).toHaveLength(1);
+  });
+
+  /* The same defect the storage layer was fixed for: a layer view
+   * materializes only the fields it can prove the renderer needs, and this
+   * renderer needs none at all -- so without the declaration every hover
+   * would ask a hit graphic for a name it was never given. */
+  it("declares every field rather than letting the layer view infer them", () => {
+    const result = createReservoirReferenceLayer(reservoirs);
+
+    expect(result.layer.outFields).toEqual(["*"]);
+    expect(result.layer.source.at(0)?.attributes?.[NAME_FIELD]).toBe("Jordanelle");
+  });
+
+  /* One colour language per map (ADR-021, applied to drought as well): the
+   * snow scale owns the snow map and the monitor's palette owns the drought
+   * map, so these points carry no storage colour and no proportional size.
+   * A single simple renderer is what enforces that -- a unique-value or
+   * size-variable renderer here would be the storage map's claim smuggled
+   * onto a page about something else. */
+  it("carries one neutral symbol, never the storage class colours", () => {
+    const renderer = createReservoirReferenceLayer(reservoirs).layer.renderer as {
+      type?: string;
+      symbol?: { color?: { toHex(): string } };
+    };
+
+    expect(renderer.type).toBe("simple");
+    const color = renderer.symbol?.color?.toHex();
+    for (const entry of STORAGE_CLASSES) {
+      expect(color).not.toBe(entry.color);
+    }
   });
 });

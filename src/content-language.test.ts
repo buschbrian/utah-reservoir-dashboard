@@ -43,6 +43,14 @@ const userTextFiles = [
   "src/viz/site-curve.ts",
   "src/ui/snow-map.ts",
   "src/ui/drought-map.ts",
+  // Every hover card on every map: the sentences the pointer produces are
+  // visible text like any other, and they are all written in one file.
+  "src/ui/hover-content.ts",
+  "src/ui/map.ts",
+  // The state and county names come from Esri's services, but the words
+  // around them -- and the layers' own descriptions -- are written here.
+  "src/arcgis/reference-layers.ts",
+  "src/viz/label-scales.ts",
   "src/ui/view-map.ts",
   "src/ui/theme-basemap.ts",
   // The drought view's visible text, and the class table whose labels are

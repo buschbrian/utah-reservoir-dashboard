@@ -1,6 +1,6 @@
 # Authoritative source inventory
 
-Status: Working inventory, checked 2026-08-15
+Status: Working inventory, checked 2026-08-16
 
 This inventory turns the source preference in the modernization plan into a
 review checklist. It separates measurement services from map services because
@@ -39,7 +39,9 @@ geometry.
 | Snow monitoring-site inventory | Natural Resources Conservation Service station API: `https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/stations`, joined to the full-resolution U.S. Geological Survey drainage-area layer | Reviewed station list and drainage-area assignment | `snow_sites.json` is a committed inventory rebuilt deliberately | No runtime service dependency; an incomplete inventory build writes nothing | Full-resolution drainage-area geometry is used for point assignment. Adopted. |
 | Snow measurements | Natural Resources Conservation Service water and climate API: `https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data` | Daily snow-water values and 1991–2020 comparisons | `refresh_snowpack.py` validates every reviewed station and writes `snowpack.json` atomically | A short response is retried per station; any unresolved site keeps the previous complete payload | No geometry is taken from this service. Adopted; interface view remains to be built. |
 | Reservoir discovery and basin references | Bureau of Reclamation public ArcGIS feature services, including `https://services5.arcgis.com/HDRa0B57OVrv2E1q/ArcGIS/rest/services/Reclamation_Reservoirs/FeatureServer` | Discovery, scope review, and design comparison only | No ArcGIS feature-service response is copied into daily observed storage | An outage cannot change or stop the measurement refresh | Reference only. Promote a specific layer only after its fields, update schedule, and failure path are documented here. |
-| Map background | Esri public basemaps `topo-vector`, `gray-vector`, and direct portal item `7dc6cea0b1764a1f9af2e679f642f0f5` | Optional geographic background | Loaded at runtime; no local copy | Each candidate has a 10-second deadline. The application tries the next candidate and ultimately keeps reservoirs and drainage areas visible without a background map | Optional runtime context. Adopted under the existing anonymous-access and fallback contract. |
+| Map background | Esri public basemaps `oceans` (leading), `dark-gray-vector`, `gray-vector`, `topo-vector`, and direct portal item `7dc6cea0b1764a1f9af2e679f642f0f5` | Optional geographic background on every map | Loaded at runtime; no local copy | Each candidate has a 10-second deadline. The application tries the next candidate and ultimately keeps reservoirs and drainage areas visible without a background map | Optional runtime context. Adopted under the existing anonymous-access and fallback contract. `oceans` leads both theme chains from 2026-08-16: its bathymetry and shaded relief are the terrain the water sits in, which the deliberately featureless gray canvases could not show. Its base is a public tile service and its labels a public vector style; both were verified anonymous before adoption. |
+| State boundaries | Esri generalized boundaries, published by Esri Demographics: `https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_States_Generalized_Boundaries/FeatureServer/0` | Outlines and state names on the drought map, where the national drought sweep needs something that says which land it crosses | Loaded at runtime; no local copy. Nothing on any page is computed from these boundaries | An 8-second deadline; a layer that does not answer is not added, and the drought classes, drainage outlines, reservoirs and every published figure are already drawn from local data | Publisher's own generalization. Optional runtime context, adopted 2026-08-16. Verified anonymous. |
+| County boundaries | Esri generalized boundaries, published by Esri Demographics: `https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized_Boundaries/FeatureServer/0` | Outlines and county names on the drought map, hidden until the reader has zoomed past 1:2,500,000 | Loaded at runtime; no local copy. Nothing on any page is computed from these boundaries | The same 8-second deadline and the same non-addition on failure | Publisher's own generalization. Optional runtime context, adopted 2026-08-16. The scale limit is on the layer, not only its labels, so it does not fetch features nobody will see. Verified anonymous. |
 
 ## Next source slices
 
@@ -74,6 +76,24 @@ The broader Upper Colorado geometry is intentionally retained as a future
 regional-explorer seed. It should remain in the public reference data for now.
 Before adding more regions, measure transfer and parse cost, then create a
 smaller map-start payload if the current broader copy becomes material.
+
+### 4. Keep the hosted boundary layers inside their contract
+
+The state and county layers are the first runtime service dependency any
+dashboard view has taken on for map context, so the condition rule 3 states is
+enforced in code rather than assumed: `src/arcgis/reference-layers.ts` loads
+each layer against a deadline and adds it to the map only if it answered. The
+browser suite therefore checks the layer list against what actually loaded
+rather than against a fixed list -- a refused service is a supported outcome,
+and a test that failed on it would be testing the publisher's uptime instead of
+this project's behavior.
+
+Two things to watch if they change upstream. The name fields are read once each
+(`STATE_NAME`, `NAME`); a rename would silently produce blank labels rather than
+an error. And these are Esri's own generalizations rather than a tolerance this
+project requested, so rule 5 does not apply to them -- if either is ever used
+for an analytical result, it stops being optional context and has to be
+re-sourced from the owner at a stated tolerance.
 
 ## Review boundary
 

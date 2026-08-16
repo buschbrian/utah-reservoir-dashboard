@@ -22,6 +22,7 @@ import "@esri/calcite-components/components/calcite-slider";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas } from "./data/boundaries";
+import { loadReservoirs } from "./data/load";
 import { loadSnowpack } from "./data/snow-load";
 import {
   basinChoices,
@@ -48,7 +49,7 @@ import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
-import { mapStatusNote } from "./ui/view-map";
+import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES } from "./viz/snow-classes";
 import { formatDate, formatPercent } from "./viz/format";
@@ -238,7 +239,9 @@ function renderSnow(payload: SnowpackPayload): void {
         mapSitesWithValues: map.status.sitesWithValues,
         mapDay: map.status.day,
         mapBasemap: map.status.basemap,
-        mapViewReady: map.status.viewReady
+        mapViewReady: map.status.viewReady,
+        mapReservoirs: map.status.reservoirs,
+        mapReservoirLabels: map.status.reservoirLabels
       } : {})
     };
   };
@@ -515,25 +518,39 @@ function renderSnow(payload: SnowpackPayload): void {
       installAnonymousAuthPolicy();
       const areas = await loadDrainageAreas();
       if (areas.length === 0) throw new Error("no drainage boundaries");
-      const mapElement = document.createElement("arcgis-map");
-      /* Framed to the fourteen units: roughly -114 to -105.6 east-west and
-       * 35.6 to 44 north-south. Zoom 5 at this card width spans Oregon to
-       * Minnesota; 5.7 holds the region with a small margin. */
-      mapElement.setAttribute("center", "-110.3,39.8");
-      mapElement.setAttribute("zoom", "5.7");
-      const zoom = document.createElement("arcgis-zoom");
-      zoom.setAttribute("position", "top-right");
-      mapElement.append(zoom);
-      mapHost.replaceChildren(mapElement);
+      /* The reservoirs are reference on this page, so they are fetched
+       * beside the boundaries and a failure costs their dots and nothing
+       * else -- the snow numbers this map colours never depended on them.
+       * Fetched here rather than with the page, because the snowpack file
+       * is already 1.9 MB and the reader is reading the chart by now. */
+      const reservoirs = await loadReservoirs()
+        .then((reservoirPayload) => reservoirPayload.reservoirs)
+        .catch((error: unknown) => {
+          console.warn("The snow map has no reservoirs to place:", error);
+          return [];
+        });
+      /* Framed, controlled and constrained exactly like the storage map,
+       * with the hover card already beside it in the host. */
+      const { element: mapElement, card } = createViewMap(mapHost, {
+        label: "A map of the drainage areas, snow measurement sites and reservoirs",
+        cardId: "snow-map-hover"
+      });
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
-      map = await createSnowMap(mapElement, areas, payload.sites, firstDay);
+      map = await createSnowMap(
+        mapElement, card, areas, payload.sites, reservoirs, firstDay);
       map.setArea(currentArea);
       mapHost.setAttribute("aria-busy", "false");
       if (!map.status.basemap) {
         mapHost.append(mapStatusNote("The map background is unavailable. " +
-          "Areas and sites are still drawn from local data."));
+          "Areas, sites and reservoirs are still drawn from local data."));
+      } else if (map.status.basemapDegraded) {
+        /* Said out loud, as the storage map says it: the reader is looking
+         * at a different background from the one this page chose, and a map
+         * that changes appearance without explanation reads as a fault. */
+        mapHost.append(mapStatusNote(
+          "The preferred map background was unavailable. An alternate is shown."));
       }
       publishReady();
     } catch (error) {

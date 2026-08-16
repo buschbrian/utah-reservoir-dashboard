@@ -19,6 +19,7 @@ import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
+import { loadReferenceBoundaries } from "./arcgis/reference-layers";
 
 import { loadDrainageAreas } from "./data/boundaries";
 import { loadDroughtCoverage } from "./data/drought-load";
@@ -35,9 +36,10 @@ import {
   worstClass,
   type StorageContext
 } from "./drought-model";
-import type { DroughtCoveragePayload } from "./types";
+import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
-import { mapStatusNote } from "./ui/view-map";
+import type { ReservoirReference } from "./ui/layers";
+import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
@@ -66,7 +68,12 @@ wireTheme();
 
 function renderDrought(
   payload: DroughtCoveragePayload,
-  storage: Map<string, StorageContext> | null
+  storage: Map<string, StorageContext> | null,
+  /* The reservoirs themselves, not only their per-area rollup: the map
+   * places and names each one, and the rollup has already thrown away where
+   * they are. Empty when the payload could not be read, which the rows
+   * below already say in words. */
+  reservoirs: readonly ReservoirReference[]
 ): void {
   const content = document.querySelector<HTMLElement>("#drought-content");
   if (!content) return;
@@ -237,8 +244,12 @@ function renderDrought(
     };
     try {
       installAnonymousAuthPolicy();
-      const [areas, usdm] = await Promise.all(
-        [loadDrainageAreas(), loadUsdmPolygons()]);
+      /* Three fetches, one wait. The boundaries are the only optional one
+       * -- they come from hosted services and resolve to null rather than
+       * throwing, so a slow or missing state layer costs outlines and never
+       * the map. */
+      const [areas, usdm, boundaries] = await Promise.all(
+        [loadDrainageAreas(), loadUsdmPolygons(), loadReferenceBoundaries()]);
       if (areas.length === 0) throw new Error("no drainage boundaries");
       if (usdm.mapDate !== payload.map_date) {
         /* Two committed files describing two different weeks is a pipeline
@@ -246,21 +257,31 @@ function renderDrought(
         throw new Error(
           `polygon week ${usdm.mapDate} does not match coverage week ${payload.map_date}`);
       }
-      const mapElement = document.createElement("arcgis-map");
-      const zoom = document.createElement("arcgis-zoom");
-      zoom.setAttribute("position", "top-right");
-      mapElement.append(zoom);
-      mapHost.replaceChildren(mapElement);
-      const mapStatus = await createDroughtMap(mapElement, areas, usdm);
+      /* Framed, controlled and constrained exactly like the storage map,
+       * with the hover card already beside it in the host. */
+      const { element: mapElement, card } = createViewMap(mapHost, {
+        label: "A map of drought classes over the drainage areas and reservoirs",
+        cardId: "drought-map-hover"
+      });
+      const mapStatus = await createDroughtMap(
+        mapElement, card, areas, usdm, reservoirs,
+        { units: payload.units, storage: storage ?? new Map() }, boundaries);
       mapHost.setAttribute("aria-busy", "false");
       if (!mapStatus.basemap) {
         mapHost.append(mapStatusNote("The map background is unavailable. " +
-          "Drought classes and outlines are still drawn from local data."));
+          "Drought classes, outlines and reservoirs are still drawn from local data."));
+      } else if (mapStatus.basemapDegraded) {
+        mapHost.append(mapStatusNote(
+          "The preferred map background was unavailable. An alternate is shown."));
       }
       window.__droughtReady = {
         ...(window.__droughtReady ?? {}),
         mapClassesDrawn: mapStatus.classesDrawn,
         mapOutlines: mapStatus.outlines,
+        mapReservoirs: mapStatus.reservoirs,
+        mapReservoirLabels: mapStatus.reservoirLabels,
+        mapStateBoundaries: mapStatus.stateBoundaries,
+        mapCountyBoundaries: mapStatus.countyBoundaries,
         mapBasemap: mapStatus.basemap,
         mapViewReady: mapStatus.viewReady
       } as typeof window.__droughtReady;
@@ -277,12 +298,14 @@ try {
    * read the drought figures still render, each row saying the storage
    * comparison is missing rather than the page failing whole. */
   let storage: Map<string, StorageContext> | null = null;
+  let reservoirs: readonly Reservoir[] = [];
   try {
-    storage = storageByArea((await loadReservoirs()).reservoirs);
+    reservoirs = (await loadReservoirs()).reservoirs;
+    storage = storageByArea(reservoirs);
   } catch (error) {
     console.warn("Reservoir storage could not be joined to the drought view:", error);
   }
-  renderDrought(drought, storage);
+  renderDrought(drought, storage, reservoirs);
 } catch (error) {
   console.error("Drought view failed:", error);
   const content = document.querySelector<HTMLElement>("#drought-content");

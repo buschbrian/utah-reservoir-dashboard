@@ -34,6 +34,11 @@ import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
 import { STALE_COLOR, STORAGE_CLASSES } from "../viz/classes";
 import { reservoirCIMTemplate } from "../viz/cim";
+import {
+  DRAINAGE_LABEL_SIZE_PX,
+  RESERVOIR_LABEL_SCALE,
+  RESERVOIR_LABEL_SIZE_PX
+} from "../viz/label-scales";
 import { headlinePercent, reservoirSymbol, reservoirSymbolFor, sizeDomain } from "../viz/symbols";
 
 /** The attribute every reservoir feature carries, and the only one selection reads. */
@@ -53,6 +58,62 @@ export const DRAINAGE_NAME_FIELD = "area_name";
 export const DRAINAGE_LABEL_MIN_SCALE = 25_000_000;
 export const DRAINAGE_LABEL_HALO_PX = 2;
 export const DRAINAGE_LABEL_HALO_COLOR = "rgba(255,255,255,0.5)";
+
+/** The layer the snow and drought maps carry reservoirs on for reference. */
+export const RESERVOIR_REFERENCE_LAYER_ID = "reservoir-reference";
+
+/**
+ * When reservoir names appear, and what they look like.
+ *
+ * Both answers come from `viz/label-scales.ts`, which holds the whole
+ * ladder: states, then drainage areas, then reservoirs, then counties, each
+ * arriving as the one above it has done its work. Two rules from that table
+ * land here.
+ *
+ * They are off at the opening view. Fifty-one names over the whole region
+ * before the reader has asked the map anything is a busy map for no reason;
+ * past 1:4,500,000 -- about one zoom step in from where both surfaces open
+ * -- the names arrive because the reader went looking for them.
+ *
+ * And they are the quietest type on the map. A reservoir sits inside a
+ * drainage area, so its name is never larger than the drainage area's:
+ * 9 pixels against 11, normal weight against bold, grey against the near
+ * black those names are drawn in. It is a caption on a dot.
+ *
+ * The mechanism is the SDK label engine rather than a layer of text
+ * symbols. The drainage names could not use it (ADR-030) because they have
+ * to sit *under* the reservoirs and the label pass always paints above --
+ * which is exactly what a name on a reservoir wants. It also brings the one
+ * thing a text-symbol layer cannot: deconfliction. Where Deer Creek sits
+ * inside Jordanelle's ring, one of the two names drops out and comes back
+ * as the reader zooms between them.
+ */
+export function reservoirLabelingInfo(): unknown[] {
+  return [{
+    labelExpressionInfo: { expression: `$feature.${NAME_FIELD}` },
+    /* Above the symbol, not beside it: the circles run from 8 to 36 pixels
+     * and the label engine offsets from each symbol's own box, so every
+     * name clears the ring it belongs to by the amount that ring needs. */
+    labelPlacement: "above-center",
+    minScale: RESERVOIR_LABEL_SCALE.minScale,
+    maxScale: RESERVOIR_LABEL_SCALE.maxScale,
+    /* Static rather than the default dynamic placement: a name that slides
+     * around its reservoir as the reader pans is a name they have to
+     * re-find, and these points do not move. */
+    deconflictionStrategy: "static",
+    /* The halo does the legibility work, not the text colour: these maps
+     * follow the page theme, so the canvas under a name is light gray on
+     * one and dark gray on the other, and only a solid halo reads on both.
+     * The drainage names already work this way. */
+    symbol: {
+      type: "text",
+      color: "rgba(74,91,102,0.95)",
+      haloColor: "rgba(255,255,255,0.8)",
+      haloSize: "1.2px",
+      font: { family: "sans-serif", size: RESERVOIR_LABEL_SIZE_PX, weight: "normal" }
+    }
+  }];
+}
 
 const WGS84 = { wkid: 4326 };
 
@@ -122,7 +183,11 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
           color: "#263f52",
           haloColor: DRAINAGE_LABEL_HALO_COLOR,
           haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
-          font: { family: "sans-serif", size: "11px", weight: "bold" }
+          font: {
+            family: "sans-serif",
+            size: `${DRAINAGE_LABEL_SIZE_PX}px`,
+            weight: "bold"
+          }
         }
       }));
     }
@@ -148,6 +213,11 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
     objectIdField: DRAINAGE_OBJECT_ID_FIELD,
     geometryType: "polygon",
     spatialReference: WGS84,
+    /* Declared rather than inferred, for the reason the reservoir layer
+     * learned the hard way: this renderer reads no field at all, so a layer
+     * view would materialize the object id alone and every hit on an
+     * outline would come back without the name it is meant to describe. */
+    outFields: ["*"],
     popupEnabled: false,
     renderer: {
       type: "simple",
@@ -175,6 +245,9 @@ export interface ReservoirLayerResult {
    * wrong table. A count the page publishes is a count a test can hold.
    */
   symbols: number;
+  /** True while the layer is carrying reservoir names. A separate fact from
+   * `drawn`: a layer draws its points whether or not it labels them. */
+  labelled: boolean;
 }
 
 /* The client-side schema. Every field is a fact a later slice filters or
@@ -363,6 +436,8 @@ export function createReservoirLayer(
      * which is alphabetical and therefore arbitrary. Smallest on top: the
      * small circle is the one that can be completely covered. */
     orderBy: [{ field: "size_basis", order: "descending" }],
+    labelsVisible: true,
+    labelingInfo: reservoirLabelingInfo() as never,
     /* The SDK's own CIM property types mark every optional member
      * `T | null | undefined`, where ours are `T | undefined` under
      * `exactOptionalPropertyTypes`, so the two shapes never unify even
@@ -371,7 +446,98 @@ export function createReservoirLayer(
   });
 
   const rendered = layer.renderer as { uniqueValueInfos?: unknown[] } | null;
-  return { layer, drawn: source.length, symbols: rendered?.uniqueValueInfos?.length ?? 0 };
+  return {
+    layer,
+    drawn: source.length,
+    symbols: rendered?.uniqueValueInfos?.length ?? 0,
+    labelled: (layer.labelingInfo?.length ?? 0) > 0 && layer.labelsVisible
+  };
+}
+
+/** The least a map needs to place and describe a reservoir it does not own
+ * the subject of. `pct_of_capacity` and `pct_of_record_max` are both read
+ * because the headline percentage falls back from one to the other. */
+export type ReservoirReference = Pick<
+  Reservoir, "name" | "lon" | "lat" | "pct_of_capacity" | "pct_of_record_max" | "huc6"
+>;
+
+export interface ReservoirReferenceResult {
+  layer: FeatureLayer;
+  drawn: number;
+  labelled: boolean;
+}
+
+/**
+ * The reservoirs as *reference* on a map about something else.
+ *
+ * One neutral slate dot each, one size for all of them, and the name beside
+ * it. Explicitly not the storage symbol: the storage colour table belongs to
+ * the map that is about storage, and a page rule this project holds is one
+ * colour language per map (the snow scale owns the snow map, the monitor's
+ * palette owns the drought map). A proportional ring would be a second claim
+ * too -- it would say the map is ranking reservoirs when it is only saying
+ * where they are.
+ *
+ * They still earn their place. "Which reservoirs are in the basin that is
+ * at 46% of normal snow" and "which reservoirs are under the D4 patch" are
+ * exactly the readings these two pages exist to make possible, and until now
+ * the reader had to hold fourteen area names in their head to make them.
+ */
+export function createReservoirReferenceLayer(
+  reservoirs: readonly ReservoirReference[]
+): ReservoirReferenceResult {
+  const source = reservoirs.map((reservoir, index) => new Graphic({
+    geometry: new Point({
+      longitude: reservoir.lon,
+      latitude: reservoir.lat,
+      spatialReference: WGS84
+    }),
+    attributes: {
+      [OBJECT_ID_FIELD]: index + 1,
+      [NAME_FIELD]: reservoir.name
+    }
+  }));
+
+  const layer = new FeatureLayer({
+    id: RESERVOIR_REFERENCE_LAYER_ID,
+    listMode: "hide",
+    source,
+    fields: [
+      { name: OBJECT_ID_FIELD, type: "oid" },
+      { name: NAME_FIELD, type: "string" }
+    ],
+    objectIdField: OBJECT_ID_FIELD,
+    geometryType: "point",
+    spatialReference: WGS84,
+    /* Declared, not inferred. The renderer here uses no field at all, so
+     * the layer view would materialize the object id and nothing else, and
+     * every hover would ask a graphic for a name it was never given. That
+     * failure took a while to find on the storage map; it is not worth
+     * finding a second time. */
+    outFields: ["*"],
+    // These pages describe a reservoir in their own hover card.
+    popupEnabled: false,
+    labelsVisible: true,
+    labelingInfo: reservoirLabelingInfo() as never,
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-marker",
+        style: "circle",
+        size: 5.5,
+        /* Translucent, because on these maps the fill underneath is the
+         * subject and a solid dot would punch a hole in it. */
+        color: [39, 54, 63, 0.75],
+        outline: { color: "rgba(255,255,255,0.9)", width: 1 }
+      }
+    } as never
+  });
+
+  return {
+    layer,
+    drawn: source.length,
+    labelled: (layer.labelingInfo?.length ?? 0) > 0 && layer.labelsVisible
+  };
 }
 
 export function createHighlightLayer(): GraphicsLayer {

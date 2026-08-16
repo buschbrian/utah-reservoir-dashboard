@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reservoirFromHits } from "./hit";
+import { hitLayerId, reservoirFromHits } from "./hit";
 
 const reservoirs = [
   { name: "Deer Creek" },
@@ -50,5 +50,33 @@ describe("reservoir hit selection", () => {
     }]);
 
     expect(hit?.reservoir.name).toBe("Deer Creek");
+  });
+});
+
+describe("which layer a hit came from", () => {
+  /* The snow and drought maps put three and four layers into one hit test
+   * and tell the answers apart by this. The SDK carries the layer in two
+   * different places -- on the hit result for feature layers, on the graphic
+   * for graphics layers -- so both are read, result first. */
+  it("reads the layer off the hit result", () => {
+    expect(hitLayerId({ layer: { id: "snow-sites" }, graphic: {} }))
+      .toBe("snow-sites");
+  });
+
+  it("falls back to the layer the graphic carries", () => {
+    expect(hitLayerId({ graphic: { layer: { id: "snow-basins" } } }))
+      .toBe("snow-basins");
+  });
+
+  it("prefers the result over the graphic when both are present", () => {
+    expect(hitLayerId({
+      layer: { id: "reservoir-reference" },
+      graphic: { layer: { id: "snow-basins" } }
+    })).toBe("reservoir-reference");
+  });
+
+  it("answers null rather than undefined when neither carries one", () => {
+    expect(hitLayerId({ graphic: {} })).toBeNull();
+    expect(hitLayerId({})).toBeNull();
   });
 });

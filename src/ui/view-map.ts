@@ -1,22 +1,93 @@
 /*
- * What every gallery-less view map shares: the element shape, the bounded
- * wait for a WebGL view, the exact fit to the fourteen drainage areas, and
- * the palette-to-fill conversion. Written once for the snow and drought
- * maps -- the fit especially, because a written zoom snaps to an integer
- * and one step out spans a continent, and that lesson should not need
- * relearning per map.
+ * What every gallery-less view map shares: the element shape, the control
+ * set, the framing and navigation bounds, the bounded wait for a WebGL
+ * view, and the palette-to-fill conversion. Written once for the snow and
+ * drought maps -- the framing especially, because a written zoom snaps to
+ * an integer and one step out spans a continent, and that lesson should not
+ * need relearning per map.
+ *
+ * The framing is deliberately the storage map's own: the same region
+ * extent, the same minimum and maximum zoom, and the same refusal to leave
+ * the region. Three maps of the same fourteen drainage areas that each open
+ * at a different box are three maps a reader cannot compare by flipping
+ * between them, and a map that can be panned into the Pacific is one a
+ * reader can only recover from by reloading the page.
  */
-import type ArcGISMap from "@arcgis/core/Map";
-import Extent from "@arcgis/core/geometry/Extent";
-import type { DrainageArea } from "../data/boundaries";
+import "@arcgis/map-components/components/arcgis-fullscreen";
+import "@arcgis/map-components/components/arcgis-home";
+import "@arcgis/map-components/components/arcgis-map";
+import "@arcgis/map-components/components/arcgis-scale-bar";
+import "@arcgis/map-components/components/arcgis-zoom";
 
-export interface ViewMapElement extends HTMLElement {
+import type ArcGISMap from "@arcgis/core/Map";
+import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, drainageExtent, regionExtent } from "../viz/extent";
+import { createHoverCard, type HoverMapElement } from "./map-hover";
+
+export interface ViewMapElement extends HoverMapElement {
   map?: ArcGISMap | null | undefined;
+  extent?: unknown;
+  constraints?: unknown;
   view?: {
     ready?: boolean;
+    container?: HTMLElement | null | undefined;
     constraints?: { snapToZoom?: boolean };
+    whenLayerView?(layer: unknown): Promise<unknown>;
     goTo?(target: unknown, options?: { animate?: boolean }): Promise<unknown>;
   } | null | undefined;
+}
+
+/**
+ * A view map mounted in its host, framed and controlled like the storage
+ * map, with its hover card already in the host beside it.
+ *
+ * The card is a sibling of the map rather than a child: the component owns
+ * its own subtree and replaces it, and the host is the positioned box the
+ * card is placed inside of. The host must therefore be `position: relative`
+ * -- `.view-map-host` is, which is why this takes the host rather than
+ * returning a loose element for the caller to place.
+ */
+export function createViewMap(
+  host: HTMLElement,
+  options: { label: string; cardId: string }
+): { element: ViewMapElement; card: HTMLElement } {
+  const element = document.createElement("arcgis-map") as ViewMapElement;
+  element.setAttribute("aria-label", options.label);
+  /* The opening box, set before the view resolves rather than eased into
+   * afterwards. The target is a fixed rectangle, not something measured
+   * from data that has to arrive first, so there is nothing to wait for --
+   * and a written zoom could not do this anyway, because the component
+   * snaps fractional zoom and one whole step out spans a continent.
+   *
+   * The drainage areas exactly, not the storage map's one-level-out box:
+   * these cards are wide and short, an extent is a minimum, and asking a
+   * short box to contain that much latitude pushes the view out past
+   * 1:18,000,000. `drainageExtent` records the measurement. */
+  element.extent = { type: "extent", ...drainageExtent() };
+  element.constraints = {
+    /* Off, so a framing that is not a whole zoom level survives being
+     * applied. On, the component rounds it and the fourteen areas either
+     * crowd the edges or lose half the region. */
+    snapToZoom: false,
+    minZoom: MAP_MIN_ZOOM,
+    maxZoom: MAP_MAX_ZOOM,
+    /* The storage map's own bounds, unchanged: where a map opens depends on
+     * the box, but where a reader is allowed to go should not. */
+    geometry: { type: "extent", ...regionExtent() }
+  };
+  /* Every control on the right, in the storage map's order. Zoom is
+   * included because a map component adds none of its own: without it the
+   * only way to zoom is the scroll wheel, which is no way at all on a
+   * trackpad inside a scrolling page. The basemap gallery is deliberately
+   * absent -- these maps follow the page theme, and a gallery is a choice
+   * that would have to be protected from the theme swap. */
+  element.innerHTML = `
+    <arcgis-zoom slot="top-right"></arcgis-zoom>
+    <arcgis-home slot="top-right"></arcgis-home>
+    <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
+    <arcgis-scale-bar slot="bottom-right" unit="dual"></arcgis-scale-bar>`;
+  const card = createHoverCard(options.cardId);
+  host.replaceChildren(element, card);
+  return { element, card };
 }
 
 /** How long a view may claim to be starting before the page stops waiting
@@ -38,37 +109,6 @@ export function viewReadyWithin(
       resolve();
     }, { once: true });
   });
-}
-
-/** Frames the drainage areas exactly, with zoom snapping off. A no-op when
- * the view never became ready or the areas carry no coordinates. */
-export async function fitToAreas(
-  element: ViewMapElement, areas: readonly DrainageArea[]
-): Promise<void> {
-  const view = element.view;
-  if (!view?.ready || !view.goTo) return;
-  let xmin = Infinity;
-  let ymin = Infinity;
-  let xmax = -Infinity;
-  let ymax = -Infinity;
-  for (const area of areas) {
-    for (const polygon of area.polygons) {
-      for (const ring of polygon) {
-        for (const [lon, lat] of ring) {
-          if (lon < xmin) xmin = lon;
-          if (lon > xmax) xmax = lon;
-          if (lat < ymin) ymin = lat;
-          if (lat > ymax) ymax = lat;
-        }
-      }
-    }
-  }
-  if (!Number.isFinite(xmin)) return;
-  if (view.constraints) view.constraints.snapToZoom = false;
-  await view.goTo(
-    new Extent({ xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } }),
-    { animate: false }
-  ).catch(() => undefined);
 }
 
 /** The status note a map host shows when its map cannot start or has no
