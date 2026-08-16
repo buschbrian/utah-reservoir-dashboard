@@ -1742,8 +1742,6 @@ for (const viewport of VIEWPORTS) {
       `${label}: rendered ${state.rows} area rows, readiness reported ${state.ready?.rows}`);
     check(state.bars === state.rows && state.tableRows === state.rows,
       `${label}: ${state.bars} bars and ${state.tableRows} table rows for ${state.rows} areas`);
-    check(state.legendItems === 6,
-      `${label}: the legend shows ${state.legendItems} classes, expected 6`);
     check(state.ready?.storageJoined === state.ready?.units,
       `${label}: storage joined ${state.ready?.storageJoined} of ${state.ready?.units} areas`);
     const badLink = state.areaLinks.find((href) =>
@@ -1770,6 +1768,38 @@ for (const viewport of VIEWPORTS) {
       `${label}: ${mapState.ready?.mapOutlines} outlines for ${mapState.ready?.units} areas`);
     check(mapState.ready?.mapReservoirs > 0,
       `${label}: the drought map placed ${mapState.ready?.mapReservoirs} reservoirs`);
+    /* The key now lives on the map rather than above it, so it is attached
+     * once the component has claimed the host -- checked here rather than
+     * with the figures, which is where it used to be. It is attached on the
+     * failure path too, because a key still describes the bars below. */
+    const legend = await tab.evaluate(() => {
+      const host = document.querySelector("#drought-map-host")?.getBoundingClientRect();
+      const inset = document.querySelector(".map-inset-legend");
+      const box = inset?.getBoundingClientRect();
+      return {
+        items: document.querySelectorAll(".drought-legend-item").length,
+        /* Whether it is *actually* over the map, not whether it carries the
+         * class: below 42rem the same element is deliberately laid out under
+         * the map instead, because a card that short would lose a third of
+         * itself to a key sitting on it. */
+        inset: Boolean(inset) && getComputedStyle(inset).position === "absolute",
+        insideMap: box && host
+          ? box.left >= host.left - 1 && box.right <= host.right + 1
+            && box.top >= host.top - 1 && box.bottom <= host.bottom + 1
+          : null,
+        /* The right of the map is the zoom control's lane, the same rule the
+         * title card follows on the storage map. */
+        clearsControls: box && host ? box.right <= host.right - 40 : null
+      };
+    });
+    check(legend.items === 6,
+      `${label}: the legend shows ${legend.items} classes, expected 6`);
+    if (legend.inset) {
+      check(legend.insideMap === true,
+        `${label}: the inset legend is not inside the map it explains`);
+      check(legend.clearsControls === true,
+        `${label}: the inset legend reaches into the map control lane`);
+    }
     check(mapState.ready?.mapReservoirLabels === true,
       `${label}: the drought map drew reservoirs without their names`);
 

@@ -5,6 +5,21 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The drought map has a quieter background, and its key sits on the map.**
+  It labels states itself, and the previous background labelled them too, so
+  every state carried two names in two typefaces. It now uses the plain
+  canvas that matches the theme. The class key moved from a band above the
+  map to a panel in the corner of it, so the colour and its name are inches
+  apart instead of a glance apart — on a phone it stays below the map, where
+  a short map cannot afford to lose a third of itself to it.
+
+- **The reservoir dots on the drought map are quieter.** They were a
+  translucent dot inside a near-opaque white ring, and at that size the ring
+  was a third of the symbol — a field of them read as pale specks and the
+  white fought the monitor's yellows. Solid, smaller, with a hairline edge.
+
 ### Added
 
 - **Every page now carries a content policy.** Fetches, images and fonts are

@@ -14,7 +14,7 @@
  * unconditional.
  */
 import type ArcGISMap from "@arcgis/core/Map";
-import { resolveBasemap } from "../arcgis/basemaps";
+import { resolveStyledBasemap, type BasemapStyle } from "../arcgis/basemaps";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 
 export interface ThemeBasemapStatus {
@@ -29,10 +29,13 @@ export interface ThemeBasemapStatus {
  */
 export async function followThemeBasemap(
   map: ArcGISMap,
-  onChange: (status: ThemeBasemapStatus) => void
+  onChange: (status: ThemeBasemapStatus) => void,
+  /* Which chain to resolve from. A map that draws its own place names asks
+   * for `minimal` so the background does not label them a second time. */
+  style: BasemapStyle = "context"
 ): Promise<void> {
   const apply = async (firstLoad: boolean): Promise<void> => {
-    const resolution = await resolveBasemap(effectiveThemeNow());
+    const resolution = await resolveStyledBasemap(effectiveThemeNow(), style);
     /* A failed swap keeps what is on screen: the map still wears its
      * previous basemap, so overwriting the status would make the readiness
      * signal report no background on a map that visibly has one. Only the

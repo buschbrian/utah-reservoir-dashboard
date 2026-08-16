@@ -46,6 +46,21 @@ export function installAnonymousAuthPolicy(
  */
 export type BasemapTheme = "light" | "dark";
 
+/**
+ * What a map wants from its background.
+ *
+ * `context` leads with Oceans: relief and bathymetry under a restrained label
+ * set, for maps whose subject sits *on* terrain and is helped by seeing it.
+ *
+ * `minimal` leads with the theme canvas, for maps that draw their own place
+ * names. The drought map is the case that produced this: it labels states
+ * itself, from the same hosted layer it draws their outlines from, and the
+ * Oceans reference layer labels them too -- so every state carried two names
+ * in two typefaces at two sizes. A background cannot be asked not to label
+ * what it labels, so the map asks for a quieter background instead.
+ */
+export type BasemapStyle = "context" | "minimal";
+
 /* `Basemap.fromId` is typed `Basemap | null | undefined` and really does
  * return null for an id it does not know -- notably any `arcgis/*` style id,
  * which reads like an auth failure and is not one. Throwing converts that
@@ -65,7 +80,10 @@ function fromId(id: string): Basemap {
  * blank frame and no fallback is ever taken. */
 const verifyBasemap = (basemap: Basemap): Promise<unknown> => basemap.loadAll();
 
-export function basemapCandidates(theme: BasemapTheme = "light"): Candidate<Basemap>[] {
+export function basemapCandidates(
+  theme: BasemapTheme = "light",
+  style: BasemapStyle = "context"
+): Candidate<Basemap>[] {
   /* The base is a raster tile service and the labels are a vector style, so
    * this is the one candidate whose `loadAll` reaches two different kinds of
    * public endpoint. Both were verified to serve anonymously before it was
@@ -89,9 +107,14 @@ export function basemapCandidates(theme: BasemapTheme = "light"): Candidate<Base
     }),
     verify: verifyBasemap
   };
-  return theme === "dark"
-    ? [oceans, darkCanvas, lightCanvas, topographic, directItem]
-    : [oceans, lightCanvas, topographic, directItem];
+  /* The canvas that matches the theme always leads the tail of the chain, so
+   * whichever style is asked for, a dark reader never falls through to a
+   * bright rectangle. */
+  const canvases = theme === "dark"
+    ? [darkCanvas, lightCanvas]
+    : [lightCanvas];
+  const tail = [...canvases, topographic, directItem];
+  return style === "minimal" ? tail : [oceans, ...tail];
 }
 
 export function resolveBasemap(
@@ -99,4 +122,11 @@ export function resolveBasemap(
   candidates: readonly Candidate<Basemap>[] = basemapCandidates(theme)
 ): Promise<Resolution<Basemap>> {
   return resolveFirstLoadable(candidates);
+}
+
+/** The chain for a map that has said which kind of background it wants. */
+export function resolveStyledBasemap(
+  theme: BasemapTheme, style: BasemapStyle
+): Promise<Resolution<Basemap>> {
+  return resolveFirstLoadable(basemapCandidates(theme, style));
 }

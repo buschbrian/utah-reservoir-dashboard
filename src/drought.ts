@@ -126,8 +126,7 @@ function renderDrought(
         <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the fourteen drainage areas the figures below describe; drought does not stop at their edges, so the wider pattern is drawn too.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
-      <div class="drought-legend" role="list" aria-label="Drought classes and their map colours"></div>
-      <div id="drought-map-host" class="view-map-host" aria-busy="true"
+      <div id="drought-map-host" class="view-map-host has-inset-legend" aria-busy="true"
         aria-label="A map of drought classes over the drainage areas. The bars and table on this page carry the same shares as text."></div>
     </section>
     <section class="overview-card" aria-labelledby="drought-join-heading">
@@ -160,7 +159,20 @@ function renderDrought(
   if (worseSelect) worseSelect.value = state.worse ?? "";
   if (sortSelect) sortSelect.value = state.sort;
 
-  const legend = content.querySelector<HTMLElement>(".drought-legend");
+  /* The legend lives inside the map rather than above it. A key belongs
+   * beside the thing it explains: over the map the reader's eye moves inches
+   * between a colour and its name instead of leaving the picture entirely,
+   * and the card reclaims the band the key used to occupy.
+   *
+   * Built here with the rest of the figures, but *attached* only once the map
+   * exists. `createViewMap` calls `replaceChildren` on the host, so a legend
+   * appended before that is silently thrown away -- which is exactly what
+   * happened on the first attempt. It is attached either way: if the map
+   * cannot start, the key still belongs with the note that explains why. */
+  const legend = document.createElement("div");
+  legend.className = "drought-legend map-inset-legend";
+  legend.setAttribute("role", "list");
+  legend.setAttribute("aria-label", "Drought classes and their map colours");
   if (legend) {
     const entries = [
       { label: NO_DROUGHT_LABEL, color: null },
@@ -364,6 +376,10 @@ function renderDrought(
       mapHost.setAttribute("aria-busy", "false");
       mapHost.replaceChildren(mapStatusNote(
         "The map could not start. The bars and table carry the same shares."));
+      /* The key still describes the bars below, so it is kept even when
+       * there is no map to put it over. */
+      legend.classList.remove("map-inset-legend");
+      mapHost.append(legend);
       window.__droughtReady = {
         ...(window.__droughtReady ?? {}), mapClassesDrawn: 0, mapOutlines: 0
       } as NonNullable<typeof window.__droughtReady>;
@@ -392,6 +408,8 @@ function renderDrought(
       const mapStatus = await createDroughtMap(
         mapElement, card, areas, usdm, reservoirs,
         { units: payload.units, storage: storage ?? new Map() }, boundaries);
+      // After the component has claimed the host, never before.
+      mapHost.append(legend);
       mapHost.setAttribute("aria-busy", "false");
       if (!mapStatus.basemap) {
         mapHost.append(mapStatusNote("The map background is unavailable. " +

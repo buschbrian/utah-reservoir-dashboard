@@ -314,6 +314,40 @@ body {
    carries the same rules in `app.css`, which the view pages do not load;
    these two selectors are the same treatment written for the shell that
    does load here rather than a second look for the same component. */
+/* A legend placed over its own map.
+   Absolutely positioned inside the host and out of the map's own control
+   lane on the right, with a translucent surface so the pattern underneath
+   stays readable through it. `pointer-events: none` so it never takes a
+   drag the reader meant for the map -- it is a key, not a control. */
+.map-inset-legend {
+  position: absolute;
+  z-index: 4;
+  inset-block-end: .5rem;
+  inset-inline-start: .5rem;
+  max-inline-size: min(24rem, calc(100% - 5rem));
+  padding: .4rem .55rem;
+  background: color-mix(in srgb, var(--app-surface-raised) 88%, transparent);
+  border: 1px solid var(--app-border);
+  border-radius: .3rem;
+  box-shadow: 0 .15rem .5rem rgb(20 45 56 / 14%);
+  pointer-events: none;
+}
+.view-map-host.has-inset-legend .chart-empty { inset-block-start: 40%; }
+
+@media (max-width: 42rem) {
+  /* On a phone the map is short and the legend would cover a third of it.
+     Back to the full width of the card, under the map rather than over it. */
+  .map-inset-legend {
+    position: static;
+    max-inline-size: none;
+    margin-block-start: .4rem;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+}
+
 .view-map-host .map-hover {
   position: absolute;
   z-index: 5;

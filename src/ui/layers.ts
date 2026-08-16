@@ -533,14 +533,27 @@ export function createReservoirReferenceLayer(
     labelingInfo: reservoirLabelingInfo() as never,
     renderer: {
       type: "simple",
+      /*
+       * Quieter than it started, after seeing it over the drought classes.
+       *
+       * The first version was a translucent slate dot inside a near-opaque
+       * white ring, and the ring was the problem: at 5.5 pixels a 1-pixel
+       * white outline is a third of the symbol, so a field of them read as
+       * pale specks rather than dark points, and the white fought both the
+       * monitor's yellows and the muted canvas underneath.
+       *
+       * Solid fill, no halo, and a hairline of the same dark colour instead.
+       * The dot now reads as one mark at one value -- which is the whole
+       * claim, since these carry no data of their own -- and it separates
+       * from every drought class by darkness rather than by contrast with a
+       * white edge. Smaller, too: it is a locator, not a subject.
+       */
       symbol: {
         type: "simple-marker",
         style: "circle",
-        size: 5.5,
-        /* Translucent, because on these maps the fill underneath is the
-         * subject and a solid dot would punch a hole in it. */
-        color: [39, 54, 63, 0.75],
-        outline: { color: "rgba(255,255,255,0.9)", width: 1 }
+        size: 5,
+        color: [31, 43, 51, 0.92],
+        outline: { color: "rgba(255,255,255,0.55)", width: 0.5 }
       }
     } as never
   });

@@ -175,10 +175,16 @@ export async function createDroughtMap(
       reference.layer
     ]
   });
+  /* A quiet background on purpose. This map labels states itself, from the
+   * same hosted layer it outlines them with, and the Oceans reference layer
+   * labels them too -- so every state carried two names, in two typefaces, at
+   * two sizes. The relief Oceans brings is worth that trade on the storage
+   * and snow maps, where the subject sits on terrain and nothing else writes
+   * place names; here it is a background competing with the foreground. */
   await followThemeBasemap(map, (basemapStatus) => {
     status.basemap = basemapStatus.basemap;
     status.basemapDegraded = basemapStatus.degraded;
-  });
+  }, "minimal");
   element.map = map;
 
   /*
