@@ -12,6 +12,7 @@ import {
   percentOfNormal,
   observedPeak,
   regionCurve,
+  regionDepthCurve,
   seasonHighPoint,
   seasonLabel,
   siteByStation,
@@ -186,12 +187,50 @@ describe("headline readings", () => {
 });
 
 describe("the map day", () => {
-  it("opens on the newest day at least half the sites reported", () => {
+  /*
+   * The map opens on the season's peak snow, and each half of that is a
+   * decision the data forced.
+   *
+   * It used to open on the newest day meeting the floor. Late in the melt
+   * season that is the *most depleted* day that still qualifies, so the map
+   * opened on the worst picture of the year by construction.
+   *
+   * And peak depth, not peak percent of normal: the highest-ratio day in this
+   * record sits in early December on a couple of inches of snow, because the
+   * normal it is divided by is tiny then too.
+   */
+  it("opens on the day the region held the most snow", () => {
     const day = defaultMapDay(payload);
-    expect(day).not.toBeNull();
-    const region = regionCurve(payload);
     const floor = headlineFloor(payload.site_count, 2);
-    expect(day).toBe(newestHeadline(region, floor)?.date);
+    const qualifying = regionDepthCurve(payload)
+      .filter((point) => point.reportingSites >= floor);
+
+    expect(day).not.toBeNull();
+    expect(qualifying.length).toBeGreaterThan(0);
+    const peak = qualifying.reduce((best, point) =>
+      point.meanInches > best.meanInches ? point : best);
+    expect(day).toBe(peak.date);
+  });
+
+  it("does not open on the newest day, which is the most melted one", () => {
+    const floor = headlineFloor(payload.site_count, 2);
+    const newest = newestHeadline(regionCurve(payload), floor);
+    const peak = regionDepthCurve(payload)
+      .filter((point) => point.reportingSites >= floor)
+      .reduce((best, point) => point.meanInches > best.meanInches ? point : best);
+
+    /* Data-independent: assert the relationship, not the dates. In a record
+     * that ends mid-winter these could coincide, and that would be correct. */
+    expect(peak.meanInches).toBeGreaterThanOrEqual(
+      regionDepthCurve(payload).find((p) => p.date === newest?.date)?.meanInches ?? 0);
+  });
+
+  it("lets a handful of high stations define nothing", () => {
+    const floor = headlineFloor(payload.site_count, 2);
+    const day = defaultMapDay(payload)!;
+    const point = regionDepthCurve(payload).find((entry) => entry.date === day);
+
+    expect(point?.reportingSites).toBeGreaterThanOrEqual(floor);
   });
 
   it("reads the same basin values the published rollups carry", () => {

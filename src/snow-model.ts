@@ -242,15 +242,77 @@ export function mapDayValues(
   return { basins, sites, reporting, depths };
 }
 
+/** One day of the region's snow depth: the mean across every site that
+ * reported a value, and how many did. */
+export interface DepthPoint {
+  date: string;
+  meanInches: number;
+  reportingSites: number;
+}
+
 /**
- * The day the map opens on: the newest one where at least half the sites
- * reported, the same floor the headline values hold to. In August that is a
- * late-spring day, and the caption says so rather than colouring the region
- * from two melted stations.
+ * The region's snow depth day by day, in inches.
+ *
+ * The percent-of-normal curve cannot answer "when was there most snow",
+ * because a ratio is small over small. A site that has melted out reports
+ * zero and is counted: that is a real reading and it should pull the mean
+ * down, which is exactly what makes this curve peak at the true maximum
+ * rather than at the last day anyone measured.
+ */
+export function regionDepthCurve(payload: SnowpackPayload): DepthPoint[] {
+  const byDate = new Map<string, number[]>();
+  for (const site of payload.sites) {
+    for (const [date, inches] of site.series) {
+      if (inches === null) continue;
+      const bucket = byDate.get(date);
+      if (bucket) bucket.push(inches);
+      else byDate.set(date, [inches]);
+    }
+  }
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, values]) => ({
+      date,
+      meanInches: values.reduce((sum, value) => sum + value, 0) / values.length,
+      reportingSites: values.length
+    }));
+}
+
+/**
+ * The day the map opens on: the season's peak snow.
+ *
+ * It used to be the newest day that met the reporting floor, and that was
+ * wrong in a way only the data showed. Late in the melt season the newest
+ * qualifying day is the *most depleted* day that still qualifies, so the map
+ * opened on the worst picture of the year by construction -- in this record,
+ * 2026-05-09, where every reporting basin sits under a quarter of normal and
+ * the whole region is one colour.
+ *
+ * Peak snow, not peak percent of normal. That distinction was measured and it
+ * matters: the highest percent-of-normal day in this record is 2025-12-06 at
+ * 78% of normal, on a mean of 2.3 inches of snow -- a good ratio in early
+ * December, when the normal it is divided by is also tiny. The peak depth day
+ * is 2026-03-07, at 61% of normal on 8.4 inches. The first is arithmetically
+ * the best day and hydrologically nearly meaningless; the second is the day
+ * the snowpack actually held the most water, which is what a reader means by
+ * the peak and what the rest of the year is judged against.
+ *
+ * The same half-the-sites floor applies, so a handful of high stations cannot
+ * define the peak on their own.
  */
 export function defaultMapDay(payload: SnowpackPayload): string | null {
-  const region = regionCurve(payload);
-  return newestHeadline(region, headlineFloor(payload.site_count, 2))?.date ?? null;
+  const floor = headlineFloor(payload.site_count, 2);
+  let best: DepthPoint | null = null;
+  for (const point of regionDepthCurve(payload)) {
+    if (point.reportingSites < floor) continue;
+    if (best === null || point.meanInches > best.meanInches) best = point;
+  }
+  /* Out of season, or a record too thin to find a peak in, falls back to the
+   * newest day that met the floor -- which is the old behaviour, and still
+   * the right answer when there is no peak to show. */
+  return best?.date
+    ?? newestHeadline(regionCurve(payload), floor)?.date
+    ?? null;
 }
 
 /** One published day of one site's series, with the columns named. */

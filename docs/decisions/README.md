@@ -48,6 +48,7 @@ supersedes the old one — the history is the point.
 | [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md) | Refetch the drainage boundaries at the resolution the source stops adding detail | Accepted |
 | [ADR-038](ADR-038-split-the-snow-classes-and-move-to-a-scientific-colour-map.md) | Split the bottom snow class, and take the ramp from a scientific colour map | Accepted |
 | [ADR-039](ADR-039-draw-percent-full-with-a-sequential-ramp.md) | Draw percent full with a sequential ramp, and free the ring from it | Accepted |
+| [ADR-040](ADR-040-open-the-snow-map-on-the-season-peak.md) | Open the snow map on the season's peak snow | Accepted |
 
 ## Relationship to the modernization plan
 

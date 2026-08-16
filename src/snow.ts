@@ -128,7 +128,7 @@ function renderSnow(payload: SnowpackPayload): void {
     </section>
     <section class="overview-card" aria-labelledby="snow-map-heading">
       <div class="card-heading">
-        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area is coloured by its mean percent of normal for the day shown, and each measurement site is a point on the same scale. Areas and sites without a fair value for that day stay grey.</p></div>
+        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area is coloured by its mean percent of normal for the day shown, and each measurement site is a point on the same scale. The map opens on the day this season held the most snow, because that is the day the rest of the year is judged against; move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div class="drought-legend snow-map-legend" role="list" aria-label="Snow map classes and their colours"></div>
@@ -411,10 +411,15 @@ function renderSnow(payload: SnowpackPayload): void {
     publishReady();
   };
 
+  /* The day the map opened on, kept so the reading can say when the reader is
+   * back on it. Moving the slider away and back should not lose the fact that
+   * this one day is the season's high point. */
+  const peakDay = startDay;
   const describeDay = (day: string): string => {
     const point = regionPoints.find((entry) => entry.date === day);
     const sitesNote = point ? `, ${point.reportingSites} sites reporting` : "";
-    return `${formatDate(day)}${sitesNote}`;
+    const peakNote = day === peakDay ? " · season high point" : "";
+    return `${formatDate(day)}${sitesNote}${peakNote}`;
   };
 
   const applyDay = (day: string): void => {

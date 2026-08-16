@@ -7,6 +7,16 @@ and is not listed here.
 
 ### Changed
 
+- **The snowpack map opens on the season's peak snow.** It used to open on the
+  most recent day half the sites reported — which, late in the melt season, is
+  the most melted day that still counts, so the map showed the worst picture
+  of the year every time you arrived. It now opens on the day the region held
+  the most snow, which is the day the rest of the season is judged against.
+  Peak snow, not peak percent of normal: the highest-percentage day this
+  season was in early December on two inches of snow, because December's
+  normal is small too. The slider still reaches every other day, and a shared
+  link still carries whichever day its author chose.
+
 - **The storage map's colours run one direction now.** Percent full goes from
   empty to full and nothing happens in the middle, but it was drawn with a
   scale that fades from red through pale yellow to blue — a shape that says
