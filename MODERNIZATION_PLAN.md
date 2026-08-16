@@ -1808,11 +1808,16 @@ become eager -- are now gates. If a Lighthouse run is wanted before a release,
 run it by hand against `dist/`; nothing in the project needs it to be
 reproducible.
 
-### Items to review — opened 2026-08-16
+### Items to review — opened 2026-08-16, resolved the same day
 
-Things that are deliberately unresolved rather than forgotten. Each one is
-either waiting on somebody's decision or on somebody else's release, and each
-has a GitHub issue so it does not live only here: [#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15),
+Two of the four were decisions and the repository owner made them: the git
+history is not a concern as long as the work is documented for whoever comes
+next, and an SDK that degrades is something to fix when it degrades. The other
+two are watch items on somebody else's release and stay open as reminders.
+
+The decisions this phase made are now ADR-032 through ADR-036, which is where
+a contributor looks before changing any of it — the commit history was never
+going to carry that weight. Original list, with outcomes: [#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15),
 [#16](https://github.com/buschbrian/utah-reservoir-dashboard/issues/16),
 [#17](https://github.com/buschbrian/utah-reservoir-dashboard/issues/17) and
 [#18](https://github.com/buschbrian/utah-reservoir-dashboard/issues/18).
@@ -1828,8 +1833,10 @@ has a GitHub issue so it does not live only here: [#15](https://github.com/busch
    remote branches, needs a force-push to a branch that deploys, and leaves
    merged PR #14 pointing at commits no longer on any branch. `git notes` is
    the no-risk alternative and fixes the local record but not GitHub's.
-   Open because the trade is the repository owner's to make, not because
-   nobody has looked at it. ([#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15))
+   **Closed, not done ([#15](https://github.com/buschbrian/utah-reservoir-dashboard/issues/15)).**
+   The history stays as it is. No SHAs rewritten, no force-push, merged PR #14
+   still points at real commits. What that message could not say is in the
+   changelog, the plan and ADR-032 to ADR-035 instead.
 
 2. **Two accessibility exceptions live in vendor components.** `arcgis-chart`
    renders an inner element carrying an `aria-label` with no role for it to
@@ -1838,8 +1845,8 @@ has a GitHub issue so it does not live only here: [#15](https://github.com/busch
    unnamed, which `src/ui/slider-label.ts` works around by naming the handle
    directly. Both are recorded in `AXE_EXCEPTIONS`. Re-check on the next SDK
    upgrade: if either vendor fixes theirs, the exception starts matching
-   nothing and the workaround should stand aside.
-   ([#16](https://github.com/buschbrian/utah-reservoir-dashboard/issues/16))
+   **Open as a watch item ([#16](https://github.com/buschbrian/utah-reservoir-dashboard/issues/16)),**
+   and recorded in ADR-036. Nothing is blocked on it.
 
 3. **The content policy's `script-src` is permissive by necessity.** It has to
    allow the ArcGIS CDN, because the SDK's workers import their own code from
@@ -1847,8 +1854,9 @@ has a GitHub issue so it does not live only here: [#15](https://github.com/busch
    with `new Function`. Both were confirmed by removing them and watching
    pages fail. The other directives do real work; this one does not. Worth
    re-measuring with `tools/audit-transfer.mjs` on each SDK upgrade to see
-   whether either requirement has gone away.
-   ([#17](https://github.com/buschbrian/utah-reservoir-dashboard/issues/17))
+   **Open as a watch item ([#17](https://github.com/buschbrian/utah-reservoir-dashboard/issues/17)),**
+   and recorded in ADR-036, which states plainly what the policy does and does
+   not buy.
 
 4. **Playwright is deliberately not a declared dependency, and that is a
    footgun.** CI installs it with `--no-save --no-package-lock` so the
@@ -1856,8 +1864,10 @@ has a GitHub issue so it does not live only here: [#15](https://github.com/busch
    ordinary `npm install` prunes it as extraneous and every browser test
    stops resolving `playwright` until it is reinstalled the same way. It cost
    a debugging detour in this session. Either the reason should be written
-   where someone hits it, or the trade should be revisited.
-   ([#18](https://github.com/buschbrian/utah-reservoir-dashboard/issues/18))
+   **Fixed ([#18](https://github.com/buschbrian/utah-reservoir-dashboard/issues/18)).**
+   All three browser tools now catch the missing module and answer with the
+   command that fixes it. The deliberate absence from `package.json` is kept,
+   so the lockfile still stays exactly what `npm ci` produced.
 
 ---
 
