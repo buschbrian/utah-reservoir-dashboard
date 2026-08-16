@@ -161,16 +161,31 @@ export async function createDroughtMap(
     countyBoundaries: boundaries.counties !== null
   };
 
-  /* Bottom to top, and the order is the ladder in `viz/label-scales.ts`
-   * drawn out: the monitor's classes are the subject and everything else
-   * reads over them, each tier finer and fainter than the one below, with
-   * the fourteen drainage outlines and their reservoirs last because those
-   * are what the figures on the page describe. */
+  /*
+   * Bottom to top, and the rule is that borrowed reference geography goes
+   * behind everything this project draws -- on this map and on any other that
+   * gains it.
+   *
+   * States and counties are context: they say which land the pattern crosses.
+   * Drawing them over the monitor's classes put a borrowed line on top of the
+   * subject and made the fills look sliced. Underneath, they read as ground
+   * the data sits on, which is what they are.
+   *
+   * Their names are unaffected by this, and that is the reason it costs
+   * nothing: the SDK paints labels in a pass above the features of every
+   * layer, whatever the operational order (the same behaviour ADR-030 had to
+   * work around for the drainage names). So the outlines recede and the place
+   * names stay legible.
+   *
+   * Above them the order is the label ladder in `viz/label-scales.ts` drawn
+   * out: the classes are the subject, then the fourteen drainage outlines and
+   * their reservoirs, because those are what the figures on the page describe.
+   */
   const map = new ArcGISMap({
     layers: [
-      droughtLayer,
-      ...(boundaries.counties ? [boundaries.counties] : []),
       ...(boundaries.states ? [boundaries.states] : []),
+      ...(boundaries.counties ? [boundaries.counties] : []),
+      droughtLayer,
       outlineLayer,
       reference.layer
     ]

@@ -1813,16 +1813,20 @@ for (const viewport of VIEWPORTS) {
      * against what actually loaded rather than against a fixed list -- a
      * refused state service is a supported outcome, and a test that failed
      * on it would be testing Esri's uptime. */
+    /* Borrowed reference geography draws behind everything this project
+     * draws, so the states and counties come first in the layer list. Their
+     * labels are unaffected: the SDK paints those above every layer whatever
+     * the operational order. */
     const boundaryLayers = [
-      ...(mapState.ready?.mapCountyBoundaries ? ["reference-counties"] : []),
-      ...(mapState.ready?.mapStateBoundaries ? ["reference-states"] : [])
+      ...(mapState.ready?.mapStateBoundaries ? ["reference-states"] : []),
+      ...(mapState.ready?.mapCountyBoundaries ? ["reference-counties"] : [])
     ];
     console.log("  boundaries:", JSON.stringify({
       states: mapState.ready?.mapStateBoundaries,
       counties: mapState.ready?.mapCountyBoundaries
     }));
     await checkViewMapParity(tab, check, label, "drought-map-host", "drought-map-hover",
-      ["usdm-classes", ...boundaryLayers, "drainage-outlines", "reservoir-reference"]);
+      [...boundaryLayers, "usdm-classes", "drainage-outlines", "reservoir-reference"]);
     /* The label ladder: at the opening view the states are named and the
      * reservoirs are not, which is the whole point of the thresholds. The
      * counties are not even fetched yet. */

@@ -62,6 +62,9 @@ const userTextFiles = [
   // The filter labels, the sentence that reports what each page is showing,
   // and the axis titles on the storage-against-drought chart.
   "src/viz/drought-scatter.ts",
+  // The weekly digest writes sentences about every other surface.
+  "src/viz/weekly-summary.ts",
+  "src/weekly-model.ts",
   "src/state/drought-url.ts"
 ];
 

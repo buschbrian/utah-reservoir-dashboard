@@ -73,6 +73,13 @@ interface Window {
     visible: number;
     charts: number;
     lakePowellExcluded: boolean;
+    /* The weekly digest, added once its two extra fetches have settled one
+     * way or the other. Optional because the charts publish this signal
+     * before the digest has run, and a reader gets the charts either way.
+     * `lines` as well as `sections`: a section that renders its heading and
+     * no sentences is the failure a section count cannot see. */
+    weeklySections?: number;
+    weeklyLines?: number;
   };
   /** The snowpack view finished drawing. `sites` and `basins` are what the
    * payload provided; `tableRows` and `curvePoints` are what the page

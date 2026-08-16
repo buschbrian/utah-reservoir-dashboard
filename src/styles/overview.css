@@ -498,3 +498,27 @@ body {
   accent-color: var(--app-accent);
   cursor: pointer;
 }
+
+/* The weekly digest. Sections read as short paragraphs rather than as a
+   dashboard, because the point of the card is that it can be read straight
+   through -- a reader who wants figures has the whole page below it. */
+.weekly-card { margin-block-end: .8rem; }
+.weekly-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: .5rem 1.4rem;
+}
+.weekly-section h3 {
+  margin: 0 0 .3rem;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+.weekly-section p {
+  margin: 0 0 .4rem;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.weekly-section p:last-child { margin-block-end: 0; }

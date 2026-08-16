@@ -6,6 +6,10 @@ import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
 
 import { loadReservoirs } from "./data/load";
+import { loadDroughtCoverage } from "./data/drought-load";
+import { loadSnowpack } from "./data/snow-load";
+import { weeklySummary } from "./weekly-model";
+import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
 import { isLate, statewideRollup, type ReservoirGeography } from "./data/rollup";
@@ -129,6 +133,16 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
          a single wrapping flex line, so the heading competed with the four
          selects for the same space and "Reset view" was pushed wherever
          the last control left room -- a different place at every width. -->
+    <section class="overview-card weekly-card" id="weekly-summary"
+      aria-labelledby="weekly-heading" aria-busy="true">
+      <div class="card-heading">
+        <div>
+          <h2 id="weekly-heading">What moved this week</h2>
+          <p>The last seven days across every published reservoir, worked out from the same files the rest of this site draws. It describes the whole region and does not change with the filters below. Nothing here is a forecast, and each part says what it could not measure.</p>
+        </div>
+      </div>
+      <div class="weekly-sections"></div>
+    </section>
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
       <!-- Lake Powell rides with the heading rather than in the row of
            selects below it. It is not the same kind of question they are:
@@ -508,9 +522,59 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   await update();
 }
 
+/**
+ * The weekly digest.
+ *
+ * Rendered after the page's own charts, from two extra fetches this page can
+ * do without: the snow payload is 1.9 MB and the drought coverage is a
+ * separate weekly file, and neither should delay the charts a reader came
+ * for. Each section degrades on its own -- a failed snow fetch costs the snow
+ * paragraph and nothing else -- which is why the model takes them as
+ * nullable rather than requiring all three.
+ */
+async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
+  const card = document.querySelector<HTMLElement>("#weekly-summary");
+  const host = card?.querySelector<HTMLElement>(".weekly-sections");
+  if (!card || !host) return;
+
+  const [snow, drought] = await Promise.all([
+    loadSnowpack().catch((error: unknown) => {
+      console.warn("The weekly summary has no snow measurements:", error);
+      return null;
+    }),
+    loadDroughtCoverage().catch((error: unknown) => {
+      console.warn("The weekly summary has no drought coverage:", error);
+      return null;
+    })
+  ]);
+
+  const sections = describeWeek(weeklySummary(reservoirs, snow, drought));
+  host.replaceChildren(...sections.map((section) => {
+    const block = document.createElement("section");
+    block.className = "weekly-section";
+    const heading = document.createElement("h3");
+    heading.textContent = section.heading;
+    block.append(heading);
+    for (const line of section.lines) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = line;
+      block.append(paragraph);
+    }
+    return block;
+  }));
+  card.setAttribute("aria-busy", "false");
+
+  window.__overviewReady = {
+    ...(window.__overviewReady ?? {}),
+    weeklySections: sections.length,
+    weeklyLines: sections.reduce((sum, section) => sum + section.lines.length, 0)
+  } as NonNullable<typeof window.__overviewReady>;
+}
+
 try {
   const payload = await loadReservoirs();
   await renderOverview(payload.reservoirs, payload.generated_at);
+  await renderWeekly(payload.reservoirs);
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");
