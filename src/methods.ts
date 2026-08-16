@@ -42,6 +42,24 @@ root.innerHTML = `
     <header class="methods-intro">
       <p class="eyebrow">Methods and sources</p>
       <h1>How these numbers are made</h1>
+      <aside class="methods-disclaimer" aria-labelledby="disclaimer-heading">
+        <h2 id="disclaimer-heading">This is not an official product</h2>
+        <p>This site is a personal open-source project. It is not made, endorsed,
+          sponsored or checked by any government agency, any water district, or any
+          other organization, and it does not speak for any of them. Nothing on it is
+          an official record.</p>
+        <p>It reads public data services that anyone can use, and it names every source
+          and identifier so any value here can be checked against the agency that
+          published it. Where this site and an agency disagree, the agency is right.
+          Do not use this site for an operating decision, a legal purpose, or anything
+          where being wrong would matter — go to the publisher.</p>
+        <p>It is also built in the open in another sense: much of the code is written
+          by AI agents working from stated requirements, with every change reviewed by
+          a person, tested, and recorded in the project's decision records. The code,
+          the daily pipeline and every decision behind them are public, so the way each
+          number is produced can be read rather than taken on trust.</p>
+      </aside>
+
       <p class="methods-lede">Every value on this site is an observation published by a
         public agency, or something worked out from those observations by a rule written
         down below. Nothing here is modelled, predicted or smoothed.</p>
@@ -58,6 +76,7 @@ root.innerHTML = `
 
     <nav class="methods-toc" aria-label="On this page">
       <ul>
+        <li><a href="#disclaimer-heading">This is not an official product</a></li>
         <li><a href="#sources">Where the numbers come from</a></li>
         <li><a href="#collection">How the data is collected</a></li>
         <li><a href="#values">How each value is worked out</a></li>
@@ -273,6 +292,9 @@ root.innerHTML = `
 
     <section class="methods-section" id="credit" aria-labelledby="credit-heading">
       <h2 id="credit-heading">Credit</h2>
+      <p><strong>Naming an organization below credits its work. It does not mean the
+        organization is involved with this site, has checked it, or endorses it.</strong>
+        None of them are, none of them have, and none of them do.</p>
       <p>This dashboard displays public data collected and published by others. The
         measurements are theirs; the presentation is this project's.</p>
       <ul class="methods-plain">

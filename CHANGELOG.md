@@ -7,6 +7,16 @@ and is not listed here.
 
 ### Added
 
+- **The methods page opens by saying what this site is not.** It is a personal
+  open-source project, not made, endorsed, sponsored or checked by any agency
+  or organization, and it does not speak for any of them. Where this site and
+  a publisher disagree, the publisher is right. Naming an agency in the
+  credits thanks it for its work and means nothing more than that. The page
+  also says how the project is built: much of the code is written by AI agents
+  from stated requirements, with every change reviewed by a person, tested,
+  and recorded — so the way each number is produced can be read rather than
+  taken on trust.
+
 - **The methods page now says three things it should have said all along.**
   These reservoirs are operated, so a falling level can be a release rather
   than a dry watershed. Snow is compared against thirty years and storage

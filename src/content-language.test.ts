@@ -105,6 +105,25 @@ describe("user text", () => {
    * in order to read the numbers correctly, and each of which is the kind of
    * thing a later edit quietly drops because the page is long.
    */
+  /* The site names a dozen federal and state agencies and reads their public
+   * services. A reader who lands on it must not be able to mistake it for one
+   * of their products, and a credit list must not read as an endorsement.
+   *
+   * Asserted as plain substrings rather than a pattern spanning the source's
+   * own line wrapping: a test that breaks when a paragraph is re-flowed is a
+   * test somebody deletes. */
+  it("keeps the statement that this is not an official product", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+
+    expect(methods).toContain("This is not an official product");
+    expect(methods).toContain("sponsored or checked by any government agency");
+    expect(methods).toContain("Where this site and an agency disagree, the agency is right");
+    // Naming a provider credits it; it must not read as an endorsement.
+    expect(methods).toContain("It does not mean the");
+    // And how the project is built is stated rather than left to be found.
+    expect(methods).toContain("by AI agents working from stated requirements");
+  });
+
   it("keeps the caveats that make the numbers readable", async () => {
     const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
 

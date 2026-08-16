@@ -112,3 +112,26 @@ body {
   .methods-main { width: min(100% - 1.6rem, 46rem); padding-block-start: 1.25rem; }
   .methods-toc ul { gap: .35rem 1rem; }
 }
+
+/* The disclaimer. Given a border and a raised surface so it reads as a notice
+   rather than as the first paragraph of the page -- a reader skimming for the
+   numbers should still register that this is not an official record. */
+.methods-disclaimer {
+  margin-block: 1rem 1.25rem;
+  padding: .9rem 1rem;
+  background: var(--app-surface-raised);
+  border: 1px solid var(--app-border);
+  border-inline-start: .3rem solid var(--app-terracotta);
+  border-radius: .4rem;
+}
+.methods-disclaimer h2 {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+  letter-spacing: .01em;
+}
+.methods-disclaimer p {
+  margin: 0 0 .55rem;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.methods-disclaimer p:last-child { margin-block-end: 0; }
