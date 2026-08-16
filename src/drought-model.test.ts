@@ -6,8 +6,13 @@ import {
   coverageSegments,
   daysOld,
   isLateRelease,
+  DRYNESS_CLASS,
+  orderUnits,
   regionWorst,
+  shareAtOrWorse,
+  storageAgainstDrought,
   storageByArea,
+  unitsAtOrWorse,
   worstClass
 } from "./drought-model";
 import type { DroughtUnit } from "./types";
@@ -117,5 +122,103 @@ describe("the committed coverage through the model", () => {
     const anyDrought = payload.units.some(
       (entry) => entry.percent_of_area_at_least.d0 > 0);
     expect(regionWorst(payload.units) !== null).toBe(anyDrought);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Filtering, ordering, and the join                                   */
+/* ------------------------------------------------------------------ */
+
+const dry = unit("140100", "Colorado Headwaters", [0, 5, 10, 15, 10, 60]);
+const middling = unit("160202", "Jordan", [10, 30, 40, 20, 0, 0]);
+const clear = unit("160300", "Escalante Desert", [100, 0, 0, 0, 0, 0]);
+const areas = [middling, dry, clear];
+
+describe("narrowing the areas by severity", () => {
+  it("keeps every area when no class is chosen", () => {
+    expect(unitsAtOrWorse(areas, null)).toHaveLength(3);
+  });
+
+  it("keeps the areas with any land at that class or worse", () => {
+    expect(unitsAtOrWorse(areas, "d4").map((entry) => entry.huc6)).toEqual(["140100"]);
+    expect(unitsAtOrWorse(areas, "d2").map((entry) => entry.huc6))
+      .toEqual(["160202", "140100"]);
+  });
+
+  /* "Any land at this class or worse" is the monitor's own severity
+   * judgment. An area entirely free of drought has no D0 land, so it drops
+   * out of the D0 filter -- which is why "every area" is a separate state
+   * rather than the same thing as choosing the mildest class. */
+  it("drops an area with no drought at all from even the mildest class", () => {
+    expect(unitsAtOrWorse(areas, "d0").map((entry) => entry.huc6))
+      .not.toContain("160300");
+    expect(unitsAtOrWorse(areas, null).map((entry) => entry.huc6))
+      .toContain("160300");
+  });
+
+  it("reads the published cumulative share rather than re-summing it", () => {
+    expect(shareAtOrWorse(dry, "d2")).toBe(dry.percent_of_area_at_least.d2);
+  });
+});
+
+describe("ordering the areas", () => {
+  const storage = new Map([
+    ["140100", { percent: 80, reservoirCount: 4 }],
+    ["160202", { percent: 20, reservoirCount: 2 }]
+  ]);
+
+  it("defaults to the severity order the page already published", () => {
+    expect(orderUnits(areas, storage, "severity")).toEqual(bySeverity(areas));
+  });
+
+  it("orders by name", () => {
+    expect(orderUnits(areas, storage, "name").map((entry) => entry.huc6_name))
+      .toEqual(["Colorado Headwaters", "Escalante Desert", "Jordan"]);
+  });
+
+  /* Emptiest first, because the question this ordering answers is "where is
+   * the water running out". An area with no reading sorts last rather than
+   * as zero: "no reading" is not "empty", and putting it at the top would
+   * make the page open on the least informative row. */
+  it("orders by storage, emptiest first, with unknown readings last", () => {
+    expect(orderUnits(areas, storage, "storage").map((entry) => entry.huc6))
+      .toEqual(["160202", "140100", "160300"]);
+  });
+
+  it("orders by name when no storage is available at all", () => {
+    expect(orderUnits(areas, null, "storage").map((entry) => entry.huc6_name))
+      .toEqual(["Colorado Headwaters", "Escalante Desert", "Jordan"]);
+  });
+});
+
+describe("land conditions against banked water", () => {
+  const storage = new Map([
+    ["140100", { percent: 80, reservoirCount: 4 }],
+    ["160202", { percent: 20, reservoirCount: 2 }],
+    ["160300", { percent: null, reservoirCount: 0 }]
+  ]);
+
+  it("plots one point per area with a reading, on the two published figures", () => {
+    const points = storageAgainstDrought(areas, storage);
+
+    expect(points.map((point) => point.huc6)).toEqual(["160202", "140100"]);
+    const headwaters = points.find((point) => point.huc6 === "140100")!;
+    expect(headwaters.storagePercent).toBe(80);
+    expect(headwaters.dryPercent).toBe(shareAtOrWorse(dry, DRYNESS_CLASS));
+    expect(headwaters.worst?.key).toBe("d4");
+  });
+
+  /* Left out, never drawn at zero: an area with no reservoirs in it is not
+   * an area whose reservoirs are empty, and a point on the floor of the
+   * chart would state the second. */
+  it("leaves out an area with no reservoir reading rather than plotting zero", () => {
+    const points = storageAgainstDrought(areas, storage);
+
+    expect(points.map((point) => point.huc6)).not.toContain("160300");
+    expect(points.every((point) => point.storagePercent !== null)).toBe(true);
+  });
+
+  it("plots nothing at all when the reservoir payload could not be read", () => {
+    expect(storageAgainstDrought(areas, null)).toEqual([]);
   });
 });

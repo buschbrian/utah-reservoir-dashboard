@@ -6,7 +6,14 @@
  * showing, absent for the default. Same mechanics as the other pages:
  * `replaceState`, never `pushState`, so the back button leaves the site
  * rather than unwinding every filter change.
+ *
+ * `?q=`, `?elev=` and `?status=` narrow the site table. They are separate
+ * from `?area=` on purpose: `?area=` is the shared cross-page vocabulary and
+ * changes the whole page including the chart and the map, while these three
+ * only narrow the table under it.
  */
+import { isElevationBand, isSiteStatus, type ElevationBand, type SiteStatus }
+  from "../snow-model";
 
 export interface SnowUrlState {
   area: string | null;
@@ -14,6 +21,10 @@ export interface SnowUrlState {
   day: string | null;
   /** A measurement site's station identifier, or null for none chosen. */
   site: string | null;
+  /** A name or county search over the site table. Empty for no search. */
+  query: string;
+  band: ElevationBand;
+  status: SiteStatus;
 }
 
 /** Station triplets look like "1030:CO:SNTL"; the page still checks the
@@ -25,10 +36,19 @@ export function snowStateFromSearch(search: string): SnowUrlState {
   const area = params.get("area");
   const day = params.get("day");
   const site = params.get("site");
+  const band = params.get("elev");
+  const status = params.get("status");
+  /* Trimmed and capped. A search box is the one field a link can carry an
+   * arbitrary amount of text in, and the value is only ever used as a
+   * case-insensitive substring test. */
+  const query = (params.get("q") ?? "").trim().slice(0, 60);
   return {
     area: area && /^\d{6}$/.test(area) ? area : null,
     day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
-    site: site && STATION_PATTERN.test(site) ? site : null
+    site: site && STATION_PATTERN.test(site) ? site : null,
+    query,
+    band: band && isElevationBand(band) ? band : "all",
+    status: status && isSiteStatus(status) ? status : "all"
   };
 }
 
@@ -40,6 +60,14 @@ export function snowSearchFromState(state: SnowUrlState, search: string): string
   else params.delete("day");
   if (state.site) params.set("site", state.site);
   else params.delete("site");
+  /* The default of each narrowing control is the absence of its parameter,
+   * so a shared link carries what the reader changed and nothing else. */
+  if (state.query.trim()) params.set("q", state.query.trim());
+  else params.delete("q");
+  if (state.band !== "all") params.set("elev", state.band);
+  else params.delete("elev");
+  if (state.status !== "all") params.set("status", state.status);
+  else params.delete("status");
   const text = params.toString();
   return text ? `?${text}` : "";
 }

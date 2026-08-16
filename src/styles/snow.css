@@ -73,3 +73,30 @@
   .snow-day-row { flex-wrap: wrap; }
   .snow-day-row calcite-slider { flex-basis: 100%; order: 3; }
 }
+
+/* The class spread above the site table. The bar itself reuses the drought
+   view's `.drought-bar` shape deliberately: a reader who has learned one
+   stacked share bar has learned both, and the colours come from each page's
+   own class table. */
+.snow-spread { margin-block-end: .75rem; }
+.snow-spread-note {
+  margin: .4rem 0 0;
+  color: var(--app-muted);
+  font-size: .8rem;
+  line-height: 1.4;
+}
+.filterbar-controls input[type="search"] {
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: .4rem .5rem;
+  color: var(--app-text);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+  font: inherit;
+  font-size: .9rem;
+}
+.filterbar-controls input[type="search"]:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}

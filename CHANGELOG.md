@@ -7,6 +7,34 @@ and is not listed here.
 
 ### Added
 
+- **Dry land against banked water, as a chart.** The drought page now plots
+  every drainage area as one point: how much of its land is in severe drought
+  or worse across the bottom, how full its reservoirs are up the side. The two
+  do not have to agree, and where they disagree is the whole point — an area
+  to the right and high up is living on water banked in better years; one to
+  the right and low has neither the rain nor the savings. An area with no
+  reservoir reading is left out rather than drawn at the bottom, and the page
+  says how many were left out.
+
+- **The drought page can be narrowed.** Show only the areas with land in a
+  chosen class or worse, and order them by severity, by emptiest reservoirs
+  first, or by name. A sentence under the controls says what is being shown,
+  and the address bar carries both choices, so a narrowed view can be shared.
+
+- **The snowpack site table can be searched and narrowed.** Search by site
+  name or county, filter to an elevation band — snow behaves differently high
+  and low, so a single average mixes two seasons — and show only the sites
+  with late data, or only the ones still sending values. All three combine,
+  all three are in the address bar, and the sentence above the table says
+  which are applied.
+
+- **How the snow sites are spread on the chosen day.** A bar above the site
+  table shows how many sites fell in each class, in the same colours and the
+  same shape as the drought page's coverage bars. The average on the chart is
+  one number over more than two hundred stations, and it cannot tell a region
+  that is evenly poor from one where half the sites are bare and half are near
+  normal. Those are different winters.
+
 - **Reservoirs draw in less detail when you are far away.** Zoomed out, each
   reservoir is a plain circle: still sized by its capacity, still coloured by
   how full it is. Zoom past about one step in and the full drawing returns —

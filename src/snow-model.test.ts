@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readSnowpack } from "./data/payload-fixture";
+import { SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
 import {
   basinChoices,
   basinCurve,
@@ -17,6 +18,12 @@ import {
   siteMonthReadings,
   sitePoints,
   siteRows,
+  siteSpread,
+  elevationBandOf,
+  filterSiteRows,
+  siteFilterActive,
+  NO_SITE_FILTER,
+  type SiteRow,
   siteTiming,
   type CurvePoint
 } from "./snow-model";
@@ -302,5 +309,110 @@ describe("month readings", () => {
     }
     // The water year starts in October, so October leads the table.
     expect(keys[0]?.slice(5)).toBe("10");
+  });
+});
+
+describe("narrowing the site table", () => {
+  const row = (over: Partial<SiteRow>): SiteRow => ({
+    station: "1:UT:SNTL", name: "Alta", county: "Salt Lake", state: "UT",
+    huc6: "160202", basinName: "Jordan", elevationFeet: 8800,
+    latestDate: "2026-08-15", late: false, inches: 1, normalInches: 2, percent: 50,
+    ...over
+  });
+
+  it("puts each site in an elevation band by its own height", () => {
+    expect(elevationBandOf(7999)).toBe("low");
+    expect(elevationBandOf(8000)).toBe("middle");
+    expect(elevationBandOf(9499)).toBe("middle");
+    expect(elevationBandOf(9500)).toBe("high");
+  });
+
+  it("keeps only the chosen band", () => {
+    const rows = [row({ name: "Low", elevationFeet: 7000 }),
+      row({ name: "Mid", elevationFeet: 8800 }),
+      row({ name: "High", elevationFeet: 10000 })];
+
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, band: "high" })
+      .map((entry) => entry.name)).toEqual(["High"]);
+    expect(filterSiteRows(rows, NO_SITE_FILTER)).toHaveLength(3);
+  });
+
+  it("separates late sites from the ones still sending values", () => {
+    const rows = [row({ name: "Fresh", late: false }), row({ name: "Old", late: true })];
+
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, status: "late" })
+      .map((entry) => entry.name)).toEqual(["Old"]);
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, status: "reporting" })
+      .map((entry) => entry.name)).toEqual(["Fresh"]);
+  });
+
+  /* The county is searched as well as the name because that is how people
+   * ask for these sites out loud -- "the ones above Heber" is a county, not
+   * a station name -- and the county is already a column in the table. */
+  it("searches the name and the county, ignoring case and surrounding space", () => {
+    const rows = [row({ name: "Alta", county: "Salt Lake" }),
+      row({ name: "Trial Lake", county: "Summit" })];
+
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, query: "ALTA" }))
+      .toHaveLength(1);
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, query: "  summit " })
+      .map((entry) => entry.name)).toEqual(["Trial Lake"]);
+    expect(filterSiteRows(rows, { ...NO_SITE_FILTER, query: "nowhere" }))
+      .toHaveLength(0);
+  });
+
+  it("applies every narrowing at once", () => {
+    const rows = [row({ name: "Alta", elevationFeet: 10000, late: true }),
+      row({ name: "Alta Low", elevationFeet: 7000, late: true }),
+      row({ name: "Brighton", elevationFeet: 10000, late: true })];
+
+    expect(filterSiteRows(rows,
+      { query: "alta", band: "high", status: "late" }).map((entry) => entry.name))
+      .toEqual(["Alta"]);
+  });
+
+  /* Not derived from a row count: a filter that happens to keep every row is
+   * still a filter, and the page says which one rather than claiming nothing
+   * is applied. */
+  it("reports itself active even when it excludes nothing", () => {
+    expect(siteFilterActive(NO_SITE_FILTER)).toBe(false);
+    expect(siteFilterActive({ ...NO_SITE_FILTER, band: "low" })).toBe(true);
+    expect(siteFilterActive({ ...NO_SITE_FILTER, query: "  " })).toBe(false);
+    expect(siteFilterActive({ ...NO_SITE_FILTER, query: "a" })).toBe(true);
+  });
+});
+
+describe("how one day's readings are spread", () => {
+  /* The mean cannot tell a region uniformly at 70% from one where half the
+   * sites are bare and half are near normal. Those are different winters. */
+  it("counts the sites in each class and the ones with no value", () => {
+    const values = new Map<string, number | null>([
+      ["a", 10], ["b", 45], ["c", 95], ["d", null], ["e", 200]
+    ]);
+    const spread = siteSpread(values, 5, snowClassIndex);
+
+    expect(spread.counts[0]).toBe(2);
+    expect(spread.counts[3]).toBe(1);
+    expect(spread.counts[4]).toBe(1);
+    expect(spread.noValue).toBe(1);
+    expect(spread.reporting).toBe(4);
+  });
+
+  it("adds up to every site it was given", () => {
+    const values = new Map<string, number | null>(
+      Array.from({ length: 20 }, (_, index) =>
+        [`s${index}`, index % 3 === 0 ? null : index * 12]));
+    const spread = siteSpread(values, SNOW_CLASSES.length, snowClassIndex);
+
+    const total = spread.counts.reduce((sum, count) => sum + count, 0) + spread.noValue;
+    expect(total).toBe(values.size);
+    expect(spread.reporting + spread.noValue).toBe(values.size);
+  });
+
+  it("answers for an empty day without inventing a class", () => {
+    const spread = siteSpread(new Map(), SNOW_CLASSES.length, snowClassIndex);
+    expect(spread.counts.every((count) => count === 0)).toBe(true);
+    expect(spread.noValue).toBe(0);
+    expect(spread.reporting).toBe(0);
   });
 });

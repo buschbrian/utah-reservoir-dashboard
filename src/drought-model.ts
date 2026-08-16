@@ -125,3 +125,124 @@ export function coverageSegments(unit: DroughtUnit): CoverageSegment[] {
   }
   return segments.filter((segment) => segment.percent > 0);
 }
+
+/* ------------------------------------------------------------------ */
+/* Filtering and ordering                                              */
+/* ------------------------------------------------------------------ */
+
+/** How the reader has asked for the areas to be ordered. */
+export type DroughtSort = "severity" | "storage" | "name";
+
+export const DROUGHT_SORTS: readonly DroughtSort[] = ["severity", "storage", "name"];
+
+export function isDroughtSort(value: string): value is DroughtSort {
+  return (DROUGHT_SORTS as readonly string[]).includes(value);
+}
+
+/**
+ * The share of an area's land in a class or anything worse.
+ *
+ * Read straight from the published "at least" figures rather than summed
+ * here. The pipeline computed them as sums of disjoint exclusive shares and
+ * a unit test holds them to that arithmetic; adding the exclusive shares up
+ * a second time in the client is how the two would drift.
+ */
+export function shareAtOrWorse(unit: DroughtUnit, key: DroughtClass["key"]): number {
+  return unit.percent_of_area_at_least[key];
+}
+
+/**
+ * The areas with any land at a given class or worse.
+ *
+ * "Any land" rather than a share threshold, deliberately: the monitor's
+ * classes are already a severity judgment, and a second numeric threshold on
+ * top of them would be this project inventing a rule the data does not carry.
+ * Null means every area, which is not the same as passing "d0" -- an area
+ * entirely free of drought has no D0 land and would drop out of that filter.
+ */
+export function unitsAtOrWorse(
+  units: readonly DroughtUnit[], key: DroughtClass["key"] | null
+): DroughtUnit[] {
+  if (key === null) return [...units];
+  return units.filter((unit) => shareAtOrWorse(unit, key) > 0);
+}
+
+/**
+ * The areas in the order the reader asked for.
+ *
+ * Severity is the default and is the existing `bySeverity` order, unchanged.
+ * Storage orders by how full the reservoirs in each area are, emptiest first,
+ * because the question that ordering answers is "where is the water running
+ * out" -- and an area with no reservoir reading sorts last rather than as
+ * zero, since "no reading" is not "empty".
+ */
+export function orderUnits(
+  units: readonly DroughtUnit[],
+  storage: ReadonlyMap<string, StorageContext> | null,
+  sort: DroughtSort
+): DroughtUnit[] {
+  if (sort === "severity") return bySeverity(units);
+  const rows = [...units];
+  if (sort === "name") {
+    return rows.sort((a, b) => a.huc6_name.localeCompare(b.huc6_name));
+  }
+  return rows.sort((a, b) => {
+    const left = storage?.get(a.huc6)?.percent ?? null;
+    const right = storage?.get(b.huc6)?.percent ?? null;
+    if (left === null && right === null) return a.huc6_name.localeCompare(b.huc6_name);
+    if (left === null) return 1;
+    if (right === null) return -1;
+    return left - right;
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Land conditions against banked water                                */
+/* ------------------------------------------------------------------ */
+
+/** The class the storage-against-drought chart measures dryness by. Severe
+ * drought is where the monitor's own impact language turns from "developing"
+ * to actual shortage, which is the point at which the comparison matters. */
+export const DRYNESS_CLASS: DroughtClass["key"] = "d2";
+
+/** One drainage area as a point: how dry its land is, how full its water is. */
+export interface StorageAgainstDrought {
+  huc6: string;
+  name: string;
+  /** Percent of land at the dryness class or worse. */
+  dryPercent: number;
+  /** Combined reservoir storage as a percent of combined full level. */
+  storagePercent: number;
+  reservoirCount: number;
+  /** The most severe class with land in it, for the point's colour. */
+  worst: DroughtClass | null;
+}
+
+/**
+ * The join this whole view exists for, as plottable points.
+ *
+ * An area is left out when it has no reservoir reading, and the caller says
+ * how many were left out rather than the chart drawing them at zero: a
+ * drainage area with no reservoirs in it is not a drainage area whose
+ * reservoirs are empty, and putting it on the floor of the chart would state
+ * the second.
+ */
+export function storageAgainstDrought(
+  units: readonly DroughtUnit[],
+  storage: ReadonlyMap<string, StorageContext> | null
+): StorageAgainstDrought[] {
+  const points: StorageAgainstDrought[] = [];
+  for (const unit of units) {
+    const context = storage?.get(unit.huc6);
+    if (!context || context.percent === null) continue;
+    points.push({
+      huc6: unit.huc6,
+      name: unit.huc6_name,
+      dryPercent: shareAtOrWorse(unit, DRYNESS_CLASS),
+      storagePercent: context.percent,
+      reservoirCount: context.reservoirCount,
+      worst: worstClass(unit)
+    });
+  }
+  return points;
+}

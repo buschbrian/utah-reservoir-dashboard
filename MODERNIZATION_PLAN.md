@@ -1585,6 +1585,62 @@ buried the readings. They stay on the drought map, which has five broad
 national classes and room for them. The argument is density, not principle --
 the same layer is right on one map and wrong on the other.
 
+### Filtering and charting on the two newer views — 2026-08-16
+
+The drought and snow views shipped with the analysis a first version needs and
+not much else: the drought page had no controls at all, and the snow page had
+one drainage-area select. Both now carry the narrowing and the second chart
+that make them worth returning to, and both hold the plan's own restraint rule
+-- every control added answers a reading a normal reader actually has, and the
+Simplified Technical English tests cover the new labels and sentences.
+
+**The drought view's chart is the category differentiator.** One point per
+drainage area: share of land in severe drought (D2) or worse across, combined
+reservoir storage up. Drought products say how dry the ground is; reservoir
+dashboards say how much is in the bank; the survey found nothing in the West
+that draws the two together, and this is the page that already joins them in a
+table. The four corners are the reading -- right and high is a region living
+on water banked in better years, right and low has neither the rain nor the
+savings -- and the halfway guides exist so the corners can be read as
+combinations rather than the reader holding two numbers in their head. An area
+with no reservoir reading is left out and counted in a note, never plotted at
+zero: an area with no reservoirs in it is not an area whose reservoirs are
+empty. Hand-built SVG, like the snow curve and the storage trend, because
+fourteen points need no chart SDK and this page should still open on a phone.
+
+**The drought view's controls** narrow by "any land at this class or worse"
+and order by severity, emptiest reservoirs first, or name. The severity filter
+is deliberately not a share threshold: the monitor's classes are already a
+severity judgment and a second numeric one on top would be this project
+inventing a rule the data does not carry. Emptiest-first sorts an area with no
+reading last rather than as zero, for the same reason the chart leaves it out.
+The map is deliberately *not* filtered with the rows -- it draws the national
+sweep, and hiding drainage outlines from it would leave a pattern with nothing
+to locate it against.
+
+**The snow view's controls** are a name-or-county search, an elevation band,
+and a reporting status. The county is searched because that is how people ask
+for these sites out loud. The bands exist because snow at 7,000 feet and snow
+at 10,000 feet are different seasons, and a regional mean silently averages
+them. All three narrow only the table; `?area=` still changes the whole page,
+which is why they are separate parameters from the shared cross-page one.
+
+**The snow view's second chart** is the spread of the chosen day's readings
+across the classes, drawn as the same stacked bar the drought coverage uses so
+a reader who has learned one has learned both. It answers what the mean
+structurally cannot: whether a region at 70% of normal is evenly poor or
+evenly split.
+
+Two things worth recording from the build. A duplicate `id` was introduced and
+caught in the browser rather than by any test -- the new reporting select was
+given `snow-status`, which the live region under the controls already owned,
+so `querySelector` returned the paragraph and the listener silently bound to
+nothing. The filter appeared to work because the other two controls did. And
+the snow URL contract grew three fields, which broke every partial
+`writeSnowUrl` call site at once; the fix was one `urlState()` builder, so a
+control that forgets a field can no longer drop another control's choice out
+of a shared link.
+
 ---
 
 ## 4. Risks and traps

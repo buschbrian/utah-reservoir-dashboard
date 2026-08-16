@@ -41,8 +41,18 @@ import {
   siteMonthReadings,
   sitePoints,
   siteRows,
+  siteSpread,
   siteTiming,
-  type CurvePoint
+  ELEVATION_BANDS,
+  elevationBandLabel,
+  filterSiteRows,
+  isElevationBand,
+  isSiteStatus,
+  siteFilterActive,
+  type CurvePoint,
+  type ElevationBand,
+  type SiteFilter,
+  type SiteStatus
 } from "./snow-model";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
@@ -50,7 +60,7 @@ import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { wireTheme } from "./ui/theme";
-import { NO_VALUE_LABEL, SNOW_CLASSES } from "./viz/snow-classes";
+import { NO_VALUE_LABEL, SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
 import { formatDate, formatPercent } from "./viz/format";
 import { renderSiteCurve } from "./viz/site-curve";
 import { renderSnowCurve } from "./viz/snow-curve";
@@ -97,7 +107,15 @@ function renderSnow(payload: SnowpackPayload): void {
       </div>
       <div class="filterbar-controls">
         <label>Drainage area<select id="snow-area"><option value="all">The whole region</option></select></label>
+        <label>Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
+        <label>Elevation<select id="snow-elev">${ELEVATION_BANDS.map((band) => `<option value="${band}">${elevationBandLabel(band)}</option>`).join("")}</select></label>
+        <label>Reporting<select id="snow-reporting">
+          <option value="all">Every site</option>
+          <option value="reporting">Sending values</option>
+          <option value="late">Late data only</option>
+        </select></label>
       </div>
+      <div class="filterbar-head-actions"><calcite-button id="snow-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every site</calcite-button></div>
     </section>
     <p id="snow-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Snow measurement summary">
@@ -141,6 +159,7 @@ function renderSnow(payload: SnowpackPayload): void {
     </section>
     <section class="overview-card table-card" aria-labelledby="snow-table-heading">
       <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. Select a site name to see its season. A summer value near zero is normal: the snow has melted.</p></div></div>
+      <div class="snow-spread" id="snow-spread"></div>
       <div class="table-scroll"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
     </section>`;
 
@@ -149,6 +168,11 @@ function renderSnow(payload: SnowpackPayload): void {
   const curveHost = document.querySelector<HTMLElement>("#snow-curve-host");
   const monthRows = document.querySelector<HTMLTableSectionElement>("#snow-month-rows");
   const siteRowsBody = document.querySelector<HTMLTableSectionElement>("#snow-site-rows");
+  const querybox = document.querySelector<HTMLInputElement>("#snow-query");
+  const elevSelect = document.querySelector<HTMLSelectElement>("#snow-elev");
+  const statusSelect = document.querySelector<HTMLSelectElement>("#snow-reporting");
+  const resetButton = document.querySelector<HTMLElement>("#snow-reset");
+  const spreadHost = document.querySelector<HTMLElement>("#snow-spread");
   const mapHost = document.querySelector<HTMLElement>("#snow-map-host");
   const daySlider = document.querySelector<HTMLElement & { value?: number }>("#snow-day");
   const dayReading = document.querySelector<HTMLElement>("#snow-day-reading");
@@ -217,6 +241,27 @@ function renderSnow(payload: SnowpackPayload): void {
   let currentDay = startDay;
   let currentArea: string | null = null;
   let currentSite: string | null = null;
+  /* The three controls that narrow only the site table. Held together so
+   * every writer of the address bar carries all of them -- the reason the
+   * whole state is written at once rather than per control. */
+  let siteFilter: SiteFilter = { query: "", band: "all", status: "all" };
+
+  /** The complete address-bar state. One builder, so a control that forgets
+   * a field cannot quietly drop another control's choice from a shared
+   * link. */
+  function urlState(): {
+    area: string | null; day: string | null; site: string | null;
+    query: string; band: ElevationBand; status: SiteStatus;
+  } {
+    return {
+      area: currentArea,
+      day: currentDay === startDay ? null : currentDay,
+      site: currentSite,
+      query: siteFilter.query,
+      band: siteFilter.band,
+      status: siteFilter.status
+    };
+  }
   let lastCurvePoints = 0;
   let lastSiteCurvePoints = 0;
 
@@ -355,11 +400,7 @@ function renderSnow(payload: SnowpackPayload): void {
       children.push(reading, timingLine, table);
       siteDetail.replaceChildren(...children);
     }
-    writeSnowUrl({
-      area: currentArea,
-      day: currentDay === startDay ? null : currentDay,
-      site: currentSite
-    });
+    writeSnowUrl(urlState());
     publishReady();
   };
 
@@ -374,11 +415,7 @@ function renderSnow(payload: SnowpackPayload): void {
     dayReading.textContent = describeDay(day);
     if (daySlider.value !== undefined) daySlider.value = Math.max(0, days.indexOf(day));
     if (map) map.setDay(mapDayValues(payload, day), day);
-    writeSnowUrl({
-      area: currentArea,
-      day: day === startDay ? null : day,
-      site: currentSite
-    });
+    writeSnowUrl(urlState());
     publishReady();
   };
 
@@ -441,7 +478,12 @@ function renderSnow(payload: SnowpackPayload): void {
       return row;
     }));
 
-    siteRowsBody.replaceChildren(...rows.map((site) => {
+    /* The area choice picks which sites exist; these three narrow which of
+     * them are listed. Kept in that order so the chart, the map and the KPIs
+     * above keep describing the area rather than the table's search box. */
+    const shown = filterSiteRows(rows, siteFilter);
+
+    siteRowsBody.replaceChildren(...shown.map((site) => {
       const row = document.createElement("tr");
       /* The name is the way into the site's own season: a real button, so
        * the keyboard path is the same one the pointer takes. */
@@ -470,17 +512,103 @@ function renderSnow(payload: SnowpackPayload): void {
       return row;
     }));
 
-    status.textContent = `${rows.length} of ${payload.site_count} sites shown · ` +
-      (chosen === null ? "The whole region" : chosenLabel);
+    const where = chosen === null ? "The whole region" : chosenLabel;
+    status.textContent = siteFilterActive(siteFilter)
+      ? `${shown.length} of ${rows.length} sites listed · ${where} · ` +
+        `${describeSiteFilter(siteFilter)}`
+      : `${shown.length} of ${payload.site_count} sites shown · ${where}`;
+
+    drawSpread();
     if (map) map.setArea(chosen);
-    writeSnowUrl({
-      area: chosen,
-      day: currentDay === startDay ? null : currentDay,
-      site: currentSite
-    });
+    writeSnowUrl(urlState());
     lastCurvePoints = curvePoints;
     publishReady();
   };
+
+  /** The narrowing, in words, for the live region under the controls. */
+  function describeSiteFilter(filter: SiteFilter): string {
+    const parts: string[] = [];
+    if (filter.query.trim()) parts.push(`matching “${filter.query.trim()}”`);
+    if (filter.band !== "all") parts.push(elevationBandLabel(filter.band).toLowerCase());
+    if (filter.status === "late") parts.push("late data only");
+    if (filter.status === "reporting") parts.push("still sending values");
+    return parts.join(", ");
+  }
+
+  /**
+   * How the chosen day's readings are spread across the classes.
+   *
+   * The mean the curve and the map draw is one number over two hundred
+   * stations, and it cannot tell a region uniformly at 70% of normal from one
+   * where half the sites are bare and half are near normal. Those are
+   * different winters. The bar is the same shape and the same colours as the
+   * drought view's coverage bars, so a reader who has learned one has learned
+   * both.
+   */
+  function drawSpread(): void {
+    /* No chosen day means no day met the reporting floor -- out of season,
+     * or a payload too thin to headline. The curve and the map already say
+     * so; a bar of nothing would be a third empty box. */
+    if (!spreadHost || currentDay === null) return;
+    const day = currentDay;
+    const values = mapDayValues(payload, day).sites;
+    const spread = siteSpread(values, SNOW_CLASSES.length, snowClassIndex);
+    const total = spread.reporting + spread.noValue;
+    if (total === 0) {
+      spreadHost.replaceChildren();
+      return;
+    }
+    const segments = [
+      ...SNOW_CLASSES.map((entry, index) => ({
+        label: entry.label,
+        color: entry.color as string | null,
+        count: spread.counts[index] ?? 0
+      })),
+      { label: NO_VALUE_LABEL, color: null, count: spread.noValue }
+    ].filter((segment) => segment.count > 0);
+
+    const bar = document.createElement("div");
+    bar.className = "drought-bar";
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label",
+      `Sites by class on ${formatDate(day)}: ` +
+      segments.map((segment) => `${segment.label} ${segment.count}`).join(", ") +
+      ". The table below lists every site.");
+    for (const segment of segments) {
+      const piece = document.createElement("span");
+      piece.className = "drought-segment" + (segment.color ? "" : " drought-segment-none");
+      piece.style.flexGrow = String(segment.count);
+      if (segment.color) piece.style.background = segment.color;
+      piece.title = `${segment.label}: ${segment.count} of ${total} sites`;
+      bar.append(piece);
+    }
+
+    const caption = document.createElement("p");
+    caption.className = "snow-spread-note";
+    caption.textContent = `How the ${total} sites were spread on ` +
+      `${formatDate(day)}: ${spread.reporting} with a fair value, ` +
+      `${spread.noValue} without one. The mean above is one number over all of them.`;
+    spreadHost.replaceChildren(bar, caption);
+  }
+
+  function applyFilter(next: Partial<SiteFilter>): void {
+    siteFilter = { ...siteFilter, ...next };
+    update();
+  }
+
+  querybox?.addEventListener("input", () => applyFilter({ query: querybox.value }));
+  elevSelect?.addEventListener("change", () => {
+    if (isElevationBand(elevSelect.value)) applyFilter({ band: elevSelect.value });
+  });
+  statusSelect?.addEventListener("change", () => {
+    if (isSiteStatus(statusSelect.value)) applyFilter({ status: statusSelect.value });
+  });
+  resetButton?.addEventListener("click", () => {
+    if (querybox) querybox.value = "";
+    if (elevSelect) elevSelect.value = "all";
+    if (statusSelect) statusSelect.value = "all";
+    applyFilter({ query: "", band: "all", status: "all" });
+  });
 
   area.addEventListener("change", update);
   sitePicker.addEventListener("change", () => {
@@ -493,6 +621,13 @@ function renderSnow(payload: SnowpackPayload): void {
   });
 
   const wanted = snowStateFromSearch(window.location.search);
+  /* The table controls, restored before the first draw so a shared link
+   * opens on the view it describes rather than flashing the whole table
+   * and then narrowing it. */
+  siteFilter = { query: wanted.query, band: wanted.band, status: wanted.status };
+  if (querybox) querybox.value = wanted.query;
+  if (elevSelect) elevSelect.value = wanted.band;
+  if (statusSelect) statusSelect.value = wanted.status;
   area.value = wanted.area !== null
     && choices.some((choice) => choice.code === wanted.area)
     ? wanted.area : "all";
