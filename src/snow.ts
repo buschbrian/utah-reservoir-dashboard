@@ -287,7 +287,10 @@ function renderSnow(payload: SnowpackPayload): void {
         mapSitesWithValues: map.status.sitesWithValues,
         mapDay: map.status.day,
         mapBasemap: map.status.basemap,
-        mapViewReady: map.status.viewReady
+        mapViewReady: map.status.viewReady,
+        /* The class table's own length, published so the browser suite can
+         * hold the legend to it rather than to a number written twice. */
+        mapClasses: SNOW_CLASSES.length
       } : {})
     };
   };

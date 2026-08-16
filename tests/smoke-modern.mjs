@@ -1649,8 +1649,14 @@ for (const viewport of VIEWPORTS) {
       `and ${mapState.ready?.mapSitesWithValues} sites`);
     check(typeof mapState.ready?.mapDay === "string",
       `${label}: the map has no shown day`);
-    check(mapState.slider && mapState.legendItems === 6,
-      `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} of 6`);
+    /* One chip per class, plus one for a day with no fair value. Read from
+     * the table the page publishes rather than written here: this assertion
+     * was a hardcoded 6 and it broke the moment the table gained a class,
+     * which is a test measuring itself rather than the page. */
+    const expectedChips = (mapState.ready?.mapClasses ?? 0) + 1;
+    check(mapState.slider && mapState.legendItems === expectedChips,
+      `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} ` +
+      `chips for ${mapState.ready?.mapClasses} classes plus no-value`);
     /* The reservoirs are deliberately absent here. This map already carries
      * fourteen filled basins and 217 site markers; the same points that are
      * useful context on the drought map buried the readings on this one. */

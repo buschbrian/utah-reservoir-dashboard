@@ -135,7 +135,8 @@ describe("the snow map cards", () => {
   } as SnowSite);
 
   it("reads the percentage against the class table", () => {
-    expect(snowClassLabel(46)).toBe("Under 50% of normal");
+    expect(snowClassLabel(12)).toBe("Under 25% of normal");
+    expect(snowClassLabel(46)).toBe("25 to 50% of normal");
     expect(snowClassLabel(101)).toBe("90 to 110%: near normal");
     expect(snowClassLabel(null)).toBe("No value for this day");
   });
@@ -143,7 +144,7 @@ describe("the snow map cards", () => {
   it("gives the depth beside the ratio", () => {
     const lines = snowSiteLines(site({}), 46.2,
       { inches: 4.62, normalInches: 10 });
-    expect(lines[0]).toBe("46.2% of normal — Under 50% of normal");
+    expect(lines[0]).toBe("46.2% of normal — 25 to 50% of normal");
     expect(lines[1]).toBe("4.6 inches, normally 10.0 inches");
     expect(lines[2]).toBe("9,284 feet, Weber");
   });

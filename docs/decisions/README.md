@@ -46,6 +46,7 @@ supersedes the old one — the history is the point.
 | [ADR-035](ADR-035-a-label-ladder-tied-to-containment.md) | A label ladder tied to containment, shared with the symbols | Accepted |
 | [ADR-036](ADR-036-accessibility-is-a-gate-and-a-measured-content-policy.md) | Make accessibility a gate, and write the content policy from measurement | Accepted |
 | [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md) | Refetch the drainage boundaries at the resolution the source stops adding detail | Accepted |
+| [ADR-038](ADR-038-split-the-snow-classes-and-move-to-a-scientific-colour-map.md) | Split the bottom snow class, and take the ramp from a scientific colour map | Accepted |
 
 ## Relationship to the modernization plan
 

@@ -5,6 +5,21 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The snowpack map now has six classes instead of five, and the extra one is
+  where the readings actually are.** The four thresholds the measuring service
+  reports against are unchanged; a fifth was added at 25% of normal, because
+  the old set put 62% of every published day into the single lowest class. In
+  a dry year the map was one colour and four of the five colours only ever
+  appeared in the legend. The season now spreads across the whole range.
+
+- **Its colours come from a published scientific colour map.** Crameri's
+  *roma*, chosen by testing every candidate against four rules at once — every
+  class visible as a see-through fill over terrain, every class distinct from
+  its neighbours, dry reading warm and wet reading cool, and nothing close to
+  a colour used on the storage or drought maps.
+
 ### Added
 
 - **The methods page opens by saying what this site is not.** It is a personal

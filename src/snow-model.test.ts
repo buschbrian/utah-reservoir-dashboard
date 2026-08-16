@@ -389,11 +389,13 @@ describe("how one day's readings are spread", () => {
     const values = new Map<string, number | null>([
       ["a", 10], ["b", 45], ["c", 95], ["d", null], ["e", 200]
     ]);
-    const spread = siteSpread(values, 5, snowClassIndex);
+    const spread = siteSpread(values, SNOW_CLASSES.length, snowClassIndex);
 
-    expect(spread.counts[0]).toBe(2);
-    expect(spread.counts[3]).toBe(1);
+    // Under 25, then 25-50, then near normal, then above 110.
+    expect(spread.counts[0]).toBe(1);
+    expect(spread.counts[1]).toBe(1);
     expect(spread.counts[4]).toBe(1);
+    expect(spread.counts[5]).toBe(1);
     expect(spread.noValue).toBe(1);
     expect(spread.reporting).toBe(4);
   });

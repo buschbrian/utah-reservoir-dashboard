@@ -6,22 +6,27 @@
  * one surface and not another. This table never appears on the reservoir map
  * (ADR-021).
  *
- * The ramp is Esri's published **Green and Brown 6**, reversed so the deficit
- * end is warm, and it was changed on 2026-08-16 for a reason worth recording:
- * the old one was not merely *similar* to the storage ramp, it overlapped it.
- * Storage draws Esri's Blue and Red 9; snow drew a hand-picked five-class
- * RdYlBu, and `#fdae61` and `#abd9e9` were byte-identical in both tables. Two
- * maps of two different quantities were speaking the same colour language,
- * which is the failure "one colour language per map" exists to prevent -- it
- * just happened across pages instead of within one.
+ * The ramp is Fabio Crameri's **roma**, a scientific colour map: perceptually
+ * uniform, colour-vision-deficiency safe, and readable in greyscale. It runs
+ * warm to cool -- dry earth through pale olive to water -- which is the
+ * conventional moisture direction, so the map reads without its legend.
  *
- * Brown to teal is also the better ramp on its own merits. It is the
- * conventional moisture ramp, so dry reads as dry without a legend, and none
- * of its five classes is washed out or near black -- which matters because
- * these are translucent fills over a shaded-relief basemap, where a
- * near-white middle would be indistinguishable from the grey that means "no
- * value for this day". Esri publishes it as colour-blind friendly, tested
- * with a simulator against all three types.
+ * It was not chosen by eye. Every Crameri diverging map was sampled at these
+ * six class positions and filtered on four rules at once: no class outside
+ * the luminance band a translucent fill over shaded relief needs, no two
+ * adjacent classes closer than 30 in RGB distance, the dry end warm and the
+ * wet end cool, and no colour close to anything in the storage or drought
+ * tables. Eighteen combinations survived; this one had the largest separation
+ * from the other two tables.
+ *
+ * **The breaks matter more than the ramp, and that is the real change here.**
+ * The four thresholds the measuring service reports against -- 50, 75, 90 and
+ * 110 -- are kept exactly. A fifth was added at 25, because the four on their
+ * own put 62% of every published basin-day into the single lowest class: in a
+ * dry year the map was one colour and the ramp was decoration. Splitting the
+ * bottom takes the worst class from 62% to 39% of observations and gives the
+ * range the region actually occupies somewhere to spread. Six classes is
+ * still inside the five-to-seven a reader can hold.
  *
  * The break between warm and cool falls between "75 to 90" and "90 to 110",
  * not at the middle of the five: the classes are not symmetric about normal,
@@ -37,16 +42,17 @@ export interface SnowClass {
   color: string;
 }
 
-/** The Esri ramp these colours are taken from, named so the choice can be
- * checked against the publisher rather than only against this file. */
-export const SNOW_RAMP_NAME = "Green and Brown 6";
+/** The colour map these values were sampled from, named so the choice can be
+ * checked against its publisher rather than only against this file. */
+export const SNOW_RAMP_NAME = "Crameri roma";
 
 export const SNOW_CLASSES: readonly SnowClass[] = [
-  { min: 0, max: 50, label: "Under 50% of normal", color: "#8c270e" },
-  { min: 50, max: 75, label: "50 to 75% of normal", color: "#c7811e" },
-  { min: 75, max: 90, label: "75 to 90% of normal", color: "#d2e096" },
-  { min: 90, max: 110, label: "90 to 110%: near normal", color: "#6ca68b" },
-  { min: 110, max: null, label: "Above 110% of normal", color: "#308fa6" }
+  { min: 0, max: 25, label: "Under 25% of normal", color: "#984e14" },
+  { min: 25, max: 50, label: "25 to 50% of normal", color: "#ae7c28" },
+  { min: 50, max: 75, label: "50 to 75% of normal", color: "#c6ae4f" },
+  { min: 75, max: 90, label: "75 to 90% of normal", color: "#d2d98d" },
+  { min: 90, max: 110, label: "90 to 110%: near normal", color: "#74cfd6" },
+  { min: 110, max: null, label: "Above 110% of normal", color: "#2a81bb" }
 ] as const;
 
 /** The words and look for a place with no fair value on the chosen day. */

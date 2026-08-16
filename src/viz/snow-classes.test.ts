@@ -19,12 +19,28 @@ describe("the snow class table", () => {
 
   it("classes a percent by inclusive lower bound", () => {
     expect(snowClassIndex(0)).toBe(0);
-    expect(snowClassIndex(49.9)).toBe(0);
-    expect(snowClassIndex(50)).toBe(1);
-    expect(snowClassIndex(89.9)).toBe(2);
-    expect(snowClassIndex(90)).toBe(3);
-    expect(snowClassIndex(110)).toBe(4);
-    expect(snowClassIndex(400)).toBe(4);
+    expect(snowClassIndex(24.9)).toBe(0);
+    expect(snowClassIndex(25)).toBe(1);
+    expect(snowClassIndex(49.9)).toBe(1);
+    expect(snowClassIndex(50)).toBe(2);
+    expect(snowClassIndex(74.9)).toBe(2);
+    expect(snowClassIndex(75)).toBe(3);
+    expect(snowClassIndex(89.9)).toBe(3);
+    expect(snowClassIndex(90)).toBe(4);
+    expect(snowClassIndex(110)).toBe(5);
+    expect(snowClassIndex(400)).toBe(5);
+  });
+
+  /* The four thresholds the measuring service reports against are kept
+   * exactly; the fifth exists only to split a bottom class that held 62% of
+   * every published basin-day. Losing one of the four would make this map
+   * incomparable with the agency's own. */
+  it("keeps the four thresholds the measuring service publishes", () => {
+    const breaks = SNOW_CLASSES.map((entry) => entry.min);
+    for (const conventional of [50, 75, 90, 110]) {
+      expect(breaks, `${conventional}% is a published threshold`)
+        .toContain(conventional);
+    }
   });
 
   it("returns null for a missing value, never a colour", () => {

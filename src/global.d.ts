@@ -96,6 +96,9 @@ interface Window {
     mapDay?: string | null;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
+    /** Classes in the snow colour table. The legend draws one chip for each,
+     * plus one for a day with no fair value. */
+    mapClasses?: number;
     /** The measurement site whose season is open, or null for none. */
     site?: string | null;
     /** Days the open site's curve drew. 0 while no site is chosen. */
