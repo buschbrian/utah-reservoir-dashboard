@@ -19,12 +19,37 @@
  *     clear touch lane at 1280, 390 and 360 pixels.
  */
 
-import { chromium } from "playwright";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createContext, runInContext } from "node:vm";
+
+/*
+ * Playwright is deliberately not in `package.json` (see issue #18): CI
+ * installs it with `--no-save --no-package-lock` so the lockfile stays
+ * exactly what `npm ci` produced. The consequence is that any ordinary
+ * `npm install` prunes it as extraneous and this file stops resolving --
+ * with a module-resolution stack trace that looks nothing like the action
+ * that caused it. Adding `axe-core` once deleted the test runner.
+ *
+ * So the failure is caught here and answered with the command that fixes it.
+ */
+let chromium;
+try {
+  ({ chromium } = await import("playwright"));
+} catch {
+  console.error([
+    "",
+    "Playwright is not installed. It is deliberately not a dependency, so an",
+    "ordinary `npm install` removes it. Put it back with:",
+    "",
+    "  npm install --no-save --no-package-lock playwright",
+    ""
+  ].join("\n"));
+  process.exit(1);
+}
+
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.join(REPO_ROOT, "dist");

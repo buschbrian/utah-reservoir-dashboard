@@ -40,6 +40,11 @@ supersedes the old one — the history is the point.
 | [ADR-029](ADR-029-the-table-narrows-where-the-map-dims.md) | The table narrows where the map dims | Accepted |
 | [ADR-030](ADR-030-draw-drainage-area-names-below-reservoirs.md) | Draw drainage-area names below reservoir symbols | Accepted |
 | [ADR-031](ADR-031-retire-comparison-implementations-and-redirect-their-urls.md) | Retire comparison implementations and redirect their URLs | Accepted |
+| [ADR-032](ADR-032-one-colour-language-per-map-across-pages.md) | One colour language per map, enforced across pages | Accepted |
+| [ADR-033](ADR-033-open-every-map-on-the-oceans-basemap.md) | Open every map on the Oceans basemap | Accepted |
+| [ADR-034](ADR-034-hosted-boundary-layers-with-a-deadline.md) | Take state and county boundaries from hosted services, against a deadline | Accepted |
+| [ADR-035](ADR-035-a-label-ladder-tied-to-containment.md) | A label ladder tied to containment, shared with the symbols | Accepted |
+| [ADR-036](ADR-036-accessibility-is-a-gate-and-a-measured-content-policy.md) | Make accessibility a gate, and write the content policy from measurement | Accepted |
 
 ## Relationship to the modernization plan
 
