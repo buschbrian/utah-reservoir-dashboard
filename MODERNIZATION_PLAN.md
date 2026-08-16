@@ -1264,13 +1264,29 @@ marked as implemented remains proposed until its named decision is accepted.
    surfaces. Drought and drainage-area statistics can also begin together and
    split only if their controls or explanations become crowded. The final
    count therefore does not need to be fixed at four before prototypes exist.
-4. **Build drought and drainage-area statistics as a data slice first.** Use
-   the downloaded official drought polygons already produced by
-   `tools/fetch_drought_monitor.py`. Add a deterministic Python analysis step
-   with pandas or NumPy only when it materially simplifies polygon coverage,
-   time-series statistics, or uncertainty calculations. Publish small tested
-   results by HUC6 before adding the view, then add the map, summaries, chart
-   equivalents, deadlines, and readiness signal.
+4. **Build drought and drainage-area statistics as a data slice first — the
+   data slice is implemented 2026-08-15.**
+   `tools/compute_drought_coverage.py` reads the committed drought polygons
+   and the committed boundaries and writes
+   `data/drought/usdm-huc6.json`: the percent of each drainage area's land
+   in each intensity class, both exclusive and "at least" figures, with the
+   map and release dates carried through. Two facts were established before
+   writing it: the downloaded features are *exclusive* (a probe point deep
+   inside D4 is in none of D0–D3, so cumulative figures are sums of disjoint
+   areas), and no geometry library is installed, so coverage is an even-odd
+   scanline sample at 0.01 degrees with cosine-latitude weighting — NumPy
+   only, deterministic, no timestamps, about two seconds for all fourteen
+   units. Each sampled point takes exactly one class, worst wins, so the
+   shares sum to 100 by construction even where the simplified class edges
+   overlap by a sliver. Twelve unit tests hold the engine to known shapes
+   (holes, multiple parts, ring-and-island exclusivity, the latitude
+   weighting) and the committed output to its own arithmetic,
+   data-independently. Run the tool after each `fetch_drought_monitor.py`
+   download; wiring both into a weekly scheduled job remains open. The
+   first read of the current week: all fourteen drainage areas are entirely
+   in drought or unusually dry, with Colorado Headwaters at 59.7% D4.
+   Remaining product work: the map layer, summaries, chart equivalents,
+   deadlines, and readiness signal.
 5. **Build snowpack as its own vertical slice — first version implemented
    2026-08-15.** `snow.html` is a fourth navigation surface on the shared
    shell: the seasonal curve for the whole region or one drainage area, the

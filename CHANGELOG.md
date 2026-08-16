@@ -7,6 +7,14 @@ and is not listed here.
 
 ### Added
 
+- **Weekly drought coverage by drainage area, as published data.** A new
+  analysis tool reads the committed U.S. Drought Monitor polygons and writes
+  the percent of each drainage area's land in each drought class, with the
+  monitor's own map and release dates. The figures ship beside the polygons
+  in the published data directory and are held by tests to shapes with known
+  answers and to their own arithmetic. Nothing on the pages reads them yet;
+  they are the data half of the coming drought view.
+
 - **A snowpack view.** The navigation now carries a Snowpack page showing the
   water stored in mountain snow: the seasonal curve of mean percent of normal
   for the whole region or one drainage area, the value on the first day of
