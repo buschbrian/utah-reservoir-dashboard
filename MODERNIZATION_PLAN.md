@@ -1520,6 +1520,179 @@ state type must be larger than the reservoir type. Five failures on the first
 full run were all one cause, worth recording: the suite serves `dist/`, so it
 was testing a build from before the fix.
 
+### Advanced symbology, and one colour table moved — 2026-08-16
+
+Three things from the 2026 SDK releases, all available on the 5.1 the project
+already runs.
+
+**`alternateSymbols` (5.1), on the same threshold as the labels.** Each
+`UniqueValueInfo` now carries a simplified alternate, and both symbols declare
+their own scale window on the `CIMSymbolReference`. Above 1:4,500,000 the map
+draws two layers and two overrides; below it, three and three. What the
+alternate drops is what cannot be resolved at the opening view -- a half-point
+drop shadow and a three-quarter-point inner stroke, both well under a pixel at
+1:10,700,000 -- and what it keeps is the map's actual claim, because the ring
+is still sized by capacity and the fill still by how full. The dashed late
+ring goes too, since a four-on three-off dash around an eight-pixel circle is a
+smudge; lateness survives as the amber ring colour, which is a renderer key
+rather than something the symbol builder decides.
+
+The threshold is deliberately `RESERVOIR_DETAIL_SCALE`, the same constant the
+reservoir labels use. Crossing one line makes the map more detailed in every
+respect at once, which is the same principle the label ladder encodes.
+Verified through the renderer itself rather than by eye: `getSymbolAsync` at
+1:10,700,000 returns the two-layer symbol and at 1:2,000,000 the three-layer
+one, both with their primitive overrides intact. That last part was the open
+question -- the documentation does not say whether an alternate keeps its
+Arcade overrides, and it does.
+
+**Atkinson Hyperlegible Next (5.1) on every label tier.** Drawn for the
+Braille Institute to be legible to low-vision readers, and 5.1 added it to the
+2D label fonts. Weight comes from the family name rather than a `weight`
+property, because these are four separate files and the regular family asked
+for bold gets a synthesized one. Only the drainage names take the bold family.
+*Not verified end to end in this environment:* the glyph fetch happens when
+the label engine paints, which needs a compositing browser, and the font host
+refuses a direct probe even for fonts that certainly exist. The family strings
+come from the SDK's own documented list, and a family the host does not know
+falls back to the default sans -- so the failure mode costs the typeface and
+never the label. Worth confirming on the live site.
+
+**One colour table moved, and it was a real defect.** Storage and snow were
+both drawing five-class RdYlBu, and `#fdae61` and `#abd9e9` were byte-identical
+in the two tables -- two maps of two unrelated quantities speaking the same
+colour language, which is exactly what "one colour language per map" exists to
+prevent. It went unnoticed because each table was internally consistent and
+each had its own test. Snow moved to Esri's **Green and Brown 6**, reversed:
+brown for deficit through to teal for surplus, which is the conventional
+moisture ramp, so it reads without the legend. Every class was checked for
+luminance as well as hue, because these are translucent fills over a
+shaded-relief basemap and a near-white middle would be indistinguishable from
+the grey that means "no value for this day".
+
+Storage stayed put, and the check is worth recording: its palette turns out to
+be Esri's **Blue and Red 9**, byte for byte. It is already a published,
+colour-blind-tested ramp, it is pinned to the frozen oracle by ADR-008, and it
+is read by the map, the legend, six charts and the table -- so there was
+nothing to gain and an ADR to write. The drought palette is the monitor's own
+and is not ours to change at all. A unit test now asserts that no snow colour
+appears in either of the other two tables.
+
+**The reservoirs came off the snow map.** They had been added the same day for
+parity. Fourteen filled basins plus 217 site markers plus sixty-nine named
+points is too much on one card, and the points that were meant as context
+buried the readings. They stay on the drought map, which has five broad
+national classes and room for them. The argument is density, not principle --
+the same layer is right on one map and wrong on the other.
+
+### Filtering and charting on the two newer views — 2026-08-16
+
+The drought and snow views shipped with the analysis a first version needs and
+not much else: the drought page had no controls at all, and the snow page had
+one drainage-area select. Both now carry the narrowing and the second chart
+that make them worth returning to, and both hold the plan's own restraint rule
+-- every control added answers a reading a normal reader actually has, and the
+Simplified Technical English tests cover the new labels and sentences.
+
+**The drought view's chart is the category differentiator.** One point per
+drainage area: share of land in severe drought (D2) or worse across, combined
+reservoir storage up. Drought products say how dry the ground is; reservoir
+dashboards say how much is in the bank; the survey found nothing in the West
+that draws the two together, and this is the page that already joins them in a
+table. The four corners are the reading -- right and high is a region living
+on water banked in better years, right and low has neither the rain nor the
+savings -- and the halfway guides exist so the corners can be read as
+combinations rather than the reader holding two numbers in their head. An area
+with no reservoir reading is left out and counted in a note, never plotted at
+zero: an area with no reservoirs in it is not an area whose reservoirs are
+empty. Hand-built SVG, like the snow curve and the storage trend, because
+fourteen points need no chart SDK and this page should still open on a phone.
+
+**The drought view's controls** narrow by "any land at this class or worse"
+and order by severity, emptiest reservoirs first, or name. The severity filter
+is deliberately not a share threshold: the monitor's classes are already a
+severity judgment and a second numeric one on top would be this project
+inventing a rule the data does not carry. Emptiest-first sorts an area with no
+reading last rather than as zero, for the same reason the chart leaves it out.
+The map is deliberately *not* filtered with the rows -- it draws the national
+sweep, and hiding drainage outlines from it would leave a pattern with nothing
+to locate it against.
+
+**The snow view's controls** are a name-or-county search, an elevation band,
+and a reporting status. The county is searched because that is how people ask
+for these sites out loud. The bands exist because snow at 7,000 feet and snow
+at 10,000 feet are different seasons, and a regional mean silently averages
+them. All three narrow only the table; `?area=` still changes the whole page,
+which is why they are separate parameters from the shared cross-page one.
+
+**The snow view's second chart** is the spread of the chosen day's readings
+across the classes, drawn as the same stacked bar the drought coverage uses so
+a reader who has learned one has learned both. It answers what the mean
+structurally cannot: whether a region at 70% of normal is evenly poor or
+evenly split.
+
+Two things worth recording from the build. A duplicate `id` was introduced and
+caught in the browser rather than by any test -- the new reporting select was
+given `snow-status`, which the live region under the controls already owned,
+so `querySelector` returned the paragraph and the listener silently bound to
+nothing. The filter appeared to work because the other two controls did. And
+the snow URL contract grew three fields, which broke every partial
+`writeSnowUrl` call site at once; the fix was one `urlState()` builder, so a
+control that forgets a field can no longer drop another control's choice out
+of a shared link.
+
+### The weekly drought automation — 2026-08-16
+
+The last open item on slice 4, and it turned out to be a live defect rather
+than a convenience.
+
+**What was actually wrong.** The daily refresh has downloaded
+`usdm-current.geojson` since the day it learned about drought, and
+`compute_drought_coverage.py` has only ever been run by hand. The plan
+recorded that as "run the tool after each download; wiring both into a
+scheduled job remains open", which reads like tidying. It was not. The drought
+view refuses to draw when the polygons and the coverage name different weeks
+-- deliberately, because a map of one week over figures from another is worse
+than no map -- so on the next Thursday the monitor published, the job would
+have committed new polygons beside week-old coverage and the drought map would
+have gone dark behind its failure note. The deploy chains off *this workflow
+completing* rather than off CI passing, so the broken pair would have
+published and CI would only have turned red afterwards. The next release was
+four days out when this was found.
+
+**The fix is atomicity, not scheduling.** The recompute now runs immediately
+after the download, and both files are staged in one `git add`: either both
+move to the new week or neither does. If the recompute fails, the polygons are
+put back so the pair stays on the week that still agrees. A separate weekly
+cron was considered and rejected -- the fetch already runs daily, which is a
+superset of weekly, and a second workflow writing the same two files would add
+a push race for nothing.
+
+`tools/check_drought_pair.py` is the belt to that braces. It runs between the
+recompute and the commit, restores both files from the last agreeing commit if
+anything it did not anticipate has left them disagreeing, and never lets the
+mismatch reach a commit the deploy will publish. Publishing yesterday's drought
+week is a small, honest loss; publishing two different weeks is a broken page.
+
+**The other half of "weekly" is noticing when it is not.** Nothing in the job
+fails when the monitor misses a Thursday: the last verified week stays on the
+page with its age stated, which is the right behaviour for a reader and means
+nobody finds out. The same tool reports the release age as step outputs, and a
+late release now opens an issue and closes it when the next map lands -- the
+self-healing pattern the stale-feed alert already uses.
+
+**One constant, two languages.** `LATE_AFTER_DAYS = 9` now exists in Python as
+well as in `src/drought-model.ts`, because the page and the pipeline have to
+agree about what "late" means. A pytest reads the number out of the TypeScript
+source and asserts they match, in the same spirit as the frozen colour oracle:
+two copies that each look right on their own are exactly what drifts.
+
+The recompute was measured before being put on a daily schedule -- 2.1 seconds
+for all fourteen units, deterministic, no timestamps, and it reports
+"unchanged" and writes nothing when the week has not moved. So running it every
+day rather than only on a detected change costs nothing and repairs a coverage
+file that has somehow fallen behind, instead of waiting for someone to notice.
+
 ---
 
 ## 4. Risks and traps

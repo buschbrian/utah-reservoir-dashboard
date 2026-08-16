@@ -58,7 +58,11 @@ const userTextFiles = [
   "drought.html",
   "src/drought.ts",
   "src/drought-model.ts",
-  "src/viz/drought-classes.ts"
+  "src/viz/drought-classes.ts",
+  // The filter labels, the sentence that reports what each page is showing,
+  // and the axis titles on the storage-against-drought chart.
+  "src/viz/drought-scatter.ts",
+  "src/state/drought-url.ts"
 ];
 
 const oldUnexplainedTerms = [

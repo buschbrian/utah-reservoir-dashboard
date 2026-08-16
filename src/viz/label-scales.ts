@@ -27,6 +27,31 @@
  */
 
 /*
+ * The typeface every label on every map is drawn in.
+ *
+ * Atkinson Hyperlegible Next, added to the SDK's 2D label fonts in 5.1. It
+ * was drawn for the Braille Institute specifically to be read by people with
+ * low vision: the characters that usually collapse into each other at small
+ * sizes -- capital I against lowercase l, 0 against O, b against d -- are
+ * given deliberately different shapes. Every label on these maps is small
+ * type over a busy relief basemap, which is the exact case it was designed
+ * for, and this project already treats mobile and accessibility as product
+ * commitments rather than test artifacts.
+ *
+ * Weight lives in the family name, not in a `weight` property: these are
+ * four separate font files, and asking for "bold" on the regular family gets
+ * a synthesized bold at best. The bold family is used for one tier only --
+ * the drainage-area names, which are the subject of these maps.
+ *
+ * 2D only, and served as `pbf` from Esri's font host rather than bundled. A
+ * font that does not arrive falls back to the SDK's default sans, which
+ * costs the typeface and never the label, so this needs no deadline of its
+ * own.
+ */
+export const LABEL_FONT_FAMILY = "Atkinson Hyperlegible Next Regular";
+export const LABEL_FONT_FAMILY_BOLD = "Atkinson Hyperlegible Next Bold";
+
+/*
  * The type sizes, in the order the shapes nest.
  *
  * Written here rather than at four call sites because the rule they encode
@@ -55,6 +80,23 @@ export interface LabelScale {
 export const STATE_LABEL_SCALE: LabelScale = { minScale: 0, maxScale: 3_000_000 };
 
 /**
+ * The scale a reservoir stops being a dot and becomes a drawing.
+ *
+ * One number, used twice on purpose. Below it the map draws the composed
+ * symbol -- proportional ring, proportional fill, drop shadow, dashed ring
+ * for a late reading -- and writes the names. Above it, it draws a simplified
+ * two-layer symbol and no names at all.
+ *
+ * Tying the symbol ladder to the label ladder is the whole point. A reader
+ * zooming in crosses one threshold and the map gets more detailed in every
+ * respect at once, rather than sprouting names at one scale and detail at
+ * another. It also means the wide view is not rasterizing a half-point drop
+ * shadow and a three-quarter-point inner stroke that are well under a pixel
+ * at 1:10,700,000.
+ */
+export const RESERVOIR_DETAIL_SCALE = 4_500_000;
+
+/**
  * Reservoirs: off at the opening view, on one zoom step in.
  *
  * Fifty-one names over the whole region at load is a busy map before the
@@ -62,7 +104,9 @@ export const STATE_LABEL_SCALE: LabelScale = { minScale: 0, maxScale: 3_000_000 
  * frame quiet: both opening views sit above it, so the names arrive as a
  * result of zooming rather than as the page's greeting.
  */
-export const RESERVOIR_LABEL_SCALE: LabelScale = { minScale: 4_500_000, maxScale: 0 };
+export const RESERVOIR_LABEL_SCALE: LabelScale = {
+  minScale: RESERVOIR_DETAIL_SCALE, maxScale: 0
+};
 
 /**
  * Counties: last on, and boundaries before names.

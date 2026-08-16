@@ -74,6 +74,42 @@ jobs:
             echo "::warning title=Drought download failed::Keeping the last verified GeoJSON"
           fi
 
+      # The two drought files have to describe the same week in the same
+      # commit, and this step is the reason they do.
+      #
+      # The polygons were being fetched here from the day this job learned
+      # about drought, but the coverage figures the drought view actually
+      # renders were only ever recomputed by hand. So the first Thursday the
+      # monitor published, this job would commit new polygons beside week-old
+      # coverage -- and the drought view refuses to draw that mismatch by
+      # design, because two files describing two different weeks is a
+      # pipeline fault a reader must not have to notice. Worse, the deploy
+      # chains off *this* workflow completing rather than off CI passing, so
+      # the broken pair would go live and CI would only turn red afterwards.
+      #
+      # The recompute is deterministic, carries no timestamps and takes about
+      # two seconds for all fourteen units, so it runs every day rather than
+      # only when the download reports a change: a coverage file that somehow
+      # fell behind is then repaired by the next run instead of waiting for
+      # someone to notice.
+      - name: Recompute drought coverage by drainage area
+        run: |
+          if ! python tools/compute_drought_coverage.py; then
+            echo "::warning title=Coverage failed::Reverting the polygons so the pair stays on one week"
+            git checkout -- data/drought/usdm-current.geojson
+          fi
+
+      # Belt and braces, and cheap. If the two files disagree for any reason
+      # this step has not thought of, both are put back to the last commit
+      # where they agreed. Publishing yesterday's drought week is a small,
+      # honest loss; publishing two different weeks is a broken page.
+      - name: Refuse to publish two different drought weeks
+        run: |
+          if ! python tools/check_drought_pair.py; then
+            echo "::warning title=Drought pair mismatched::Restoring both files from the last commit"
+            git checkout -- data/drought/usdm-current.geojson data/drought/usdm-huc6.json
+          fi
+
       # Snow measurements have their own payload and failure mode. The
       # reviewed inventory is committed; a short provider response is retried
       # one station at a time and never replaces the last complete file.
@@ -87,7 +123,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reservoirs.json snow_sites.json snowpack.json data/drought/usdm-current.geojson
+          # Both drought files or neither: the steps above guarantee they
+          # agree, and staging them together is what keeps that true of the
+          # commit as well as of the working tree.
+          git add reservoirs.json snow_sites.json snowpack.json \
+            data/drought/usdm-current.geojson data/drought/usdm-huc6.json
           if git diff --cached --quiet; then
             echo "No data changes today."
             exit 0
@@ -103,6 +143,51 @@ jobs:
             sleep $((attempt * 5))
           done
           exit 1
+
+      # The monitor publishes each Thursday. When it does not, nothing in
+      # this job fails -- the last verified week is still on the page, marked
+      # with its age -- so the only way anyone finds out is if someone looks.
+      # This is the same self-healing issue pattern the stale-feed alert
+      # uses: it opens when the release is late, updates while it stays late,
+      # and closes itself when a new map arrives.
+      - name: Check the drought release age
+        id: drought_age
+        run: python tools/check_drought_pair.py --github-output
+
+      - name: Open or update the late-drought issue
+        if: steps.drought_age.outputs.late == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAYS: ${{ steps.drought_age.outputs.days_old }}
+          RELEASE: ${{ steps.drought_age.outputs.release_date }}
+          MAP_WEEK: ${{ steps.drought_age.outputs.map_date }}
+        run: |
+          TITLE="The Drought Monitor has not published for $DAYS days"
+          {
+            printf '%s\n\n' "The newest drought map this project holds describes the week of **$MAP_WEEK** and was released on **$RELEASE**, which is **$DAYS** days ago."
+            printf '%s\n\n' "A new map is normally published every Thursday. The drought page keeps showing this one and states its age, so nothing is presented as more current than it is -- but the figures stop tracking conditions on the ground while this is open."
+            printf '%s\n\n' "Check the producer at https://droughtmonitor.unl.edu/ before assuming this is a fault in this pipeline."
+            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+          } > drought-issue.md
+          gh label create late-drought --color 730000 \
+            --description 'The U.S. Drought Monitor has missed its weekly release' 2>/dev/null || true
+          EXISTING=$(gh issue list --state open --label late-drought --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file drought-issue.md
+          else
+            gh issue create --title "$TITLE" --body-file drought-issue.md --label late-drought
+          fi
+
+      - name: Close the late-drought issue once a new map arrives
+        if: steps.drought_age.outputs.late == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAP_WEEK: ${{ steps.drought_age.outputs.map_date }}
+        run: |
+          EXISTING=$(gh issue list --state open --label late-drought --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "A drought map for the week of $MAP_WEEK is published and the coverage figures were recomputed from it. Closing automatically."
+          fi
 
       # Self-healing attempt #2: the staleness alert manages its own issue.
       # An open issue is the state "some feed is quiet"; the run closes it as

@@ -27,15 +27,25 @@ import { loadReservoirs } from "./data/load";
 import { loadUsdmPolygons } from "./data/usdm-load";
 import {
   areasAtOrWorse,
-  bySeverity,
   coverageSegments,
   daysOld,
+  DRYNESS_CLASS,
   isLateRelease,
+  orderUnits,
   regionWorst,
+  storageAgainstDrought,
   storageByArea,
+  unitsAtOrWorse,
   worstClass,
+  type DroughtSort,
   type StorageContext
 } from "./drought-model";
+import {
+  droughtStateFromSearch,
+  writeDroughtUrl,
+  type DroughtUrlState
+} from "./state/drought-url";
+import { renderDroughtScatter } from "./viz/drought-scatter";
 import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
 import type { ReservoirReference } from "./ui/layers";
@@ -83,9 +93,28 @@ function renderDrought(
   const late = isLateRelease(payload.release_date, today);
   const worst = regionWorst(payload.units);
   const extremeAreas = areasAtOrWorse(payload.units, "d3");
-  const ordered = bySeverity(payload.units);
+
+  const dryness = DROUGHT_CLASSES.find((entry) => entry.key === DRYNESS_CLASS)!;
 
   content.innerHTML = `
+    <section class="dashboard-filterbar" aria-labelledby="drought-filter-heading">
+      <div class="filterbar-head">
+        <div class="filterbar-title"><p class="eyebrow">Land conditions</p><h2 id="drought-filter-heading">Narrow the drainage areas</h2></div>
+        <div class="filterbar-head-actions"><calcite-button id="drought-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every area</calcite-button></div>
+      </div>
+      <div class="filterbar-controls">
+        <label>Show areas with<select id="drought-worse">
+          <option value="">Any conditions</option>
+          ${DROUGHT_CLASSES.map((entry) => `<option value="${entry.key}">${entry.label} (${entry.code}) or worse</option>`).join("")}
+        </select></label>
+        <label>Order by<select id="drought-sort">
+          <option value="severity">Most severe first</option>
+          <option value="storage">Emptiest reservoirs first</option>
+          <option value="name">Drainage area name</option>
+        </select></label>
+      </div>
+    </section>
+    <p id="drought-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Drought summary">
       <article class="overview-kpi overview-kpi-primary"><span>Worst conditions</span><strong>${worst ? worst.label : "None"}</strong><small>${worst ? `The most severe class with land in it (${worst.code})` : "No drainage area has land in a drought class"}</small></article>
       <article class="overview-kpi"><span>Areas in extreme drought or worse</span><strong>${extremeAreas} of ${payload.unit_count}</strong><small>Any land at the extreme (D3) or exceptional (D4) class</small></article>
@@ -101,14 +130,35 @@ function renderDrought(
       <div id="drought-map-host" class="view-map-host" aria-busy="true"
         aria-label="A map of drought classes over the drainage areas. The bars and table on this page carry the same shares as text."></div>
     </section>
+    <section class="overview-card" aria-labelledby="drought-join-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point: how much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse across the bottom, and how full its reservoirs are up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point — an area far to the right and high up is drawing on water banked in better years, and one far to the right and low has neither the rain nor the savings.</p></div>
+      </div>
+      <div id="drought-scatter-host" class="drought-scatter-host"></div>
+    </section>
     <section class="overview-card table-card" aria-labelledby="drought-areas-heading">
-      <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area, most severe first</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
+      <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
       <div class="drought-rows"></div>
       <details class="snow-month-details"><summary>Exact values for every class</summary>
         <div class="table-scroll"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
       </details>
       <p class="drought-attribution">${payload.attribution}. Read the full national map at <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noreferrer">droughtmonitor.unl.edu</a>.</p>
     </section>`;
+
+  /* Filter state, read from the address bar so a shared link opens on the
+   * same view. The map is deliberately not filtered with the rows: it draws
+   * the national sweep, and hiding drainage outlines from it would leave a
+   * pattern with nothing to locate it against. */
+  const wanted = droughtStateFromSearch(window.location.search);
+  let state: DroughtUrlState = { ...wanted };
+
+  const worseSelect = content.querySelector<HTMLSelectElement>("#drought-worse");
+  const sortSelect = content.querySelector<HTMLSelectElement>("#drought-sort");
+  const statusLine = content.querySelector<HTMLElement>("#drought-status");
+  const resetButton = content.querySelector<HTMLElement>("#drought-reset");
+  const scatterHost = content.querySelector<HTMLElement>("#drought-scatter-host");
+  if (worseSelect) worseSelect.value = state.worse ?? "";
+  if (sortSelect) sortSelect.value = state.sort;
 
   const legend = content.querySelector<HTMLElement>(".drought-legend");
   if (legend) {
@@ -133,7 +183,21 @@ function renderDrought(
   }
 
   const rows = content.querySelector<HTMLElement>(".drought-rows");
-  if (rows) {
+  const tableBody = content.querySelector<HTMLTableSectionElement>("#drought-table-rows");
+
+  /**
+   * Everything the filter controls change, in one place.
+   *
+   * The rows, the exact-values table, the scatter and the sentence that
+   * reports what is being shown all describe the same chosen set, so they are
+   * rebuilt together. Splitting them is how one surface ends up describing a
+   * filter another surface is no longer applying.
+   */
+  function draw(): void {
+    const chosen = unitsAtOrWorse(payload.units, state.worse as never);
+    const ordered = orderUnits(chosen, storage, state.sort);
+
+    if (rows) {
     rows.replaceChildren(...ordered.map((unit) => {
       const row = document.createElement("article");
       row.className = "drought-row overview-kpi";
@@ -192,8 +256,7 @@ function renderDrought(
     }));
   }
 
-  const tableBody = content.querySelector<HTMLTableSectionElement>("#drought-table-rows");
-  if (tableBody) {
+    if (tableBody) {
     tableBody.replaceChildren(...ordered.map((unit) => {
       const row = document.createElement("tr");
       const name = document.createElement("th");
@@ -213,19 +276,82 @@ function renderDrought(
       }
       return row;
     }));
+    }
+
+    /* The join, as a picture. Areas with no reservoir reading are left out
+     * rather than plotted at zero -- an area with no reservoirs in it is not
+     * an area whose reservoirs are empty -- and the count of what was left
+     * out is stated under the chart rather than silently dropped. */
+    const points = storageAgainstDrought(ordered, storage);
+    if (scatterHost) {
+      const chart = renderDroughtScatter(points, {
+        drynessLabel: `${dryness.label.toLowerCase()} (${dryness.code})`,
+        ariaLabel: `Each drainage area by how much of its land is in ` +
+          `${dryness.label.toLowerCase()} or worse and how full its reservoirs ` +
+          `are. The table below carries both numbers for every area.`,
+        highlight: state.area
+      });
+      const missing = ordered.length - points.length;
+      const note = document.createElement("p");
+      note.className = "drought-chart-note";
+      note.textContent = missing > 0
+        ? `${points.length} of ${ordered.length} areas are plotted. ` +
+          `${missing} ${missing === 1 ? "has" : "have"} no reservoir reading to ` +
+          "compare against."
+        : `All ${points.length} areas shown have a reservoir reading.`;
+      if (chart) scatterHost.replaceChildren(chart, note);
+      else {
+        scatterHost.replaceChildren(mapStatusNote(
+          "No area in view has a reservoir reading to compare against."));
+      }
+    }
+
+    if (statusLine) {
+      const chosenClass = DROUGHT_CLASSES.find((entry) => entry.key === state.worse);
+      const order = state.sort === "storage" ? "emptiest reservoirs first"
+        : state.sort === "name" ? "by name" : "most severe first";
+      statusLine.textContent = chosenClass
+        ? `${ordered.length} of ${payload.unit_count} drainage areas have land in ` +
+          `${chosenClass.label.toLowerCase()} (${chosenClass.code}) or worse, ${order}.`
+        : `All ${ordered.length} drainage areas, ${order}.`;
+    }
+
+    window.__droughtReady = {
+      ...(window.__droughtReady ?? {}),
+      units: payload.unit_count,
+      rows: ordered.length,
+      worstClass: worst ? worst.code : null,
+      mapDate: payload.map_date,
+      daysOld: age,
+      lateData: late,
+      storageJoined: storage
+        ? ordered.filter((unit) => storage.has(unit.huc6)).length
+        : 0,
+      severityFilter: state.worse,
+      sort: state.sort,
+      scatterPoints: points.length
+    } as NonNullable<typeof window.__droughtReady>;
   }
 
-  window.__droughtReady = {
-    units: payload.unit_count,
-    rows: ordered.length,
-    worstClass: worst ? worst.code : null,
-    mapDate: payload.map_date,
-    daysOld: age,
-    lateData: late,
-    storageJoined: storage
-      ? ordered.filter((unit) => storage.has(unit.huc6)).length
-      : 0
-  };
+  function update(next: Partial<DroughtUrlState>): void {
+    state = { ...state, ...next };
+    writeDroughtUrl(state);
+    draw();
+  }
+
+  worseSelect?.addEventListener("change", () => {
+    update({ worse: worseSelect.value === "" ? null : worseSelect.value });
+  });
+  sortSelect?.addEventListener("change", () => {
+    update({ sort: sortSelect.value as DroughtSort });
+  });
+  resetButton?.addEventListener("click", () => {
+    if (worseSelect) worseSelect.value = "";
+    if (sortSelect) sortSelect.value = "severity";
+    update({ worse: null, sort: "severity" });
+  });
+
+  draw();
 
   /* The map starts after the figures are on screen, from its own two
    * fetches: the national polygons the coverage was computed from, and the
@@ -240,7 +366,7 @@ function renderDrought(
         "The map could not start. The bars and table carry the same shares."));
       window.__droughtReady = {
         ...(window.__droughtReady ?? {}), mapClassesDrawn: 0, mapOutlines: 0
-      } as typeof window.__droughtReady;
+      } as NonNullable<typeof window.__droughtReady>;
     };
     try {
       installAnonymousAuthPolicy();
@@ -284,7 +410,7 @@ function renderDrought(
         mapCountyBoundaries: mapStatus.countyBoundaries,
         mapBasemap: mapStatus.basemap,
         mapViewReady: mapStatus.viewReady
-      } as typeof window.__droughtReady;
+      } as NonNullable<typeof window.__droughtReady>;
     } catch (error) {
       console.warn("The drought map could not start:", error);
       failed();

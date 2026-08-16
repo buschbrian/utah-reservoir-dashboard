@@ -255,9 +255,19 @@ root.innerHTML = `
         <li><a href="https://developers.arcgis.com/javascript/" target="_blank"
           rel="noreferrer">Esri</a>, for the ArcGIS Maps SDK for JavaScript, the Calcite
           design system and the basemap services.</li>
-        <li><a href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre</a>
-          and <a href="https://carto.com/" target="_blank" rel="noreferrer">CARTO</a>,
-          for the second map engine kept alongside this one for comparison.</li>
+        <li><a href="https://pandas.pydata.org/" target="_blank"
+          rel="noreferrer">pandas</a> and <a href="https://numpy.org/" target="_blank"
+          rel="noreferrer">NumPy</a>, for the work that turns the published
+          measurements into the map data. Every daily storage record, every
+          snow season and the share of each drainage area in each drought class
+          are computed with them.</li>
+        <li><a href="https://requests.readthedocs.io/" target="_blank"
+          rel="noreferrer">Requests</a>, for every call to a data provider, and
+          <a href="https://docs.pytest.org/" target="_blank" rel="noreferrer">pytest</a>,
+          for the tests that hold the pipeline to its own arithmetic.</li>
+        <li>The <a href="https://www.python.org/" target="_blank"
+          rel="noreferrer">Python</a> community, whose freely given libraries do the
+          part of this project that the maps only show.</li>
       </ul>
       <p>The complete source code, the daily refresh pipeline and every architecture
         decision record are public at

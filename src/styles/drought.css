@@ -40,3 +40,33 @@
 .drought-row-links a { color: var(--app-accent); }
 
 .drought-attribution { margin-block-start: 1rem; color: var(--app-muted); font-size: .78rem; }
+
+/* The storage-against-drought scatter. Everything that is not data takes its
+   colour from a theme token, so the dark page keeps readable axes; the point
+   fills are the monitor's palette and are set inline from the class table. */
+.drought-scatter-host { margin-block-start: .5rem; }
+.drought-scatter { display: block; inline-size: 100%; block-size: auto; }
+.drought-grid { stroke: var(--app-border); stroke-width: 1; }
+.drought-guide {
+  stroke: var(--app-muted);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 4;
+  opacity: .55;
+}
+.drought-axis { font-size: 10px; fill: var(--app-muted); }
+.drought-axis-title { font-size: 11px; font-weight: 600; fill: var(--app-muted); }
+/* A thin surface-coloured ring, so two points that land on top of each other
+   still read as two, whatever the monitor's colours are underneath. */
+.drought-scatter-point circle {
+  stroke: var(--app-surface-raised);
+  stroke-width: 1.5;
+}
+.drought-scatter-point circle.is-chosen {
+  stroke: var(--app-text);
+  stroke-width: 2.5;
+}
+.drought-chart-note {
+  margin: .4rem 0 0;
+  color: var(--app-muted);
+  font-size: .8rem;
+}

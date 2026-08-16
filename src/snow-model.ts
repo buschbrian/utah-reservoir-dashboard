@@ -381,3 +381,135 @@ export function monthReadings(points: readonly CurvePoint[]): MonthReading[] {
     };
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Narrowing the site table                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The elevation bands the site filter offers.
+ *
+ * Snow behaves differently at different heights -- a low site melts out
+ * weeks before a high one, so a regional mean mixes two seasons -- and these
+ * three bands are where the region's own sites actually divide. They are
+ * presentation, not a published classification, which is why they live here
+ * beside the filter rather than in the payload.
+ */
+export type ElevationBand = "all" | "low" | "middle" | "high";
+
+export const ELEVATION_BANDS: readonly ElevationBand[] = ["all", "low", "middle", "high"];
+
+/** Feet. Inclusive at the bottom, exclusive at the top, like every other
+ * class table in this project. */
+export const ELEVATION_BREAKS = { low: 8000, high: 9500 } as const;
+
+export function isElevationBand(value: string): value is ElevationBand {
+  return (ELEVATION_BANDS as readonly string[]).includes(value);
+}
+
+export function elevationBandOf(feet: number): Exclude<ElevationBand, "all"> {
+  if (feet < ELEVATION_BREAKS.low) return "low";
+  if (feet < ELEVATION_BREAKS.high) return "middle";
+  return "high";
+}
+
+export function elevationBandLabel(band: ElevationBand): string {
+  if (band === "low") return `Below ${ELEVATION_BREAKS.low.toLocaleString("en-US")} feet`;
+  if (band === "middle") {
+    return `${ELEVATION_BREAKS.low.toLocaleString("en-US")} to ` +
+      `${ELEVATION_BREAKS.high.toLocaleString("en-US")} feet`;
+  }
+  if (band === "high") return `${ELEVATION_BREAKS.high.toLocaleString("en-US")} feet and above`;
+  return "Every elevation";
+}
+
+/** Which sites the reader wants: all of them, only the late ones, or only
+ * the ones still sending values. */
+export type SiteStatus = "all" | "late" | "reporting";
+
+export const SITE_STATUSES: readonly SiteStatus[] = ["all", "late", "reporting"];
+
+export function isSiteStatus(value: string): value is SiteStatus {
+  return (SITE_STATUSES as readonly string[]).includes(value);
+}
+
+export interface SiteFilter {
+  /** Matched against the site name and its county, case-insensitively. */
+  query: string;
+  band: ElevationBand;
+  status: SiteStatus;
+}
+
+export const NO_SITE_FILTER: SiteFilter = { query: "", band: "all", status: "all" };
+
+/**
+ * The rows a filter leaves.
+ *
+ * The county is searched as well as the name because that is how people ask
+ * for these sites out loud -- "the ones above Heber" is a county, not a
+ * station name -- and the county is already in the table beside the name.
+ */
+export function filterSiteRows(
+  rows: readonly SiteRow[], filter: SiteFilter
+): SiteRow[] {
+  const query = filter.query.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filter.band !== "all" && elevationBandOf(row.elevationFeet) !== filter.band) {
+      return false;
+    }
+    if (filter.status === "late" && !row.late) return false;
+    if (filter.status === "reporting" && row.late) return false;
+    if (query.length > 0) {
+      const haystack = `${row.name} ${row.county}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    return true;
+  });
+}
+
+/** True when the reader has narrowed anything. Not derived from a row count:
+ * a filter that happens to keep every row is still a filter, and the page
+ * says so rather than claiming nothing is applied. */
+export function siteFilterActive(filter: SiteFilter): boolean {
+  return filter.query.trim().length > 0 || filter.band !== "all" || filter.status !== "all";
+}
+
+/* ------------------------------------------------------------------ */
+/* How the day's readings are spread                                   */
+/* ------------------------------------------------------------------ */
+
+/** How many sites fell in each snow class on one day, plus how many had no
+ * fair value at all. Index matches `SNOW_CLASSES`. */
+export interface SiteSpread {
+  counts: number[];
+  noValue: number;
+  reporting: number;
+}
+
+/**
+ * The spread of one day's site readings across the classes.
+ *
+ * The mean the map and the curve draw is one number over two hundred
+ * stations, and it cannot tell a region that is uniformly at 70% from one
+ * where half the sites are bare and half are near normal. Those are very
+ * different winters and they matter to different people, so the page shows
+ * the spread beside the mean.
+ *
+ * `classIndexOf` is injected rather than imported so this stays free of the
+ * colour table: the model decides how many fell where, the view decides what
+ * colour that is.
+ */
+export function siteSpread(
+  values: ReadonlyMap<string, number | null>,
+  classCount: number,
+  classIndexOf: (percent: number | null) => number | null
+): SiteSpread {
+  const counts = new Array<number>(classCount).fill(0);
+  let noValue = 0;
+  for (const percent of values.values()) {
+    const index = classIndexOf(percent);
+    if (index === null || index < 0 || index >= classCount) noValue += 1;
+    else counts[index] = (counts[index] ?? 0) + 1;
+  }
+  return { counts, noValue, reporting: values.size - noValue };
+}

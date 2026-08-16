@@ -58,6 +58,52 @@ describe("a data-only commit deploys on its own", () => {
     expect(refresh).toMatch(/git push/);
   });
 
+  /*
+   * The drought view refuses to draw when the weekly polygons and the
+   * coverage figures name different weeks, which is correct and is also why
+   * the refresh must never commit one without the other.
+   *
+   * It used to. The polygons were downloaded here from the day this job
+   * learned about drought; the coverage was only ever recomputed by hand. So
+   * the first Thursday the monitor published, this job would have committed
+   * new polygons beside week-old coverage -- and because the deploy chains
+   * off this workflow completing rather than off CI passing, the broken pair
+   * would have gone live and CI would only have turned red afterwards.
+   */
+  it("recomputes the drought coverage from the polygons it just downloaded", async () => {
+    const refresh = await read(".github/workflows/refresh-data.yml");
+    const download = refresh.indexOf("tools/fetch_drought_monitor.py");
+    const recompute = refresh.indexOf("tools/compute_drought_coverage.py");
+
+    expect(download).toBeGreaterThanOrEqual(0);
+    expect(recompute, "the coverage must be recomputed after the download")
+      .toBeGreaterThan(download);
+  });
+
+  it("stages both drought files together, or neither", async () => {
+    const refresh = await read(".github/workflows/refresh-data.yml");
+    /* One `git add`, both files. Staging them in separate commands would let
+     * a failure between the two commit one week of polygons beside another
+     * week of coverage, which is the exact state the page refuses to draw. */
+    const staged = refresh.slice(refresh.indexOf("git add reservoirs.json"));
+    const line = staged.slice(0, staged.indexOf("if git diff"));
+
+    expect(line).toContain("data/drought/usdm-current.geojson");
+    expect(line).toContain("data/drought/usdm-huc6.json");
+  });
+
+  it("checks the pair before the commit and can put both files back", async () => {
+    const refresh = await read(".github/workflows/refresh-data.yml");
+    const check = refresh.indexOf("tools/check_drought_pair.py");
+    const commit = refresh.indexOf("git add reservoirs.json");
+
+    expect(check).toBeGreaterThanOrEqual(0);
+    expect(check, "the pair is checked while both files can still be restored")
+      .toBeLessThan(commit);
+    expect(refresh).toContain(
+      "git checkout -- data/drought/usdm-current.geojson data/drought/usdm-huc6.json");
+  });
+
   it("copies the runtime data into the published output instead of bundling it", async () => {
     const config = await read("vite.config.ts");
     for (const file of RUNTIME_DATA) {

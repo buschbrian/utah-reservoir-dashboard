@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { STORAGE_CLASSES } from "./classes";
+import { DROUGHT_CLASSES } from "./drought-classes";
 import { SNOW_CLASSES, snowClassIndex } from "./snow-classes";
 
 describe("the snow class table", () => {
@@ -29,5 +31,43 @@ describe("the snow class table", () => {
     expect(snowClassIndex(null)).toBeNull();
     expect(snowClassIndex(Number.NaN)).toBeNull();
     expect(snowClassIndex(-1)).toBeNull();
+  });
+
+  /* One colour language per map, enforced across pages rather than only
+   * within one. This is a regression test for a real overlap: snow used to
+   * draw a hand-picked five-class RdYlBu while storage drew Esri's Blue and
+   * Red 9, and `#fdae61` and `#abd9e9` were byte-identical in both tables --
+   * so two maps of two unrelated quantities coloured them the same. Nothing
+   * caught it, because each table was internally consistent.
+   */
+  it("shares no colour with the storage or drought tables", () => {
+    const snow = new Set(SNOW_CLASSES.map((entry) => entry.color.toLowerCase()));
+    for (const entry of STORAGE_CLASSES) {
+      expect(snow, `storage ${entry.color} is also a snow class`)
+        .not.toContain(entry.color.toLowerCase());
+    }
+    for (const entry of DROUGHT_CLASSES) {
+      expect(snow, `drought ${entry.color} is also a snow class`)
+        .not.toContain(entry.color.toLowerCase());
+    }
+  });
+
+  /* These are translucent fills over a shaded-relief basemap. A class that is
+   * nearly white cannot be told from the grey that means "no value for this
+   * day", and one that is nearly black reads as the most extreme reading
+   * whatever it actually says. */
+  it("keeps every class visible as a translucent fill", () => {
+    const luminance = (hex: string): number => {
+      const channel = (offset: number): number => {
+        const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+        return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+    };
+    for (const entry of SNOW_CLASSES) {
+      const value = luminance(entry.color);
+      expect(value, `${entry.label} (${entry.color}) is washed out`).toBeLessThan(0.8);
+      expect(value, `${entry.label} (${entry.color}) is nearly black`).toBeGreaterThan(0.05);
+    }
   });
 });

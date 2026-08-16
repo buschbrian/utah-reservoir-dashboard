@@ -5,7 +5,83 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The drought map would have broken on the next weekly release.** The daily
+  job downloaded the new drought polygons but never recomputed the coverage
+  figures the page draws from them, so the two files would have described
+  different weeks — and the page refuses to draw that, correctly, rather than
+  showing one week's map over another week's numbers. It now recomputes the
+  coverage from the polygons it just downloaded and commits both together, so
+  either both move to the new week or neither does.
+
 ### Added
+
+- **The drought data says when it has stopped arriving.** The monitor
+  publishes each Thursday. When a week goes by without one, the page has
+  always shown the age — but nothing told anyone. A missed release now opens
+  an issue on its own and closes it again when the next map arrives, the same
+  way the quiet-reservoir-feed alert already works.
+
+- **Dry land against banked water, as a chart.** The drought page now plots
+  every drainage area as one point: how much of its land is in severe drought
+  or worse across the bottom, how full its reservoirs are up the side. The two
+  do not have to agree, and where they disagree is the whole point — an area
+  to the right and high up is living on water banked in better years; one to
+  the right and low has neither the rain nor the savings. An area with no
+  reservoir reading is left out rather than drawn at the bottom, and the page
+  says how many were left out.
+
+- **The drought page can be narrowed.** Show only the areas with land in a
+  chosen class or worse, and order them by severity, by emptiest reservoirs
+  first, or by name. A sentence under the controls says what is being shown,
+  and the address bar carries both choices, so a narrowed view can be shared.
+
+- **The snowpack site table can be searched and narrowed.** Search by site
+  name or county, filter to an elevation band — snow behaves differently high
+  and low, so a single average mixes two seasons — and show only the sites
+  with late data, or only the ones still sending values. All three combine,
+  all three are in the address bar, and the sentence above the table says
+  which are applied.
+
+- **How the snow sites are spread on the chosen day.** A bar above the site
+  table shows how many sites fell in each class, in the same colours and the
+  same shape as the drought page's coverage bars. The average on the chart is
+  one number over more than two hundred stations, and it cannot tell a region
+  that is evenly poor from one where half the sites are bare and half are near
+  normal. Those are different winters.
+
+- **Reservoirs draw in less detail when you are far away.** Zoomed out, each
+  reservoir is a plain circle: still sized by its capacity, still coloured by
+  how full it is. Zoom past about one step in and the full drawing returns —
+  the drop shadow, the outlined water level, the dashed ring on an old
+  reading — at the same moment the names appear. One threshold, so the map
+  gets more detailed in every way at once instead of piece by piece.
+
+### Changed
+
+- **Every label is set in Atkinson Hyperlegible Next.** It was drawn for the
+  Braille Institute to be read by people with low vision: the characters that
+  usually blur together at small sizes — capital I and lowercase l, 0 and O —
+  are given clearly different shapes. Every name on these maps is small type
+  over a detailed background, which is exactly what it is for.
+
+- **The snowpack map has its own colours.** It ran brown for the driest
+  through to teal for the wettest, replacing a red-to-blue scale that
+  overlapped the storage map's — two of the five colours were the same in
+  both. Brown to teal is the usual way of showing wet and dry, so the map
+  reads without the legend, and every step stays visible over the background
+  relief. The scale is one Esri publishes and has tested for colour blindness.
+
+- **The snowpack map no longer shows reservoirs.** It already carries fourteen
+  filled drainage areas and 217 measurement sites; adding sixty-nine named
+  points on top buried the readings the page is for. They stay on the drought
+  map, which has room for them, and they have their own map besides.
+
+- **The credits name the right tools.** MapLibre and CARTO are gone — those
+  were for a second map engine the site no longer runs. In their place: the
+  Python libraries that turn the published measurements into everything the
+  maps draw.
 
 - **The snow and drought maps work like the storage map now.** Both had
   shipped as pictures: a background, some shapes, and one zoom button.
