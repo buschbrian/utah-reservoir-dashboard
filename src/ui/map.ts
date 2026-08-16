@@ -12,6 +12,7 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
+import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
@@ -382,7 +383,8 @@ export async function loadMap(
   selection: SelectionStore,
   boundary: Promise<UtahBoundary | null> = Promise.resolve(null)
 ): Promise<MapController> {
-  const [resolution, utahBoundary] = await Promise.all([resolveBasemap(), boundary]);
+  const [resolution, utahBoundary] = await Promise.all(
+    [resolveBasemap(effectiveThemeNow()), boundary]);
 
   /* The SDK's `basemap` property is typed as basemap *properties*, and an
    * already-constructed Basemap does not satisfy that shape under
@@ -391,6 +393,11 @@ export async function loadMap(
    * The SDK passes an instance straight through at runtime, so the one
    * assignment is narrowed here rather than the whole map being untyped. */
   const map = new ArcGISMap();
+  /* The background this module chose last, as an object identity. The theme
+   * listener below swaps the canvas with the theme only while this is still
+   * what the map is wearing -- a background the reader picked from the
+   * gallery is a choice, and a theme toggle must not overrule it. */
+  let assignedBasemap: unknown = resolution.resource;
   if (resolution.resource) {
     (map as { basemap: unknown }).basemap = resolution.resource;
   }
@@ -495,6 +502,24 @@ export async function loadMap(
   elementById("map-host").replaceChildren(element);
   if (!resolution.resource) showMissingBasemap();
   else if (resolution.degraded) showDegradedBasemap(resolution.name);
+
+  /* The canvas follows the theme -- light gray on the light page, dark gray
+   * on the dark one -- unless the reader has chosen a background from the
+   * gallery, detected by the map no longer wearing the one this module
+   * assigned. Sequenced through one in-flight promise so two quick toggles
+   * cannot race their resolutions into the wrong order. */
+  let themeSwap: Promise<void> = Promise.resolve();
+  document.addEventListener(THEME_CHANGE_EVENT, () => {
+    themeSwap = themeSwap.then(async () => {
+      if (!assignedBasemap || map.basemap !== assignedBasemap) return;
+      const next = await resolveBasemap(effectiveThemeNow());
+      if (!next.resource || map.basemap !== assignedBasemap) return;
+      (map as { basemap: unknown }).basemap = next.resource;
+      assignedBasemap = next.resource;
+      status.basemapName = next.name;
+      status.basemapDegraded = next.degraded;
+    });
+  });
 
   const status: MapStatus = {
     basemap: resolution.resource !== null,

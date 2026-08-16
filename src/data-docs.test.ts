@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  DROUGHT_GROUPS,
   REFERENCE_GROUPS,
   RESERVOIR_GROUPS,
   SNOW_GROUPS,
@@ -103,8 +104,19 @@ describe("public API field documentation", () => {
     expectFields(REFERENCE_GROUPS, "reference-watershed-properties", watershedFeature.properties);
   });
 
+  it("covers every current drought coverage field", () => {
+    const data = read("data/drought/usdm-huc6.json");
+    expectFields(DROUGHT_GROUPS, "drought-header", data);
+    expectFields(DROUGHT_GROUPS, "drought-method", data.method);
+    expectFields(DROUGHT_GROUPS, "drought-unit", merged(data.units));
+    expectFields(DROUGHT_GROUPS, "drought-shares",
+      merged(data.units.map((unit: Record<string, any>) => unit.percent_of_area)));
+    expectFields(DROUGHT_GROUPS, "drought-at-least",
+      merged(data.units.map((unit: Record<string, any>) => unit.percent_of_area_at_least)));
+  });
+
   it("keeps API explanations in plain language", () => {
-    const prose = [...RESERVOIR_GROUPS, ...SNOW_GROUPS, ...REFERENCE_GROUPS]
+    const prose = [...RESERVOIR_GROUPS, ...SNOW_GROUPS, ...DROUGHT_GROUPS, ...REFERENCE_GROUPS]
       .flatMap((section) => [section.title,
         ...section.fields.flatMap((field) => [field.units, field.meaning])])
       .join(" ");

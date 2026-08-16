@@ -1234,13 +1234,17 @@ for (const viewport of VIEWPORTS) {
       scroll: document.documentElement.scrollWidth
     }));
     console.log("  ready:", JSON.stringify(state.ready));
-    check(state.ready?.files === 3 && state.files === 3,
+    check(state.ready?.files === 4 && state.files === 4,
       `${label}: rendered ${state.files} file cards, readiness reported ${state.ready?.files}`);
     check(state.ready?.groups === state.groups && state.groups >= 20,
       `${label}: rendered ${state.groups} field groups, readiness reported ${state.ready?.groups}`);
     check(JSON.stringify(state.links) === JSON.stringify([
-      "./api/reservoirs.json", "./api/snowpack.json", "./api/reference.json"
-    ]), `${label}: stable API links are ${JSON.stringify(state.links)}`);
+      "./api/reservoirs.json", "./",
+      "./api/snowpack.json", "./snow.html",
+      "./data/drought/usdm-huc6.json", "./drought.html",
+      "./data/drought/usdm-current.geojson",
+      "./api/reference.json"
+    ]), `${label}: file card links are ${JSON.stringify(state.links)}`);
     check(state.text.includes("Access-Control-Allow-Origin: *"),
       `${label}: cross-origin browser access is not disclosed`);
     check(state.text.includes("10 minutes") && state.text.includes("no uptime guarantee"),

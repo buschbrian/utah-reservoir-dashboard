@@ -7,6 +7,22 @@ and is not listed here.
 
 ### Added
 
+- **The map background follows the color theme.** Both maps now open on the
+  canvas that matches the page: light gray in the light theme, dark gray in
+  the dark one, and they swap when the theme control is used. A background
+  the reader has chosen from the storage map's gallery is a choice, and a
+  theme change does not overrule it. The dark canvas serves without
+  credentials like the two verified backgrounds, and its chain falls
+  through to the light canvas if that ever changes.
+
+- **The data reference documents everything the site publishes.** The
+  drought coverage file joins the published-files list with all of its
+  fields explained — the calculation method, the share of each drainage
+  area's land in exactly each class, and the "this class or worse" sums —
+  and a test holds the documentation to the committed file, field for
+  field. Each file card now links to the page that displays it, and the
+  snow card notes the per-site season timing the snowpack page draws.
+
 - **Every snow site has its own season.** A new card on the snowpack page
   draws one measurement site's water year in inches, day by day, against
   the middle value for the same days in 1991 through 2020 — with the site's

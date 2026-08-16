@@ -1317,8 +1317,10 @@ marked as implemented remains proposed until its named decision is accepted.
    the water-year curve in inches against the normal median, the published
    onset/peak/meltout timing drawn and stated as text, a grouped site
    picker plus selectable names in the site table, and `?site=` carrying
-   the station identifier in shared links. Still to build: the snow entry
-   in the data reference. Do not
+   the station identifier in shared links. The data reference turned out to
+   already document every snowpack field; what it gained on 2026-08-16 was
+   the drought coverage file's documentation, display cross-links on every
+   file card, and a note on the season timing. This slice is complete. Do not
    put snow symbols or a second colour table on the reservoir map. Design
    decisions adopted from the external product review above: HUC6 basin-fill choropleth by percent of
    the 1991–2020 normal median with sites reading on the same scale, the
@@ -1423,7 +1425,7 @@ differentiators; the survey found no product in the West that has either.
 
 | Risk | Notes / mitigation |
 |---|---|
-| ~~**ArcGIS basemaps and API keys**~~ | **Checked and cleared, 2026-08-09.** The current keyless basemap strings still work on 5.1; only the `arcgis/*` styles service is key-gated, and we are not obliged to use it. The keyless `VectorTileLayer` fallback was verified to work too, so the contingency exists if Esri changes this later. Residual risk is that Esri meters or retires the public AGOL basemap items — worth re-running the spike at each SDK upgrade. |
+| ~~**ArcGIS basemaps and API keys**~~ | **Checked and cleared, 2026-08-09.** The current keyless basemap strings still work on 5.1; only the `arcgis/*` styles service is key-gated, and we are not obliged to use it. The keyless `VectorTileLayer` fallback was verified to work too, so the contingency exists if Esri changes this later. Residual risk is that Esri meters or retires the public AGOL basemap items — worth re-running the spike at each SDK upgrade. 2026-08-16: `dark-gray-vector` joined the chain as the dark theme's first choice and was observed serving keyless; its chain falls through to the verified light canvas if that changes. |
 | **Widget deprecation** | All widgets are deprecated in 5.0 and slated for removal in 6.0 (Q1 2027). Write **zero** widget code. `src/architecture.test.ts` fails on `@arcgis/core/widgets/*`; anything ported from the 4.34 page must be re-expressed as components. |
 | **Daily data must not need a rebuild** | Covered by the runtime-fetch rule in §2. Verify explicitly with a data-only commit before Phase 2. |
 | **Bundle size** | The Phase 2 SDK surface baseline is 15.49 MiB raw / 5.43 MiB gzip emitted, with a 2.19 MiB gzip static entry path, and is checked by every build. Re-baseline deliberately from the real entry as each component phase expands it. |

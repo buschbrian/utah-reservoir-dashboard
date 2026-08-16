@@ -24,6 +24,7 @@ import type { DrainageArea } from "../data/boundaries";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
 import { SNOW_CLASSES, snowClassIndex } from "../viz/snow-classes";
+import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 
 export interface SnowMapStatus {
   basemap: boolean;
@@ -167,7 +168,7 @@ export async function createSnowMap(
     siteLayer.add(graphic);
   }
 
-  const resolution = await resolveBasemap();
+  const resolution = await resolveBasemap(effectiveThemeNow());
   const status: SnowMapStatus = {
     basemap: resolution.resource !== null,
     basemapDegraded: resolution.degraded,
@@ -187,6 +188,20 @@ export async function createSnowMap(
     (map as unknown as { basemap: unknown }).basemap = resolution.resource;
   }
   element.map = map;
+
+  /* The canvas follows the theme. This map has no gallery, so unlike the
+   * storage map there is no reader choice to protect; the swap is
+   * sequenced so two quick toggles cannot land out of order. */
+  let themeSwap: Promise<void> = Promise.resolve();
+  document.addEventListener(THEME_CHANGE_EVENT, () => {
+    themeSwap = themeSwap.then(async () => {
+      const next = await resolveBasemap(effectiveThemeNow());
+      if (!next.resource) return;
+      (map as unknown as { basemap: unknown }).basemap = next.resource;
+      status.basemap = true;
+      status.basemapDegraded = next.degraded;
+    });
+  });
 
   let chosenArea: string | null = null;
   let currentValues: MapDayValues | null = null;

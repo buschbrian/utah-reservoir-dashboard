@@ -189,6 +189,48 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
   ]}
 ];
 
+export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
+  { id: "drought-header", title: "File header", path: "root", fields: [
+    f("schema_version", "version number", "Version of this JSON structure."),
+    f("map_date", "date", "The week the drought map describes."),
+    f("release_date", "date", "The Thursday the map was published."),
+    f("source", "web address", "Provider service address."),
+    f("attribution", "text", "Credit statement for the drought map."),
+    f("method", "object", "How the area shares were calculated."),
+    f("unit_count", "areas", "Number of published drainage areas."),
+    f("units", "array", "Per-drainage-area shares.")
+  ]},
+  { id: "drought-method", title: "Calculation method", path: "method", fields: [
+    f("sampling", "text", "How points were placed over each area."),
+    f("grid_step_degrees", "decimal degrees", "Distance between sampled points."),
+    f("weighting", "text", "How each point's land area was weighted."),
+    f("classes", "text", "How the drought classes relate to each other.")
+  ]},
+  { id: "drought-unit", title: "Drainage-area record", path: "units[]", fields: [
+    f("huc6", "identifier", "Six-digit drainage-area code."),
+    f("huc6_name", "text", "Six-digit drainage-area name."),
+    f("percent_of_area", "object", "Share of the area's land in exactly each class."),
+    f("percent_of_area_at_least", "object", "Share of the area's land in each class or worse.")
+  ]},
+  { id: "drought-shares", title: "Share in exactly each class",
+    path: "units[].percent_of_area", fields: [
+      f("none", "percent", "Land in no drought class."),
+      f("d0", "percent", "Land that is abnormally dry (D0)."),
+      f("d1", "percent", "Land in moderate drought (D1)."),
+      f("d2", "percent", "Land in severe drought (D2)."),
+      f("d3", "percent", "Land in extreme drought (D3)."),
+      f("d4", "percent", "Land in exceptional drought (D4).")
+    ]},
+  { id: "drought-at-least", title: "Share in each class or worse",
+    path: "units[].percent_of_area_at_least", fields: [
+      f("d0", "percent", "Land that is abnormally dry or worse."),
+      f("d1", "percent", "Land in moderate drought or worse."),
+      f("d2", "percent", "Land in severe drought or worse."),
+      f("d3", "percent", "Land in extreme drought or worse."),
+      f("d4", "percent", "Land in exceptional drought.")
+    ]}
+];
+
 export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
   { id: "reference-header", title: "File header", path: "root", fields: [
     f("capacity_catalog", "object", "Reviewed full levels and dam-point evidence."),

@@ -4,6 +4,7 @@ import "@esri/calcite-components/components/calcite-action";
 import "@esri/calcite-components/components/calcite-navigation";
 
 import {
+  DROUGHT_GROUPS,
   REFERENCE_GROUPS,
   RESERVOIR_GROUPS,
   SNOW_GROUPS,
@@ -40,6 +41,7 @@ root.innerHTML = `
         <li><a href="#files">Published files</a></li>
         <li><a href="#reservoir-fields">Reservoir fields</a></li>
         <li><a href="#snow-fields">Snow fields</a></li>
+        <li><a href="#drought-fields">Drought fields</a></li>
         <li><a href="#reference-fields">Reference fields</a></li>
         <li><a href="#examples">Examples</a></li>
         <li><a href="#access">Browser access and terms</a></li>
@@ -55,15 +57,26 @@ root.innerHTML = `
           details and drainage-area assignments. Structure version 1. Refreshed each
           morning. If one provider request fails, the last good reservoir record stays in
           the file and is marked as late data. A broadly failed run does not replace the
-          last published file.</p>
+          last published file. Shown on the <a href="./">storage map</a>.</p>
       </article>
       <article class="api-file">
         <h3>Snow monitoring</h3>
         <p><a href="./api/snowpack.json"><code>/api/snowpack.json</code></a></p>
         <p>Daily site readings and drainage-area summaries for the current water year,
-          compared with the 1991–2020 standard climate period. Structure version 1.
-          Refreshed independently each morning. An incomplete provider response does not
-          replace the last complete file.</p>
+          compared with the 1991–2020 standard climate period, with each site's usual
+          season timing. Structure version 1. Refreshed independently each morning. An
+          incomplete provider response does not replace the last complete file. Shown on
+          the <a href="./snow.html">snowpack page</a>.</p>
+      </article>
+      <article class="api-file">
+        <h3>Drought coverage by drainage area</h3>
+        <p><a href="./data/drought/usdm-huc6.json"><code>/data/drought/usdm-huc6.json</code></a></p>
+        <p>The share of each drainage area's land in each U.S. Drought Monitor class,
+          calculated from the monitor's weekly national polygons, with the map week and
+          release date. Structure version 1. Updated when the weekly polygons are
+          downloaded. Shown on the <a href="./drought.html">drought page</a>. The
+          national polygons the shares are calculated from are published beside it at
+          <a href="./data/drought/usdm-current.geojson"><code>/data/drought/usdm-current.geojson</code></a>.</p>
       </article>
       <article class="api-file">
         <h3>Capacity and geography reference</h3>
@@ -82,6 +95,10 @@ root.innerHTML = `
     <section class="methods-section api-fields" id="snow-fields"
       aria-labelledby="snow-fields-heading">
       <h2 id="snow-fields-heading">Snow fields</h2>
+    </section>
+    <section class="methods-section api-fields" id="drought-fields"
+      aria-labelledby="drought-fields-heading">
+      <h2 id="drought-fields-heading">Drought fields</h2>
     </section>
     <section class="methods-section api-fields" id="reference-fields"
       aria-labelledby="reference-fields-heading">
@@ -108,8 +125,9 @@ print(data["reservoirs"])</code></pre>
 
     <section class="methods-section" id="access" aria-labelledby="access-heading">
       <h2 id="access-heading">Browser access and terms</h2>
-      <p>GitHub Pages returned <code>Access-Control-Allow-Origin: *</code> for all three
-        files when checked on August 14, 2026. A browser application on another origin can
+      <p>GitHub Pages returned <code>Access-Control-Allow-Origin: *</code> for the
+        published files when checked on August 14, 2026; every file here is served the
+        same way from the same site. A browser application on another origin can
         fetch them directly. Responses can be cached for up to 10 minutes, so a newly
         published file may not appear at every edge immediately.</p>
       <ul class="methods-plain">
@@ -164,10 +182,12 @@ function renderGroups(hostId: string, groups: readonly ApiFieldGroup[]): void {
 
 renderGroups("reservoir-fields", RESERVOIR_GROUPS);
 renderGroups("snow-fields", SNOW_GROUPS);
+renderGroups("drought-fields", DROUGHT_GROUPS);
 renderGroups("reference-fields", REFERENCE_GROUPS);
 wireTheme();
 
 window.__dataDocsReady = {
   files: document.querySelectorAll(".api-file").length,
-  groups: RESERVOIR_GROUPS.length + SNOW_GROUPS.length + REFERENCE_GROUPS.length
+  groups: RESERVOIR_GROUPS.length + SNOW_GROUPS.length + DROUGHT_GROUPS.length
+    + REFERENCE_GROUPS.length
 };

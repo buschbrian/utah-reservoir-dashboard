@@ -40,6 +40,13 @@ function applyTheme(): void {
   document.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { theme } }));
 }
 
+/** The theme in effect right now, as `applyTheme` last stamped it. Callers
+ * that build theme-dependent resources after `wireTheme()` read this rather
+ * than re-deriving preference and system state a second way. */
+export function effectiveThemeNow(): "light" | "dark" {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
 export function wireTheme(): void {
   applyTheme();
   elementById("theme-toggle").addEventListener("click", () => {

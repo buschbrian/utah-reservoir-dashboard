@@ -25,14 +25,21 @@ export function installAnonymousAuthPolicy(
 }
 
 /**
- * Basemaps in preference order.
+ * Basemaps in preference order, per theme.
  *
- * The first two are what the current dashboard uses and were measured to
- * serve without credentials on 5.1.15. The third is the same underlying
- * tiles reached as a plain portal item, which survives the well-known id
- * being retired or re-gated. There is no fourth: running with no basemap and
- * saying so is better than a modal.
+ * The calm canvas that matches the page's theme leads: light gray canvas
+ * for the light theme, dark gray canvas for the dark one, so the map is not
+ * a bright rectangle on a dark page. Topographic and the light canvas stay
+ * in every chain as fallbacks -- the dark canvas is the same keyless
+ * well-known-id family as the two the spike verified, and if Esri ever
+ * gates it the chain falls through to a background that still serves rather
+ * than failing dark readers specifically. The last candidate reaches the
+ * topographic tiles as a plain portal item, which survives the well-known
+ * id being retired or re-gated. There is no further fallback: running with
+ * no basemap and saying so is better than a modal.
  */
+export type BasemapTheme = "light" | "dark";
+
 /* `Basemap.fromId` is typed `Basemap | null | undefined` and really does
  * return null for an id it does not know -- notably any `arcgis/*` style id,
  * which reads like an auth failure and is not one. Throwing converts that
@@ -52,22 +59,31 @@ function fromId(id: string): Basemap {
  * blank frame and no fallback is ever taken. */
 const verifyBasemap = (basemap: Basemap): Promise<unknown> => basemap.loadAll();
 
-export function basemapCandidates(): Candidate<Basemap>[] {
-  return [
-    { name: "Topographic", create: () => fromId("topo-vector"), verify: verifyBasemap },
-    { name: "Light gray canvas", create: () => fromId("gray-vector"), verify: verifyBasemap },
-    {
-      name: "Topographic (direct item)",
-      create: () => new Basemap({
-        baseLayers: [new VectorTileLayer({ portalItem: { id: TOPOGRAPHIC_ITEM_ID } })]
-      }),
-      verify: verifyBasemap
-    }
-  ];
+export function basemapCandidates(theme: BasemapTheme = "light"): Candidate<Basemap>[] {
+  const darkCanvas: Candidate<Basemap> = {
+    name: "Dark gray canvas", create: () => fromId("dark-gray-vector"), verify: verifyBasemap
+  };
+  const lightCanvas: Candidate<Basemap> = {
+    name: "Light gray canvas", create: () => fromId("gray-vector"), verify: verifyBasemap
+  };
+  const topographic: Candidate<Basemap> = {
+    name: "Topographic", create: () => fromId("topo-vector"), verify: verifyBasemap
+  };
+  const directItem: Candidate<Basemap> = {
+    name: "Topographic (direct item)",
+    create: () => new Basemap({
+      baseLayers: [new VectorTileLayer({ portalItem: { id: TOPOGRAPHIC_ITEM_ID } })]
+    }),
+    verify: verifyBasemap
+  };
+  return theme === "dark"
+    ? [darkCanvas, lightCanvas, topographic, directItem]
+    : [lightCanvas, topographic, directItem];
 }
 
 export function resolveBasemap(
-  candidates: readonly Candidate<Basemap>[] = basemapCandidates()
+  theme: BasemapTheme = "light",
+  candidates: readonly Candidate<Basemap>[] = basemapCandidates(theme)
 ): Promise<Resolution<Basemap>> {
   return resolveFirstLoadable(candidates);
 }
