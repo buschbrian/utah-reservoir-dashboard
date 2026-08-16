@@ -5,6 +5,14 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Added
+
+- **Every page now carries a content policy.** Fetches, images and fonts are
+  confined to this site and the named Esri services, forms cannot post
+  anywhere, and no plugin can load. It was written from a measurement of what
+  the pages actually request rather than from a template, and the whole
+  browser test suite runs with it in place.
+
 ### Fixed
 
 - **Every map label was rendering in the wrong typeface.** The new reading

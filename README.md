@@ -205,20 +205,36 @@ provider's published point. `huc6` is assigned by the dam or outlet. See
 The primary application is typed and component based. The former application
 paths are permanent compatibility redirects, not parallel product targets.
 
+Five reader-facing surfaces, three compatibility redirects, one frozen source
+oracle, and a Python pipeline.
+
 | Path | Role |
 |---|---|
 | `index.html`, `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application; `modern.html` is a stable alias. |
 | `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
+| `snow.html` + `src/snow*` | Snowpack view: the seasonal curve, the basin choropleth and site map, and one site's own season. |
+| `drought.html` + `src/drought*` | Drought view: weekly Drought Monitor coverage by drainage area, the monitor's polygons, and the storage-against-drought chart. |
 | `methods.html` + `src/methods.ts` | Methods and sources page: where the numbers come from and how each value is worked out. |
 | `data.html` + `src/data-docs.ts` | Public data API documentation: stable paths, field definitions, and code examples. |
-| `legacy/index.html` | Compatibility redirect from the ArcGIS 4.34 URL to the storage map. |
-| `maplibre/index.html` | Compatibility redirect from the MapLibre URL to the storage map. |
-| `explore.html` | Compatibility redirect from the earlier overview to storage charts. |
+| `legacy/index.html`, `maplibre/index.html`, `explore.html` | Compatibility redirects to the storage map and storage charts. |
 | `public/retired-route.js` | Allowlisted state translation for the three redirects. |
 | `shared/reservoir-viz.js` | Source-only color-table owner and porting test oracle; not published. |
-| `refresh_reservoirs.py` | Daily storage pipeline and metric calculation. |
+| `refresh_reservoirs.py`, `refresh_snowpack.py` | Daily storage and snow pipelines, and metric calculation. |
 | `huc.py` | Drainage-area geometry, assignment, and pipeline rollups. |
-| `tests/smoke.mjs` | Browser contract for compatibility redirects at desktop and phone widths. |
+| `tools/` | On-demand pipeline and audit tools: drought download and coverage, source audits, the symbol profiler, and the transfer audit. |
+| `tests/smoke-modern.mjs` | Browser contract for every surface: rendering, deep links, failure paths, accessibility, and label fonts. |
+| `tests/smoke.mjs` | Browser contract for the compatibility redirects. |
+
+Shared front-end modules worth knowing about:
+
+| Module | Role |
+|---|---|
+| `src/ui/map-hover.ts` | The pointer machinery all three maps use: one hit test per frame, stale answers discarded, an edge-safe card. |
+| `src/ui/hover-content.ts` | What every hover card says, kept pure so the sentences are unit-tested. |
+| `src/ui/view-map.ts`, `src/ui/theme-basemap.ts` | Framing, controls, navigation bounds and the theme-following background for the snow and drought maps. |
+| `src/viz/label-scales.ts` | The label ladder: which names appear at which scale, and how large each is drawn. |
+| `src/viz/classes.ts`, `snow-classes.ts`, `drought-classes.ts` | One colour table per map, each the only place its breaks and colours are written. |
+| `src/arcgis/reference-layers.ts` | State and county boundaries from hosted services, loaded against a deadline and added only if they answer. |
 
 The load-bearing rules are:
 
@@ -226,14 +242,24 @@ The load-bearing rules are:
    application data to be compiled into JavaScript.
 2. **The frozen source oracle is not a runtime.** The typed port is tested
    against `shared/reservoir-viz.js`, but that file is not published.
-3. **Color classes have one source of truth.** Renderers, legends, filters, and
-   charts derive from the same table.
+3. **Color classes have one source of truth, and one language per map.**
+   Renderers, legends, filters, and charts derive from the same table. Storage,
+   snow, and drought each own a separate table, and a test asserts no colour
+   appears in two of them — two maps of unrelated quantities must not speak the
+   same colour language, on one page or across pages.
 4. **Retired routes preserve bookmarks, not runtimes.** Their allowlisted
    redirects reach the closest ArcGIS surface without loading the old engines.
 5. **A public page never asks for ArcGIS credentials.** Secured resources fail
    promptly and fall back rather than opening a sign-in dialog.
 6. **Visible text uses Simplified Technical English.** Tests reject retired or
    unexplained specialist terms in rendered content.
+7. **Anything that can wait forever needs a deadline.** Runtime fetches, the
+   basemap chain, the chart render, and the hosted boundary layers each have
+   one, and each degrades to a stated fallback rather than an endless spinner.
+8. **Accessibility is a gate, not an aspiration.** axe-core runs over every
+   page at every tested width on every browser-suite run, at WCAG 2.1 AA. The
+   two accepted exceptions are both in vendor components and each is documented
+   where it is allowed.
 
 The rationale and rejected alternatives are in the
 [architecture decision records](docs/decisions/).
@@ -245,7 +271,12 @@ Python pipeline, retains good previous records when individual feeds fail,
 refuses to publish a broadly failed reservoir refresh, and maintains the
 late-data issue. Snow measurements refresh independently, so a provider
 failure keeps the last complete `snowpack.json` without blocking reservoir
-updates. Changed runtime data is committed to `main`.
+updates. The weekly drought polygons and the coverage figures computed from
+them move together or not at all: the coverage is recomputed from the
+polygons that were just downloaded, both files are staged in one commit, and
+a mismatch restores both rather than publishing two different weeks. A missed
+weekly release opens and closes its own issue. Changed runtime data is
+committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
 `dist/` after direct pushes to `main` and after successful scheduled refreshes.
@@ -321,6 +352,12 @@ measurements, and implementation history live in
 - Monthly sources cannot support a meaningful 7-day change.
 - The map depends on third-party basemap services. If they all fail, local
   reservoir data remains available without a background map.
+- The content policy's `script-src` has to allow the ArcGIS CDN and
+  `unsafe-eval`, because the SDK's workers import their own code from that CDN
+  and the charts package compiles schemas with `new Function`. It therefore
+  offers little protection against injected script; what it does enforce is
+  that fetches, images and fonts cannot leave this site and the named Esri
+  hosts.
 - Two accessibility findings are accepted rather than fixed, and both are in
   third-party components. `arcgis-chart` renders an inner element carrying a
   label with no role for it to attach to, so that label is inert — every

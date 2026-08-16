@@ -1181,9 +1181,9 @@ lives.
 - Rewrite the Playwright smoke test against the new DOM. **Gotcha: Calcite and ArcGIS components are shadow-DOM.** Playwright's CSS locators pierce open shadow roots, but map readiness cannot be asserted from the DOM — wait on the `arcgis-map` component's ready event / `view.when()` via `page.waitForFunction`, not on a selector. Keep the existing assertions: every published reservoir renders, a popup opens, zero console errors, screenshots uploaded.
 - **Assert no credential prompt can reach production.** Load the shell with a key-gated basemap forced to the front of the chain and assert there is no password input anywhere in the DOM (piercing shadow roots), and that the fallback basemap rendered. The policy in `src/arcgis/auth.ts` is unit-tested against a fake IdentityManager; this is the end-to-end half.
 - **Add axe-core to the Playwright run — done 2026-08-16.** It runs over all six pages at all three widths, WCAG 2.0/2.1 A and AA, on a settled page. It found five real defects and every one of them was ours: the `.sdk-badge` at 4.23:1 where AA wants 4.5, four sideways-scrolling tables and two code blocks that a mouse could scroll and a keyboard could not, the API field tables which are only scrollable at phone widths and so were invisible to a desktop-only pass, and both sliders' handles with no accessible name. Two accepted exceptions remain, both in vendor components and both documented in `AXE_EXCEPTIONS`.
-- Lighthouse and runtime-transfer audit. The emitted SDK budget already runs in every build; replace its fixture with the real shell entry, verify lazy chunks are requested only when used, and verify CDN-hosted assets resolve under the production CSP.
+- **Runtime-transfer audit — done 2026-08-16.** `tools/audit-transfer.mjs` reports what each page really requests, from which hosts, and whether the lazily-loaded chunks stayed lazy. The budget's fixture was replaced with the real shell entry long ago. Lazy loading is now also a gate in the browser suite, measured at first load. There was no production CSP to verify assets against; one was written from the audit's host list and now ships. Lighthouse itself was not added — see the entry below for why.
 - ~~Decide the fate of `explore.html`~~ — **settled by ADR-031.** It is a compatibility redirect to storage charts, and the recommendation above was overtaken: the no-SDK fallback property was real but the page had drifted into a second implementation of the same product, which was the larger cost.
-- Rewrite the main README. It is excellent and should stay that way; the architecture section is what changes.
+- **Rewrite the main README — done 2026-08-16.** The architecture section listed four surfaces and is now five plus the shared modules that appeared with them; the load-bearing rules gained the one-colour-language-per-map rule, the deadline rule, and the accessibility gate.
 
 ---
 
@@ -1742,6 +1742,71 @@ assertion and the `explore.html` decision are all done. Lighthouse and the
 runtime-transfer audit remain, as does the README's architecture section. The
 SDK budget already measures the real shell entry rather than a fixture, so
 that part of the audit is standing.
+
+### Phase 7, the transfer and policy half — 2026-08-16
+
+**What a reader actually downloads, measured.** `tools/audit-transfer.mjs`
+loads each page in a real browser, waits on its readiness signal, and reports
+every request: how many bytes came from this site, how many from elsewhere,
+which hosts, and whether anything that is supposed to be lazy arrived anyway.
+On demand like `profile-symbols.mjs`, because it needs a built `dist/` and a
+real Chromium.
+
+It measures the thing the build budget cannot. The budget walks the bundler's
+graph -- what an entry *could* pull in -- and that misses in both directions:
+it counts chunks a reader may never fetch, and it cannot see basemap tiles or
+font atlases, which appear in no bundle at all and are most of the wire
+traffic. The first run, uncompressed and therefore an upper bound: the storage
+map at 6.4 MiB local and 5.2 MiB remote across 868 requests, the drought view
+at 8.1 and 5.2, and the two text pages at 537 and 253 KiB with nothing remote
+at all.
+
+**Lazy loading is now a gate, not a hope.** The ranking chart's dynamic import
+is the only one in the project, and the charts package behind it is the
+largest thing the repository can ask a browser for. An ordinary import added
+anywhere in the entry graph would move all of it onto the first load of the
+primary page and nothing would look wrong -- the page would still work, just
+slower, for everyone who never opens the row. The build budget cannot catch
+it either: 440 KiB moving from lazy to eager inside a 2.13 MiB budget does not
+breach it. The browser suite now watches the requests, and reads them *before*
+the block opens the row, since asserting afterwards only proves the test
+clicked it.
+
+**There was no production content policy, so the audit's host list became
+one.** The plan asked to verify that CDN-hosted assets resolve under the
+production CSP; there was no CSP. One is now written from the measured hosts
+and enforced by a `meta` tag on every page.
+
+Be clear about what it buys, because the measurement forced an honest answer.
+`script-src` had to allow the SDK's CDN and `unsafe-eval`, and neither was a
+preference: without the CDN in `script-src` the charts workspace never
+finishes loading, because the SDK's workers import their own code from it, and
+the charts package compiles JSON schemas with `new Function`. Both were
+confirmed by removing them and watching the page fail. So this is not
+meaningful protection against injected script and the comment on every page
+says so. What it does buy is separate and real: no plugins, no injected `base`
+tag re-pointing relative URLs, no form posting anywhere, and every fetch,
+image and font confined to this origin and named Esri hosts -- so an injected
+`img` or `fetch` cannot exfiltrate to an attacker's host. `frame-ancestors`,
+`report-uri` and `sandbox` are header-only and GitHub Pages serves no custom
+headers, so they are simply out of reach here.
+
+The policy caught two things in the test harness on its way in, both worth
+recording. Playwright's string predicates -- `waitForFunction("window.x")` --
+are evaluated with `eval` inside the page, so all fourteen were converted to
+function predicates. And axe was being injected with
+`addScriptTag({ content })`, which is inline script; it is now served from the
+test's own origin, which is a small proof the policy is working.
+
+**Lighthouse was not added, deliberately.** Everything it would report here is
+already measured by something better suited: accessibility by axe-core on
+every run at three widths, transfer weight and request count by the audit
+above, console health and failure paths by the browser suite. Adding it means
+a large dependency tree for a score, and the two things a score would actually
+have told us -- the labels were the wrong font, the charts chunk could silently
+become eager -- are now gates. If a Lighthouse run is wanted before a release,
+run it by hand against `dist/`; nothing in the project needs it to be
+reproducible.
 
 ---
 

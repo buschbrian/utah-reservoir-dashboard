@@ -70,6 +70,59 @@ describe("a data-only commit deploys on its own", () => {
    * off this workflow completing rather than off CI passing, the broken pair
    * would have gone live and CI would only have turned red afterwards.
    */
+  /*
+   * The policy is written from measurement -- `tools/audit-transfer.mjs`
+   * reports every host the running application contacted -- and the whole
+   * browser suite runs against these pages with it in place, including the
+   * basemap fallback chain, which is the path most likely to reach a host the
+   * happy path never does.
+   *
+   * A `meta` policy cannot express `frame-ancestors`, `report-uri` or
+   * `sandbox`; those are header-only and GitHub Pages serves no custom
+   * headers. This asserts the enforceable subset, and that every page carries
+   * it -- a page added without one is a page with no policy at all.
+   */
+  it("gives every published page the same content policy", async () => {
+    const pages = ["index.html", "modern.html", "overview.html", "snow.html",
+      "drought.html", "methods.html", "data.html", "explore.html",
+      "legacy/index.html", "maplibre/index.html"];
+    const policies = new Set<string>();
+
+    for (const page of pages) {
+      const html = await read(page);
+      const match = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html);
+      expect(match, `${page} has no content policy`).not.toBeNull();
+      policies.add(match![1]!);
+    }
+
+    expect(policies.size, "every page must carry the same policy").toBe(1);
+  });
+
+  /*
+   * What the policy is actually for, given that `script-src` had to be
+   * permissive. The SDK starts workers that import their own code from its
+   * CDN and the charts package compiles schemas with `new Function`; both
+   * were confirmed by removing them and watching the pages fail. So the
+   * directives worth asserting are the ones that still do work: an injected
+   * image or fetch cannot reach an attacker's host, no plugin can load, no
+   * `base` tag can re-point relative URLs, and no form can post anywhere.
+   */
+  it("confines every fetch, image and font to this origin and named hosts", async () => {
+    const html = await read("index.html");
+    const policy = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)?.[1] ?? "";
+
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("object-src 'none'");
+    expect(policy).toContain("base-uri 'self'");
+    expect(policy).toContain("form-action 'none'");
+    for (const directive of ["connect-src", "img-src", "font-src"]) {
+      const sources = new RegExp(`${directive} ([^;"]+)`).exec(policy)?.[1] ?? "";
+      expect(sources, `${directive} must be an allowlist`).toContain("'self'");
+      expect(sources, `${directive} must not be open`).not.toContain("*;");
+      expect(sources).not.toMatch(/\shttps:\s|\shttps:$/);
+    }
+  });
+
   it("recomputes the drought coverage from the polygons it just downloaded", async () => {
     const refresh = await read(".github/workflows/refresh-data.yml");
     const download = refresh.indexOf("tools/fetch_drought_monitor.py");
