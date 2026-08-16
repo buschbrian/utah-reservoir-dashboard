@@ -28,6 +28,7 @@ import {
 } from "./arcade";
 import { hexToRgb } from "./color";
 import { STALE_ACCENT } from "./classes";
+import { RESERVOIR_DETAIL_SCALE } from "./label-scales";
 import type { ReservoirSymbol } from "./symbols";
 import { cssPixelsToPoints } from "./units";
 
@@ -236,6 +237,13 @@ export interface CIMTemplateSymbol {
   type: "cim";
   data: {
     type: "CIMSymbolReference";
+    /* The scale window this symbol draws in, read by `alternateSymbols`
+     * (SDK 5.1). ArcGIS scale bounds are the usual way round and 0 means
+     * "no limit": a symbol draws while `maxScale <= view scale <= minScale`.
+     * So the detailed symbol carries `minScale` -- it stops when the reader
+     * pulls out past it -- and the simplified one carries `maxScale`. */
+    minScale?: number;
+    maxScale?: number;
     symbol: {
       type: "CIMPointSymbol";
       symbolLayers: CIMVectorMarker[];
@@ -330,6 +338,10 @@ export function reservoirCIMTemplate(
     type: "cim",
     data: {
       type: "CIMSymbolReference",
+      /* Drawn from here inward. The simplified symbol below takes over
+       * further out, through `alternateSymbols`. */
+      minScale: RESERVOIR_DETAIL_SCALE,
+      maxScale: 0,
       symbol: {
         type: "CIMPointSymbol",
         symbolLayers: [fill, ring, shadow],
@@ -337,6 +349,62 @@ export function reservoirCIMTemplate(
         respectFrame: true
       },
       primitiveOverrides: overrides
+    }
+  };
+}
+
+/**
+ * The same reservoir, drawn for a view it is only a few pixels wide in.
+ *
+ * What is dropped is what cannot be seen at 1:10,700,000 rather than what
+ * is least important: the drop shadow is offset half a point and the fill
+ * carries a three-quarter-point inner stroke, and both are comfortably under
+ * one pixel there -- detail the renderer rasterizes and nobody resolves.
+ *
+ * What is kept is the map's actual claim. The ring is still sized by the
+ * reservoir's own capacity and the fill is still sized by how full it is, so
+ * physical scale and storage read exactly as they do close up; two layers and
+ * two overrides carry that instead of three and three. The dashed late ring
+ * goes too -- a four-on, three-off dash around an eight-pixel circle is a
+ * smudge, not a pattern -- and lateness stays legible because the ring keeps
+ * its amber colour, which is a renderer key rather than something this
+ * function decides.
+ *
+ * This is the `alternateSymbols` half of the pair (SDK 5.1, 2D only), so it
+ * must be a CIM symbol and must carry its own scale window.
+ */
+export function reservoirCIMTemplateSimple(
+  domain: number, late: boolean, color: string
+): CIMTemplateSymbol {
+  const ring = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [{
+    type: "CIMSolidStroke",
+    primitiveName: "ringStroke",
+    enable: true,
+    width: late ? 1.5 : 1,
+    color: late ? cimColor(STALE_ACCENT) : cimColor(color)
+  }]), "ring");
+
+  const fill = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [
+    { type: "CIMSolidFill", enable: true, color: cimColor(color) }
+  ]), "fill");
+
+  return {
+    type: "cim",
+    data: {
+      type: "CIMSymbolReference",
+      // Drawn from here outward: the mirror of the detailed symbol's window.
+      minScale: 0,
+      maxScale: RESERVOIR_DETAIL_SCALE,
+      symbol: {
+        type: "CIMPointSymbol",
+        symbolLayers: [fill, ring],
+        scaleSymbolsProportionally: false,
+        respectFrame: true
+      },
+      primitiveOverrides: [
+        override("ring", "Size", "Capacity ring", ringSizeExpression(domain)),
+        override("fill", "Size", "Storage fill", fillSizeExpression(domain))
+      ]
     }
   };
 }

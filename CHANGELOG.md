@@ -7,6 +7,38 @@ and is not listed here.
 
 ### Added
 
+- **Reservoirs draw in less detail when you are far away.** Zoomed out, each
+  reservoir is a plain circle: still sized by its capacity, still coloured by
+  how full it is. Zoom past about one step in and the full drawing returns —
+  the drop shadow, the outlined water level, the dashed ring on an old
+  reading — at the same moment the names appear. One threshold, so the map
+  gets more detailed in every way at once instead of piece by piece.
+
+### Changed
+
+- **Every label is set in Atkinson Hyperlegible Next.** It was drawn for the
+  Braille Institute to be read by people with low vision: the characters that
+  usually blur together at small sizes — capital I and lowercase l, 0 and O —
+  are given clearly different shapes. Every name on these maps is small type
+  over a detailed background, which is exactly what it is for.
+
+- **The snowpack map has its own colours.** It ran brown for the driest
+  through to teal for the wettest, replacing a red-to-blue scale that
+  overlapped the storage map's — two of the five colours were the same in
+  both. Brown to teal is the usual way of showing wet and dry, so the map
+  reads without the legend, and every step stays visible over the background
+  relief. The scale is one Esri publishes and has tested for colour blindness.
+
+- **The snowpack map no longer shows reservoirs.** It already carries fourteen
+  filled drainage areas and 217 measurement sites; adding sixty-nine named
+  points on top buried the readings the page is for. They stay on the drought
+  map, which has room for them, and they have their own map besides.
+
+- **The credits name the right tools.** MapLibre and CARTO are gone — those
+  were for a second map engine the site no longer runs. In their place: the
+  Python libraries that turn the published measurements into everything the
+  maps draw.
+
 - **The snow and drought maps work like the storage map now.** Both had
   shipped as pictures: a background, some shapes, and one zoom button.
   They now carry the same tools in the same corner — zoom, home, full

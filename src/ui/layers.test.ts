@@ -4,6 +4,8 @@ import type { Reservoir } from "../types";
 import { STORAGE_CLASSES } from "../viz/classes";
 import {
   DRAINAGE_LABEL_SIZE_PX,
+  LABEL_FONT_FAMILY,
+  LABEL_FONT_FAMILY_BOLD,
   RESERVOIR_LABEL_SCALE
 } from "../viz/label-scales";
 import { cssPixelsToPoints } from "../viz/units";
@@ -158,11 +160,30 @@ describe("reservoir names", () => {
    * -- which is the one label on these maps drawn bold. */
   it("is smaller and lighter than the drainage-area name it sits inside", () => {
     const [label] = reservoirLabelingInfo() as {
-      symbol: { font: { size: number; weight: string } };
+      symbol: { font: { size: number; family: string } };
     }[];
 
     expect(label?.symbol.font.size).toBeLessThan(DRAINAGE_LABEL_SIZE_PX);
-    expect(label?.symbol.font.weight).toBe("normal");
+    /* Weight comes from the family, not a `weight` property: these are four
+     * separate font files, and asking the regular family for "bold" gets a
+     * synthesized bold that loses the letterform distinctions the typeface
+     * exists for. So "lighter" is asserted as "not the bold family". */
+    expect(label?.symbol.font.family).toBe(LABEL_FONT_FAMILY);
+    expect(label?.symbol.font.family).not.toBe(LABEL_FONT_FAMILY_BOLD);
+  });
+
+  /* Atkinson Hyperlegible Next, drawn for low-vision readability and added
+   * to the SDK's 2D label fonts in 5.1. The drainage names are the only tier
+   * that takes the bold family. */
+  it("draws the drainage names in the bold family of the same typeface", () => {
+    const result = createDrainageLayer([{
+      huc6: "160202", name: "Jordan", states: "UT", polygons: [[square(-112, 40)]]
+    }]);
+    const font = (result.labelLayer.graphics.at(0)?.symbol as {
+      font?: { family?: string };
+    } | null | undefined)?.font;
+
+    expect(font?.family).toBe(LABEL_FONT_FAMILY_BOLD);
   });
 });
 

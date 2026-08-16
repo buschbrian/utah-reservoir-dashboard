@@ -1456,26 +1456,18 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map has no shown day`);
     check(mapState.slider && mapState.legendItems === 6,
       `${label}: day control ${mapState.slider}, legend ${mapState.legendItems} of 6`);
-    /* The reservoirs, as reference. They are allowed to be absent -- their
-     * payload is a separate fetch and this page is about snow -- but they
-     * are not allowed to be present and unnamed, because being named is the
-     * whole reason they are drawn here. */
-    check(mapState.ready?.mapReservoirs > 0,
-      `${label}: the snow map placed ${mapState.ready?.mapReservoirs} reservoirs`);
-    check(mapState.ready?.mapReservoirLabels === true,
-      `${label}: the snow map drew reservoirs without their names`);
-
+    /* The reservoirs are deliberately absent here. This map already carries
+     * fourteen filled basins and 217 site markers; the same points that are
+     * useful context on the drought map buried the readings on this one. */
     await checkViewMapParity(tab, check, label, "snow-map-host", "snow-map-hover",
-      ["snow-basins", "snow-sites", "reservoir-reference"]);
-    /* Three layers, three cards, one check each: the resolver walks the hits
-     * in layer order, so a mistake there shows up as one kind of feature
+      ["snow-basins", "snow-sites"]);
+    /* Two layers, two cards, one check each: the resolver walks the hits in
+     * layer order, so a mistake there shows up as one kind of feature
      * answering with another kind of description. */
     await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
       "snow-basins", "of normal");
     await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
       "snow-sites", "of normal");
-    await checkViewMapHover(tab, check, label, "snow-map-host", "snow-map-hover",
-      "reservoir-reference", "Reservoir,");
 
     /* One site's season. Chosen through the picker the way a reader would;
      * the drawn-point count is what proves a curve, not a prompt, is on

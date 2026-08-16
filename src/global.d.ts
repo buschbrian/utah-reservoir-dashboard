@@ -96,12 +96,6 @@ interface Window {
     mapDay?: string | null;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
-    /** Reservoirs drawn on the snow map for reference, 0 when that payload
-     * could not be read. They carry no storage colour: the snow scale owns
-     * this map. */
-    mapReservoirs?: number;
-    /** True while those reference reservoirs are carrying their names. */
-    mapReservoirLabels?: boolean;
     /** The measurement site whose season is open, or null for none. */
     site?: string | null;
     /** Days the open site's curve drew. 0 while no site is chosen. */

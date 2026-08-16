@@ -1520,6 +1520,71 @@ state type must be larger than the reservoir type. Five failures on the first
 full run were all one cause, worth recording: the suite serves `dist/`, so it
 was testing a build from before the fix.
 
+### Advanced symbology, and one colour table moved — 2026-08-16
+
+Three things from the 2026 SDK releases, all available on the 5.1 the project
+already runs.
+
+**`alternateSymbols` (5.1), on the same threshold as the labels.** Each
+`UniqueValueInfo` now carries a simplified alternate, and both symbols declare
+their own scale window on the `CIMSymbolReference`. Above 1:4,500,000 the map
+draws two layers and two overrides; below it, three and three. What the
+alternate drops is what cannot be resolved at the opening view -- a half-point
+drop shadow and a three-quarter-point inner stroke, both well under a pixel at
+1:10,700,000 -- and what it keeps is the map's actual claim, because the ring
+is still sized by capacity and the fill still by how full. The dashed late
+ring goes too, since a four-on three-off dash around an eight-pixel circle is a
+smudge; lateness survives as the amber ring colour, which is a renderer key
+rather than something the symbol builder decides.
+
+The threshold is deliberately `RESERVOIR_DETAIL_SCALE`, the same constant the
+reservoir labels use. Crossing one line makes the map more detailed in every
+respect at once, which is the same principle the label ladder encodes.
+Verified through the renderer itself rather than by eye: `getSymbolAsync` at
+1:10,700,000 returns the two-layer symbol and at 1:2,000,000 the three-layer
+one, both with their primitive overrides intact. That last part was the open
+question -- the documentation does not say whether an alternate keeps its
+Arcade overrides, and it does.
+
+**Atkinson Hyperlegible Next (5.1) on every label tier.** Drawn for the
+Braille Institute to be legible to low-vision readers, and 5.1 added it to the
+2D label fonts. Weight comes from the family name rather than a `weight`
+property, because these are four separate files and the regular family asked
+for bold gets a synthesized one. Only the drainage names take the bold family.
+*Not verified end to end in this environment:* the glyph fetch happens when
+the label engine paints, which needs a compositing browser, and the font host
+refuses a direct probe even for fonts that certainly exist. The family strings
+come from the SDK's own documented list, and a family the host does not know
+falls back to the default sans -- so the failure mode costs the typeface and
+never the label. Worth confirming on the live site.
+
+**One colour table moved, and it was a real defect.** Storage and snow were
+both drawing five-class RdYlBu, and `#fdae61` and `#abd9e9` were byte-identical
+in the two tables -- two maps of two unrelated quantities speaking the same
+colour language, which is exactly what "one colour language per map" exists to
+prevent. It went unnoticed because each table was internally consistent and
+each had its own test. Snow moved to Esri's **Green and Brown 6**, reversed:
+brown for deficit through to teal for surplus, which is the conventional
+moisture ramp, so it reads without the legend. Every class was checked for
+luminance as well as hue, because these are translucent fills over a
+shaded-relief basemap and a near-white middle would be indistinguishable from
+the grey that means "no value for this day".
+
+Storage stayed put, and the check is worth recording: its palette turns out to
+be Esri's **Blue and Red 9**, byte for byte. It is already a published,
+colour-blind-tested ramp, it is pinned to the frozen oracle by ADR-008, and it
+is read by the map, the legend, six charts and the table -- so there was
+nothing to gain and an ADR to write. The drought palette is the monitor's own
+and is not ours to change at all. A unit test now asserts that no snow colour
+appears in either of the other two tables.
+
+**The reservoirs came off the snow map.** They had been added the same day for
+parity. Fourteen filled basins plus 217 site markers plus sixty-nine named
+points is too much on one card, and the points that were meant as context
+buried the readings. They stay on the drought map, which has five broad
+national classes and room for them. The argument is density, not principle --
+the same layer is right on one map and wrong on the other.
+
 ---
 
 ## 4. Risks and traps

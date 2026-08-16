@@ -33,9 +33,11 @@ import { DRAINAGE_AREA_FIELD } from "../state/filters";
 import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
 import { STALE_COLOR, STORAGE_CLASSES } from "../viz/classes";
-import { reservoirCIMTemplate } from "../viz/cim";
+import { reservoirCIMTemplate, reservoirCIMTemplateSimple } from "../viz/cim";
 import {
   DRAINAGE_LABEL_SIZE_PX,
+  LABEL_FONT_FAMILY,
+  LABEL_FONT_FAMILY_BOLD,
   RESERVOIR_LABEL_SCALE,
   RESERVOIR_LABEL_SIZE_PX
 } from "../viz/label-scales";
@@ -110,7 +112,7 @@ export function reservoirLabelingInfo(): unknown[] {
       color: "rgba(74,91,102,0.95)",
       haloColor: "rgba(255,255,255,0.8)",
       haloSize: "1.2px",
-      font: { family: "sans-serif", size: RESERVOIR_LABEL_SIZE_PX, weight: "normal" }
+      font: { family: LABEL_FONT_FAMILY, size: RESERVOIR_LABEL_SIZE_PX }
     }
   }];
 }
@@ -183,10 +185,12 @@ export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLay
           color: "#263f52",
           haloColor: DRAINAGE_LABEL_HALO_COLOR,
           haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
+          /* The one bold tier on the map, and the only one that asks for
+           * the bold *family* -- a synthesized bold over a relief basemap
+           * loses the letterform distinctions this typeface exists for. */
           font: {
-            family: "sans-serif",
-            size: `${DRAINAGE_LABEL_SIZE_PX}px`,
-            weight: "bold"
+            family: LABEL_FONT_FAMILY_BOLD,
+            size: `${DRAINAGE_LABEL_SIZE_PX}px`
           }
         }
       }));
@@ -294,12 +298,18 @@ interface ReservoirEntries {
  */
 function reservoirRenderer(domain: number): unknown {
   const palette = [...STORAGE_CLASSES.map((entry) => entry.color), STALE_COLOR];
-  const infos: { value: string; symbol: unknown }[] = [];
+  const infos: { value: string; symbol: unknown; alternateSymbols: unknown[] }[] = [];
   for (const late of [false, true]) {
     palette.forEach((color, index) => {
       infos.push({
         value: symbolKey(index === STORAGE_CLASSES.length ? -1 : index, late),
-        symbol: reservoirCIMTemplate(domain, late, color)
+        symbol: reservoirCIMTemplate(domain, late, color),
+        /* SDK 5.1. Each info may carry alternates for other scale windows,
+         * and the renderer picks whichever window contains the view scale.
+         * Twelve symbols become twenty-four, but they are still assigned
+         * once -- the count that mattered was never the number of symbols,
+         * it was whether the SDK had to recompile one per feature. */
+        alternateSymbols: [reservoirCIMTemplateSimple(domain, late, color)]
       });
     });
   }

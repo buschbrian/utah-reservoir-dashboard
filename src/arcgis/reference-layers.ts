@@ -28,6 +28,7 @@ import {
   COUNTY_LABEL_SCALE,
   COUNTY_LABEL_SIZE_PX,
   COUNTY_SCALE,
+  LABEL_FONT_FAMILY,
   STATE_LABEL_SCALE,
   STATE_LABEL_SIZE_PX
 } from "../viz/label-scales";
@@ -123,7 +124,7 @@ function stateLayer(): FeatureLayer {
         color: "rgba(74,91,102,0.85)",
         haloColor: "rgba(255,255,255,0.7)",
         haloSize: "1.4px",
-        font: { family: "sans-serif", size: STATE_LABEL_SIZE_PX, weight: "normal" }
+        font: { family: LABEL_FONT_FAMILY, size: STATE_LABEL_SIZE_PX }
       }
     }] as never
   });
@@ -164,7 +165,7 @@ function countyLayer(): FeatureLayer {
         color: "rgba(108,122,133,0.85)",
         haloColor: "rgba(255,255,255,0.7)",
         haloSize: "1.2px",
-        font: { family: "sans-serif", size: COUNTY_LABEL_SIZE_PX, weight: "normal" }
+        font: { family: LABEL_FONT_FAMILY, size: COUNTY_LABEL_SIZE_PX }
       }
     }] as never
   });

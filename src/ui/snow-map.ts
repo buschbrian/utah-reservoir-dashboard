@@ -4,18 +4,19 @@
  * on the same scale (the one idiom the agency's own map gets right, adopted
  * by the external product review in the modernization plan).
  *
- * Graphics, not FeatureLayers, for the basins and the sites: fourteen
- * polygons and two hundred points that change symbol when the day changes
- * are cheaper to hold as graphics than to rebuild as a layer, and none of
- * the storage map's renderer machinery is needed. Colours come from
- * `SNOW_CLASSES` only.
+ * Graphics, not FeatureLayers: fourteen polygons and two hundred points that
+ * change symbol when the day changes are cheaper to hold as graphics than to
+ * rebuild as a layer, and none of the storage map's renderer machinery is
+ * needed. Colours come from `SNOW_CLASSES` only.
  *
- * The reservoirs are the exception and are a FeatureLayer, because they are
- * labelled and only the SDK's label engine deconflicts names. They are drawn
- * as neutral reference points with no storage colour at all: this map has one
- * colour language and the snow scale owns it (ADR-021). What they add is the
- * reading this page exists for -- which reservoirs sit under the basin that
- * is at half its normal snow.
+ * The reservoirs are deliberately *not* drawn here, and were removed on
+ * 2026-08-16 after being tried. This map already carries fourteen filled
+ * basins and two hundred and seventeen site markers on one scale, and sixty
+ * nine more points with names beside them buried the readings the page
+ * exists to show. They earn their place on the drought map, which has five
+ * broad national classes and room for them, and they have a whole map of
+ * their own besides. Density is the argument, not principle: the same points
+ * are good context there and noise here.
  */
 import ArcGISMap from "@arcgis/core/Map";
 import Graphic from "@arcgis/core/Graphic";
@@ -59,10 +60,6 @@ export interface SnowMapStatus {
   basinsWithValues: number;
   sitesWithValues: number;
   day: string | null;
-  /** Reservoirs drawn for reference, 0 when that payload could not be read. */
-  reservoirs: number;
-  /** True while those reference reservoirs are carrying their names. */
-  reservoirLabels: boolean;
 }
 
 export interface SnowMapController {
@@ -125,13 +122,11 @@ export async function createSnowMap(
   card: HTMLElement,
   areas: readonly DrainageArea[],
   sites: readonly SnowSite[],
-  reservoirs: readonly ReservoirReference[],
   firstDay: { values: MapDayValues; day: string } | null
 ): Promise<SnowMapController> {
   const basinLayer = new GraphicsLayer({ id: BASIN_LAYER_ID });
   const siteLayer = new GraphicsLayer({ id: SITE_LAYER_ID });
 
-  const areaNames = new Map(areas.map((area) => [area.huc6, area.name]));
   const basinGraphics = new Map<string, Graphic>();
   for (const area of areas) {
     /* All rings of all parts in one polygon: the even-odd rule keeps holes
@@ -162,13 +157,6 @@ export async function createSnowMap(
     siteLayer.add(graphic);
   }
 
-  /* Empty when the reservoir payload could not be read, which is not an
-   * error on this page: the reservoirs are context here, and the snow
-   * numbers this map colours are all in the chart and tables regardless. */
-  const reference = createReservoirReferenceLayer(reservoirs);
-  const reservoirByName = new Map(
-    reservoirs.map((reservoir) => [reservoir.name, reservoir]));
-
   const status: SnowMapStatus = {
     basemap: false,
     basemapDegraded: false,
@@ -177,15 +165,12 @@ export async function createSnowMap(
     sites: siteGraphics.size,
     basinsWithValues: 0,
     sitesWithValues: 0,
-    day: null,
-    reservoirs: reference.drawn,
-    reservoirLabels: reference.labelled
+    day: null
   };
 
-  /* Order is the reading order: the basin fill is the background, the sites
-   * read on top of it, and the reservoirs sit above both because a name has
-   * to clear whatever it names. */
-  const map = new ArcGISMap({ layers: [basinLayer, siteLayer, reference.layer] });
+  /* Order is the reading order: the basin fill is the background and the
+   * sites read on top of it. */
+  const map = new ArcGISMap({ layers: [basinLayer, siteLayer] });
   await followThemeBasemap(map, (basemapStatus) => {
     status.basemap = basemapStatus.basemap;
     status.basemapDegraded = basemapStatus.degraded;
@@ -226,35 +211,20 @@ export async function createSnowMap(
   /*
    * Hover, on the same wiring the storage map uses.
    *
-   * Three layers in one hit test, resolved in the order they are listed --
-   * the SDK answers topmost first, so a reservoir name beats the site under
-   * it and a site beats the basin under that. Each answer says what the
-   * colour under the pointer cannot: how many sites the basin mean came
-   * from, how much snow the percentage is a percentage of, and which
-   * drainage area a reservoir is in.
+   * Two layers in one hit test, resolved in the order they are listed -- the
+   * SDK answers topmost first, so a site beats the basin under it. Each
+   * answer says what the colour under the pointer cannot: how many sites the
+   * basin mean came from, and how much snow the percentage is a percentage
+   * of.
    */
   wireMapHover(element, {
     card,
-    include: () => [reference.layer, siteLayer, basinLayer],
+    include: () => [siteLayer, basinLayer],
     resolve: (results: readonly GraphicHit[]): HoverResolution | null => {
       for (const result of results) {
         const attributes = result.graphic?.attributes;
         if (!attributes) continue;
         const layerId = hitLayerId(result);
-
-        if (layerId === RESERVOIR_REFERENCE_LAYER_ID) {
-          const reservoir = reservoirByName.get(String(attributes["name"]));
-          if (!reservoir) continue;
-          const areaName = reservoir.huc6 ? areaNames.get(reservoir.huc6) ?? null : null;
-          return {
-            content: {
-              heading: reservoir.name,
-              lines: referenceReservoirLines(reservoir, areaName,
-                "Open the storage map for its own reading")
-            },
-            graphic: result.graphic
-          };
-        }
 
         if (layerId === SITE_LAYER_ID) {
           const site = siteByStation.get(String(attributes["station"]));

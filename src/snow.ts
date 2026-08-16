@@ -22,7 +22,6 @@ import "@esri/calcite-components/components/calcite-slider";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageAreas } from "./data/boundaries";
-import { loadReservoirs } from "./data/load";
 import { loadSnowpack } from "./data/snow-load";
 import {
   basinChoices,
@@ -239,9 +238,7 @@ function renderSnow(payload: SnowpackPayload): void {
         mapSitesWithValues: map.status.sitesWithValues,
         mapDay: map.status.day,
         mapBasemap: map.status.basemap,
-        mapViewReady: map.status.viewReady,
-        mapReservoirs: map.status.reservoirs,
-        mapReservoirLabels: map.status.reservoirLabels
+        mapViewReady: map.status.viewReady
       } : {})
     };
   };
@@ -518,33 +515,21 @@ function renderSnow(payload: SnowpackPayload): void {
       installAnonymousAuthPolicy();
       const areas = await loadDrainageAreas();
       if (areas.length === 0) throw new Error("no drainage boundaries");
-      /* The reservoirs are reference on this page, so they are fetched
-       * beside the boundaries and a failure costs their dots and nothing
-       * else -- the snow numbers this map colours never depended on them.
-       * Fetched here rather than with the page, because the snowpack file
-       * is already 1.9 MB and the reader is reading the chart by now. */
-      const reservoirs = await loadReservoirs()
-        .then((reservoirPayload) => reservoirPayload.reservoirs)
-        .catch((error: unknown) => {
-          console.warn("The snow map has no reservoirs to place:", error);
-          return [];
-        });
       /* Framed, controlled and constrained exactly like the storage map,
        * with the hover card already beside it in the host. */
       const { element: mapElement, card } = createViewMap(mapHost, {
-        label: "A map of the drainage areas, snow measurement sites and reservoirs",
+        label: "A map of the drainage areas and snow measurement sites",
         cardId: "snow-map-hover"
       });
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
-      map = await createSnowMap(
-        mapElement, card, areas, payload.sites, reservoirs, firstDay);
+      map = await createSnowMap(mapElement, card, areas, payload.sites, firstDay);
       map.setArea(currentArea);
       mapHost.setAttribute("aria-busy", "false");
       if (!map.status.basemap) {
         mapHost.append(mapStatusNote("The map background is unavailable. " +
-          "Areas, sites and reservoirs are still drawn from local data."));
+          "Areas and sites are still drawn from local data."));
       } else if (map.status.basemapDegraded) {
         /* Said out loud, as the storage map says it: the reader is looking
          * at a different background from the one this page chose, and a map
