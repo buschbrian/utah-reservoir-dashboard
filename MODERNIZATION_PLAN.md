@@ -1641,6 +1641,58 @@ the snow URL contract grew three fields, which broke every partial
 control that forgets a field can no longer drop another control's choice out
 of a shared link.
 
+### The weekly drought automation — 2026-08-16
+
+The last open item on slice 4, and it turned out to be a live defect rather
+than a convenience.
+
+**What was actually wrong.** The daily refresh has downloaded
+`usdm-current.geojson` since the day it learned about drought, and
+`compute_drought_coverage.py` has only ever been run by hand. The plan
+recorded that as "run the tool after each download; wiring both into a
+scheduled job remains open", which reads like tidying. It was not. The drought
+view refuses to draw when the polygons and the coverage name different weeks
+-- deliberately, because a map of one week over figures from another is worse
+than no map -- so on the next Thursday the monitor published, the job would
+have committed new polygons beside week-old coverage and the drought map would
+have gone dark behind its failure note. The deploy chains off *this workflow
+completing* rather than off CI passing, so the broken pair would have
+published and CI would only have turned red afterwards. The next release was
+four days out when this was found.
+
+**The fix is atomicity, not scheduling.** The recompute now runs immediately
+after the download, and both files are staged in one `git add`: either both
+move to the new week or neither does. If the recompute fails, the polygons are
+put back so the pair stays on the week that still agrees. A separate weekly
+cron was considered and rejected -- the fetch already runs daily, which is a
+superset of weekly, and a second workflow writing the same two files would add
+a push race for nothing.
+
+`tools/check_drought_pair.py` is the belt to that braces. It runs between the
+recompute and the commit, restores both files from the last agreeing commit if
+anything it did not anticipate has left them disagreeing, and never lets the
+mismatch reach a commit the deploy will publish. Publishing yesterday's drought
+week is a small, honest loss; publishing two different weeks is a broken page.
+
+**The other half of "weekly" is noticing when it is not.** Nothing in the job
+fails when the monitor misses a Thursday: the last verified week stays on the
+page with its age stated, which is the right behaviour for a reader and means
+nobody finds out. The same tool reports the release age as step outputs, and a
+late release now opens an issue and closes it when the next map lands -- the
+self-healing pattern the stale-feed alert already uses.
+
+**One constant, two languages.** `LATE_AFTER_DAYS = 9` now exists in Python as
+well as in `src/drought-model.ts`, because the page and the pipeline have to
+agree about what "late" means. A pytest reads the number out of the TypeScript
+source and asserts they match, in the same spirit as the frozen colour oracle:
+two copies that each look right on their own are exactly what drifts.
+
+The recompute was measured before being put on a daily schedule -- 2.1 seconds
+for all fourteen units, deterministic, no timestamps, and it reports
+"unchanged" and writes nothing when the week has not moved. So running it every
+day rather than only on a detected change costs nothing and repairs a coverage
+file that has somehow fallen behind, instead of waiting for someone to notice.
+
 ---
 
 ## 4. Risks and traps

@@ -5,7 +5,23 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The drought map would have broken on the next weekly release.** The daily
+  job downloaded the new drought polygons but never recomputed the coverage
+  figures the page draws from them, so the two files would have described
+  different weeks — and the page refuses to draw that, correctly, rather than
+  showing one week's map over another week's numbers. It now recomputes the
+  coverage from the polygons it just downloaded and commits both together, so
+  either both move to the new week or neither does.
+
 ### Added
+
+- **The drought data says when it has stopped arriving.** The monitor
+  publishes each Thursday. When a week goes by without one, the page has
+  always shown the age — but nothing told anyone. A missed release now opens
+  an issue on its own and closes it again when the next map arrives, the same
+  way the quiet-reservoir-feed alert already works.
 
 - **Dry land against banked water, as a chart.** The drought page now plots
   every drainage area as one point: how much of its land is in severe drought
