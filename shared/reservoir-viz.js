@@ -45,12 +45,15 @@
    * five-class RdYlBu palette, ordered low-storage red to high-storage blue.
    * The pale centre is always drawn with an outline; no text relies on the
    * fill alone for contrast. See ADR-028. */
+  /* Crameri `davos` reversed: sequential data drawn with a sequential ramp,
+   * with monotonically decreasing luminance. See ADR-039; the bands are
+   * unchanged from ADR-028. */
   var CLASSES = [
-    { min: 0,  color: "#d7191c", label: "Under 20%" },
-    { min: 20, color: "#fdae61", label: "20–40%" },
-    { min: 40, color: "#ffffbf", label: "40–60%" },
-    { min: 60, color: "#abd9e9", label: "60–80%" },
-    { min: 80, color: "#2c7bb6", label: "80% and over" }
+    { min: 0,  color: "#dde2b1", label: "Under 20%" },
+    { min: 20, color: "#95aa87", label: "20–40%" },
+    { min: 40, color: "#698c94", label: "40–60%" },
+    { min: 60, color: "#416e9d", label: "60–80%" },
+    { min: 80, color: "#1b3e82", label: "80% and over" }
   ];
 
   var STALE_COLOR = "#9e9e9e";

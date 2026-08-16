@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-039 (the bands stand; the ramp does not)
 
 ## Date
 

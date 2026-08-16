@@ -4,7 +4,7 @@
  * against a literal radius, so a morning's data refresh cannot fail them. */
 import { describe, expect, it } from "vitest";
 import { readPayload } from "../data/payload-fixture";
-import { STALE_ACCENT } from "./classes";
+import { CAPACITY_RING_COLOR, STALE_ACCENT } from "./classes";
 import { LATE_DASH, cimColor, circleRing, reservoirCIM } from "./cim";
 import { reservoirSymbol, sizeDomain } from "./symbols";
 import { cssPixelsToPoints } from "./units";
@@ -111,10 +111,19 @@ describe("the composed reservoir symbol", () => {
       effects: [{ type: "CIMGeometricEffectDashes", dashTemplate: [...LATE_DASH] }]
     });
 
+    /* The ring is the capacity, so it carries the constant outline rather
+     * than the storage colour -- only the fill is coloured by the value. It
+     * used to take the storage colour, which broke once the ramp became
+     * sequential: a near-empty reservoir is a ring with almost no fill in it,
+     * so a pale low end made the whole symbol disappear. */
     const current = reservoirCIM({ ringPx: 20, fillPx: 10, color: "#1a9850", accent: null });
     const stroke = layersOf(current)[1]?.markerGraphics[0]?.symbol.symbolLayers[0];
-    expect(stroke).toMatchObject({ color: cimColor("#1a9850") });
+    expect(stroke).toMatchObject({ color: cimColor(CAPACITY_RING_COLOR) });
     expect(stroke).not.toHaveProperty("effects");
+
+    const fill = layersOf(current)[0]?.markerGraphics[0]?.symbol.symbolLayers[0];
+    expect(fill, "the fill still carries the storage colour")
+      .toMatchObject({ color: cimColor("#1a9850") });
   });
 
   it("puts the shadow under the ring, never over the fill", () => {

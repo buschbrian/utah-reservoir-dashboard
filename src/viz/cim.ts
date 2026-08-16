@@ -27,7 +27,7 @@ import {
   shadowSizeExpression
 } from "./arcade";
 import { hexToRgb } from "./color";
-import { STALE_ACCENT } from "./classes";
+import { CAPACITY_RING_COLOR, STALE_ACCENT } from "./classes";
 import { RESERVOIR_DETAIL_SCALE } from "./label-scales";
 import type { ReservoirSymbol } from "./symbols";
 import { cssPixelsToPoints } from "./units";
@@ -171,7 +171,7 @@ export function reservoirCIM(symbol: ReservoirSymbol): CIMSymbolReference {
     type: "CIMSolidStroke",
     enable: true,
     width: late ? 1.5 : 1,
-    color: cimColor(symbol.accent ?? symbol.color),
+    color: cimColor(symbol.accent ?? CAPACITY_RING_COLOR),
     // A dashed ring is how both production maps say "this reading is older
     // than this reservoir's own update schedule".
     ...(late ? {
@@ -288,7 +288,10 @@ function named(layer: CIMVectorMarker, primitiveName: string): CIMVectorMarker {
 export function reservoirCIMTemplate(
   domain: number, late: boolean, color: string
 ): CIMTemplateSymbol {
-  const strokeColor = late ? cimColor(STALE_ACCENT) : cimColor(color);
+  /* The ring is the reservoir's capacity, not its storage, so it no longer
+   * takes the storage colour -- see `CAPACITY_RING_COLOR`. Amber still wins
+   * when the reading is late, because that is a state rather than a value. */
+  const strokeColor = late ? cimColor(STALE_ACCENT) : cimColor(CAPACITY_RING_COLOR);
   const ring = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [{
     type: "CIMSolidStroke",
     /* The colour is on the stroke, not on the marker around it. An override
@@ -381,7 +384,7 @@ export function reservoirCIMTemplateSimple(
     primitiveName: "ringStroke",
     enable: true,
     width: late ? 1.5 : 1,
-    color: late ? cimColor(STALE_ACCENT) : cimColor(color)
+    color: late ? cimColor(STALE_ACCENT) : cimColor(CAPACITY_RING_COLOR)
   }]), "ring");
 
   const fill = named(circleLayer(cssPixelsToPoints(RING_PLACEHOLDER_PX), [

@@ -7,6 +7,21 @@ and is not listed here.
 
 ### Changed
 
+- **The storage map's colours run one direction now.** Percent full goes from
+  empty to full and nothing happens in the middle, but it was drawn with a
+  scale that fades from red through pale yellow to blue — a shape that says
+  something changes at halfway. It now runs pale and dry at empty to deep
+  water at full, getting steadily darker, so the order reads even in black and
+  white or to someone who cannot separate the colours. The five 20-point bands
+  are unchanged.
+
+- **A reservoir's outline no longer takes its storage colour.** The circle's
+  size has always meant capacity and the filled part how full it is; colouring
+  the outline by storage too meant a nearly empty reservoir was a pale ring
+  with nothing inside — the hardest thing to see on the map, and the one that
+  matters most. The outline is now a constant dark edge, so every reservoir is
+  visible whatever its level, and the colour means one thing.
+
 - **The snowpack map now has six classes instead of five, and the extra one is
   where the readings actually are.** The four thresholds the measuring service
   reports against are unchanged; a fifth was added at 25% of normal, because
