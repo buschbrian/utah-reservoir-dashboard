@@ -36,6 +36,16 @@ const TYPES = {
 
 const server = createServer(async (req, res) => {
   let rel = decodeURIComponent(req.url.split("?")[0]);
+  /* axe, served from this origin rather than injected as inline script.
+   * The pages carry a content policy without `unsafe-inline`, and
+   * `addScriptTag({ content })` is inline script -- correctly refused. A
+   * same-origin file satisfies `script-src 'self'`, which is also a small
+   * proof that the policy is doing its job. */
+  if (rel === "/__axe.js") {
+    res.writeHead(200, { "content-type": "text/javascript" });
+    res.end(AXE_SOURCE);
+    return;
+  }
   if (rel.endsWith("/")) rel += "index.html";
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT)) { res.writeHead(403).end("forbidden"); return; }
@@ -165,6 +175,38 @@ function axeViolations(violations) {
  * URL, so the existing console filter could not tell it from a missing tile.
  * The only place the mistake is visible is the request itself.
  */
+/*
+ * The lazily-loaded chunks, watched on the wire.
+ *
+ * The storage map's ranking chart is behind a dynamic import that only runs
+ * when the reader opens that row, and the charts package it pulls in is the
+ * largest thing this repository can ask a browser for -- roughly 440 KiB
+ * gzipped on its own. An ordinary import added anywhere in the entry graph
+ * would move all of it onto the first load of the primary page and nothing
+ * would look wrong: the page would still work, just slower, for everyone who
+ * never opens the row.
+ *
+ * The build budget cannot see this. It measures the entry's static graph in
+ * bytes, and 440 KiB moving from "lazy" to "eager" inside a 2.13 MiB budget
+ * does not breach it. Only the request tells you.
+ */
+const LAZY_CHUNK_MARKERS = ["overview-charts", "charts-components"];
+
+function watchLazyChunks(tab) {
+  const loaded = [];
+  tab.on("request", (request) => {
+    const url = request.url();
+    if (LAZY_CHUNK_MARKERS.some((marker) => url.includes(marker))) loaded.push(url);
+  });
+  return loaded;
+}
+
+function checkLazyChunks(check, label, loaded) {
+  check(loaded.length === 0,
+    `${label}: a lazily-loaded chart chunk was fetched on the first load, ` +
+    `so every reader now waits for it: ${[...new Set(loaded)].join(", ")}`);
+}
+
 function watchLabelFonts(tab) {
   const missing = [];
   tab.on("response", (response) => {
@@ -182,7 +224,7 @@ function checkLabelFonts(check, label, missing) {
 }
 
 async function checkAccessibility(tab, check, label) {
-  await tab.addScriptTag({ content: AXE_SOURCE });
+  await tab.addScriptTag({ url: `${URL}__axe.js` });
   const violations = await tab.evaluate(async (tags) => {
     const result = await window.axe.run(document, {
       runOnly: { type: "tag", values: tags }
@@ -267,6 +309,7 @@ for (const viewport of VIEWPORTS) {
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
   const labelFonts = watchLabelFonts(tab);
+  const lazyChunks = watchLazyChunks(tab);
   tab.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
@@ -278,7 +321,12 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    /* Read here, before this block opens the ranking row. That row is what
+     * legitimately triggers the dynamic import, so asserting at the end of
+     * the block would only ever prove the test clicked it. First load is the
+     * claim, so first load is where it is measured. */
+    checkLazyChunks(check, label, [...lazyChunks]);
 
     const ready = await tab.evaluate(() => window.__dashboardReady);
     console.log("  ready:", JSON.stringify(ready));
@@ -503,7 +551,7 @@ for (const viewport of VIEWPORTS) {
       select.value = "late";
       select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
     }, controls);
-    await tab.waitForFunction("window.__dashboardReady.filtered === true", { timeout: 5000 });
+    await tab.waitForFunction(() => window.__dashboardReady.filtered === true, { timeout: 5000 });
 
     const filtered = await tab.evaluate(async (selector) => {
       const layer = document.querySelector("arcgis-map")?.map?.findLayerById("reservoirs");
@@ -588,7 +636,7 @@ for (const viewport of VIEWPORTS) {
     }
 
     await tab.locator(`${controls} [data-filter="reset"]`).first().click();
-    await tab.waitForFunction("window.__dashboardReady.filtered === false", { timeout: 5000 });
+    await tab.waitForFunction(() => window.__dashboardReady.filtered === false, { timeout: 5000 });
     const cleared = await tab.evaluate((selector) => ({
       effect: document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs")?.featureEffect ?? null,
@@ -630,7 +678,7 @@ for (const viewport of VIEWPORTS) {
         }));
       }, pointerName);
       await tab.waitForFunction(
-        "document.querySelector('#map-hover')?.hidden === false",
+        () => document.querySelector("#map-hover")?.hidden === false,
         { timeout: 5000 });
       const hoverText = (await tab.locator("#map-hover").innerText()).trim();
       check(hoverText.includes(pointerName) && hoverText.includes("%"),
@@ -928,7 +976,7 @@ for (const viewport of VIEWPORTS) {
      * and only those -- a chart ranking unknowns at zero would invent a
      * drought. Opening the row is what builds it, so this waits on the
      * readiness field the render writes last. */
-    await tab.waitForFunction("window.__dashboardReady.rankingBars > 0", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady.rankingBars > 0, { timeout: 60000 });
     const ranking = await tab.evaluate(() => {
       const chart = document.querySelector('[data-ranking="host"] arcgis-chart');
       return {
@@ -1344,7 +1392,7 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(`${URL}data.html`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dataDocsReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dataDocsReady !== undefined, { timeout: 60000 });
     const state = await tab.evaluate(() => ({
       ready: window.__dataDocsReady,
       files: document.querySelectorAll(".api-file").length,
@@ -1512,7 +1560,7 @@ for (const viewport of VIEWPORTS) {
     await tab.goto(`${URL}snow.html?area=140100`, {
       waitUntil: "domcontentloaded", timeout: 60000
     });
-    await tab.waitForFunction("window.__snowReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__snowReady !== undefined, { timeout: 60000 });
     const linked = await tab.evaluate(() => ({
       ready: window.__snowReady,
       tableRows: document.querySelectorAll("#snow-site-rows tr").length,
@@ -1528,7 +1576,7 @@ for (const viewport of VIEWPORTS) {
 
     await tab.selectOption("#snow-area", "all");
     await tab.waitForFunction(
-      "window.__snowReady && window.__snowReady.area === null", { timeout: 10000 });
+      () => window.__snowReady && window.__snowReady.area === null, { timeout: 10000 });
     const state = await tab.evaluate(() => ({
       ready: window.__snowReady,
       tableRows: document.querySelectorAll("#snow-site-rows tr").length,
@@ -1553,7 +1601,7 @@ for (const viewport of VIEWPORTS) {
      * is a second wait; the counts prove the choropleth and the sites were
      * actually built, which a blank-canvas screenshot cannot. */
     await tab.waitForFunction(
-      "window.__snowReady && window.__snowReady.mapDay !== undefined",
+      () => window.__snowReady && window.__snowReady.mapDay !== undefined,
       { timeout: 60000 });
     const mapState = await tab.evaluate(() => ({
       ready: window.__snowReady,
@@ -1600,7 +1648,7 @@ for (const viewport of VIEWPORTS) {
       `${label}: the site picker offers no sites`);
     await tab.selectOption("#snow-site", firstStation);
     await tab.waitForFunction(
-      "window.__snowReady && window.__snowReady.site !== null", { timeout: 10000 });
+      () => window.__snowReady && window.__snowReady.site !== null, { timeout: 10000 });
     const siteState = await tab.evaluate(() => ({
       ready: window.__snowReady,
       chart: Boolean(document.querySelector("#snow-site-detail svg")),
@@ -1652,7 +1700,7 @@ for (const viewport of VIEWPORTS) {
     await tab.goto(`${URL}drought.html`, {
       waitUntil: "domcontentloaded", timeout: 60000
     });
-    await tab.waitForFunction("window.__droughtReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__droughtReady !== undefined, { timeout: 60000 });
     const state = await tab.evaluate(() => ({
       ready: window.__droughtReady,
       rows: document.querySelectorAll(".drought-row").length,
@@ -1683,7 +1731,7 @@ for (const viewport of VIEWPORTS) {
     /* The map half: the weekly polygons in the monitor's palette under the
      * drainage outlines. Counted, because a blank canvas screenshots fine. */
     await tab.waitForFunction(
-      "window.__droughtReady && window.__droughtReady.mapClassesDrawn !== undefined",
+      () => window.__droughtReady && window.__droughtReady.mapClassesDrawn !== undefined,
       { timeout: 60000 });
     const mapState = await tab.evaluate(() => ({ ready: window.__droughtReady }));
     console.log("  map:", JSON.stringify({
@@ -1804,7 +1852,7 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const ready = await tab.evaluate(() => window.__dashboardReady);
     console.log("  ready:", JSON.stringify(ready), `\n  refused: ${refused.length} request(s)`, refused.slice(0,4));
 
@@ -1873,7 +1921,7 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const ready = await tab.evaluate(() => window.__dashboardReady);
     console.log("  ready:", JSON.stringify(ready), `\n  refused: ${refused.length} request(s)`);
     check(refused.length >= 3, `${label}: the complete fallback chain was not exercised`);
@@ -1932,7 +1980,7 @@ for (const viewport of VIEWPORTS) {
     check(Boolean(wanted), `${label}: no two-word reservoir to build a link from`);
     const link = `${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}`;
     await tab.goto(link, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const ready = await tab.evaluate(() => window.__dashboardReady);
     console.log("  ready:", JSON.stringify(ready));
 
@@ -1981,7 +2029,7 @@ for (const viewport of VIEWPORTS) {
     await tab.goto(`${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}` +
       "&reporting=late&powell=include",
     { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const restored = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       search: window.location.search,
@@ -2012,7 +2060,7 @@ for (const viewport of VIEWPORTS) {
     const storageClass = sharedFilter?.storageClass;
     await tab.goto(`${URL}?drainage=${area}&class=${storageClass}`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const narrowed = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       control: document.querySelector('#start-panel [data-filter="drainage"]')?.value,
@@ -2066,7 +2114,7 @@ for (const viewport of VIEWPORTS) {
     // selection, and the reader gets the ordinary starting view.
     await tab.goto(`${URL}?reservoir=Not+A+Reservoir`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const unknown = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       search: window.location.search
@@ -2115,7 +2163,7 @@ for (const failure of [
   console.log(`\n=== ${label}`);
   try {
     await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await tab.waitForFunction("window.__dashboardReady !== undefined", { timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const ready = await tab.evaluate(() => window.__dashboardReady);
     console.log("  ready:", JSON.stringify(ready));
 

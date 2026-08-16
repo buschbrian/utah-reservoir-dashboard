@@ -2,6 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- Measured, not guessed: every source is a host the running application
+       was observed to contact by tools/audit-transfer.mjs, and the whole
+       browser suite runs against these pages with this policy in place --
+       including the basemap fallback chain, which reaches hosts the happy
+       path never does.
+
+       Be clear about what this does and does not buy. `script-src` is
+       permissive by necessity and was arrived at by measurement, not
+       preference: the SDK starts workers that import their own code from its
+       CDN, and the charts package compiles JSON schemas with `new Function`.
+       Both were confirmed by removing them and watching the pages fail --
+       without the CDN the charts workspace never finishes loading at all.
+       So this is not meaningful protection against injected script.
+
+       What it does buy is real and separate: no plugins, no injected `base`
+       tag redirecting relative URLs, no form posting anywhere, and every
+       fetch, image and font restricted to this origin and named Esri hosts.
+       An injected `img` or `fetch` cannot exfiltrate to an attacker's host.
+
+       A `meta` policy cannot express `frame-ancestors`, `report-uri` or
+       `sandbox` -- those are header-only and GitHub Pages serves no custom
+       headers -- so this is the enforceable subset for a static host. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://*.arcgis.com https://*.arcgisonline.com; worker-src 'self' blob: https://*.arcgis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.arcgis.com https://*.arcgisonline.com; font-src 'self' data: https://*.arcgis.com; connect-src 'self' https://*.arcgis.com https://*.arcgisonline.com" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23356b6f'/%3E%3Cpath d='M16 6c-4 6-7 9-7 13a7 7 0 0 0 14 0c0-4-3-7-7-13Z' fill='white'/%3E%3C/svg%3E" />
   <meta name="description" content="Public reservoir, snow, and reference data from the Utah Reservoir Dashboard." />

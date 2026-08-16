@@ -106,7 +106,13 @@ On demand, not part of the build and not runnable in CI:
 
 ```bash
 node tools/profile-symbols.mjs   # needs a real, visible browser window
+node tools/audit-transfer.mjs    # needs a built dist/ and Playwright Chromium
 ```
+
+`audit-transfer.mjs` reports what each page actually requests and from which
+hosts. It is the measurement the content policy was written from: if a new
+layer or service is added, run it and widen the policy from what it reports
+rather than from what the service's documentation claims.
 
 It measures what the composed symbol and the filter effect cost on the machine
 you run it on, and refuses to run in CI rather than report a perfect score from
