@@ -139,6 +139,10 @@ interface Window {
     /** Areas plotted on the storage-against-drought chart. Fewer than `rows`
      * when an area in view has no reservoir reading to compare against. */
     scatterPoints?: number;
+    /** Rows in the ranked comparison: areas that have a reservoir reading. */
+    gapRows?: number;
+    /** Areas counted by the severity distribution: every published area. */
+    severityAreas?: number;
     /* The map half, present once the map module has resolved or failed.
      * Added fields, never replacements. */
     /** Intensity classes the weekly file carried and the map drew. */

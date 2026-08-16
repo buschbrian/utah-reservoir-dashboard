@@ -70,3 +70,47 @@
   color: var(--app-muted);
   font-size: .8rem;
 }
+
+/* The ranked comparison and the severity distribution.
+ *
+ * Everything that is not data takes its colour from a token, exactly as the
+ * scatter above does, so both themes keep readable axes without either chart
+ * knowing which theme it is in. The dots and bars carry their own fills from
+ * the class tables and are never styled here. */
+.drought-gap-host,
+.drought-severity-host { margin-block-start: .5rem; }
+.drought-gap-chart,
+.drought-severity-chart { display: block; inline-size: 100%; block-size: auto; }
+
+.drought-gap-grid,
+.drought-severity-grid { stroke: var(--app-border); stroke-width: 1; }
+.drought-gap-axis,
+.drought-severity-axis { font-size: 10px; fill: var(--app-muted); }
+/* Slightly smaller than the axis text it sits beside, because these are the
+   longest strings on the chart and the label lane is fixed. See PAD_LEFT in
+   `viz/drought-gap.ts` -- the two are measured against each other. */
+.drought-gap-name { font-size: 10.5px; fill: var(--app-text); }
+
+/* The distance between the two dots. Neutral and behind them: it is a
+   comparison, not a third value, and a colour of its own would read as one. */
+.drought-gap-link {
+  stroke: var(--app-muted);
+  stroke-width: 2;
+  opacity: .5;
+}
+/* The same surface-coloured ring the scatter points wear, for the same
+   reason: where an area's two dots nearly coincide they must still read as
+   two marks rather than one wide one. */
+.drought-gap-dot {
+  stroke: var(--app-surface-raised);
+  stroke-width: 1.5;
+}
+
+.drought-severity-rect { stroke: var(--app-surface-raised); stroke-width: 1; }
+.drought-severity-value {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--app-text);
+}
+.drought-severity-tick { font-size: 10px; font-weight: 600; fill: var(--app-muted); }
+.drought-severity-caption { font-size: 10px; fill: var(--app-muted); }

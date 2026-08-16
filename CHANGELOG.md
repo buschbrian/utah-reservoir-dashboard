@@ -7,6 +7,28 @@ and is not listed here.
 
 ### Added
 
+- **Two new charts on the drought page.**
+
+  **How the areas are divided** counts every drainage area once, at the most
+  severe class with land in it. The page reported this as a single number —
+  "areas in extreme drought or worse: 11 of 14" — which hides the shape
+  behind it: nine clear areas and nine areas sitting one class below the line
+  give the same count and are not the same week. Drawn for this week, it
+  shows that no drainage area at all is clear, abnormally dry or in moderate
+  drought — every one of the fourteen is at severe drought or worse.
+
+  **The same comparison, in order** ranks the areas by how far their banked
+  water sits from their dry land, worst first. The scatter above it shows the
+  same relationship as a cloud and asks the reader to judge each point's
+  distance from a diagonal that is not drawn. This states the order: this
+  week it leads with Escalante Desert-Sevier Lake, 91% of its land in severe
+  drought with its reservoirs 6.6% full.
+
+  Each area is two dots on one scale with a line between them, rather than
+  one bar of the difference. The two shares divide by different things — one
+  by land, one by reservoir capacity — so their difference is not a quantity
+  of anything, and the site never states it as a number.
+
 - **The drought map is drawn on terrain.** A public hillshade is multiplied
   over the drought classes, so the pattern now sits on ground that shows
   where the mountains and the desert basins are. It is drawn *above* the

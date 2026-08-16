@@ -246,3 +246,87 @@ export function storageAgainstDrought(
   }
   return points;
 }
+
+/* ------------------------------------------------------------------ */
+/* How severe, across all of the areas at once                        */
+/* ------------------------------------------------------------------ */
+
+/** One severity level and how many drainage areas have it as their worst. */
+export interface WorstClassCount {
+  /** Null is the bucket for areas with no land in any class. */
+  entry: DroughtClass | null;
+  label: string;
+  color: string | null;
+  count: number;
+}
+
+/**
+ * The whole distribution of severity, not one threshold from it.
+ *
+ * The page reported "areas in extreme drought or worse: N of 14", which is
+ * one number and hides the shape behind it: whether the other areas are
+ * clear, or all sitting one class below the threshold, are very different
+ * weeks and both read as the same headline.
+ *
+ * Every class is returned whether or not any area is at it, including the
+ * empty ones. A distribution with the empty levels dropped is a different
+ * chart each week and cannot be compared with last week's by eye.
+ */
+export function worstClassCounts(
+  units: readonly DroughtUnit[], noneLabel: string
+): WorstClassCount[] {
+  const counts: WorstClassCount[] = [
+    { entry: null, label: noneLabel, color: null, count: 0 },
+    ...DROUGHT_CLASSES.map((entry) => ({
+      entry, label: `${entry.label} (${entry.code})`, color: entry.color, count: 0
+    }))
+  ];
+  for (const unit of units) {
+    const worst = worstClass(unit);
+    const bucket = worst === null
+      ? counts[0]
+      : counts.find((candidate) => candidate.entry?.key === worst.key);
+    if (bucket) bucket.count += 1;
+  }
+  return counts;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dry land against banked water, as a ranked list                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One area's two figures with the distance between them.
+ *
+ * `gap` is `storagePercent - dryPercent`, and it is important to be clear
+ * about what it is not. The two shares divide by different things -- one is
+ * a share of land, the other a share of reservoir capacity -- so their
+ * difference is not a quantity of anything. There is no such thing as
+ * "fifteen points of cushion".
+ *
+ * It is used for two honest purposes and no others: to rank the areas, and
+ * as the length of the line drawn between the two values. The chart shows
+ * both figures separately and never prints the difference as a number,
+ * because the difference is a comparison, not a measurement.
+ */
+export interface StorageGap extends StorageAgainstDrought {
+  gap: number;
+}
+
+/**
+ * The areas ordered by how far their banked water sits from their dry land.
+ *
+ * Worst first: the areas where the reservoirs are furthest below the share of
+ * land in drought lead the list, because that combination -- dry ground and
+ * no savings to draw on -- is the one a reader is looking for. The scatter
+ * shows the same relationship as a cloud and leaves the reader to judge each
+ * point's distance from a diagonal that is not even drawn; this states the
+ * order.
+ */
+export function byStorageGap(
+  points: readonly StorageAgainstDrought[]
+): StorageGap[] {
+  return points
+    .map((point) => ({ ...point, gap: point.storagePercent - point.dryPercent }))
+    .sort((a, b) => a.gap - b.gap || a.name.localeCompare(b.name));
+}

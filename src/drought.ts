@@ -31,12 +31,14 @@ import {
   daysOld,
   DRYNESS_CLASS,
   isLateRelease,
+  byStorageGap,
   orderUnits,
   regionWorst,
   storageAgainstDrought,
   storageByArea,
   unitsAtOrWorse,
   worstClass,
+  worstClassCounts,
   type DroughtSort,
   type StorageContext
 } from "./drought-model";
@@ -46,6 +48,8 @@ import {
   type DroughtUrlState
 } from "./state/drought-url";
 import { renderDroughtScatter } from "./viz/drought-scatter";
+import { renderDroughtGap } from "./viz/drought-gap";
+import { renderDroughtSeverity } from "./viz/drought-severity";
 import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
 import type { ReservoirReference } from "./ui/layers";
@@ -121,6 +125,13 @@ function renderDrought(
       <article class="overview-kpi"><span>Map week</span><strong>${formatDate(payload.map_date)}</strong><small>Published ${formatDate(payload.release_date)}</small></article>
       <article class="overview-kpi"><span>Map age</span><strong${late ? ' class="late-badge"' : ""}>${age} ${age === 1 ? "day" : "days"}</strong><small>${late ? "Late data: a new weekly map has been missed" : "A new map is published each Thursday"}</small></article>
     </section>
+    <section class="overview-card" aria-labelledby="drought-severity-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse; this says where all fourteen sit, which is a different question — nine clear areas and nine areas one class below the line give the same count and are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
+      </div>
+      <div id="drought-severity-host" class="drought-severity-host"></div>
+      <ul class="overlay-key" id="drought-severity-key" aria-label="What each severity level is called"></ul>
+    </section>
     <section class="overview-card" aria-labelledby="drought-map-heading">
       <div class="card-heading">
         <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the fourteen drainage areas the figures below describe; drought does not stop at their edges, so the wider pattern is drawn too.</p></div>
@@ -134,6 +145,12 @@ function renderDrought(
         <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point: how much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse across the bottom, and how full its reservoirs are up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point — an area far to the right and high up is drawing on water banked in better years, and one far to the right and low has neither the rain nor the savings.</p></div>
       </div>
       <div id="drought-scatter-host" class="drought-scatter-host"></div>
+    </section>
+    <section class="overview-card" aria-labelledby="drought-gap-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-gap-heading">The same comparison, in order</h2><p>One row for each drainage area, worst first. The left dot is the share of land in ${dryness.label.toLowerCase()} (${dryness.code}) or worse, in the class colours; the right dot is how full that area's reservoirs are, in the storage colours. The line between them is the distance, and it is only a distance: the two shares divide by different things, one by land and one by reservoir capacity, so the site never states their difference as a number. Rows where the water dot sits left of the dry dot are areas with dry ground and little banked to draw on.</p></div>
+      </div>
+      <div id="drought-gap-host" class="drought-gap-host"></div>
     </section>
     <section class="overview-card table-card" aria-labelledby="drought-areas-heading">
       <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
@@ -156,6 +173,9 @@ function renderDrought(
   const statusLine = content.querySelector<HTMLElement>("#drought-status");
   const resetButton = content.querySelector<HTMLElement>("#drought-reset");
   const scatterHost = content.querySelector<HTMLElement>("#drought-scatter-host");
+  const gapHost = content.querySelector<HTMLElement>("#drought-gap-host");
+  const severityHost = content.querySelector<HTMLElement>("#drought-severity-host");
+  const severityKey = content.querySelector<HTMLElement>("#drought-severity-key");
   if (worseSelect) worseSelect.value = state.worse ?? "";
   if (sortSelect) sortSelect.value = state.sort;
 
@@ -318,6 +338,48 @@ function renderDrought(
       }
     }
 
+    /* The same points the scatter drew, ranked. Built from `points` rather
+     * than recomputed, so the two charts cannot disagree about which areas
+     * have a reservoir reading. */
+    let gapRows = 0;
+    if (gapHost) {
+      const ranked = byStorageGap(points);
+      gapRows = renderDroughtGap(gapHost, ranked, {
+        drynessLabel: `in ${dryness.label.toLowerCase()} (${dryness.code}) or worse`,
+        ariaLabel: `Each drainage area, worst first, showing the share of its ` +
+          `land in ${dryness.label.toLowerCase()} or worse beside how full its ` +
+          "reservoirs are. The table below carries both numbers for every area."
+      });
+      if (gapRows === 0) {
+        gapHost.replaceChildren(mapStatusNote(
+          "No area in view has a reservoir reading to compare against."));
+      }
+    }
+
+    /* Counted over every published area, not the filtered view. This chart
+     * is the shape of the whole week; narrowing it to a chosen severity
+     * would make it a picture of the filter instead. */
+    let severityAreas = 0;
+    if (severityHost) {
+      const counts = worstClassCounts(payload.units, NO_DROUGHT_LABEL);
+      severityAreas = renderDroughtSeverity(severityHost, counts,
+        "How many drainage areas are at each drought severity, counted at the " +
+        "most severe class with land in them.");
+      if (severityKey) {
+        severityKey.replaceChildren(...counts.map((entry) => {
+          const item = document.createElement("li");
+          const swatch = document.createElement("span");
+          swatch.className = "drought-swatch"
+            + (entry.color ? "" : " drought-segment-none");
+          if (entry.color) swatch.style.background = entry.color;
+          const text = document.createElement("span");
+          text.textContent = entry.label;
+          item.append(swatch, text);
+          return item;
+        }));
+      }
+    }
+
     if (statusLine) {
       const chosenClass = DROUGHT_CLASSES.find((entry) => entry.key === state.worse);
       const order = state.sort === "storage" ? "emptiest reservoirs first"
@@ -330,6 +392,11 @@ function renderDrought(
 
     window.__droughtReady = {
       ...(window.__droughtReady ?? {}),
+      /* Two facts, two fields. Rows in the ranked comparison is not areas in
+       * the severity chart: the first counts areas with a reservoir reading,
+       * the second counts every published area. */
+      gapRows,
+      severityAreas,
       units: payload.unit_count,
       rows: ordered.length,
       worstClass: worst ? worst.code : null,

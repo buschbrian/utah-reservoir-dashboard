@@ -10,8 +10,10 @@ import {
   orderUnits,
   regionWorst,
   shareAtOrWorse,
+  byStorageGap,
   storageAgainstDrought,
   storageByArea,
+  worstClassCounts,
   unitsAtOrWorse,
   worstClass
 } from "./drought-model";
@@ -220,5 +222,87 @@ describe("land conditions against banked water", () => {
 
   it("plots nothing at all when the reservoir payload could not be read", () => {
     expect(storageAgainstDrought(areas, null)).toEqual([]);
+  });
+});
+
+describe("how the areas are divided by severity", () => {
+  const areas = [
+    unit("A", "Clear", [100, 0, 0, 0, 0, 0]),
+    unit("B", "Abnormal", [60, 40, 0, 0, 0, 0]),
+    unit("C", "Also abnormal", [70, 30, 0, 0, 0, 0]),
+    unit("D", "Exceptional", [0, 20, 20, 20, 20, 20])
+  ];
+
+  it("counts each area once, at the worst class with land in it", () => {
+    const counts = worstClassCounts(areas, "No drought");
+    const at = (label: string): number =>
+      counts.find((entry) => entry.label.startsWith(label))?.count ?? -1;
+
+    expect(at("No drought")).toBe(1);
+    expect(at("Abnormally dry")).toBe(2);
+    expect(at("Exceptional")).toBe(1);
+    /* Once each, so the bars account for every area exactly. An area with
+     * land at four classes belongs to its worst one only. */
+    expect(counts.reduce((sum, entry) => sum + entry.count, 0)).toBe(areas.length);
+  });
+
+  it("keeps the levels nothing is at, so two weeks can be compared", () => {
+    const counts = worstClassCounts(areas, "No drought");
+    // One bucket for no drought, plus every published class.
+    expect(counts).toHaveLength(6);
+    expect(counts.some((entry) => entry.count === 0)).toBe(true);
+  });
+
+  it("takes its colours from the class table and leaves 'none' without one", () => {
+    const counts = worstClassCounts(areas, "No drought");
+    expect(counts[0]?.color).toBeNull();
+    expect(counts.slice(1).every((entry) => typeof entry.color === "string")).toBe(true);
+  });
+
+  it("counts nothing when there are no areas, and still offers every level", () => {
+    const counts = worstClassCounts([], "No drought");
+    expect(counts.every((entry) => entry.count === 0)).toBe(true);
+    expect(counts).toHaveLength(6);
+  });
+});
+
+describe("ranking dry land against banked water", () => {
+  const points = [
+    { huc6: "A", name: "Cushioned", dryPercent: 20, storagePercent: 90,
+      reservoirCount: 3, worst: null },
+    { huc6: "B", name: "Squeezed", dryPercent: 95, storagePercent: 15,
+      reservoirCount: 2, worst: null },
+    { huc6: "C", name: "Level", dryPercent: 50, storagePercent: 50,
+      reservoirCount: 1, worst: null }
+  ];
+
+  it("puts the areas with the least water against the most dry land first", () => {
+    expect(byStorageGap(points).map((row) => row.name))
+      .toEqual(["Squeezed", "Level", "Cushioned"]);
+  });
+
+  it("keeps both published figures beside the distance", () => {
+    const worst = byStorageGap(points)[0]!;
+    /* The distance ranks the rows and sets the length of the line drawn
+     * between them. Both real values survive, because the difference of two
+     * shares with different denominators is not a quantity and the chart
+     * never prints it. */
+    expect(worst.dryPercent).toBe(95);
+    expect(worst.storagePercent).toBe(15);
+    expect(worst.gap).toBe(-80);
+  });
+
+  it("settles an exact tie by name rather than by input order", () => {
+    const tied = [
+      { huc6: "Z", name: "Zebra", dryPercent: 40, storagePercent: 40,
+        reservoirCount: 1, worst: null },
+      { huc6: "A", name: "Antelope", dryPercent: 10, storagePercent: 10,
+        reservoirCount: 1, worst: null }
+    ];
+    expect(byStorageGap(tied).map((row) => row.name)).toEqual(["Antelope", "Zebra"]);
+  });
+
+  it("ranks nothing when nothing could be joined", () => {
+    expect(byStorageGap([])).toEqual([]);
   });
 });

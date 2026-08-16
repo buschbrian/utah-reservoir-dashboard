@@ -1818,6 +1818,17 @@ for (const viewport of VIEWPORTS) {
       bars: document.querySelectorAll(".drought-bar").length,
       tableRows: document.querySelectorAll("#drought-table-rows tr").length,
       legendItems: document.querySelectorAll(".drought-legend-item").length,
+      gapRows: document.querySelectorAll(".drought-gap-row").length,
+      severityBars: document.querySelectorAll(".drought-severity-bar").length,
+      /* Every row and every bar carries its own sentence. A chart whose
+       * marks a screen reader cannot read is half a chart on this page. */
+      gapTitles: document.querySelectorAll(".drought-gap-row > title").length,
+      severityTitles: document.querySelectorAll(".drought-severity-bar > title").length,
+      /* The label lane is fixed, so a long drainage-area name can start left
+       * of the canvas and lose its first word -- which is what 140 units of
+       * padding did to "Escalante Desert-Sevier Lake". */
+      clippedNames: [...document.querySelectorAll(".drought-gap-name")]
+        .filter((node) => node.getBBox().x < 0).length,
       areaLinks: [...document.querySelectorAll(".drought-row-links a")]
         .map((link) => link.getAttribute("href")),
       viewport: document.documentElement.clientWidth,
@@ -1834,6 +1845,30 @@ for (const viewport of VIEWPORTS) {
       !/^\.\/(snow\.html)?\?area=\d{6}$/.test(href));
     check(state.areaLinks.length === state.rows * 2 && badLink === undefined,
       `${label}: cross links are malformed (${badLink ?? "count " + state.areaLinks.length})`);
+
+    /* The two charts that rank and count the areas.
+     *
+     * They answer different questions over different sets, which is why the
+     * counts are checked separately rather than against each other: the
+     * ranked comparison covers the areas that have a reservoir reading, and
+     * the severity distribution covers every published area. */
+    check(state.gapRows === state.ready?.gapRows && state.gapRows > 0,
+      `${label}: drew ${state.gapRows} ranked rows, readiness reported ` +
+      `${state.ready?.gapRows}`);
+    check(state.ready?.severityAreas === state.ready?.units,
+      `${label}: the severity chart accounted for ${state.ready?.severityAreas} ` +
+      `of ${state.ready?.units} areas`);
+    /* Every published class plus the no-drought bucket, whether or not any
+     * area is at it -- a chart with different bars each week cannot be
+     * compared with last week's. */
+    check(state.severityBars === 6,
+      `${label}: the severity chart drew ${state.severityBars} levels, expected 6`);
+    check(state.gapTitles === state.gapRows
+      && state.severityTitles === state.severityBars,
+    `${label}: ${state.gapTitles}/${state.gapRows} ranked rows and ` +
+    `${state.severityTitles}/${state.severityBars} severity bars carry a description`);
+    check(state.clippedNames === 0,
+      `${label}: ${state.clippedNames} drainage-area names are cut off by the chart edge`);
     check(state.scroll <= state.viewport + 1,
       `${label}: page overflows horizontally (${state.scroll}px in ${state.viewport}px)`);
 
