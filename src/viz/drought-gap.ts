@@ -42,7 +42,10 @@ import { storageColor } from "./classes";
 const SVG = "http://www.w3.org/2000/svg";
 
 const WIDTH = 640;
-const ROW_HEIGHT = 26;
+/* Tight enough that fourteen rows read as one list rather than a column of
+ * separate charts. At 26 the block ran to 424 units, which the card then
+ * scaled to nearly 800 pixels. */
+const ROW_HEIGHT = 21;
 const PAD_TOP = 26;
 const PAD_BOTTOM = 34;
 /* Wide enough for the longest drainage-area name this data carries.

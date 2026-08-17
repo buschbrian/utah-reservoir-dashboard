@@ -15,7 +15,9 @@
  */
 import type ArcGISMap from "@arcgis/core/Map";
 import { resolveStyledBasemap, type BasemapStyle } from "../arcgis/basemaps";
-import { sinkBasemapReferenceLayers } from "../arcgis/basemap-reference";
+import {
+  followBasemapReference, type BasemapReferenceMode
+} from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 
 export interface ThemeBasemapStatus {
@@ -35,9 +37,36 @@ export async function followThemeBasemap(
   onChange: (status: ThemeBasemapStatus) => void,
   /* Which chain to resolve from. A map that draws its own place names asks
    * for `minimal` so the background does not label them a second time. */
-  style: BasemapStyle = "context"
+  style: BasemapStyle = "context",
+  /* What to do with the basemap's own reference layers.
+   *
+   * "sink" for a map that relies on the background for place names, which is
+   * most of them. "drop" for one that draws and labels the same features
+   * itself -- there a sunk copy is not context, it is a buried second set of
+   * the same names. See `arcgis/basemap-reference.ts`. */
+  reference: BasemapReferenceMode = "sink"
 ): Promise<void> {
+  /* Registered once, and it covers every later change of basemap -- the
+   * theme swaps below and the reader's own choice from the gallery alike. */
+  /* Declared before the call, not from it. The callback runs synchronously
+   * during the first application, so initialising the variable *from* the
+   * call reads it inside its own temporal dead zone -- which threw, and took
+   * the whole map down with it. */
+  let referenceSunk = 0;
+  followBasemapReference(map, reference, (count) => { referenceSunk = count; });
+  /* What this module last put on the map, as an object identity.
+   *
+   * The reader can now pick a background from the gallery, and a theme change
+   * must not overrule that choice. The swap only proceeds while the map is
+   * still wearing what this module assigned -- the same guard the storage map
+   * has always had. */
+  let assigned: unknown = null;
+
   const apply = async (firstLoad: boolean): Promise<void> => {
+    if (!firstLoad && assigned !== null
+      && (map as unknown as { basemap: unknown }).basemap !== assigned) {
+      return;
+    }
     const resolution = await resolveStyledBasemap(effectiveThemeNow(), style);
     /* A failed swap keeps what is on screen: the map still wears its
      * previous basemap, so overwriting the status would make the readiness
@@ -52,10 +81,7 @@ export async function followThemeBasemap(
     /* The property is typed for autocast objects only under exact
      * optional properties; a real Basemap is what it wants at runtime. */
     (map as unknown as { basemap: unknown }).basemap = resolution.resource;
-    /* Every swap brings a fresh reference stack, and that stack draws above
-     * every operational layer -- so it has to be sunk again here, not just
-     * once at load. See `arcgis/basemap-reference.ts`. */
-    const referenceSunk = sinkBasemapReferenceLayers(map);
+    assigned = resolution.resource;
     onChange({ basemap: true, degraded: resolution.degraded, referenceSunk });
   };
   await apply(true);

@@ -217,7 +217,12 @@ export async function createDroughtMap(
   await followThemeBasemap(map, (basemapStatus) => {
     status.basemap = basemapStatus.basemap;
     status.basemapDegraded = basemapStatus.degraded;
-  }, "minimal");
+    /* This map draws hosted state and county boundaries and labels them on
+     * the ladder, in the label pass above every layer. The background's own
+     * copy of those names is therefore a duplicate, and sinking it leaves the
+     * duplicate underneath the drought classes where it reads as mush. One
+     * legible set instead. */
+  }, "minimal", "drop");
   element.map = map;
 
   /*

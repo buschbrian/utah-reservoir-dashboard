@@ -125,13 +125,6 @@ function renderDrought(
       <article class="overview-kpi"><span>Map week</span><strong>${formatDate(payload.map_date)}</strong><small>Published ${formatDate(payload.release_date)}</small></article>
       <article class="overview-kpi"><span>Map age</span><strong${late ? ' class="late-badge"' : ""}>${age} ${age === 1 ? "day" : "days"}</strong><small>${late ? "Late data: a new weekly map has been missed" : "A new map is published each Thursday"}</small></article>
     </section>
-    <section class="overview-card" aria-labelledby="drought-severity-heading">
-      <div class="card-heading">
-        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse; this says where all fourteen sit, which is a different question — nine clear areas and nine areas one class below the line give the same count and are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
-      </div>
-      <div id="drought-severity-host" class="drought-severity-host"></div>
-      <ul class="overlay-key" id="drought-severity-key" aria-label="What each severity level is called"></ul>
-    </section>
     <section class="overview-card" aria-labelledby="drought-map-heading">
       <div class="card-heading">
         <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the fourteen drainage areas the figures below describe; drought does not stop at their edges, so the wider pattern is drawn too.</p></div>
@@ -139,6 +132,13 @@ function renderDrought(
       </div>
       <div id="drought-map-host" class="view-map-host has-inset-legend" aria-busy="true"
         aria-label="A map of drought classes over the drainage areas. The bars and table on this page carry the same shares as text."></div>
+    </section>
+    <section class="overview-card" aria-labelledby="drought-severity-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse; this says where all fourteen sit, which is a different question — nine clear areas and nine areas one class below the line give the same count and are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
+      </div>
+      <div id="drought-severity-host" class="drought-severity-host"></div>
+      <ul class="overlay-key" id="drought-severity-key" aria-label="What each severity level is called"></ul>
     </section>
     <section class="overview-card" aria-labelledby="drought-join-heading">
       <div class="card-heading">

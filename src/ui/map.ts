@@ -12,7 +12,7 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
-import { sinkBasemapReferenceLayers } from "../arcgis/basemap-reference";
+import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
@@ -301,7 +301,18 @@ export async function loadMap(
   /* The basemap's boundaries and place names belong under this project's
    * data, not over it. See `arcgis/basemap-reference.ts` -- this is the line
    * that stops a borrowed grey state line drawing through Flaming Gorge. */
-  let referenceSunk = sinkBasemapReferenceLayers(map);
+  /* Watched, not applied once. This map has a basemap gallery, so the
+   * reader can replace the basemap without going through any of the code
+   * that resolved the first one. */
+  /* Declared before the call: the callback runs synchronously during the
+   * first application, so initialising from it reads both this and `status`
+   * inside their temporal dead zones. */
+  let referenceSunk = 0;
+  let mapStatus: MapStatus | null = null;
+  followBasemapReference(map, "sink", (count) => {
+    referenceSunk = count;
+    if (mapStatus) mapStatus.basemapReferenceSunk = count;
+  });
 
   const element = document.createElement("arcgis-map") as MapElement;
   /* The comparison MapView supplies padding in its constructor, before its
@@ -466,11 +477,6 @@ export async function loadMap(
       if (!next.resource || map.basemap !== assignedBasemap) return;
       (map as { basemap: unknown }).basemap = next.resource;
       assignedBasemap = next.resource;
-      /* A new basemap brings a new reference stack, which arrives on top
-       * again. Sink it, and keep the signal current rather than leaving it
-       * reporting the count from first paint. */
-      referenceSunk = sinkBasemapReferenceLayers(map);
-      status.basemapReferenceSunk = referenceSunk;
       status.basemapName = next.name;
       status.basemapDegraded = next.degraded;
     });
@@ -499,6 +505,10 @@ export async function loadMap(
       ?.geometry !== undefined,
     minZoom: MAP_MIN_ZOOM
   };
+  /* The callback above needs the status object, which does not exist until
+   * here. Handing it over now keeps the field current on every later
+   * basemap change without reading it before it is built. */
+  mapStatus = status;
 
   function syncConstraintStatus(): void {
     const constraints = element.view?.constraints;

@@ -106,15 +106,31 @@ export const STATE_LABEL_SCALE: LabelScale = { minScale: 0, maxScale: 3_000_000 
 export const RESERVOIR_DETAIL_SCALE = 4_500_000;
 
 /**
- * Reservoirs: off at the opening view, on one zoom step in.
+ * Reservoirs: named from a wider view than the detailed symbol arrives at.
  *
- * Fifty-one names over the whole region at load is a busy map before the
- * reader has asked it anything. This is the threshold that keeps the first
- * frame quiet: both opening views sit above it, so the names arrive as a
- * result of zooming rather than as the page's greeting.
+ * This used to be `RESERVOIR_DETAIL_SCALE` exactly, so a reader crossed one
+ * threshold and got detail and names together. That was right when both maps
+ * carrying reservoirs opened near 1:10,000,000 and the names could only be a
+ * consequence of zooming.
+ *
+ * The drought map no longer does. Its card grew taller (ADR-044's envelope
+ * and the framing fix), so it opens between 1:4,800,000 and 1:6,500,000
+ * depending on the window -- and a reservoir there is a neutral dot carrying
+ * no value of its own, which without a name is a dot the reader cannot
+ * identify at all. The storage map still opens near 1:10,700,000, above this,
+ * so its first frame stays quiet exactly as before.
+ *
+ * The symbol ladder is unchanged at `RESERVOIR_DETAIL_SCALE`. Splitting them
+ * costs the tidiness of one threshold and buys the thing each was for: the
+ * wide view still does not rasterize sub-pixel drop shadows, and a reference
+ * dot still gets a name.
+ *
+ * Density is handled by the label engine rather than by this number. Static
+ * deconfliction drops a name that cannot be placed, so a wide view draws the
+ * ones that fit rather than all sixty-nine.
  */
 export const RESERVOIR_LABEL_SCALE: LabelScale = {
-  minScale: RESERVOIR_DETAIL_SCALE, maxScale: 0
+  minScale: 7_000_000, maxScale: 0
 };
 
 /**

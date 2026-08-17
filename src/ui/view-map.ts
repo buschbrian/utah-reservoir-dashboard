@@ -14,6 +14,8 @@
  * reader can only recover from by reloading the page.
  */
 import "@arcgis/map-components/components/arcgis-fullscreen";
+import "@arcgis/map-components/components/arcgis-basemap-gallery";
+import "@arcgis/map-components/components/arcgis-expand";
 import "@arcgis/map-components/components/arcgis-home";
 import "@arcgis/map-components/components/arcgis-map";
 import "@arcgis/map-components/components/arcgis-scale-bar";
@@ -77,12 +79,21 @@ export function createViewMap(
   /* Every control on the right, in the storage map's order. Zoom is
    * included because a map component adds none of its own: without it the
    * only way to zoom is the scroll wheel, which is no way at all on a
-   * trackpad inside a scrolling page. The basemap gallery is deliberately
-   * absent -- these maps follow the page theme, and a gallery is a choice
-   * that would have to be protected from the theme swap. */
+   * trackpad inside a scrolling page.
+   *
+   * The basemap gallery is here now, and was left out before for a reason
+   * that has since been dealt with: these maps follow the page theme, so a
+   * background the reader picks had to be protected from the next theme
+   * swap. `followThemeBasemap` now holds the identity of what it last
+   * assigned and stands down once the map is wearing something else -- the
+   * same guard the storage map has always had. */
   element.innerHTML = `
     <arcgis-zoom slot="top-right"></arcgis-zoom>
     <arcgis-home slot="top-right"></arcgis-home>
+    <arcgis-expand slot="top-right" close-on-esc
+      expand-icon="basemap" expand-tooltip="Map background">
+      <arcgis-basemap-gallery></arcgis-basemap-gallery>
+    </arcgis-expand>
     <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
     <arcgis-scale-bar slot="bottom-right" unit="dual"></arcgis-scale-bar>`;
   const card = createHoverCard(options.cardId);

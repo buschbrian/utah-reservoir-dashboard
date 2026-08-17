@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **The snowpack and drought maps can change their background.** Both now
+  carry the basemap gallery the storage map has always had. It was left out
+  because these maps follow the page theme and a background you picked would
+  have been overruled by the next theme change; the theme now stands down
+  once you have chosen one of your own.
+
+- **Reservoirs are named on the drought map.** They are neutral dots carrying
+  no value of their own there, so without a name they cannot be identified at
+  all. Names arrive from a wider view than the detailed symbol does, which is
+  a change from the two arriving together — the drought card opens much
+  closer in than it used to, and the storage map's first frame is unaffected.
+
 - **The map and the table share a split you can drag.** The row under the map
   opens at two-fifths of the window and the divider between them moves, by
   pointer or by arrow keys, so both stay live at whatever ratio suits the
@@ -103,6 +115,22 @@ and is not listed here.
   yet. It describes the whole region and does not follow the filters below it.
 
 ### Changed
+
+- **The drought map sits above the charts**, which is the order the page is
+  read in: the map first, then the figures that describe it.
+
+- **The drought page's charts no longer stretch to fill the window.** All
+  three are drawn as SVG with a fixed 640-unit frame, so on a wide screen
+  they scaled up bodily — measured at 1280px, everything inside them grew by
+  1.88 times, padding and gaps included. The ranked comparison was 796 pixels
+  tall and the scatter 639. They are capped and centred now, and the ranked
+  rows are tighter: 478 and 459.
+
+- **One set of state names on the drought map.** That map draws its own state
+  and county boundaries and labels them, and the background was labelling the
+  same states underneath — a duplicate buried under the drought classes,
+  where it read as mush. The background's copy is removed there rather than
+  moved down.
 
 - **The drought map's terrain now brightens as well as shades.** It was
   combined with `multiply`, which can only darken — where the hillshade is

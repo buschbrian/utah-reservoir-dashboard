@@ -44,8 +44,31 @@
 /* The storage-against-drought scatter. Everything that is not data takes its
    colour from a theme token, so the dark page keeps readable axes; the point
    fills are the monitor's palette and are set inline from the class table. */
-.drought-scatter-host { margin-block-start: .5rem; }
-.drought-scatter { display: block; inline-size: 100%; block-size: auto; }
+/* Why these charts are capped rather than left to fill the card.
+ *
+ * All three are hand-built SVG with a 640-unit viewBox and `inline-size:
+ * 100%`, so on a wide card they scale up bodily -- measured at 1280px the
+ * card is 1202px, which is a 1.88x upscale of *everything*: padding, fonts,
+ * row heights and the gaps between them alike. That is where the page's
+ * large empty bands came from. The scatter was 639px tall to hold fourteen
+ * points; the ranked rows were 796px.
+ *
+ * A cap stops the upscale at a size the charts were drawn for, and centring
+ * keeps them under the heading rather than hard against the left edge. The
+ * numbers stay the same size as the prose around them instead of growing
+ * with the window. */
+.drought-scatter-host,
+.drought-gap-host,
+.drought-severity-host { margin-block-start: .5rem; }
+.drought-scatter,
+.drought-gap-chart,
+.drought-severity-chart {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 54rem;
+  margin-inline: auto;
+  block-size: auto;
+}
 .drought-grid { stroke: var(--app-border); stroke-width: 1; }
 .drought-guide {
   stroke: var(--app-muted);
@@ -77,11 +100,6 @@
  * scatter above does, so both themes keep readable axes without either chart
  * knowing which theme it is in. The dots and bars carry their own fills from
  * the class tables and are never styled here. */
-.drought-gap-host,
-.drought-severity-host { margin-block-start: .5rem; }
-.drought-gap-chart,
-.drought-severity-chart { display: block; inline-size: 100%; block-size: auto; }
-
 .drought-gap-grid,
 .drought-severity-grid { stroke: var(--app-border); stroke-width: 1; }
 .drought-gap-axis,

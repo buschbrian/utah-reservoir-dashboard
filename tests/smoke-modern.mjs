@@ -1613,8 +1613,11 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
   }, { hostId, cardId });
   check(frame !== null, `${label}: ${hostId} has no ready view to measure`);
   if (!frame) return;
+  /* The expand holds the basemap gallery, which these maps gained once
+   * `followThemeBasemap` learned to stand down after a reader picks a
+   * background of their own. Same set and same order as the storage map. */
   check(frame.controls.join(",") ===
-    "arcgis-zoom,arcgis-home,arcgis-fullscreen,arcgis-scale-bar",
+    "arcgis-zoom,arcgis-home,arcgis-expand,arcgis-fullscreen,arcgis-scale-bar",
   `${label}: ${hostId} carries ${frame.controls.join(",")}`);
   check(frame.controlsInside,
     `${label}: a map control on ${hostId} sits outside the card`);
@@ -1623,9 +1626,17 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
    * `arcgis/basemap-reference.ts`), so it is stripped before comparing --
    * checking it is there at all is a separate assertion below, and folding
    * the two together would let either one go missing unnoticed. */
+  /* A basemap's reference layers are either sunk below this project's data
+   * or removed outright, and which one is right depends on the map: the
+   * drought map draws and labels states and counties itself, so a sunk copy
+   * there is a buried duplicate of its own names rather than context. What
+   * must never happen is one of them left drawing *above* the data, so the
+   * check is that none is in the operational stack after our own layers. */
   const ownLayers = frame.layers.filter((id) => !/-reference-layer$/.test(id));
-  check(frame.layers.length > ownLayers.length,
-    `${label}: ${hostId} has no sunk basemap reference layer`);
+  const strayIndex = frame.layers.findIndex((id) => /-reference-layer$/.test(id));
+  check(strayIndex === -1 || strayIndex === 0,
+    `${label}: ${hostId} draws a basemap reference layer at position ` +
+    `${strayIndex}, which is above its own data`);
   check(ownLayers.join(",") === layerIds.join(","),
     `${label}: ${hostId} draws ${ownLayers.join(",")}, expected ${layerIds.join(",")}`);
   check(frame.bounded && frame.minZoom === 5,
@@ -1990,9 +2001,17 @@ for (const viewport of VIEWPORTS) {
        * project's own reference geometry. See `arcgis/hillshade.ts`. */
       [...boundaryLayers, "usdm-classes", "terrain-shade",
         "drainage-outlines", "reservoir-reference"]);
-    /* The label ladder: at the opening view the states are named and the
-     * reservoirs are not, which is the whole point of the thresholds. The
-     * counties are not even fetched yet. */
+    /* The label ladder at the opening view.
+     *
+     * The reservoirs *are* named here now, and that is the change: this card
+     * grew taller and opens near 1:5,000,000 rather than 1:7,900,000, and a
+     * reservoir on this map is a neutral dot carrying no value of its own,
+     * which without a name cannot be identified at all. The storage map still
+     * opens above the threshold and its own suite still checks that its first
+     * frame is quiet -- which is the half of ADR-035's rule that was really
+     * about not greeting a reader with fifty-one names.
+     *
+     * The counties are not fetched at this scale either way. */
     const ladder = await tab.evaluate(() => {
       const view = document.querySelector("#drought-map-host arcgis-map").view;
       const at = (id) => {
@@ -2014,8 +2033,19 @@ for (const viewport of VIEWPORTS) {
         reservoirs: at("reservoir-reference")
       };
     });
-    check(ladder.reservoirs?.labelsOn === false,
-      `${label}: reservoir names are already on at 1:${ladder.scale}`);
+    /* Only where the card is wide enough to open close in. A narrow card
+     * shows more ground per pixel and opens near 1:9,200,000, where
+     * sixty-nine names would be clutter rather than identification -- so the
+     * threshold is left to do its job and the check follows the width rather
+     * than forcing names onto a phone. */
+    if (viewport.width >= 1024) {
+      check(ladder.reservoirs?.labelsOn === true,
+        `${label}: reservoir names are off at 1:${ladder.scale}, so the dots ` +
+        "on this map cannot be identified");
+    } else {
+      check(ladder.reservoirs !== null,
+        `${label}: the reservoir layer is missing entirely`);
+    }
     check(ladder.counties === null || ladder.counties.layerHidden === true,
       `${label}: county outlines are already drawn at 1:${ladder.scale}`);
     check(ladder.states === null || ladder.states.labelsOn === true,
