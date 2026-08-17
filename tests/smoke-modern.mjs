@@ -433,8 +433,16 @@ for (const viewport of VIEWPORTS) {
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
     check(ready.drainageLabels === expectedAreas,
       `${label}: configured ${ready.drainageLabels} drainage-area labels, expected ${expectedAreas}`);
-    check(ready.drainageLabelsUnderReservoirs === true,
-      `${label}: drainage-area labels are not below the reservoir symbols`);
+    /* ADR-047 replaced the position guarantee with a placement guarantee.
+     * The names are the label engine's now, so they draw in its pass above
+     * every layer and the ADR-030 field reports false -- and the check that
+     * matters is that something is still placing them, because a layer that
+     * quietly lost its `labelingInfo` looks exactly like a clean map. */
+    check(ready.drainageLabelsDeconflicted === true,
+      `${label}: drainage-area names are not being placed by the label engine`);
+    check(ready.drainageLabelsUnderReservoirs === false,
+      `${label}: a drainage text-symbol layer came back alongside the ` +
+      "engine-placed names, which would draw every name twice");
 
     /* The renderer count above proves what the page built. This proves the
      * layer accepted it: a client-side feature layer whose source is
@@ -448,16 +456,21 @@ for (const viewport of VIEWPORTS) {
         ?.findLayerById("drainage-areas");
       const drainageLabels = document.querySelector("arcgis-map")?.map
         ?.findLayerById("drainage-labels");
-      const firstLabel = drainageLabels?.graphics?.at(0)?.symbol;
+      const labelClass = drainage?.labelingInfo?.at(0);
+      const map = document.querySelector("arcgis-map")?.map;
       return {
         type: layer?.type ?? null,
         count: layer ? await layer.queryFeatureCount() : 0,
         drainageType: drainage?.type ?? null,
         drainageCount: drainage ? await drainage.queryFeatureCount() : 0,
         drainageLabelClasses: drainage?.labelingInfo?.length ?? 0,
+        drainageLabelsVisible: drainage?.labelsVisible === true,
+        drainageDeconfliction: labelClass?.deconflictionStrategy ?? null,
         drainageLabelType: drainageLabels?.type ?? null,
-        drainageLabelCount: drainageLabels?.graphics?.length ?? 0,
-        drainageHaloAlpha: firstLabel?.haloColor?.a ?? null,
+        drainageUnderReservoirs: map && drainage && layer
+          ? map.layers.indexOf(drainage) < map.layers.indexOf(layer)
+          : false,
+        drainageHaloAlpha: labelClass?.symbol?.haloColor?.a ?? null,
         symbolUsesViewScale: JSON.stringify(layer?.renderer?.toJSON?.() ?? layer?.renderer ?? {})
           .includes("$view.scale")
       };
@@ -472,13 +485,32 @@ for (const viewport of VIEWPORTS) {
     check(layerFeatures.drainageCount === expectedAreas,
       `${label}: the drainage-area layer holds ${layerFeatures.drainageCount}, ` +
       `expected ${expectedAreas}`);
-    check(layerFeatures.drainageLabelClasses === 0,
-      `${label}: drainage-area text still uses the foreground label pass`);
-    check(layerFeatures.drainageLabelType === "graphics",
-      `${label}: the background label layer is "${layerFeatures.drainageLabelType}", expected graphics`);
-    check(layerFeatures.drainageLabelCount === expectedAreas,
-      `${label}: the label layer holds ${layerFeatures.drainageLabelCount} symbols, ` +
-      `expected ${expectedAreas}`);
+    /* ADR-047. The names are one label class on the drainage layer itself,
+     * so the count is fixed at one however many areas are in scope -- which
+     * is the whole point, and what fourteen fixed text symbols could not
+     * say about a hundred and eighty-one. */
+    check(layerFeatures.drainageLabelClasses === 1,
+      `${label}: the drainage layer carries ${layerFeatures.drainageLabelClasses} ` +
+      "label classes, expected exactly one");
+    check(layerFeatures.drainageLabelsVisible,
+      `${label}: the drainage layer has labels configured but switched off`);
+    /* The guarantee itself. Without this the engine draws every name it is
+     * given, which at western scale is the failure ADR-047 exists to end --
+     * and it would look identical at fourteen. */
+    check(layerFeatures.drainageDeconfliction === "dynamic",
+      `${label}: drainage names use "${layerFeatures.drainageDeconfliction}" ` +
+      "placement, expected dynamic deconfliction");
+    check(layerFeatures.drainageLabelType === null,
+      `${label}: a drainage text-symbol layer is still on the map ` +
+      `("${layerFeatures.drainageLabelType}"), so every name draws twice`);
+    /* ADR-030's intent, kept. The label pass resolves conflicts between
+     * layers in operational order, so a reservoir's own name outranks a
+     * drainage name where the two compete for the same pixels. */
+    check(layerFeatures.drainageUnderReservoirs,
+      `${label}: the drainage layer rose above the reservoirs, which hands ` +
+      "drainage names priority over reservoir names in the label pass");
+    /* ADR-030 was right about this half and it carries over unchanged: a
+     * near-opaque halo covered more of the map than the text it separated. */
     check(layerFeatures.drainageHaloAlpha === 0.5,
       `${label}: drainage-area label halo opacity is ${layerFeatures.drainageHaloAlpha}, expected 0.5`);
     check(layerFeatures.symbolUsesViewScale === false,
@@ -545,8 +577,8 @@ for (const viewport of VIEWPORTS) {
         drawn: window.__dashboardReady.drawn,
         geography: window.__dashboardReady.geography,
         selectionOnTop: window.__dashboardReady.selectionOnTop,
-        drainageLabelsUnderReservoirs:
-          window.__dashboardReady.drainageLabelsUnderReservoirs,
+        drainageLabelsDeconflicted:
+          window.__dashboardReady.drainageLabelsDeconflicted,
         search: window.location.search
       };
     }, controls);
@@ -558,8 +590,8 @@ for (const viewport of VIEWPORTS) {
      * below each layer that replaced it, and no counted field could tell. */
     check(wider.selectionOnTop,
       `${label}: the selection ring fell beneath the reservoirs after a scope change`);
-    check(wider.drainageLabelsUnderReservoirs,
-      `${label}: drainage-area labels rose above reservoirs after a scope change`);
+    check(wider.drainageLabelsDeconflicted,
+      `${label}: the drainage names stopped being placed after a scope change`);
     check(wider.drawn > expectedReservoirs,
       `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
       `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);

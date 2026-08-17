@@ -27,10 +27,16 @@ interface DashboardReady {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
-  /** Drainage-area background text symbols, one per area. */
+  /** Drainage-area names configured, one per area. */
   drainageLabels: number;
-  /** True while drainage-area text is below the reservoir symbols. */
+  /** True while drainage-area text this map placed itself is below the
+   * reservoir symbols. False once the label engine places the names, which
+   * draws them in its own pass above every layer -- see ADR-047. */
   drainageLabelsUnderReservoirs: boolean;
+  /** True while the drainage names are placed by the label engine, which
+   * drops a name it cannot fit rather than stacking it on its neighbour.
+   * The guarantee that replaced fixed placement at western scale. */
+  drainageLabelsDeconflicted: boolean;
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;

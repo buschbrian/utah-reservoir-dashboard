@@ -154,6 +154,51 @@ export interface DrainageLayerResult {
   labels: number;
 }
 
+/**
+ * The drainage-area name, as the label engine draws it.
+ *
+ * The field is a parameter rather than this module's own constant, because
+ * the name arrives under a different attribute depending on where the
+ * geometry came from -- `area_name` from the payload, `name` from the hosted
+ * service. An arcade expression naming a field the layer does not have does
+ * not draw nothing quietly; it throws once per tile, in a worker, as
+ * `invalid-arcade-expression`, and the map looks merely unlabelled.
+ *
+ * The same size, weight, colour and halo the text symbols carry, so moving
+ * from one to the other is a change of *who places the words*, not of what
+ * they look like -- and the halo stays at ADR-027's two pixels and ADR-030's
+ * 50% opacity.
+ */
+export function drainageLabelingInfo(nameField: string): unknown[] {
+  return [{
+    labelExpressionInfo: { expression: `$feature.${nameField}` },
+    labelPlacement: "always-horizontal",
+    minScale: DRAINAGE_LABEL_MIN_SCALE,
+    maxScale: 0,
+    /* The engine's whole reason for being here: at fourteen names a fixed
+     * position was fine, and past that a name that cannot be placed has to
+     * drop rather than pile onto its neighbour. */
+    deconflictionStrategy: "dynamic",
+    symbol: {
+      type: "text",
+      color: "#263f52",
+      haloColor: DRAINAGE_LABEL_HALO_COLOR,
+      haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
+      font: {
+        family: LABEL_FONT_FAMILY,
+        size: `${DRAINAGE_LABEL_SIZE_PX}px`,
+        weight: LABEL_FONT_WEIGHT_BOLD
+      }
+    }
+  }];
+}
+
+/** The fill and outline the drainage areas are drawn with, wherever the
+ * geometry comes from. */
+export function drainageRenderer(): unknown {
+  return { type: "simple", symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE) };
+}
+
 export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLayerResult {
   const labelGraphics: Graphic[] = [];
   /* A multipolygon remains one feature. Building one graphic per polygon

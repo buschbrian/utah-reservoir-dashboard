@@ -14,6 +14,7 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
+import { createWatershedLayer, WATERSHED_NAME_FIELD } from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageArea, UtahBoundary } from "../data/boundaries";
@@ -36,6 +37,8 @@ import {
   DRAINAGE_NAME_FIELD,
   createDrainageLayer,
   createHighlightLayer,
+  drainageLabelingInfo,
+  drainageRenderer,
   createMaskLayer,
   createReservoirLayer,
   showHighlight,
@@ -63,6 +66,7 @@ export interface MapStatus {
   drainageLabels: number;
   /** True while drainage-area text is below the reservoir symbols. */
   drainageLabelsUnderReservoirs: boolean;
+  drainageLabelsDeconflicted: boolean;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -500,6 +504,7 @@ export async function loadMap(
     drainageAreas: 0,
     drainageLabels: 0,
     drainageLabelsUnderReservoirs: false,
+    drainageLabelsDeconflicted: false,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     reservoirLabels: false,
@@ -591,14 +596,27 @@ export async function loadMap(
 
   /* One fact, one formula, every reader. Both draw paths can reorder the
    * label and reservoir layers, so both go through here; computing it twice
-   * is how the status field and the readiness field learn to disagree. */
+   * is how the status field and the readiness field learn to disagree.
+   *
+   * Two facts now, because the guarantee changed rather than moved. The
+   * first still asks the question ADR-030 asked -- is there drainage text
+   * the map placed itself, below the reservoirs -- and answers no, because
+   * the names come from the label engine. The second is the guarantee that
+   * replaced it. Neither is derivable from the other: text symbols under
+   * the reservoirs and engine placement are both ways of having names, and
+   * a map with no names at all reports false to both. */
   function syncDrainageLabelOrder() {
     status.drainageLabelsUnderReservoirs = drainageLabelLayer !== null
       && reservoirLayer !== null
       && map.layers.indexOf(drainageLabelLayer) < map.layers.indexOf(reservoirLayer);
+    status.drainageLabelsDeconflicted = drainageLayer !== null
+      && drainageLabelLayer === null
+      && (drainageLayer as { labelsVisible?: boolean }).labelsVisible === true;
     if (window.__dashboardReady) {
       window.__dashboardReady.drainageLabelsUnderReservoirs =
         status.drainageLabelsUnderReservoirs;
+      window.__dashboardReady.drainageLabelsDeconflicted =
+        status.drainageLabelsDeconflicted;
     }
   }
 
@@ -653,22 +671,33 @@ export async function loadMap(
     drawDrainageAreas(areas) {
       if (drainageLayer) map.remove(drainageLayer);
       if (drainageLabelLayer) map.remove(drainageLabelLayer);
-      const result = createDrainageLayer(areas);
-      drainageLayer = result.layer;
-      drainageLabelLayer = result.labelLayer;
-      /* Under the reservoirs and over the basemap: outlines and text are
-       * context. Text symbols obey this operational layer order; a
-       * FeatureLayer label pass can paint the same words above the points.
+      drainageLabelLayer = null;
+      /*
+       * Outlines and names from the hosted service, both placed by the label
+       * engine. See `arcgis/watershed-layers.ts` for the transfer figures and
+       * the new record for why this stops obeying ADR-030's layer order.
        *
-       * Counted from the mask rather than from zero. The basemap's own
-       * reference layers are sunk to the bottom of this stack, so the
-       * literal 1 and 2 these used to be would now insert the drainage
-       * outlines underneath the mask that is supposed to sit below them. */
+       * The short of it: ADR-030 put the names in a text-symbol layer below
+       * the reservoirs so a name could never cover a point, and recorded that
+       * "a later denser geography would need a measured decluttering rule".
+       * That geography is the reason this exists. Text symbols have no
+       * deconfliction, so past a couple of dozen areas the names stop
+       * covering reservoirs and start covering each other, which is worse.
+       *
+       * Counted from the mask rather than from zero: the basemap's own
+       * reference layers are sunk to the bottom of this stack (ADR-042).
+       */
+      drainageLayer = createWatershedLayer({
+        level: 6,
+        codes: areas.map((area) => area.huc6),
+        renderer: drainageRenderer(),
+        labelingInfo: drainageLabelingInfo(WATERSHED_NAME_FIELD),
+        labelsVisible: true
+      });
       const base = map.layers.indexOf(maskLayer) + 1;
       map.add(drainageLayer, base);
-      map.add(drainageLabelLayer, base + 1);
       status.drainageAreas = areas.length;
-      status.drainageLabels = result.labels;
+      status.drainageLabels = areas.length;
       syncDrainageLabelOrder();
     }
   };

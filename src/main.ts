@@ -770,6 +770,7 @@ if (!supportsDashboard(browserCapabilities())) {
     drainageAreas: map.status.drainageAreas,
     drainageLabels: map.status.drainageLabels,
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,
+    drainageLabelsDeconflicted: map.status.drainageLabelsDeconflicted,
     /* The chosen area, which is not `drainageAreas` -- that one counts the
      * boundaries the map drew. One fact per field. */
     areaFilter: filterStatus.drainageArea,
