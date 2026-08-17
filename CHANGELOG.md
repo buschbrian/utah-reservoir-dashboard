@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **The map and the table share a split you can drag.** The row under the map
+  opens at two-fifths of the window and the divider between them moves, by
+  pointer or by arrow keys, so both stay live at whatever ratio suits the
+  reading. It stops short of hiding either one: the row cannot be dragged
+  shut, which is what its close control is for, and it cannot be pulled over
+  the whole map.
+
+  Where you leave it is remembered for next time. It is kept as a share of
+  the window rather than a number of pixels, so it means the same thing on a
+  different screen, and it is *not* in the address bar — a link to a
+  reservoir should not impose the sender's pane sizes on whoever opens it.
+
 - **The drought pipeline keeps its weekly maps.** Every week the monitor
   publishes is now retained, so week-over-week change becomes possible for
   the first time. Two files do it: the current week's coverage carries the

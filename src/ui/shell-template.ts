@@ -198,8 +198,17 @@ export function renderShell(root: HTMLElement): void {
            takes a shell panel like the two beside the map, which is why this
            one collapses the same way they do rather than needing a rule of
            its own. -->
+      <!-- The "resizable" attribute is the component's own, not a handle
+           written here. It renders a separator with an accessible name, an
+           orientation, and value/min/max, and it answers the arrow keys with
+           a larger step on shift -- all of which a hand-rolled divider would
+           have had to reimplement and would have got wrong first. It needs
+           the "dock" display mode, which is the default.
+
+           No backticks in this file: the whole template is one template
+           literal, and a backtick in a comment ends the string. -->
       <calcite-shell-panel id="table-row" slot="panel-bottom" layout="horizontal"
-        height="m" position="end" collapsed>
+        height="m" position="end" resizable collapsed>
         <calcite-panel heading="Reservoir table and chart" heading-level="2">
           <calcite-action id="table-close" slot="header-actions-end" icon="x"
             text="Close the table and chart" label="Close the table and chart"></calcite-action>

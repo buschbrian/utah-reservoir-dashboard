@@ -3,6 +3,7 @@ import { copyViewUrl } from "../state/share";
 import { describeDataState, type DataState } from "../state/shell";
 import { renderTrendChart, renderTrendTable } from "../viz/trend";
 import { elementById } from "./dom";
+import { formatSplit, parseSplit, splitHeight } from "../state/split";
 import { nameSliderHandle } from "./slider-label";
 
 const mobileQuery = window.matchMedia("(max-width: 47.99rem)");
@@ -167,6 +168,87 @@ export function wireTableRow(onToggle: (open: boolean) => void): void {
     toggle(false);
     void elementById<CalciteFocusable>("table-toggle").setFocus();
   });
+  wireTableRowSplit(row());
+}
+
+const SPLIT_STORAGE_KEY = "utah-reservoir-dashboard-split";
+
+/* Storage can throw rather than answer -- a browser with cookies blocked, or
+ * a private window at quota. A page that cannot remember a divider still has
+ * to draw one. */
+function readStoredSplit(): number | null {
+  try {
+    return parseSplit(localStorage.getItem(SPLIT_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSplit(fraction: number): void {
+  const value = formatSplit(fraction);
+  try {
+    if (value === null) localStorage.removeItem(SPLIT_STORAGE_KEY);
+    else localStorage.setItem(SPLIT_STORAGE_KEY, value);
+  } catch {
+    // A reader who cannot store a preference keeps the one on screen.
+  }
+}
+
+
+/**
+ * Keeps the divider where the reader put it.
+ *
+ * The component owns the drag and the keyboard, and reports neither: it emits
+ * collapse and expand and nothing at all for a resize. So the size has to be
+ * taken rather than received.
+ *
+ * **Taken when a gesture ends, not while it runs.** The obvious approach is a
+ * `ResizeObserver`, and it was tried twice -- on the host, which never fires
+ * because the host is a flex box sized by its child, and then on the
+ * component's own `.content`, which is the element that really changes. That
+ * second one is correct and still unusable: `ResizeObserver` callbacks are
+ * delivered with the rendering steps, so in any environment that is not
+ * compositing -- a hidden pane, headless CI -- they never arrive at all,
+ * while `getBoundingClientRect` happily reports the new size. Persisting from
+ * a lifecycle the tests cannot run is persisting nothing.
+ *
+ * Reading at the end of the gesture is better on its own terms anyway. There
+ * is one write per drag instead of one per frame, and the two events that end
+ * a resize -- a pointer released anywhere, a key released on the separator --
+ * both cross the shadow boundary because they are composed.
+ *
+ * Restoring goes the other way, through the height custom property on the
+ * host: that is the component's documented surface, and it applies before
+ * there is any rendered content to measure.
+ */
+function wireTableRowSplit(row: HTMLElement): void {
+  const shell = document.querySelector("calcite-shell") ?? document.body;
+
+  const stored = readStoredSplit();
+  if (stored !== null) {
+    row.style.setProperty("--calcite-shell-panel-height", splitHeight(stored));
+  }
+
+  let last = stored ?? -1;
+  const remember = (): void => {
+    if (row.hasAttribute("collapsed")) return;
+    const available = shell.getBoundingClientRect().height;
+    const height = row.getBoundingClientRect().height;
+    if (available <= 0 || height <= 0) return;
+    const fraction = height / available;
+    /* A hundredth of the shell is below anything a reader aimed at, and this
+     * runs on every pointer release on the page. */
+    if (Math.abs(fraction - last) < 0.01) return;
+    last = fraction;
+    writeStoredSplit(fraction);
+  };
+
+  /* On the window for the pointer, because a drag can end anywhere including
+   * outside the row, and on the row for the key, because that is where the
+   * separator lives and a composed event reaches its host. */
+  window.addEventListener("pointerup", remember);
+  window.addEventListener("pointercancel", remember);
+  row.addEventListener("keyup", remember);
 }
 
 export function setTableRowOpen(open: boolean): void {

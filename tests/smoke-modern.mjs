@@ -1059,6 +1059,50 @@ for (const viewport of VIEWPORTS) {
     check(table.toolsBeforeRows,
       `${label}: the table's export control is behind the row scroller`);
 
+    /* The split between the map and this row.
+     *
+     * The separator is the component's own, so what is checked is that it is
+     * there, that it is reachable and described, and that moving it actually
+     * moves the row -- the parts that would go silently missing if the
+     * `resizable` attribute were dropped or the panel's display mode changed.
+     * The keyboard path is the one exercised because it is the only one that
+     * works without a compositing render loop. */
+    const split = await tab.evaluate(async () => {
+      const row = document.getElementById("table-row");
+      const separator = row.shadowRoot?.querySelector('[role="separator"]');
+      if (!separator) return { present: false };
+      const before = row.getBoundingClientRect().height;
+      separator.focus();
+      for (let press = 0; press < 8; press += 1) {
+        separator.dispatchEvent(new KeyboardEvent("keydown",
+          { key: "ArrowUp", bubbles: true, composed: true }));
+        await new Promise((resolve) => { setTimeout(resolve, 60); });
+      }
+      separator.dispatchEvent(new KeyboardEvent("keyup",
+        { key: "ArrowUp", bubbles: true, composed: true }));
+      await new Promise((resolve) => { setTimeout(resolve, 300); });
+      return {
+        present: true,
+        named: Boolean(separator.ariaLabel),
+        focusable: separator.tabIndex >= 0,
+        orientation: separator.ariaOrientation,
+        before: Math.round(before),
+        after: Math.round(row.getBoundingClientRect().height),
+        stored: window.localStorage.getItem("utah-reservoir-dashboard-split")
+      };
+    });
+    check(split.present, `${label}: the table row has no resize separator`);
+    if (split.present) {
+      check(split.named && split.focusable,
+        `${label}: the resize separator is not named or not reachable by keyboard`);
+      check(split.after > split.before,
+        `${label}: the keyboard did not move the split (${split.before} to ${split.after})`);
+      /* Remembered as a share of the window, never as pixels -- a position
+       * from one screen has to mean the same share of another. */
+      check(split.stored !== null && Number(split.stored) > 0 && Number(split.stored) < 1,
+        `${label}: the split was stored as "${split.stored}"`);
+    }
+
     const afterTable = await tab.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth

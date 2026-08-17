@@ -526,9 +526,17 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
      of the sheet trap noted above -- there max-height alone does nothing
      because height wins, here height alone does nothing because max-height
      clamps. Neither one moves a Calcite panel on its own. */
+  /* A phone gets the same divider, and a range worth dragging.
+     
+     Height and max used to be the same 45vh, which was right when nothing
+     could be dragged and wrong the moment something could: the separator
+     could then only ever shrink the row, because it opened already at its
+     ceiling. The row still opens at 45vh -- a phone screen has less to spare
+     and the map needs most of it -- and the ceiling is lifted so pulling the
+     row up does something. */
   #table-row {
     --calcite-shell-panel-height: 45vh;
-    --calcite-shell-panel-max-height: 45vh;
+    --calcite-shell-panel-max-height: 78vh;
   }
   /* A list that is 18rem tall inside a sheet leaves no room for anything
    * under it. Against the viewport instead, so the panel keeps its shape on
@@ -654,7 +662,26 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
  * focusable and labelled, because a region that scrolls has to be reachable
  * from the keyboard to be usable at all.
  */
-#table-row { --calcite-shell-panel-min-height: 4rem; }
+/* The split between the map and the table row, which the reader drags. */
+#table-row {
+  /* Where the split opens, when the reader has not moved it. Measured
+     rather than picked: with no height set the row sizes to its content and
+     asks for 1954px of a 720px window, because the table and the ranking
+     chart together are taller than any screen. 40vh gives the map the larger
+     share, which is the right default for a map page, and leaves the table's
+     first rows and the top of the chart visible. */
+  --calcite-shell-panel-height: 40vh;
+  /* The bounds the separator may be dragged between. The component reads
+     these off its own computed style, so they are the whole constraint.
+
+     A floor of 4rem keeps the row's heading and its close control reachable
+     rather than letting it be dragged shut by accident; that is what the
+     close control is for. A ceiling of 72vh keeps the map a map -- without
+     one the component falls back to the window height and the row can be
+     pulled over everything it exists to describe. */
+  --calcite-shell-panel-min-height: 4rem;
+  --calcite-shell-panel-max-height: 72vh;
+}
 .table-copy {
   display: flex;
   flex-direction: column;

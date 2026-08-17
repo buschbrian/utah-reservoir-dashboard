@@ -100,7 +100,12 @@ describe("SDK architecture boundaries", () => {
 
   it("ships the small local Calcite asset contract used by the shell", async () => {
     const icons = [
-      "arrowRightLeft", "basemap", "brightness", "chevronDown", "chevronsRight", "cursorSelection", "erase",
+      "arrowRightLeft", "basemap", "brightness", "chevronDown", "chevronsRight", "cursorSelection",
+      /* The shell panel's resize handle. It arrived with `resizable` on the
+       * table row, and its absence was a 404 and a console error on every
+       * width rather than a missing glyph -- which is why this list is a
+       * test and not a comment. */
+      "dragResizeVertical", "erase",
       "exclamationMarkTriangle",
       "export", "extentFilter", "fullScreen", "fullScreenExit", "gauge", "hamburger", "home",
       "information", "legend", "magnifyingGlass", "map", "minus", "plus", "question",

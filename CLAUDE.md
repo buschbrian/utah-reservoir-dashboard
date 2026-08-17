@@ -151,6 +151,15 @@ Do not regress these; they were each found by a failing test or a screenshot.
 - **A `calcite-sheet` takes its height from `--calcite-sheet-height`.**
   `--calcite-sheet-max-height` only caps it, so on its own the sheet stays at
   its `height` preset.
+- **`ResizeObserver` needs a render loop.** Its callbacks are delivered with
+  the rendering steps, so in a hidden pane or headless CI they never arrive,
+  while `getBoundingClientRect` reports the new size perfectly well. Anything
+  that has to persist a measured size reads it when the gesture ends —
+  `pointerup`, `keyup` — not from an observer.
+- **A new Calcite icon is a 404, not a missing glyph.** Icons are committed
+  under `public/assets/icon/` and pinned by `architecture.test.ts`. Turning on
+  a component feature can pull in an icon that is not there; the browser suite
+  catches it as a console error.
 - Controls belong above the reservoir list, not below it. The list scrolls
   inside its own box, so anything after it is behind a nested scroller.
 
