@@ -1697,11 +1697,25 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
  * the pointer and stays inside the map it belongs to.
  */
 async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, expected) {
-  await tab.evaluate(({ hostId, layerId }) => {
+  await tab.evaluate(async ({ hostId, layerId }) => {
     const element = document.querySelector("#" + hostId + " arcgis-map");
     const layer = element.view.map.findLayerById(layerId);
+    /* Three kinds of layer answer this differently. A client-side feature
+     * layer holds its features in `source`, a graphics layer in `graphics`,
+     * and a hosted layer holds none of them -- its features are on a server,
+     * so the attributes have to be asked for. `queryFeatures` answers from
+     * the layer rather than from a view, so it settles here where the render
+     * loop does not run. */
     const source = layer.type === "feature" ? layer.source : layer.graphics;
-    const graphic = { attributes: source.at(0).attributes, layer };
+    const attributes = source
+      ? source.at(0).attributes
+      : (await layer.queryFeatures({
+          where: layer.definitionExpression || "1=1",
+          outFields: ["*"],
+          num: 1,
+          returnGeometry: false
+        })).features[0]?.attributes;
+    const graphic = { attributes, layer };
     element.hitTest = async (_point, options) => {
       const included = options?.include;
       window.__viewMapHitIncluded = Array.isArray(included)
@@ -1978,6 +1992,11 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map drew ${mapState.ready?.mapClassesDrawn} drought classes`);
     check(mapState.ready?.mapOutlines === mapState.ready?.units,
       `${label}: ${mapState.ready?.mapOutlines} outlines for ${mapState.ready?.units} areas`);
+    check(mapState.ready?.mapAreaLabels === mapState.ready?.units,
+      `${label}: ${mapState.ready?.mapAreaLabels} names for ` +
+      `${mapState.ready?.units} drainage areas`);
+    check(mapState.ready?.mapAreaLabelsDeconflicted === true,
+      `${label}: the drainage names are not being placed by the label engine`);
     check(mapState.ready?.mapReservoirs > 0,
       `${label}: the drought map placed ${mapState.ready?.mapReservoirs} reservoirs`);
     /* The key now lives on the map rather than above it, so it is attached
@@ -2035,11 +2054,14 @@ for (const viewport of VIEWPORTS) {
       /* Terrain shade sits above the classes and below the outlines: it
        * varies the classes' lightness with the ground without darkening this
        * project's own reference geometry. See `arcgis/hillshade.ts`. */
-      /* The drainage names sit above the outlines they belong to and below
-       * the reservoirs, so a name is never painted over by the classes and
-       * never covers a reservoir. */
+      /* The boundary is cased: a wide bright pass under a narrow dark one,
+       * so the outline reads on the palest class and on the darkest. They
+       * are two layers over one service because a casing has to be down
+       * before any core is drawn, and one layer cannot order that across
+       * features -- a neighbour's casing would paint over a shared edge.
+       * The names ride the core layer's label pass (ADR-047). */
       [...boundaryLayers, "usdm-classes", "terrain-shade",
-        "drainage-outlines", "drainage-names", "reservoir-reference"]);
+        "drainage-outline-casing", "drainage-outlines", "reservoir-reference"]);
     /* The label ladder: at the opening view the states and the drainage areas
      * are named and the reservoirs are not, which is the whole point of the
      * thresholds -- the drainage areas are this map's subject and the
@@ -2061,7 +2083,7 @@ for (const viewport of VIEWPORTS) {
       };
       return {
         scale: Math.round(view.scale),
-        areaNames: view.map.findLayerById("drainage-names")?.graphics.length ?? 0,
+        areaNames: at("drainage-outlines"),
         states: at("reference-states"),
         counties: at("reference-counties"),
         reservoirs: at("reservoir-reference")
@@ -2072,9 +2094,15 @@ for (const viewport of VIEWPORTS) {
     /* What this map does name at its opening view is the drainage areas,
      * which is what every figure below it is keyed to. Without them a reader
      * matches an outline to a table row by position. */
-    check(ladder.areaNames === state.ready?.units,
-      `${label}: ${ladder.areaNames} of ${state.ready?.units} drainage areas ` +
-      "carry their name");
+    check(ladder.areaNames?.labelsOn === true,
+      `${label}: the drainage areas are not named at 1:${ladder.scale}, which ` +
+      "leaves a reader matching an outline to a table row by position");
+    /* A name inside another name's shape is never larger than it, and a
+     * drainage area sits inside a state. */
+    check(ladder.states === null
+      || ladder.states.size > ladder.areaNames?.size,
+    `${label}: state names (${ladder.states?.size}) are not larger than ` +
+      `drainage-area names (${ladder.areaNames?.size})`);
     check(ladder.counties === null || ladder.counties.layerHidden === true,
       `${label}: county outlines are already drawn at 1:${ladder.scale}`);
     check(ladder.states === null || ladder.states.labelsOn === true,

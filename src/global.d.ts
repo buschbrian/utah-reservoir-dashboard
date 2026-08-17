@@ -145,10 +145,13 @@ interface Window {
     /** Areas plotted on the storage-against-drought chart. Fewer than `rows`
      * when an area in view has no reservoir reading to compare against. */
     scatterPoints?: number;
-    /** Drainage areas carrying their name on the map. Not `mapOutlines`:
-     * a shape that defeats the interior-point search is outlined and
-     * unnamed, and one field cannot report both. */
+    /** Drainage areas carrying their name on the map. Every area in scope
+     * since ADR-047 -- which of them fit is the label engine's answer, per
+     * frame, and not a fact a readiness field can hold. */
     mapAreaLabels?: number;
+    /** True while those names are placed by the label engine rather than at
+     * fixed points (ADR-047). */
+    mapAreaLabelsDeconflicted?: boolean;
     /** Rows in the ranked comparison: areas that have a reservoir reading. */
     gapRows?: number;
     /** Areas counted by the severity distribution: every published area. */

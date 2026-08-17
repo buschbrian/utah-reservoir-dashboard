@@ -490,6 +490,7 @@ function renderDrought(
         mapClassesDrawn: mapStatus.classesDrawn,
         mapOutlines: mapStatus.outlines,
         mapAreaLabels: mapStatus.areaLabels,
+        mapAreaLabelsDeconflicted: mapStatus.areaLabelsDeconflicted,
         mapReservoirs: mapStatus.reservoirs,
         mapReservoirLabels: mapStatus.reservoirLabels,
         mapStateBoundaries: mapStatus.stateBoundaries,

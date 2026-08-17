@@ -115,15 +115,18 @@ storage map. They are left in place for now because the snow map still fills
 each area by a value the hosted service has never heard of, and that surface is
 migrated separately.
 
-**The drought map has not moved yet, and still draws its names as fixed text
-symbols.** It is governed by this record rather than by ADR-030 from now on,
-and it fails the same way at western scale, so this is a debt and not a
-carve-out. It is separate work because its outlines are cased -- a bright
-casing under a dark core, every casing drawn before any core so that one
-area's casing cannot paint over its neighbour's shared edge -- and a hosted
-layer cannot order two passes within one layer. That wants two feature layers
-over one service, which doubles that map's boundary requests, and doubling
-them is a measurement to take rather than a thing to assume.
+The drought map has moved too, and its cased outline is two feature layers
+over one service: a wide bright pass under a narrow dark one, because a casing
+only works if every casing is down before any core is drawn and one layer
+cannot order that across features. The doubling that buys was measured rather
+than assumed -- **exactly 2.00x, 30.2 KB to 60.4 KB** at its opening view, with
+nothing shared between the two instances, against the 982 KB of committed
+geometry it replaces. `docs/data-transfer.md` carries the table and the reason
+the single-layer CIM alternative was not taken.
+
+That map keeps its own heavier halo. It writes over the Drought Monitor's
+palette rather than over terrain, and ADR-032 forbids its outlines from
+carrying colour, so contrast is all the separation they have.
 
 ## Alternatives considered
 

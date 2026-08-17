@@ -90,6 +90,10 @@ export function watershedScopeClause(level: number, codes: readonly string[]): s
 }
 
 export interface WatershedLayerOptions {
+  /** Defaults to `WATERSHED_LAYER_ID`. A map drawing the same units twice --
+   * a cased boundary is a wide pass under a narrow one -- needs to tell the
+   * two apart, because a hit test answers with a layer id. */
+  id?: string;
   level: number;
   /** The units in scope. */
   codes: readonly string[];
@@ -112,7 +116,7 @@ export interface WatershedLayerOptions {
 export function createWatershedLayer(options: WatershedLayerOptions): FeatureLayer {
   const { level, codes } = options;
   const properties: Record<string, unknown> = {
-    id: WATERSHED_LAYER_ID,
+    id: options.id ?? WATERSHED_LAYER_ID,
     url: watershedServiceUrl(level),
     listMode: "hide",
     definitionExpression: watershedScopeClause(level, codes),
