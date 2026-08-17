@@ -142,32 +142,17 @@ describe("reservoir names", () => {
     expect(label?.labelPlacement).toBe("above-center");
   });
 
-  /*
-   * Measured against the surfaces rather than chosen, and the surfaces moved.
-   *
-   * This used to require the threshold be under 1:7,000,000, on the reading
-   * that the storage map opened at 1:10,700,000 and the snow and drought
-   * cards near 1:7,900,000, so anything wider would put fifty-one names on a
-   * first frame nobody had asked anything of yet.
-   *
-   * The drought card is taller now and opens between 1:4,800,000 and
-   * 1:6,500,000 depending on the window, which put its reservoirs -- neutral
-   * dots carrying no value of their own -- permanently below the threshold
-   * and therefore permanently unnamed. The rule the two halves still share is
-   * asserted instead of the old single bound.
-   */
-  it("names reservoirs from a wider view than the detailed symbol arrives at", () => {
+  /* Measured against the surfaces rather than chosen: the storage map opens
+   * at 1:10,700,000, so a threshold above that would put fifty-one names on
+   * the first frame of a map nobody has asked anything of yet. Tied to the
+   * symbol ladder on purpose -- one threshold, and the map gets more
+   * detailed in every respect at once. */
+  it("holds the names back until the reader has zoomed past the opening view", () => {
     const [label] = reservoirLabelingInfo() as { minScale: number; maxScale: number }[];
 
     expect(label?.minScale).toBe(RESERVOIR_LABEL_SCALE.minScale);
     expect(label?.maxScale).toBe(RESERVOIR_LABEL_SCALE.maxScale);
-    expect(RESERVOIR_LABEL_SCALE.minScale).toBeGreaterThan(0);
-    /* Wider than the symbol ladder: a reference dot gets its name before it
-     * grows into a drawing, which is the change. */
-    expect(RESERVOIR_LABEL_SCALE.minScale)
-      .toBeGreaterThanOrEqual(RESERVOIR_DETAIL_SCALE);
-    /* And still inside the storage map's opening view, so that map's first
-     * frame stays as quiet as it was. */
+    expect(RESERVOIR_LABEL_SCALE.minScale).toBe(RESERVOIR_DETAIL_SCALE);
     expect(RESERVOIR_LABEL_SCALE.minScale).toBeLessThan(10_700_000);
   });
 

@@ -26,16 +26,21 @@
  */
 import ArcGISMap from "@arcgis/core/Map";
 import Graphic from "@arcgis/core/Graphic";
+import Point from "@arcgis/core/geometry/Point";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { ReferenceLayers } from "../arcgis/reference-layers";
 import { createHillshadeLayer } from "../arcgis/hillshade";
 import type { DrainageArea } from "../data/boundaries";
+import { drainageLabelPoint } from "../data/huc";
 import type { StorageContext } from "../drought-model";
 import type { UsdmPolygons } from "../data/usdm-load";
 import type { DroughtUnit } from "../types";
 import { DROUGHT_CLASSES } from "../viz/drought-classes";
+import {
+  DRAINAGE_LABEL_SIZE_PX, LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT_BOLD
+} from "../viz/label-scales";
 import { hitLayerId, type GraphicHit } from "./hit";
 import {
   droughtAreaLines,
@@ -59,6 +64,7 @@ import {
 
 const CLASS_LAYER_ID = "usdm-classes";
 const OUTLINE_LAYER_ID = "drainage-outlines";
+const AREA_LABEL_LAYER_ID = "drainage-names";
 
 /* Symbols are property objects rather than constructed classes, the same
  * convention `ui/layers.ts` records: the SDK autocasts them, and anything
@@ -77,6 +83,9 @@ export interface DroughtMapStatus {
   classesDrawn: number;
   /** Drainage-area outlines drawn over the polygons. */
   outlines: number;
+  /** Drainage areas carrying their name. One per area with an interior
+   * point, which is every area unless a shape defeats the search. */
+  areaLabels: number;
   /** Reservoirs drawn for reference, 0 when that payload could not be read. */
   reservoirs: number;
   /** True while those reference reservoirs are carrying their names. */
@@ -127,21 +136,105 @@ export async function createDroughtMap(
     droughtLayer.add(graphic);
   }
 
+  /*
+   * Cased boundaries, because one stroke cannot survive this palette.
+   *
+   * The Drought Monitor's classes run #ffff00 through #730000 -- relative
+   * luminance about 0.93 down to 0.04. A single dark line was 1.2px of
+   * #3f4d57: clear on the yellow end and all but invisible on the maroon,
+   * which is where a drainage boundary matters most, because that is where a
+   * reader is trying to see which basin the worst class is inside.
+   *
+   * No single colour works across that range, so each boundary is drawn
+   * twice: a wide near-white casing first, then a narrow near-black core over
+   * it. On a pale class the core carries the line and the casing disappears;
+   * on a dark class the casing carries it and the core disappears. One of the
+   * two is always doing the work.
+   *
+   * Achromatic on purpose. These outlines are reference geometry over the
+   * monitor's own palette, and a coloured boundary would read as a sixth
+   * class (ADR-032).
+   */
   const outlineLayer = new GraphicsLayer({ id: OUTLINE_LAYER_ID });
+  const boundaryRings = (area: DrainageArea): number[][][] =>
+    area.polygons.flat().map((ring) => ring.map((point) => [...point]));
   for (const area of areas) {
-    const graphic = new Graphic({
-      geometry: new Polygon({
-        rings: area.polygons.flat().map((ring) => ring.map((point) => [...point]))
+    outlineLayer.add(new Graphic({
+      geometry: new Polygon({ rings: boundaryRings(area) }),
+      attributes: { huc6: area.huc6, name: area.name },
+      symbol: {
+        type: "simple-fill",
+        color: [0, 0, 0, 0],
+        outline: { color: "rgba(255,255,255,0.85)", width: 3.4 }
+      } as FillSymbol
+    }));
+  }
+  for (const area of areas) {
+    /* The core in its own pass, so every casing is already down before any
+     * core is drawn -- otherwise one area's casing paints over its
+     * neighbour's core along a shared edge. */
+    outlineLayer.add(new Graphic({
+      geometry: new Polygon({ rings: boundaryRings(area) }),
+      attributes: { huc6: area.huc6, name: area.name },
+      symbol: {
+        type: "simple-fill",
+        color: [0, 0, 0, 0],
+        outline: { color: "rgba(23,32,38,0.95)", width: 1.3 }
+      } as FillSymbol
+    }));
+  }
+
+  /*
+   * The drainage areas' own names.
+   *
+   * This map's whole subject is what the monitor says about each of these
+   * fourteen areas, and every figure below it is keyed to one of them by
+   * name -- so the map has to say which shape is which. It carried no names
+   * at all, which left a reader matching an outline to a table row by
+   * position.
+   *
+   * Text symbols in a layer of their own rather than feature labelling. The
+   * outlines are graphics, and a text symbol sits exactly where this puts it,
+   * above the classes and the terrain and below the reservoirs. The name goes
+   * at each area's interior point -- `drainageLabelPoint` finds one inside
+   * the shape rather than at the average of its vertices, which for a
+   * horseshoe-shaped basin is outside it.
+   *
+   * Cased like the boundaries and for the same reason: a dark name with a
+   * bright halo reads on the pale classes because the letters are dark, and
+   * on the dark classes because the halo is bright.
+   */
+  const labelLayer = new GraphicsLayer({ id: AREA_LABEL_LAYER_ID });
+  let areaLabels = 0;
+  for (const area of areas) {
+    const point = drainageLabelPoint(area.polygons);
+    if (!point) {
+      console.warn(`No interior label point for ${area.name}; its name is not drawn.`);
+      continue;
+    }
+    areaLabels += 1;
+    labelLayer.add(new Graphic({
+      /* `drainageLabelPoint` answers a [longitude, latitude] tuple, not an
+       * SDK geometry -- passing it straight in is silently rejected by the
+       * accessor and the name never draws. The storage map wraps it the same
+       * way. */
+      geometry: new Point({
+        longitude: point[0], latitude: point[1], spatialReference: { wkid: 4326 }
       }),
-      attributes: { huc6: area.huc6, name: area.name }
-    });
-    const outline: FillSymbol = {
-      type: "simple-fill",
-      color: [0, 0, 0, 0],
-      outline: { color: "#3f4d57", width: 1.2 }
-    };
-    graphic.symbol = outline;
-    outlineLayer.add(graphic);
+      attributes: { huc6: area.huc6, name: area.name },
+      symbol: {
+        type: "text",
+        text: area.name,
+        color: "rgba(23,32,38,0.98)",
+        haloColor: "rgba(255,255,255,0.92)",
+        haloSize: "2.4px",
+        font: {
+          family: LABEL_FONT_FAMILY,
+          size: `${DRAINAGE_LABEL_SIZE_PX}px`,
+          weight: LABEL_FONT_WEIGHT_BOLD
+        }
+      }
+    } as unknown as ConstructorParameters<typeof Graphic>[0]));
   }
 
   const reference = createReservoirReferenceLayer(reservoirs);
@@ -155,7 +248,11 @@ export async function createDroughtMap(
     basemapDegraded: false,
     viewReady: false,
     classesDrawn: droughtLayer.graphics.length,
-    outlines: outlineLayer.graphics.length,
+    /* Areas outlined, not graphics drawn. Each boundary is a casing and a
+     * core, so the graphic count is twice the number of drainage areas and
+     * would answer a different question from the one this field asks. */
+    outlines: areas.length,
+    areaLabels,
     reservoirs: reference.drawn,
     reservoirLabels: reference.labelled,
     stateBoundaries: boundaries.states !== null,
@@ -205,6 +302,7 @@ export async function createDroughtMap(
       droughtLayer,
       hillshade,
       outlineLayer,
+      labelLayer,
       reference.layer
     ]
   });

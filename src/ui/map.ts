@@ -1,6 +1,8 @@
 import "@esri/calcite-components/components/calcite-notice";
 import "@arcgis/map-components/components/arcgis-basemap-gallery";
+import "@arcgis/map-components/components/arcgis-compass";
 import "@arcgis/map-components/components/arcgis-expand";
+import "@arcgis/map-components/components/arcgis-locate";
 import "@arcgis/map-components/components/arcgis-fullscreen";
 import "@arcgis/map-components/components/arcgis-home";
 import "@arcgis/map-components/components/arcgis-map";
@@ -357,6 +359,8 @@ export async function loadMap(
   element.innerHTML = `
     <arcgis-zoom slot="top-right"></arcgis-zoom>
     <arcgis-home slot="top-right"></arcgis-home>
+    <arcgis-compass slot="top-right"></arcgis-compass>
+    <arcgis-locate slot="top-right"></arcgis-locate>
     <arcgis-expand slot="top-right" id="basemap-expand" close-on-esc
       expand-icon="basemap" expand-tooltip="Map background">
       <arcgis-basemap-gallery></arcgis-basemap-gallery>

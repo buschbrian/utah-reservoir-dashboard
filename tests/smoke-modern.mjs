@@ -1613,11 +1613,15 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
   }, { hostId, cardId });
   check(frame !== null, `${label}: ${hostId} has no ready view to measure`);
   if (!frame) return;
-  /* The expand holds the basemap gallery, which these maps gained once
-   * `followThemeBasemap` learned to stand down after a reader picks a
-   * background of their own. Same set and same order as the storage map. */
+  /* Same set and same order as the storage map. The expand holds the basemap
+   * gallery, which these maps gained once `followThemeBasemap` learned to
+   * stand down after a reader picks a background of their own; the compass
+   * is there because rotation is not disabled, so a reader can turn the map
+   * and needs a way back to north; the locate control uses the browser's own
+   * geolocation and no Esri service. */
   check(frame.controls.join(",") ===
-    "arcgis-zoom,arcgis-home,arcgis-expand,arcgis-fullscreen,arcgis-scale-bar",
+    "arcgis-zoom,arcgis-home,arcgis-compass,arcgis-locate,arcgis-expand," +
+    "arcgis-fullscreen,arcgis-scale-bar",
   `${label}: ${hostId} carries ${frame.controls.join(",")}`);
   check(frame.controlsInside,
     `${label}: a map control on ${hostId} sits outside the card`);
@@ -1999,19 +2003,16 @@ for (const viewport of VIEWPORTS) {
       /* Terrain shade sits above the classes and below the outlines: it
        * varies the classes' lightness with the ground without darkening this
        * project's own reference geometry. See `arcgis/hillshade.ts`. */
+      /* The drainage names sit above the outlines they belong to and below
+       * the reservoirs, so a name is never painted over by the classes and
+       * never covers a reservoir. */
       [...boundaryLayers, "usdm-classes", "terrain-shade",
-        "drainage-outlines", "reservoir-reference"]);
-    /* The label ladder at the opening view.
-     *
-     * The reservoirs *are* named here now, and that is the change: this card
-     * grew taller and opens near 1:5,000,000 rather than 1:7,900,000, and a
-     * reservoir on this map is a neutral dot carrying no value of its own,
-     * which without a name cannot be identified at all. The storage map still
-     * opens above the threshold and its own suite still checks that its first
-     * frame is quiet -- which is the half of ADR-035's rule that was really
-     * about not greeting a reader with fifty-one names.
-     *
-     * The counties are not fetched at this scale either way. */
+        "drainage-outlines", "drainage-names", "reservoir-reference"]);
+    /* The label ladder: at the opening view the states and the drainage areas
+     * are named and the reservoirs are not, which is the whole point of the
+     * thresholds -- the drainage areas are this map's subject and the
+     * reservoirs are reference points with a map of their own. The counties
+     * are not even fetched yet. */
     const ladder = await tab.evaluate(() => {
       const view = document.querySelector("#drought-map-host arcgis-map").view;
       const at = (id) => {
@@ -2028,24 +2029,20 @@ for (const viewport of VIEWPORTS) {
       };
       return {
         scale: Math.round(view.scale),
+        areaNames: view.map.findLayerById("drainage-names")?.graphics.length ?? 0,
         states: at("reference-states"),
         counties: at("reference-counties"),
         reservoirs: at("reservoir-reference")
       };
     });
-    /* Only where the card is wide enough to open close in. A narrow card
-     * shows more ground per pixel and opens near 1:9,200,000, where
-     * sixty-nine names would be clutter rather than identification -- so the
-     * threshold is left to do its job and the check follows the width rather
-     * than forcing names onto a phone. */
-    if (viewport.width >= 1024) {
-      check(ladder.reservoirs?.labelsOn === true,
-        `${label}: reservoir names are off at 1:${ladder.scale}, so the dots ` +
-        "on this map cannot be identified");
-    } else {
-      check(ladder.reservoirs !== null,
-        `${label}: the reservoir layer is missing entirely`);
-    }
+    check(ladder.reservoirs?.labelsOn === false,
+      `${label}: reservoir names are already on at 1:${ladder.scale}`);
+    /* What this map does name at its opening view is the drainage areas,
+     * which is what every figure below it is keyed to. Without them a reader
+     * matches an outline to a table row by position. */
+    check(ladder.areaNames === state.ready?.units,
+      `${label}: ${ladder.areaNames} of ${state.ready?.units} drainage areas ` +
+      "carry their name");
     check(ladder.counties === null || ladder.counties.layerHidden === true,
       `${label}: county outlines are already drawn at 1:${ladder.scale}`);
     check(ladder.states === null || ladder.states.labelsOn === true,

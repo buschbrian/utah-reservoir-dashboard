@@ -106,6 +106,10 @@ describe("SDK architecture boundaries", () => {
        * width rather than a missing glyph -- which is why this list is a
        * test and not a comment. */
       "dragResizeVertical", "erase",
+      /* The compass needle and the locate control's two states. Same trap as
+       * the resize handle: switching a component on pulls in an icon that is
+       * a 404 and a console error at every width, not a missing glyph. */
+      "compassNeedle", "gpsOff", "gpsOn",
       "exclamationMarkTriangle",
       "export", "extentFilter", "fullScreen", "fullScreenExit", "gauge", "hamburger", "home",
       "information", "legend", "magnifyingGlass", "map", "minus", "plus", "question",

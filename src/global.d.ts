@@ -139,6 +139,10 @@ interface Window {
     /** Areas plotted on the storage-against-drought chart. Fewer than `rows`
      * when an area in view has no reservoir reading to compare against. */
     scatterPoints?: number;
+    /** Drainage areas carrying their name on the map. Not `mapOutlines`:
+     * a shape that defeats the interior-point search is outlined and
+     * unnamed, and one field cannot report both. */
+    mapAreaLabels?: number;
     /** Rows in the ranked comparison: areas that have a reservoir reading. */
     gapRows?: number;
     /** Areas counted by the severity distribution: every published area. */

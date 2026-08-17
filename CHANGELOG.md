@@ -13,11 +13,22 @@ and is not listed here.
   have been overruled by the next theme change; the theme now stands down
   once you have chosen one of your own.
 
-- **Reservoirs are named on the drought map.** They are neutral dots carrying
-  no value of their own there, so without a name they cannot be identified at
-  all. Names arrive from a wider view than the detailed symbol does, which is
-  a change from the two arriving together — the drought card opens much
-  closer in than it used to, and the storage map's first frame is unaffected.
+- **The drought map names its drainage areas.** Every figure on that page is
+  keyed to one of the fourteen areas by name, and the map carried none — so
+  matching an outline to a table row meant counting positions. The names sit
+  above the drought classes and below the reservoirs.
+
+- **Its drainage boundaries are cased, so they read on every class.** The
+  Drought Monitor's palette runs from bright yellow to near-black maroon, and
+  one dark line cannot survive both: it was clear on the pale end and all but
+  invisible on the dark end, which is exactly where a reader is trying to see
+  which basin the worst class is inside. Each boundary is drawn twice now, a
+  wide pale casing under a narrow dark core, so one of the two is always
+  visible whatever is underneath.
+
+- **A compass and a "find my location" control on all three maps.** Rotation
+  was always possible and there was no way back to north. The location
+  control uses the browser's own geolocation and asks no outside service.
 
 - **The map and the table share a split you can drag.** The row under the map
   opens at two-fifths of the window and the divider between them moves, by
