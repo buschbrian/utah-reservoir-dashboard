@@ -39,8 +39,23 @@ ROOT = Path(__file__).resolve().parent.parent
 DROUGHT_PATH = ROOT / "data" / "drought" / "usdm-current.geojson"
 BOUNDARIES_PATH = ROOT / "huc6.geojson"
 OUTPUT_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
+HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"
 DEFAULT_STEP = 0.01
 LEVELS = ("d0", "d1", "d2", "d3", "d4")
+
+# How many weekly maps the history keeps.
+#
+# The monitor publishes every Thursday, so this is ten years. It exists to
+# bound the file rather than because anything older stops being interesting:
+# at fourteen drainage areas and five cumulative shares each, a decade is
+# about 36,000 numbers, and the file only reaches that size in 2036.
+#
+# The history starts the week this was added. The monitor's own archive goes
+# back to 2000 and is not backfilled here -- every figure in this file is one
+# this pipeline computed from polygons it verified, and mixing those with
+# values recomputed later from a different archive would make the series two
+# different measurements wearing one name.
+HISTORY_WEEKS_KEPT = 520
 
 
 def segments_of(geometry: dict) -> np.ndarray:
@@ -184,6 +199,96 @@ def build_payload(drought: dict, boundaries: dict, step: float) -> dict:
     }
 
 
+def history_entry(payload: dict) -> dict:
+    """One week, reduced to what a comparison between weeks needs.
+
+    Only the cumulative shares are kept. The exclusive shares are recoverable
+    by differencing them -- `d2` alone is `at_least["d2"] - at_least["d3"]`,
+    and the share in no class at all is `100 - at_least["d0"]` -- so storing
+    both would be storing one fact twice, rounded twice, with two chances to
+    disagree.
+
+    The area names are not repeated either. They belong to the boundary file
+    and to the current week's payload; a history that carried its own copy
+    would be a second place for a name to be wrong.
+    """
+    return {
+        "map_date": payload["map_date"],
+        "release_date": payload["release_date"],
+        # Deliberately not `payload["previous"]`: an archive where each entry
+        # carries a copy of the one before it stores every week twice and
+        # doubles again on the next release.
+        "units": [
+            {"huc6": unit["huc6"],
+             "percent_of_area_at_least": dict(unit["percent_of_area_at_least"])}
+            for unit in payload["units"]
+        ],
+    }
+
+
+def previous_week(history: dict | None, map_date: str) -> dict | None:
+    """The newest week in the history older than this one, or None.
+
+    Strictly older, so re-running for a week already in the history compares
+    against the week before it rather than against itself. That is the
+    difference between a rerun being a no-op and a rerun quietly publishing a
+    change of zero for every area.
+    """
+    weeks = [week for week in ((history or {}).get("weeks") or [])
+             if week.get("map_date", "") < map_date]
+    if not weeks:
+        return None
+    newest = max(weeks, key=lambda week: week["map_date"])
+    return {
+        "map_date": newest["map_date"],
+        "release_date": newest.get("release_date"),
+        "units": [
+            {"huc6": unit["huc6"],
+             "percent_of_area_at_least": dict(unit["percent_of_area_at_least"])}
+            for unit in newest["units"]
+        ],
+    }
+
+
+def merge_history(previous: dict | None, payload: dict,
+                  keep: int = HISTORY_WEEKS_KEPT) -> dict:
+    """Add this week to the history, replacing any entry for the same week.
+
+    Replacing rather than appending is what makes the tool safe to run twice.
+    The monitor also revises a published week occasionally, and a rerun after
+    a revision has to correct the entry rather than leave the file carrying
+    both readings of one Thursday.
+
+    Weeks are held oldest first, so a reader can take the last entry without
+    knowing how long the file is.
+    """
+    weeks = list((previous or {}).get("weeks") or [])
+    entry = history_entry(payload)
+    weeks = [week for week in weeks if week.get("map_date") != entry["map_date"]]
+    weeks.append(entry)
+    weeks.sort(key=lambda week: week["map_date"])
+    del weeks[:-keep]
+    return {
+        "schema_version": 1,
+        "source": payload["source"],
+        "attribution": payload["attribution"],
+        "method": {
+            **payload["method"],
+            "history": (
+                "One entry for each weekly map this pipeline has computed, "
+                "oldest first. Exclusive class shares are recoverable by "
+                "differencing the cumulative ones."
+            ),
+        },
+        "weeks_kept": keep,
+        "first_map_date": weeks[0]["map_date"],
+        "last_map_date": weeks[-1]["map_date"],
+        "week_count": len(weeks),
+        "unit_count": payload["unit_count"],
+        "weeks": weeks,
+    }
+
+
 def write_atomic(path: Path, payload: dict) -> bool:
     body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n"
     before = path.read_text(encoding="utf-8") if path.exists() else None
@@ -204,13 +309,34 @@ def main() -> int:
     parser.add_argument("--drought", type=Path, default=DROUGHT_PATH)
     parser.add_argument("--boundaries", type=Path, default=BOUNDARIES_PATH)
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--history", type=Path, default=HISTORY_PATH)
+    parser.add_argument("--no-history", action="store_true",
+                        help="compute this week only and leave the history alone")
     parser.add_argument("--step", type=float, default=DEFAULT_STEP)
     args = parser.parse_args()
 
     drought = json.loads(args.drought.read_text(encoding="utf-8"))
     boundaries = json.loads(args.boundaries.read_text(encoding="utf-8"))
     payload = build_payload(drought, boundaries, args.step)
+    history_changed = False
+    history = None
+    previous_history = None
+    if not args.no_history:
+        previous_history = (json.loads(args.history.read_text(encoding="utf-8"))
+                            if args.history.exists() else None)
+        # Last week's figures travel in this week's file.
+        #
+        # A week-over-week comparison needs exactly two weeks, and the full
+        # history is the wrong way to deliver them: it grows without bound and
+        # every page wanting a single change would fetch a decade to find one
+        # subtraction. This block is about a kilobyte and needs no extra
+        # request. The archive stays for work that genuinely wants a series.
+        payload["previous"] = previous_week(previous_history, payload["map_date"])
+
     changed = write_atomic(args.output, payload)
+    if not args.no_history:
+        history = merge_history(previous_history, payload)
+        history_changed = write_atomic(args.history, history)
 
     for unit in payload["units"]:
         worst = next((key for key in reversed(LEVELS)
@@ -220,6 +346,10 @@ def main() -> int:
               f"dry, worst class {worst}")
     print(f"{payload['unit_count']} drainage areas for {payload['map_date']}; "
           f"{args.output} {'written' if changed else 'unchanged'}.")
+    if history is not None:
+        print(f"{history['week_count']} weeks kept "
+              f"({history['first_map_date']} to {history['last_map_date']}); "
+              f"{args.history} {'written' if history_changed else 'unchanged'}.")
     return 0
 
 

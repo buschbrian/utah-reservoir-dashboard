@@ -156,8 +156,34 @@ export function describeDrought(drought: WeeklyDrought | null): string[] {
     /* A fact about this project's data, not about the monitor, and the
      * sentence has to say which. */
     lines.push(
-      "This site keeps one week of drought coverage, so there is no change from " +
-      "last week to report yet.");
+      "This is the first drought map this site has kept, so there is no change " +
+      "from last week to report yet. There will be one next week.");
+    return lines;
+  }
+
+  const since = drought.previousDate ? ` since ${formatDate(drought.previousDate)}` : "";
+  if (drought.areasWorse === 0 && drought.areasBetter === 0) {
+    lines.push(`No drainage area changed the share of its land in severe drought ` +
+      `or worse${since}.`);
+  } else {
+    /* Counted, not averaged. A share of land averaged across areas of very
+     * different sizes is not a quantity anybody can act on. */
+    const parts: string[] = [];
+    if (drought.areasWorse > 0) {
+      parts.push(`${drought.areasWorse} ${drought.areasWorse === 1 ? "area" : "areas"} ` +
+        "gained land in severe drought or worse");
+    }
+    if (drought.areasBetter > 0) {
+      parts.push(`${drought.areasBetter} ${drought.areasBetter === 1 ? "area" : "areas"} ` +
+        "lost some");
+    }
+    lines.push(`${parts.join(", and ")}${since}.`);
+  }
+  if (drought.biggestMove) {
+    const move = drought.biggestMove;
+    lines.push(`The largest change is ${move.name}, ` +
+      `${signedPoints(move.points).replace("no change", "unchanged")} of its land ` +
+      "at that class.");
   }
   return lines;
 }

@@ -251,12 +251,33 @@ export interface WeeklyDrought {
   areasAtOrWorse: number;
   units: number;
   /**
-   * Whether a week-over-week comparison is possible at all. False while only
-   * one week of coverage is committed -- which is a fact about this project's
-   * data, not about the monitor, and the sentence has to say which.
+   * Whether a week-over-week comparison is possible at all.
+   *
+   * False for the first week the pipeline ever computed, and after that
+   * true: the coverage file carries the week before it. When it is false the
+   * reason is a fact about this project's data rather than about the
+   * monitor, and the sentence has to say which.
    */
   comparable: boolean;
+  /** The week compared against, when there is one. */
+  previousDate: string | null;
+  /**
+   * Drainage areas that moved into, or out of, severe drought or worse since
+   * that week. Counted rather than averaged: a share of land averaged across
+   * areas of very different sizes is not a quantity anybody can act on, and
+   * "two more areas have land in severe drought" is.
+   */
+  areasWorse: number;
+  areasBetter: number;
+  /** The largest change in the share of one area's land at that class,
+   * signed, with the area's name. Null when nothing moved. */
+  biggestMove: { name: string; points: number } | null;
 }
+
+/** The class a week-over-week comparison is measured at. Severe drought is
+ * where the monitor's own impact language turns from developing conditions to
+ * actual shortage, and it is the class the rest of this page counts by. */
+const CHANGE_CLASS = "d2" as const;
 
 export function weeklyDrought(payload: DroughtCoveragePayload): WeeklyDrought {
   let worst: DroughtClass | null = null;
@@ -266,16 +287,44 @@ export function weeklyDrought(payload: DroughtCoveragePayload): WeeklyDrought {
     if (unitWorst && (worst === null || unitWorst.key > worst.key)) worst = unitWorst;
     if (unit.percent_of_area_at_least.d2 > 0) areas += 1;
   }
+
+  /* The week before this one travels in the same file, so the comparison
+   * costs no extra request. Absent only for the first week the pipeline ever
+   * computed. */
+  const previous = payload.previous ?? null;
+  const before = new Map(
+    (previous?.units ?? []).map((unit) => [unit.huc6, unit.percent_of_area_at_least]));
+  let areasWorse = 0;
+  let areasBetter = 0;
+  let biggestMove: { name: string; points: number } | null = null;
+  if (previous) {
+    for (const unit of payload.units) {
+      const was = before.get(unit.huc6);
+      if (!was) continue;
+      const now = unit.percent_of_area_at_least[CHANGE_CLASS];
+      const change = now - was[CHANGE_CLASS];
+      /* A tenth of a point is the published precision, so anything smaller is
+       * rounding rather than weather. */
+      if (change > 0.05) areasWorse += 1;
+      else if (change < -0.05) areasBetter += 1;
+      if (Math.abs(change) > 0.05
+        && (biggestMove === null || Math.abs(change) > Math.abs(biggestMove.points))) {
+        biggestMove = { name: unit.huc6_name, points: change };
+      }
+    }
+  }
+
   return {
     mapDate: payload.map_date,
     releaseDate: payload.release_date,
     worst,
     areasAtOrWorse: areas,
     units: payload.units.length,
-    /* One committed week cannot be compared with itself. When a history is
-     * published this becomes a real comparison; until then the view says so
-     * rather than showing a change of nothing. */
-    comparable: false
+    comparable: previous !== null,
+    previousDate: previous?.map_date ?? null,
+    areasWorse,
+    areasBetter,
+    biggestMove
   };
 }
 

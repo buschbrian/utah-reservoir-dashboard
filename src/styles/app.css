@@ -171,10 +171,17 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .legend h3 { margin: 0 0 .5rem; font-size: 1rem; }
 .legend-classes,
 .legend-notes { margin: 0; padding: 0; list-style: none; }
+/* A grid, not a wrapping row.
+ *
+ * Five classes in a `flex-wrap` row break wherever they happen to fit, so
+ * the swatches start at a different x on every line and the last row is left
+ * ragged -- which is what made the key read as unaligned inside its own box.
+ * Equal columns put every swatch on one of two verticals and give the odd
+ * one out a full column of its own rather than a stranded remainder. */
 .legend-classes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .25rem .75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: .3rem .75rem;
 }
 .legend-classes li,
 .legend-notes li {
@@ -385,17 +392,42 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .trend-details { margin-block-start: .75rem; font-size: .8125rem; }
 .trend-details summary { cursor: pointer; color: var(--app-muted); }
 .trend-details summary:focus-visible { outline: .15rem solid #00619b; outline-offset: .1rem; }
-/* The table has four columns of numbers in a 20rem panel: it scrolls inside
- * its own box rather than widening the panel, and the page behind it. */
+/* Four columns in a 20rem panel, and the headers are what did not fit.
+ *
+ * The whole table used to scroll sideways inside an already-narrow column,
+ * which is the nested-scroller trap this project avoids everywhere else. The
+ * values were never the problem: a month, an acre-feet figure and two
+ * percentages measure about 230px together. "Change from normal" and "Of
+ * full level" held on one line each are what pushed it past the panel.
+ *
+ * So the headers wrap and the values do not. The scroller stays as a
+ * fallback -- a long name or a wider number should still never widen the
+ * panel or the page behind it -- but at every tested width it now has
+ * nothing to scroll. */
 .trend-table-scroll { overflow-x: auto; margin-block-start: .5rem; }
-.trend-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.trend-table th, .trend-table td { padding: .25rem .4rem; text-align: start; white-space: nowrap; }
+.trend-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.trend-table th, .trend-table td { padding: .25rem .4rem; text-align: start; }
+/* Values stay on one line: a wrapped number reads as two numbers. */
+.trend-table tbody th, .trend-table tbody td { white-space: nowrap; }
 .trend-table thead th {
   border-block-end: 1px solid var(--app-border);
   color: var(--app-muted);
-  font-size: .75rem;
+  font-size: .6875rem;
   font-weight: 600;
+  line-height: 1.25;
+  /* The stacking this column set exists for. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: bottom;
 }
+/* The month column carries the widest text and the rest are numbers, so it
+   takes the slack and the three value columns share what is left evenly. */
+.trend-table thead th:first-child { inline-size: 34%; }
 .trend-table tbody th { font-weight: 400; }
 .trend-table tbody tr + tr th,
 .trend-table tbody tr + tr td { border-block-start: 1px solid var(--app-surface); }

@@ -118,15 +118,54 @@ describe("the sections that have nothing to report", () => {
     expect(lines.join(" ")).toContain("171 sites");
   });
 
+  const D4 = { key: "d4", code: "D4", label: "Exceptional drought",
+    color: "#730000" } as const;
+  const week = { mapDate: "2026-08-11", releaseDate: "2026-08-13",
+    worst: D4, areasAtOrWorse: 14, units: 14 };
+
   /* This one is a fact about this project's data rather than about the
    * monitor, and the sentence has to say which. */
   it("says the missing drought history is ours, not the publisher's", () => {
     const lines = describeDrought({
-      mapDate: "2026-08-11", releaseDate: "2026-08-13",
-      worst: { key: "d4", code: "D4", label: "Exceptional drought", color: "#730000" },
-      areasAtOrWorse: 14, units: 14, comparable: false
+      ...week, comparable: false, previousDate: null,
+      areasWorse: 0, areasBetter: 0, biggestMove: null
     });
 
-    expect(lines.join(" ")).toContain("This site keeps one week");
+    expect(lines.join(" ")).toContain("the first drought map this site has kept");
+    expect(lines.join(" ")).toContain("next week");
+  });
+
+  it("counts the areas that moved, and names the week it compared with", () => {
+    const lines = describeDrought({
+      ...week, comparable: true, previousDate: "2026-08-04",
+      areasWorse: 3, areasBetter: 1,
+      biggestMove: { name: "Great Salt Lake", points: 12.4 }
+    }).join(" ");
+
+    expect(lines).toContain("3 areas gained land in severe drought or worse");
+    expect(lines).toContain("1 area lost some");
+    expect(lines).toContain("Aug 4, 2026");
+    expect(lines).toContain("Great Salt Lake");
+    expect(lines).toContain("up 12.4 points");
+  });
+
+  it("says plainly when a week moved nothing", () => {
+    const lines = describeDrought({
+      ...week, comparable: true, previousDate: "2026-08-04",
+      areasWorse: 0, areasBetter: 0, biggestMove: null
+    }).join(" ");
+
+    expect(lines).toContain("No drainage area changed");
+    expect(lines).toContain("Aug 4, 2026");
+  });
+
+  it("says one area rather than 1 areas", () => {
+    const lines = describeDrought({
+      ...week, comparable: true, previousDate: "2026-08-04",
+      areasWorse: 1, areasBetter: 0, biggestMove: null
+    }).join(" ");
+
+    expect(lines).toContain("1 area gained");
+    expect(lines).not.toContain("1 areas");
   });
 });

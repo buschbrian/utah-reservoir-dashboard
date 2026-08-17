@@ -235,8 +235,17 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
     f("attribution", "text", "Credit statement for the drought map."),
     f("method", "object", "How the area shares were calculated."),
     f("unit_count", "areas", "Number of published drainage areas."),
-    f("units", "array", "Per-drainage-area shares.")
+    f("units", "array", "Per-drainage-area shares."),
+    f("previous", "object",
+      "The week before this one, or null for the first week kept.", true)
   ]},
+  { id: "drought-previous", title: "The week before this one",
+    path: "previous", fields: [
+      f("map_date", "date", "The week that earlier map describes."),
+      f("release_date", "date", "The Thursday it was published."),
+      f("units", "array",
+        "Per-drainage-area shares for that week, cumulative only.")
+    ]},
   { id: "drought-method", title: "Calculation method", path: "method", fields: [
     f("sampling", "text", "How points were placed over each area."),
     f("grid_step_degrees", "decimal degrees", "Distance between sampled points."),

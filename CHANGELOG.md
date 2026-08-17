@@ -7,6 +7,20 @@ and is not listed here.
 
 ### Added
 
+- **The drought pipeline keeps its weekly maps.** Every week the monitor
+  publishes is now retained, so week-over-week change becomes possible for
+  the first time. Two files do it: the current week's coverage carries the
+  week before it, which is about a kilobyte and is all a change needs, and a
+  separate archive keeps ten years of Thursdays for work that wants a series.
+  Reruns replace a week rather than repeating it, which also lets a revised
+  map correct its own entry.
+
+  The weekly digest uses it straight away. It counts the drainage areas that
+  gained or lost land in severe drought or worse and names the one that moved
+  most — counted rather than averaged, because a share of land averaged
+  across areas of very different sizes is not a quantity anybody can act on.
+  Until a second week is published it says so plainly.
+
 - **Two new charts on the drought page.**
 
   **How the areas are divided** counts every drainage area once, at the most
@@ -77,6 +91,19 @@ and is not listed here.
   yet. It describes the whole region and does not follow the filters below it.
 
 ### Changed
+
+- **The drought map's terrain now brightens as well as shades.** It was
+  combined with `multiply`, which can only darken — where the hillshade is
+  light it does nothing at all, so lit slopes disappeared and only shadows
+  showed. `soft-light` lightens above mid-grey and darkens below it, which is
+  what relief shading is for.
+
+- **The map key lines up.** Five classes in a wrapping row broke wherever
+  they fitted, so the swatches started at a different place on every line.
+
+- **The month table in the reservoir details no longer scrolls sideways.**
+  The values always fitted; the column headings held on one line each are
+  what pushed it past the panel. They wrap now and the values do not.
 
 - **Every page now names itself.** The site is the **Utah Water Dashboard** —
   it carries mountain snow and the weekly drought map beside the storage, and

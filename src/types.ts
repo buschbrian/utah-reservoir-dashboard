@@ -229,10 +229,26 @@ export interface DroughtUnit {
   percent_of_area_at_least: DroughtAtLeast;
 }
 
+/** One earlier week, reduced to what a comparison needs. */
+export interface DroughtPreviousWeek {
+  map_date: string;
+  release_date: string | null;
+  units: { huc6: string; percent_of_area_at_least: DroughtAtLeast }[];
+}
+
 export interface DroughtCoveragePayload {
   schema_version: number;
   /** The week the monitor's map describes. */
   map_date: string;
+  /**
+   * The week before this one, carried here rather than fetched.
+   *
+   * Null for the first week the pipeline ever computed, and only ever a
+   * strictly earlier week — never this one, which would make every change
+   * zero and call it a measurement. Optional while payloads written before
+   * the history remain readable.
+   */
+  previous?: DroughtPreviousWeek | null;
   /** The Thursday the monitor published it. */
   release_date: string;
   source: string;

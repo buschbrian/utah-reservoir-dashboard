@@ -45,6 +45,24 @@ function isDroughtUnit(value: unknown): value is DroughtUnit {
     isAtLeast(value.percent_of_area_at_least);
 }
 
+/**
+ * The earlier week carried in this file, if there is one.
+ *
+ * The one thing this refuses is a `previous` that is not strictly older than
+ * the week around it. A file comparing a week with itself would publish a
+ * change of zero for every drainage area and present it as a measurement,
+ * which is worse than publishing no comparison at all.
+ */
+function isPreviousWeek(value: unknown, mapDate: string): boolean {
+  if (!isObject(value)) return false;
+  if (typeof value.map_date !== "string" || value.map_date >= mapDate) return false;
+  if (value.release_date !== null && typeof value.release_date !== "string") return false;
+  if (!Array.isArray(value.units) || value.units.length === 0) return false;
+  return value.units.every((unit) =>
+    isObject(unit) && typeof unit.huc6 === "string" && /^\d{6}$/.test(unit.huc6) &&
+    isAtLeast(unit.percent_of_area_at_least));
+}
+
 export function validateDroughtCoverage(value: unknown): DroughtCoveragePayload {
   if (!isObject(value) || !Array.isArray(value.units)) {
     throw new Error("drought coverage must be an object with a units array");
@@ -69,6 +87,10 @@ export function validateDroughtCoverage(value: unknown): DroughtCoveragePayload 
   const codes = new Set(value.units.map((unit) => (unit as DroughtUnit).huc6));
   if (codes.size !== value.units.length) {
     throw new Error("drought coverage repeats a drainage area");
+  }
+  if (value.previous !== undefined && value.previous !== null &&
+      !isPreviousWeek(value.previous, value.map_date)) {
+    throw new Error("drought coverage carries an invalid earlier week");
   }
   return value as unknown as DroughtCoveragePayload;
 }

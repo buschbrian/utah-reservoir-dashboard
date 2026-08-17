@@ -127,7 +127,8 @@ jobs:
           # agree, and staging them together is what keeps that true of the
           # commit as well as of the working tree.
           git add reservoirs.json snow_sites.json snowpack.json \
-            data/drought/usdm-current.geojson data/drought/usdm-huc6.json
+            data/drought/usdm-current.geojson data/drought/usdm-huc6.json \
+            data/drought/usdm-huc6-history.json
           if git diff --cached --quiet; then
             echo "No data changes today."
             exit 0

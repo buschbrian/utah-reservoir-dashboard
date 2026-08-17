@@ -24,6 +24,7 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
+| `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules
 
@@ -76,6 +77,14 @@ classes and below this project's own geometry. Note `multiply` can only darken:
 if lit slopes should brighten too, that is `soft-light` or `overlay`, not a
 higher opacity. The Basemap Styles hillshades need an API key (ADR-004 refuses
 one); `World_Hillshade` is public and already inside the content policy.
+
+**A week-over-week drought change needs two files and uses one.** The current
+coverage file carries the week before it, which is about a kilobyte and is all
+a change needs; `usdm-huc6-history.json` is the archive for work that wants a
+series. Never fetch the archive to compute one subtraction. `previous` is
+always strictly older than `map_date` — a file comparing a week with itself
+would publish a change of zero for every area and present it as a measurement,
+and the validator refuses it.
 
 **Never subtract two shares with different denominators** (ADR-046). A share of
 land minus a share of reservoir capacity is not a quantity. Such a difference

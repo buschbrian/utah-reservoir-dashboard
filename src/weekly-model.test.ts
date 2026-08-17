@@ -121,15 +121,80 @@ describe("the snow half of the week", () => {
 });
 
 describe("the drought half of the week", () => {
-  /* One committed week cannot be compared with itself. This stays false until
-   * a history is published, and the view says why rather than showing a
-   * change of nothing. */
-  it("reports that there is no week to compare against yet", () => {
-    const week = weeklyDrought(readDroughtCoverage());
+  /* The committed payload has whatever history the pipeline has accumulated,
+   * which is one week on the day the history was added and more after that.
+   * Asserting either state would make this test a calendar, so it asserts the
+   * rule that holds in both: a comparison exists exactly when an earlier week
+   * is carried, and never against this week itself. */
+  it("compares against an earlier week only when it has one", () => {
+    const payload = readDroughtCoverage();
+    const week = weeklyDrought(payload);
 
-    expect(week.comparable).toBe(false);
     expect(week.units).toBeGreaterThan(0);
     expect(week.mapDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(week.comparable).toBe(Boolean(payload.previous));
+    if (week.comparable) {
+      expect(week.previousDate).toBe(payload.previous?.map_date);
+      expect(week.previousDate! < week.mapDate).toBe(true);
+    } else {
+      expect(week.previousDate).toBeNull();
+      expect(week.areasWorse).toBe(0);
+      expect(week.areasBetter).toBe(0);
+      expect(week.biggestMove).toBeNull();
+    }
+  });
+
+  function coverage(now: number, before: number | null, name = "Great Salt Lake") {
+    const atLeast = (value: number) => ({
+      d0: 100, d1: 100, d2: value, d3: 0, d4: 0
+    });
+    return {
+      schema_version: 1, map_date: "2026-08-11", release_date: "2026-08-13",
+      source: "s", attribution: "a", method: {}, unit_count: 1,
+      units: [{
+        huc6: "160203", huc6_name: name,
+        percent_of_area: { none: 0, d0: 100 - now, d1: 0, d2: now, d3: 0, d4: 0 },
+        percent_of_area_at_least: atLeast(now)
+      }],
+      previous: before === null ? null : {
+        map_date: "2026-08-04", release_date: "2026-08-06",
+        units: [{ huc6: "160203", percent_of_area_at_least: atLeast(before) }]
+      }
+    } as unknown as Parameters<typeof weeklyDrought>[0];
+  }
+
+  it("counts an area that gained land at the class, and one that lost it", () => {
+    expect(weeklyDrought(coverage(60, 40)).areasWorse).toBe(1);
+    expect(weeklyDrought(coverage(60, 40)).areasBetter).toBe(0);
+    expect(weeklyDrought(coverage(40, 60)).areasBetter).toBe(1);
+    expect(weeklyDrought(coverage(40, 60)).areasWorse).toBe(0);
+  });
+
+  it("names the largest move with its direction", () => {
+    const move = weeklyDrought(coverage(60, 40)).biggestMove;
+    expect(move?.name).toBe("Great Salt Lake");
+    expect(move?.points).toBeCloseTo(20, 5);
+    expect(weeklyDrought(coverage(40, 60)).biggestMove?.points).toBeCloseTo(-20, 5);
+  });
+
+  /* A tenth of a point is the published precision, so anything smaller is
+   * rounding rather than weather. */
+  it("ignores a change below the published precision", () => {
+    const week = weeklyDrought(coverage(60.02, 60));
+    expect(week.areasWorse).toBe(0);
+    expect(week.areasBetter).toBe(0);
+    expect(week.biggestMove).toBeNull();
+  });
+
+  it("has nothing to compare when an area is new since the earlier week", () => {
+    const payload = coverage(60, 40);
+    // The earlier week did not carry this area at all.
+    (payload as unknown as { previous: { units: unknown[] } })
+      .previous.units = [];
+    const week = weeklyDrought(payload);
+    expect(week.comparable).toBe(true);
+    expect(week.areasWorse).toBe(0);
+    expect(week.biggestMove).toBeNull();
   });
 });
 

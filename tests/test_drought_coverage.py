@@ -18,8 +18,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from compute_drought_coverage import (  # noqa: E402
+    HISTORY_WEEKS_KEPT,
     LEVELS,
     build_payload,
+    history_entry,
+    merge_history,
+    previous_week,
     segments_of,
     unit_coverage,
 )
@@ -183,3 +187,151 @@ class TestCommittedOutput:
             for level in LEVELS:
                 assert at_least[level] <= previous
                 previous = at_least[level]
+
+
+def week_payload(map_date, release_date="2026-08-13", d4=10.0):
+    """The smallest thing shaped like a computed week."""
+    return {
+        "map_date": map_date,
+        "release_date": release_date,
+        "source": "s",
+        "attribution": "a",
+        "method": {"sampling": "even-odd scanline over cell centres"},
+        "unit_count": 1,
+        "units": [{
+            "huc6": "140100",
+            "huc6_name": "Colorado Headwaters",
+            "percent_of_area": {"none": 0.0, "d0": 0.0, "d1": 0.0,
+                                "d2": 0.0, "d3": 100.0 - d4, "d4": d4},
+            "percent_of_area_at_least": {"d0": 100.0, "d1": 100.0, "d2": 100.0,
+                                         "d3": 100.0, "d4": d4},
+        }],
+    }
+
+
+class TestHistory:
+    """Retaining the weekly maps, so a change can be reported at all."""
+
+    def test_an_entry_keeps_only_the_cumulative_shares(self):
+        """The exclusive shares are recoverable by differencing, so storing
+        both would store one fact twice with two chances to disagree."""
+        entry = history_entry(week_payload("2026-08-11"))
+        unit = entry["units"][0]
+        assert set(unit) == {"huc6", "percent_of_area_at_least"}
+        assert "huc6_name" not in unit
+        assert unit["percent_of_area_at_least"]["d4"] == 10.0
+
+    def test_the_first_run_starts_a_history_of_one(self):
+        history = merge_history(None, week_payload("2026-08-11"))
+        assert history["week_count"] == 1
+        assert history["first_map_date"] == history["last_map_date"] == "2026-08-11"
+
+    def test_a_later_week_is_added_oldest_first(self):
+        history = merge_history(None, week_payload("2026-08-11"))
+        history = merge_history(history, week_payload("2026-08-18"))
+        assert [week["map_date"] for week in history["weeks"]] == [
+            "2026-08-11", "2026-08-18"]
+        assert history["week_count"] == 2
+
+    def test_rerunning_a_week_replaces_it_rather_than_repeating_it(self):
+        """The tool has to be safe to run twice, and the monitor revises a
+        published week occasionally -- a rerun after a revision must correct
+        the entry, not leave the file carrying both readings of one Thursday."""
+        history = merge_history(None, week_payload("2026-08-11", d4=10.0))
+        history = merge_history(history, week_payload("2026-08-11", d4=42.0))
+        assert history["week_count"] == 1
+        assert (history["weeks"][0]["units"][0]["percent_of_area_at_least"]["d4"]
+                == 42.0)
+
+    def test_an_out_of_order_week_still_lands_in_order(self):
+        history = merge_history(None, week_payload("2026-08-18"))
+        history = merge_history(history, week_payload("2026-08-11"))
+        assert [week["map_date"] for week in history["weeks"]] == [
+            "2026-08-11", "2026-08-18"]
+
+    def test_the_history_is_bounded_and_drops_the_oldest_first(self):
+        history = None
+        for day in range(1, 8):
+            history = merge_history(history, week_payload(f"2026-01-{day:02d}"), keep=3)
+        assert history["week_count"] == 3
+        assert [week["map_date"] for week in history["weeks"]] == [
+            "2026-01-05", "2026-01-06", "2026-01-07"]
+
+    def test_an_entry_never_carries_the_week_before_it(self):
+        """Otherwise the archive stores every week twice, and doubles again on
+        the next release."""
+        payload = week_payload("2026-08-18")
+        payload["previous"] = {"map_date": "2026-08-11", "units": []}
+        assert "previous" not in history_entry(payload)
+
+    def test_the_default_bound_is_a_decade_of_thursdays(self):
+        assert HISTORY_WEEKS_KEPT == 520
+
+
+class TestPreviousWeek:
+    """The one week a week-over-week comparison needs, carried in the current
+    file so no page fetches an archive to find one subtraction."""
+
+    @pytest.fixture()
+    def history(self):
+        history = merge_history(None, week_payload("2026-08-04", d4=1.0))
+        return merge_history(history, week_payload("2026-08-11", d4=2.0))
+
+    def test_it_finds_the_week_before_this_one(self, history):
+        found = previous_week(history, "2026-08-18")
+        assert found["map_date"] == "2026-08-11"
+        assert found["units"][0]["percent_of_area_at_least"]["d4"] == 2.0
+
+    def test_a_rerun_compares_against_the_week_before_rather_than_itself(self, history):
+        """Strictly older. Otherwise a rerun publishes a change of zero for
+        every area and calls it a measurement."""
+        found = previous_week(history, "2026-08-11")
+        assert found["map_date"] == "2026-08-04"
+
+    def test_the_first_week_ever_has_nothing_before_it(self):
+        assert previous_week(None, "2026-08-11") is None
+        assert previous_week({"weeks": []}, "2026-08-11") is None
+        history = merge_history(None, week_payload("2026-08-11"))
+        assert previous_week(history, "2026-08-11") is None
+
+
+class TestCommittedHistory:
+    """The file in the repository, checked for shape rather than for values."""
+
+    @pytest.fixture(scope="class")
+    def history(self):
+        path = ROOT / "data" / "drought" / "usdm-huc6-history.json"
+        if not path.exists():
+            pytest.skip("no drought history has been built in this checkout")
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_the_weeks_are_unique_and_in_order(self, history):
+        dates = [week["map_date"] for week in history["weeks"]]
+        assert dates == sorted(dates)
+        assert len(dates) == len(set(dates))
+
+    def test_it_agrees_with_its_own_summary(self, history):
+        assert history["week_count"] == len(history["weeks"])
+        assert history["first_map_date"] == history["weeks"][0]["map_date"]
+        assert history["last_map_date"] == history["weeks"][-1]["map_date"]
+        assert history["week_count"] <= history["weeks_kept"]
+
+    def test_it_covers_the_areas_the_current_week_publishes(self, history):
+        current = json.loads(
+            (ROOT / "data" / "drought" / "usdm-huc6.json").read_text(encoding="utf-8"))
+        published = {unit["huc6"] for unit in current["units"]}
+        for week in history["weeks"]:
+            assert {unit["huc6"] for unit in week["units"]} == published
+
+    def test_the_current_week_names_the_week_it_was_compared_with(self, history):
+        """`previous` is either a real earlier week or null. It is never this
+        week, which would make every change zero."""
+        current = json.loads(
+            (ROOT / "data" / "drought" / "usdm-huc6.json").read_text(encoding="utf-8"))
+        previous = current.get("previous")
+        if previous is None:
+            assert history["week_count"] == 1
+            return
+        assert previous["map_date"] < current["map_date"]
+        assert ({unit["huc6"] for unit in previous["units"]}
+                == {unit["huc6"] for unit in current["units"]})
