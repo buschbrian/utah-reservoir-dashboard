@@ -5,12 +5,19 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 const joinedPythonStrings = (source: string): string => source.replace(/["'()\s]/g, "");
+/* The same idea for TypeScript: a URL long enough to wrap is written as two
+ * adjacent string literals joined by `+`, so the whole of it never appears
+ * contiguously in the source. */
+const joinedTsStrings = (source: string): string => source.replace(/["'+\s]/g, "");
 
 /* The service, not one layer of it. Each hydrologic level is its own layer
  * (HUC4 is 2, HUC6 is 3, HUC8 is 4) and the scope decides which is queried,
  * so pinning `/3` would say the project can only ever read six-digit units. */
 const WATERSHED_SERVICE =
   "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer";
+const DRAWN_WATERSHED_SERVICE =
+  "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
+  "Watershed_Boundary_Dataset_HUC_6s/FeatureServer/0";
 const UTAH_BOUNDARY_SERVICE =
   "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStateBoundary/FeatureServer/0";
 const DROUGHT_SERVICE =
@@ -28,6 +35,12 @@ describe("the authoritative source inventory", () => {
     }
 
     expect(await read("tools/fetch_watershed_scope.py")).toContain(WATERSHED_SERVICE);
+    /* The drawn boundaries come from Living Atlas rather than from the USGS
+     * service the pipeline fetches: the pipeline needs a file it can commit,
+     * the map needs features quantized to the view. Both are recorded. */
+    expect(inventory).toContain(DRAWN_WATERSHED_SERVICE);
+    expect(joinedTsStrings(await read("src/arcgis/watershed-layers.ts")))
+      .toContain(DRAWN_WATERSHED_SERVICE);
     expect(await read("scripts/fetch-utah-boundary.mjs")).toContain(UTAH_BOUNDARY_SERVICE);
     expect(joinedPythonStrings(await read("tools/fetch_drought_monitor.py")))
       .toContain(DROUGHT_SERVICE);
