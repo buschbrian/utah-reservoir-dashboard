@@ -14,7 +14,7 @@ this is geometry with no series, no network and no pandas in it, so it can be
 tested on its own and reused by tools/probe_huc_points.py without dragging
 the whole data stack along.
 
-Boundaries come from `huc6.geojson`, written by scripts/fetch-huc6.mjs from
+Boundaries come from `huc6.geojson`, written by tools/fetch_watershed_scope.py from
 the USGS Watershed Boundary Dataset and committed. Committed rather than
 fetched at refresh time for the same reason as capacities.json: an
 assignment that can change underneath you is not reproducible, and a
@@ -157,7 +157,7 @@ def distance_to_boundary_km(point: Point, unit: dict) -> float:
     20 km inside cannot. Measured across the 53 reservoirs published at the
     time of the boundary study, the closest is 2.72 km, which is what
     justifies the 500 m generalization in
-    scripts/fetch-huc6.mjs.
+    tools/fetch_watershed_scope.py.
 
     Computed on a local equirectangular projection about the point. Over the
     few kilometres that matter the error is far below the thing being

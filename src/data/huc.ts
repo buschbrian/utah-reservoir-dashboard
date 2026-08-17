@@ -24,6 +24,26 @@
 import type { MonthlyRecord, NullableNumber } from "../types";
 
 /** Longitude, latitude -- GeoJSON order, not lat/lon. */
+/**
+ * The shape of a hydrologic unit code, at any level this project reads.
+ *
+ * Codes are fixed-width and zero-padded, and the levels are the even numbers
+ * from 2 to 12 -- a region is two digits, a subregion four, a basin six, and
+ * so on down. So the test is "an even count of digits, at most twelve", which
+ * also rejects the five- and seven-digit strings that are not a level at all
+ * and would otherwise be waved through by a looser `\d+`.
+ *
+ * One constant because four places were each carrying their own `/^\d{6}$/`,
+ * and every one of them would have had to be found again the first time a
+ * payload arrived at another level.
+ */
+export const HUC_CODE = /^(?:\d{2}){1,6}$/;
+
+/** The level a code is expressed at, which is simply its length. */
+export function hucLevel(code: string): number | null {
+  return HUC_CODE.test(code) ? code.length : null;
+}
+
 export type Point = readonly [number, number];
 
 /** A linear ring: the outer ring first, then any holes. */

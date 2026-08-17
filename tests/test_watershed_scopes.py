@@ -12,7 +12,14 @@ from tools.fetch_watershed_scope import (
     MAX_ALLOWABLE_OFFSET,
     normalize_collection,
 )
-from watershed_scopes import get_scope, load_scope_units, validate_huc6_codes
+from watershed_scopes import (
+    WBD_LAYER_BY_LEVEL,
+    get_scope,
+    huc_field,
+    load_scope_units,
+    validate_huc6_codes,
+    validate_huc_codes,
+)
 
 
 def test_utah_connected_scope_preserves_the_published_dashboard_rule():
@@ -21,6 +28,33 @@ def test_utah_connected_scope_preserves_the_published_dashboard_rule():
     assert scope.where == "states LIKE '%UT%' AND huc6 NOT LIKE '17%'"
     assert scope.expected_count == 14
     assert scope.output == "huc6.geojson"
+    assert scope.level == 6
+
+
+def test_the_western_scopes_are_defined_but_publish_nowhere_near_the_dashboard():
+    """They exist so the geography can be fetched and reviewed before any
+    surface draws it. None of them writes the file the dashboard reads."""
+    published = get_scope("utah-connected").output
+
+    for name, level, output in (
+        ("west-huc4", 4, "data/watersheds/west-huc4.geojson"),
+        ("west-huc6", 6, "data/watersheds/west-huc6.geojson"),
+        ("west-huc8", 8, "data/watersheds/west-huc8.geojson"),
+    ):
+        scope = get_scope(name)
+        assert scope.level == level
+        assert scope.output == output
+        assert scope.output != published
+        # Banded rather than pinned: nine regions of the Watershed Boundary
+        # Dataset are revised more often than one.
+        assert scope.expected_count is None
+        assert scope.expected_range is not None
+
+    # Regions 10 through 18, as a range on the leading two digits rather than
+    # nine LIKE clauses. Region 19 is Alaska and is out.
+    where = get_scope("west-huc6").where
+    assert "SUBSTRING(huc6, 1, 2) >= '10'" in where
+    assert "SUBSTRING(huc6, 1, 2) <= '18'" in where
 
 
 def test_upper_colorado_scope_is_separate_from_the_published_scope():
@@ -34,12 +68,44 @@ def test_upper_colorado_scope_is_separate_from_the_published_scope():
 def test_huc_validation_preserves_codes_as_strings_and_rejects_wrong_regions():
     assert validate_huc6_codes(["140100", "140200"], "14") == ["140100", "140200"]
 
-    with pytest.raises(ValueError, match="six-digit strings"):
+    with pytest.raises(ValueError, match="6-digit strings"):
         validate_huc6_codes([140100], "14")
     with pytest.raises(ValueError, match="outside region 14"):
         validate_huc6_codes(["150100"], "14")
     with pytest.raises(ValueError, match="duplicate"):
         validate_huc6_codes(["140100", "140100"], "14")
+
+
+def test_validation_follows_the_level_rather_than_assuming_six():
+    """A HUC code is fixed-width and zero-padded, so the digit count *is* the
+    level. A six-digit code inside a HUC8 scope is a mixed-level payload, not
+    a short one, and every downstream join is by code."""
+    assert validate_huc_codes(["14010001", "14010002"], 8, "14") == [
+        "14010001", "14010002"]
+    assert validate_huc_codes(["1401", "1402"], 4, "14") == ["1401", "1402"]
+
+    with pytest.raises(ValueError, match="8-digit strings"):
+        validate_huc_codes(["140100"], 8)
+    with pytest.raises(ValueError, match="4-digit strings"):
+        validate_huc_codes(["140100"], 4)
+
+
+def test_an_unsupported_level_is_a_configuration_error():
+    """HUC10 and finer are absent on purpose: the drought engine's sampled
+    share carries about 0.21 points of error at HUC10 against a published
+    precision of 0.1, so the level is refused rather than quietly published."""
+    assert sorted(WBD_LAYER_BY_LEVEL) == [2, 4, 6, 8]
+
+    with pytest.raises(ValueError, match="unsupported hydrologic level 12"):
+        validate_huc_codes(["140100010101"], 12)
+
+
+def test_the_layer_and_field_follow_the_level():
+    """The WBD service publishes each level as its own layer, and each layer
+    names its code column after the level."""
+    assert WBD_LAYER_BY_LEVEL[6] == 3
+    assert huc_field(6) == "huc6"
+    assert huc_field(8) == "huc8"
 
 
 def test_unknown_scope_is_a_configuration_error():
@@ -78,7 +144,14 @@ class Session:
     def __init__(self):
         self.calls = []
 
-    def get(self, url, *, params, timeout):
+    def post(self, url, *, data, timeout):
+        """The client posts rather than gets.
+
+        The object-ID list is unbounded -- a western HUC8 scope names 1,247
+        of them, about 9 KB of parameters -- and the service answers 414 to a
+        query string that long. The parameters are identical either way.
+        """
+        params = data
         self.calls.append((url, params, timeout))
         if not url.endswith("/query"):
             return Response({"capabilities": "Map,Query", "maxRecordCount": 1,
@@ -142,14 +215,17 @@ def test_arcgis_python_provider_uses_feature_layer_query_contract():
 
 
 def test_normalization_uses_huc_strings_and_reports_geometry_with_numpy():
-    collection = Session().get("https://example.test/query", params={"objectIds": "1"},
-                               timeout=1).json()
+    collection = Session().post("https://example.test/query", data={"objectIds": "1"},
+                                timeout=1).json()
     one_unit_scope = replace(get_scope("upper-colorado"), expected_count=1)
     normalized, report = normalize_collection(collection, one_unit_scope)
 
     assert normalized["features"][0]["properties"]["huc6"] == "140001"
+    # The report names the level and keys the codes by the level's own field,
+    # so a HUC8 report is not silently readable as a HUC6 one.
     assert report == {
         "feature_count": 1,
+        "level": 6,
         "huc6": ["140001"],
         "state_codes": ["CO"],
         "total_vertices": 4,

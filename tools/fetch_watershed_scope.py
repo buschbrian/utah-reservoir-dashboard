@@ -1,11 +1,16 @@
-"""Fetch a named HUC6 scope from the USGS ArcGIS layer.
+"""Fetch a named watershed scope from the USGS Watershed Boundary Dataset.
 
-This is the Python counterpart to ``scripts/fetch-huc6.mjs`` for research
-and future pipeline scopes. The default output is a separate Upper Colorado
-file; the production Utah-connected file is only replaced when that scope is
-named explicitly.
+The sole fetcher for committed boundary geometry. The default output is a
+separate Upper Colorado file; the production Utah-connected file is only
+replaced when that scope is named explicitly.
+
+The hydrologic level is a property of the scope (`watershed_scopes.py`), and
+it decides both the service layer queried and the attribute the unit code
+arrives in -- so a HUC4 or HUC8 scope is a table entry rather than an edit
+here.
 
     python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run
+    python tools/fetch_watershed_scope.py --scope west-huc6 --dry-run
     python tools/fetch_watershed_scope.py --scope upper-colorado
 
 ArcGIS REST query contract:
@@ -23,9 +28,25 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from watershed_scopes import get_scope, validate_huc6_codes  # noqa: E402
+from watershed_scopes import (  # noqa: E402
+    SCOPES, WBD_LAYER_BY_LEVEL, get_scope, huc_field, validate_huc_codes,
+)
 
-WBD_LAYER = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3"
+#: The Watershed Boundary Dataset service. Each hydrologic level is a layer
+#: on it, so the level a scope is expressed at decides the layer and the
+#: attribute the code arrives in -- see `WBD_LAYER_BY_LEVEL` and `huc_field`.
+WBD_SERVICE = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer"
+#: The six-digit layer, which is what the published dashboard draws. Kept as a
+#: named constant because it is the one the source inventory records.
+WBD_LAYER = f"{WBD_SERVICE}/{WBD_LAYER_BY_LEVEL[6]}"
+
+
+def layer_for(level: int) -> str:
+    """The service layer that publishes one hydrologic level."""
+    try:
+        return f"{WBD_SERVICE}/{WBD_LAYER_BY_LEVEL[level]}"
+    except KeyError as exc:
+        raise ValueError(f"no watershed layer for hydrologic level {level}") from exc
 TIMEOUT = 90
 GEOMETRY_PRECISION = "5"
 # Roughly 100 metres north-to-south. The default for new committed geometry;
@@ -76,7 +97,20 @@ class ArcGISRestClient:
         self.timeout = timeout
 
     def _json(self, url: str, params: dict) -> dict:
-        response = self.session.get(url, params=params, timeout=self.timeout)
+        """POST rather than GET, because the object-ID list is unbounded.
+
+        These requests name every feature explicitly, and the identifiers go
+        in the request rather than in a `where` clause. At fourteen units that
+        is a short URL; at the 1,247 subbasins of a western HUC8 scope it is
+        about 9 KB of query string, and the service answers **414 Request-URI
+        Too Large** rather than truncating -- so the failure is loud, but it
+        arrives only once a scope gets big.
+
+        ArcGIS query endpoints accept the same parameters as a form post, with
+        no length limit worth reaching. Nothing else about the contract
+        changes.
+        """
+        response = self.session.post(url, data=params, timeout=self.timeout)
         response.raise_for_status()
         payload = response.json()
         if payload.get("error"):
@@ -107,6 +141,9 @@ class ArcGISRestClient:
             )
         if not object_id_field:
             raise RuntimeError("ArcGIS layer does not identify its object-ID field")
+        # The attribute the code arrives in follows the level, because each
+        # level is a different layer and each layer names its own column.
+        code_field = huc_field(scope.level)
 
         query_url = f"{self.layer_url}/query"
         if object_ids is None:
@@ -126,7 +163,7 @@ class ArcGISRestClient:
             batch = object_ids[start:start + batch_size]
             parameters = {
                 "objectIds": ",".join(map(str, batch)),
-                "outFields": f"{object_id_field},huc6,name,states",
+                "outFields": f"{object_id_field},{code_field},name,states",
                 "returnGeometry": "true",
                 "outSR": "4326",
                 "f": "geojson",
@@ -158,19 +195,25 @@ def normalize_collection(collection: dict, scope) -> tuple[dict, dict]:
     if not features:
         raise ValueError("watershed collection has no features")
 
+    code_field = huc_field(scope.level)
     table = pd.json_normalize([feature.get("properties") or {} for feature in features])
-    required = {"huc6", "name", "states"}
+    required = {code_field, "name", "states"}
     missing = sorted(required - set(table.columns))
     if missing:
         raise ValueError(f"watershed properties missing: {', '.join(missing)}")
 
     # HUC identifiers are codes, not numbers. Keeping them as strings protects
     # leading zeroes if another region is configured later.
-    raw_codes = table["huc6"].tolist()
-    codes = validate_huc6_codes(raw_codes, scope.region)
+    raw_codes = table[code_field].tolist()
+    codes = validate_huc_codes(raw_codes, scope.level, scope.region)
     if scope.expected_count is not None and len(codes) != scope.expected_count:
         raise ValueError(
             f"expected {scope.expected_count} units for {scope.name}, received {len(codes)}")
+    if scope.expected_range is not None:
+        low, high = scope.expected_range
+        if not low <= len(codes) <= high:
+            raise ValueError(
+                f"expected {low}-{high} units for {scope.name}, received {len(codes)}")
 
     order = sorted(range(len(features)), key=lambda index: raw_codes[index])
     normalized_features = []
@@ -178,11 +221,11 @@ def normalize_collection(collection: dict, scope) -> tuple[dict, dict]:
         feature = features[index]
         geometry = feature.get("geometry")
         if not geometry:
-            raise ValueError(f"HUC6 {raw_codes[index]} has no geometry")
+            raise ValueError(f"HUC{scope.level} {raw_codes[index]} has no geometry")
         normalized_features.append({
             "type": "Feature",
             "properties": {
-                "huc6": raw_codes[index],
+                code_field: raw_codes[index],
                 "name": str(table.iloc[index]["name"]).strip(),
                 "states": str(table.iloc[index]["states"]).strip(),
             },
@@ -200,7 +243,8 @@ def normalize_collection(collection: dict, scope) -> tuple[dict, dict]:
                           for state in value.split(",") if state.strip()})
     report = {
         "feature_count": len(normalized_features),
-        "huc6": codes,
+        "level": scope.level,
+        code_field: codes,
         "state_codes": state_codes,
         "total_vertices": int(vertices.sum()),
         "median_vertices": float(np.median(vertices)),
@@ -211,7 +255,7 @@ def normalize_collection(collection: dict, scope) -> tuple[dict, dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scope", default="upper-colorado",
-                        choices=("upper-colorado", "utah-connected"))
+                        choices=tuple(sorted(SCOPES)))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--backend", choices=("rest", "arcgis"), default="rest",
@@ -223,16 +267,18 @@ def main() -> int:
     args = parser.parse_args()
 
     scope = get_scope(args.scope)
+    # The layer follows the scope's level; the field name follows it too.
+    layer = layer_for(scope.level)
     output = args.output or ROOT / scope.output
     object_ids = None
     if args.backend == "arcgis":
-        object_ids = ArcGISFeatureLayerIdProvider(WBD_LAYER).object_ids(scope)
-    collection = ArcGISRestClient(WBD_LAYER).query(
+        object_ids = ArcGISFeatureLayerIdProvider(layer).object_ids(scope)
+    collection = ArcGISRestClient(layer).query(
         scope, object_ids=object_ids,
         max_allowable_offset=args.max_allowable_offset)
     normalized, report = normalize_collection(collection, scope)
     normalized.update({
-        "source": WBD_LAYER,
+        "source": layer,
         "scope": scope.name,
         "filter": scope.where,
         "unit_count": report["feature_count"],

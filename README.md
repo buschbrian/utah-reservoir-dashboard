@@ -75,7 +75,7 @@ when those services do not answer.
 | `python -m pytest tests/ -q` | Run pipeline and drainage-area tests without network access. |
 | `node tests/smoke.mjs` | Check retired route redirects in Chromium. |
 | `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
-| `node scripts/fetch-huc6.mjs --dry-run` | Rebuild drainage-area boundaries without writing. |
+| `python tools/fetch_watershed_scope.py --scope utah-connected --dry-run` | Rebuild drainage-area boundaries without writing. |
 | `python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run` | Validate all Upper Colorado HUC6 boundaries without replacing the dashboard scope. |
 | `python tools/audit_awdb_stations.py --scope upper-colorado` | Audit AWDB storage stations across the configured Upper Colorado HUC6 scope. |
 | `npm run boundary:utah -- --dry-run` | Check the authoritative Utah boundary without writing. |

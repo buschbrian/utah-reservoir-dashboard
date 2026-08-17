@@ -14,6 +14,7 @@
  */
 import { isElevationBand, isSiteStatus, type ElevationBand, type SiteStatus }
   from "../snow-model";
+import { HUC_CODE } from "../data/huc";
 
 export interface SnowUrlState {
   area: string | null;
@@ -43,7 +44,7 @@ export function snowStateFromSearch(search: string): SnowUrlState {
    * case-insensitive substring test. */
   const query = (params.get("q") ?? "").trim().slice(0, 60);
   return {
-    area: area && /^\d{6}$/.test(area) ? area : null,
+    area: area && HUC_CODE.test(area) ? area : null,
     day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
     site: site && STATION_PATTERN.test(site) ? site : null,
     query,

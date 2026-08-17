@@ -74,7 +74,7 @@ KNOWN_ASSIGNMENTS = {
 
 # The margin the boundary generalization was chosen against. If a future
 # reservoir lands inside this, the 500 m generalization in
-# scripts/fetch-huc6.mjs is no longer comfortably finer than the closest
+# the retired 500 m generalization is no longer comfortably finer than the closest
 # call, and that decision needs re-measuring.
 MIN_BOUNDARY_MARGIN_KM = 2.0
 
@@ -130,7 +130,7 @@ def test_no_reservoir_sits_close_enough_to_a_boundary_to_be_generalized_across(
         for r in reservoirs)
     assert closest[0] > MIN_BOUNDARY_MARGIN_KM, (
         f"{closest[1]} is {closest[0]:.2f} km from a unit boundary; the 500 m "
-        "generalization in scripts/fetch-huc6.mjs needs re-measuring")
+        "the committed boundary generalization needs re-measuring")
 
 
 def test_ray_casting_agrees_with_the_typescript_port():

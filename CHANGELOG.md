@@ -7,6 +7,14 @@ and is not listed here.
 
 ### Added
 
+- **Groundwork for covering the whole west.** Nothing on the site looks
+  different yet, and that is the point of this step. The machinery that
+  decides which drainage areas the project reads now takes the size of those
+  areas as a setting rather than assuming the six-digit ones, and the western
+  scopes are registered so their geography can be fetched and checked before
+  any page draws it. Measured against the published service: 110 subregions,
+  181 basins and 1,247 subbasins across the nine western hydrologic regions.
+
 - **The snowpack and drought maps can change their background.** Both now
   carry the basemap gallery the storage map has always had. It was left out
   because these maps follow the page theme and a background you picked would

@@ -6,8 +6,11 @@ const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 const joinedPythonStrings = (source: string): string => source.replace(/["'()\s]/g, "");
 
+/* The service, not one layer of it. Each hydrologic level is its own layer
+ * (HUC4 is 2, HUC6 is 3, HUC8 is 4) and the scope decides which is queried,
+ * so pinning `/3` would say the project can only ever read six-digit units. */
 const WATERSHED_SERVICE =
-  "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3";
+  "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer";
 const UTAH_BOUNDARY_SERVICE =
   "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStateBoundary/FeatureServer/0";
 const DROUGHT_SERVICE =

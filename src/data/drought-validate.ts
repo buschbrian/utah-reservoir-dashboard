@@ -4,6 +4,7 @@ import type {
   DroughtShares,
   DroughtUnit
 } from "../types";
+import { HUC_CODE } from "./huc";
 
 const LEVELS = ["d0", "d1", "d2", "d3", "d4"] as const;
 
@@ -39,7 +40,7 @@ function isAtLeast(value: unknown): value is DroughtAtLeast {
 
 function isDroughtUnit(value: unknown): value is DroughtUnit {
   return isObject(value) &&
-    typeof value.huc6 === "string" && /^\d{6}$/.test(value.huc6) &&
+    typeof value.huc6 === "string" && HUC_CODE.test(value.huc6) &&
     typeof value.huc6_name === "string" && value.huc6_name.length > 0 &&
     isShares(value.percent_of_area) &&
     isAtLeast(value.percent_of_area_at_least);
@@ -59,7 +60,7 @@ function isPreviousWeek(value: unknown, mapDate: string): boolean {
   if (value.release_date !== null && typeof value.release_date !== "string") return false;
   if (!Array.isArray(value.units) || value.units.length === 0) return false;
   return value.units.every((unit) =>
-    isObject(unit) && typeof unit.huc6 === "string" && /^\d{6}$/.test(unit.huc6) &&
+    isObject(unit) && typeof unit.huc6 === "string" && HUC_CODE.test(unit.huc6) &&
     isAtLeast(unit.percent_of_area_at_least));
 }
 

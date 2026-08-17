@@ -61,6 +61,20 @@ of years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
 
+**A watershed scope carries its own level.** `watershed_scopes.py` is the one
+place that decides which drainage areas exist and how big they are; the level
+picks the WBD service layer and the attribute the code arrives in. Codes are
+fixed-width, so the level *is* the digit count -- `HUC_CODE` in
+`src/data/huc.ts` is the shared pattern and accepts any even length to twelve.
+Never write `/^\d{6}$/` again. Levels finer than HUC-8 are refused on purpose:
+the drought engine's sampled share carries about 0.21 points of error at
+HUC-10 against a published precision of 0.1.
+
+**A scope can be registered before it is published.** `published=False` means
+the geography exists to be fetched and reviewed and nothing draws it yet; the
+reference export skips those and still fails loudly for anything missing that
+*is* published.
+
 **A basemap has two layer stacks** (ADR-042). `basemap.referenceLayers` draw
 *above* every operational layer, so a boundary in them lands on the data
 whatever order the operational layers are in — that is what drew a grey state

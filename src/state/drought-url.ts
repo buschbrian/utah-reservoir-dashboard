@@ -15,6 +15,7 @@
  */
 import { DROUGHT_CLASSES } from "../viz/drought-classes";
 import { isDroughtSort, type DroughtSort } from "../drought-model";
+import { HUC_CODE } from "../data/huc";
 
 export interface DroughtUrlState {
   /** A drought class key, or null for every area. */
@@ -38,7 +39,7 @@ export function droughtStateFromSearch(search: string): DroughtUrlState {
   return {
     worse: worse && isClassKey(worse) ? worse : null,
     sort: sort && isDroughtSort(sort) ? sort : DEFAULT_DROUGHT_SORT,
-    area: area && /^\d{6}$/.test(area) ? area : null
+    area: area && HUC_CODE.test(area) ? area : null
   };
 }
 

@@ -864,17 +864,26 @@ def build_watershed_sections() -> dict:
     is what keeps that from changing the dashboard -- the extra scopes are
     available, and one of them is still the accepted geography.
 
-    A scope that is missing, short, duplicated or out of region raises rather
-    than exporting quietly. This is reference data assembled from committed
-    files, not a network fetch that might come back thin; there is no
-    partial answer here that is better than a loud failure.
+    A *published* scope that is missing, short, duplicated or out of region
+    raises rather than exporting quietly. This is reference data assembled
+    from committed files, not a network fetch that might come back thin;
+    there is no partial answer here that is better than a loud failure.
+
+    A registered scope that is not published is skipped, and that is not the
+    same thing as tolerating a missing file. A geography gets registered,
+    fetched, measured and reviewed before anything draws it -- the western
+    scopes are in that state now -- and until it is marked for publication
+    there is nothing for this export to be missing.
     """
     scopes = {}
     for name, scope in sorted(watershed_scopes.SCOPES.items()):
+        if not scope.published:
+            continue
         boundaries = _feature_collection(watershed_scopes.ROOT / scope.output)
-        codes = watershed_scopes.validate_huc6_codes(
-            [feature["properties"]["huc6"] for feature in boundaries["features"]],
-            scope.region)
+        field = watershed_scopes.huc_field(scope.level)
+        codes = watershed_scopes.validate_huc_codes(
+            [feature["properties"][field] for feature in boundaries["features"]],
+            scope.level, scope.region)
         if scope.expected_count is not None and len(codes) != scope.expected_count:
             raise ValueError(f"expected {scope.expected_count} units for {name}, "
                              f"received {len(codes)}")
@@ -882,8 +891,9 @@ def build_watershed_sections() -> dict:
             "name": scope.name,
             "description": scope.description,
             "source_file": scope.output,
+            "level": scope.level,
             "unit_count": len(codes),
-            "huc6": codes,
+            field: codes,
             "boundaries": boundaries,
         }
     return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
@@ -1196,7 +1206,14 @@ def main() -> int:
         # a run that assigned nothing (a missing boundary file) from one
         # where nothing needed assigning.
         "watersheds": {
-            "source": "USGS Watershed Boundary Dataset, six-digit units",
+            "source": "USGS Watershed Boundary Dataset",
+            # How big the drainage areas are, as the length of their code.
+            # Stated rather than assumed: the codes are fixed-width, so a
+            # reader who knows the level knows the size, and a payload that
+            # ever carries another one says so instead of looking like a
+            # six-digit payload with odd codes in it.
+            "level": watershed_scopes.get_scope(
+                watershed_scopes.DEFAULT_SCOPE).level,
             "boundaries": huc.BOUNDARY_PATH.name,
             "assignment_rule": "the dam or outlet point, not the middle of the water",
             **watersheds,

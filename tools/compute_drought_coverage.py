@@ -194,6 +194,10 @@ def build_payload(drought: dict, boundaries: dict, step: float) -> dict:
             "weighting": "cosine of latitude",
             "classes": "exclusive; at-least values are sums of disjoint classes",
         },
+        # The size of the drainage areas, as the length of their code. The
+        # boundary file decides it; this reports it so a reader never has to
+        # infer the level by measuring a code.
+        "level": len(units[0]["huc6"]) if units else None,
         "unit_count": len(units),
         "units": units,
     }

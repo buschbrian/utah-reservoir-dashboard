@@ -71,10 +71,11 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("awdb", "reservoirs", "Records from the Natural Resources Conservation Service.")
   ]},
   { id: "reservoir-watersheds", title: "Drainage-area summary", path: "watersheds", fields: [
-    f("source", "text", "Boundary publisher and unit level."),
+    f("source", "text", "Boundary publisher."),
+    f("level", "digits", "Size of the drainage areas, as the length of their code."),
     f("boundaries", "file name", "Boundary file used for assignment."),
     f("assignment_rule", "text", "Point used to place a reservoir in a drainage area."),
-    f("unit_count", "drainage areas", "Number of published six-digit drainage areas."),
+    f("unit_count", "drainage areas", "Number of published drainage areas."),
     f("assigned", "reservoirs", "Records with a drainage-area assignment."),
     f("unassigned", "reservoirs", "Records without an assignment."),
     f("assigned_by_dam", "reservoirs", "Assignments made from a reviewed dam or outlet point."),
@@ -234,6 +235,7 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
     f("source", "web address", "Provider service address."),
     f("attribution", "text", "Credit statement for the drought map."),
     f("method", "object", "How the area shares were calculated."),
+    f("level", "digits", "Size of the drainage areas, as the length of their code."),
     f("unit_count", "areas", "Number of published drainage areas."),
     f("units", "array", "Per-drainage-area shares."),
     f("previous", "object",
@@ -330,6 +332,7 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("huc6", "array", "Six-digit drainage-area codes."),
     f("name", "identifier", "Stable scope name."),
     f("source_file", "file name", "Reviewed boundary source file."),
+    f("level", "digits", "Size of the drainage areas, as the length of their code."),
     f("unit_count", "drainage areas", "Number of units in the scope.")
   ]},
   { id: "reference-geojson-collection", title: "GeoJSON collection", path: "all boundary collections", fields: [
