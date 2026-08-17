@@ -115,6 +115,16 @@ storage map. They are left in place for now because the snow map still fills
 each area by a value the hosted service has never heard of, and that surface is
 migrated separately.
 
+**The drought map has not moved yet, and still draws its names as fixed text
+symbols.** It is governed by this record rather than by ADR-030 from now on,
+and it fails the same way at western scale, so this is a debt and not a
+carve-out. It is separate work because its outlines are cased -- a bright
+casing under a dark core, every casing drawn before any core so that one
+area's casing cannot paint over its neighbour's shared edge -- and a hosted
+layer cannot order two passes within one layer. That wants two feature layers
+over one service, which doubles that map's boundary requests, and doubling
+them is a measurement to take rather than a thing to assume.
+
 ## Alternatives considered
 
 **Keep the text symbols and add our own decluttering rule.** This is what
