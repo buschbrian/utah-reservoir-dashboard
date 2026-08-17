@@ -1869,6 +1869,93 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    command that fixes it. The deliberate absence from `package.json` is kept,
    so the lockfile still stays exactly what `npm ci` produced.
 
+### Interface and cartography slice — delivered 2026-08-16
+
+What shipped against the notes below, and what the notes turned out to be
+wrong about. Recorded because three of the seven had a cause different from
+the one the note assumed.
+
+**The line through Flaming Gorge was never in our layer stack.** An earlier
+slice moved the hosted state boundaries to the bottom of the operational
+stack, and the line did not move, because it was in `basemap.referenceLayers`
+— which the SDK draws *above* every operational layer by design. Measured on
+the live map: Oceans carries `World Ocean Reference` there and it contains
+administrative boundaries as well as labels. No operational reordering could
+have fixed it. ADR-042; `basemapReferenceSunk` now reports it on every map.
+
+**The details panel was a regression this project introduced.** The grid was
+`minmax(0, auto) minmax(0, 1fr)`, and an `auto` track grows to its longest
+content. That was survivable while every label was two words and collapsed the
+moment the selectable baseline made one of them name a period: measured live,
+the columns resolved to **261px and 14px**, and every value was wrapping inside
+14 pixels. Labels stack above values now.
+
+**The weekly digest ignored the Lake Powell switch**, because it was computed
+once over `payload.reservoirs` and never re-run. Powell is about half the
+region's weekly movement — 66,003 acre-feet without it against 133,753 with —
+so the switch had to work here. It follows the scope, not the filters, which
+is the line ADR-011 already draws; the snow and drought halves cannot follow a
+reservoir scope and say so.
+
+Also delivered: the site is the Utah Water Dashboard and each page names its
+own subject (ADR-045); the header actions report their surface's real state,
+one having been written as always-on in the markup; the zoom envelope is
+1:18,500,000 to about 1:9,000 rather than 1:37,000,000 to 1:70, and is no
+longer pinned to the frozen module (ADR-044); the drought map is drawn on a
+public no-key hillshade multiplied *above* the classes so the monitor's
+palette keeps its hue (ADR-043); its reservoirs are a dark point in a light
+ring, because one dark dot measures 13:1 against the pale end of that ramp and
+1.2:1 against the dark end; the snow map carries its key on the map; both view
+cards are taller, cutting the empty ground either side from 2.9x to 2.0x the
+region's width; and the histogram says what its four overlay lines mean.
+
+**Item 5's framing measurement was confirmed and its cause restated.** The
+cards were 1200x444, aspect 2.70, against a region of aspect 0.94, and showed
+2,509 km of width for an 869 km region. At the new height they are 1362x730,
+aspect 1.87 — now narrower in proportion than the storage map's own stage at
+1.96, which was the comparison the note was making.
+
+**Item 6 stands unchanged and is now issue #23.** UTM 12N remains unavailable
+for the interactive map and Albers remains the right projection for the area
+arithmetic. Nothing in this slice touched it.
+
+**Still open from the notes below:** the map key's alignment inside its own
+box (#19), the month table's sideways scroll inside the details panel (#19 —
+`.trend-table-scroll` is still `overflow-x: auto` with `white-space: nowrap`
+cells), and the resizable table-and-map split (#21).
+
+### Drought charting — delivered 2026-08-16
+
+Two charts, both from figures the page already had, and one rejected design
+worth recording.
+
+**"How the areas are divided"** counts each drainage area once at its own
+worst class. The page carried this as a threshold count — areas in extreme
+drought or worse, 11 of 14 — and a threshold count hides the shape behind it.
+Every level is drawn whether or not anything is at it, so one week can be
+compared with the next. For the week of 2026-08-11 the empty levels are the
+finding: **no drainage area at all is clear, abnormally dry, or in moderate
+drought.** Three are at D2, nine at D3, two at D4.
+
+**"The same comparison, in order"** ranks the areas by how far their banked
+water sits from their dry land, worst first — this week Escalante
+Desert-Sevier Lake, 91.1% of its land in severe drought with its reservoirs
+6.6% full. The scatter stays: a cloud shows the shape of a relationship, this
+shows the order it could only imply through distance from a diagonal it never
+draws.
+
+**The diverging bar was designed and rejected**, and that is now a rule.
+`storagePercent - dryPercent` subtracts a share of land from a share of
+reservoir capacity; the difference is not a quantity of anything, and a bar
+from a zero baseline asserts that it is. Two dots on one axis with a line
+between them instead — the gap is still what the eye reads because it is the
+line's length, and both real values stay legible. ADR-046.
+
+Two defects found while building: per-row `<title>` elements appended to the
+SVG root give fourteen rows one shared description, because only the first
+becomes the accessible name; and a 140-unit label lane cut the first word off
+"Escalante Desert-Sevier Lake". Both are now asserted in the browser suite.
+
 ### Next slice — interface polish, from a read of the live site — 2026-08-16
 
 Notes taken against the published site rather than a local build, so these are

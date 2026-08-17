@@ -1,19 +1,24 @@
-# Utah Reservoir Drought Dashboard
+# Utah Water Dashboard
 
 **Live site:** <https://buschbrian.github.io/utah-reservoir-dashboard/>
 
-A public dashboard for current reservoir storage in Utah and connected Colorado
-River and Great Basin drainage areas. It combines official storage observations,
-traceable capacity figures, twelve months of history, and drainage-area context.
+A public dashboard for water conditions in Utah and the connected Colorado
+River and Great Basin drainage areas: what is stored in the reservoirs, how
+much snow is in the mountains, and how much of the land is in drought. It
+combines official observations, traceable capacity figures, twelve months of
+history, and drainage-area context.
 
-The same validated data is presented through one ArcGIS 5.1 application:
+The same validated data is presented through one ArcGIS 5.1 application, and
+each page is named for its own subject (ADR-045):
 
-| View | Purpose |
-|---|---|
-| [Storage map](./) | Current reservoir storage on a responsive ArcGIS map. |
-| [Storage charts](overview.html) | Cross-filtered summaries, six ArcGIS charts, and an accessible exact-value table. |
-| [Methods and sources](methods.html) | Where the numbers come from, how they are collected, and how each value is worked out. |
-| [Public data API](data.html) | Stable JSON downloads, field definitions, and code examples. |
+| View | Subject | Purpose |
+|---|---|---|
+| [Storage map](./) | Utah Reservoir Storage | Current reservoir storage on a responsive ArcGIS map. |
+| [Storage charts](overview.html) | Utah Storage Charts | A weekly digest, cross-filtered summaries, six ArcGIS charts, and an accessible exact-value table. |
+| [Snowpack](snow.html) | Utah Snowpack | The season's snow by drainage area and measurement site, opening on the season's peak. |
+| [Drought](drought.html) | Utah Drought | The weekly Drought Monitor by drainage area, against the water banked in it. |
+| [Methods and sources](methods.html) | Methods and Sources | Where the numbers come from, how they are collected, and how each value is worked out. |
+| [Public data API](data.html) | Public Data API | Stable JSON downloads, field definitions, and code examples. |
 
 The root page and its stable `modern.html` alias are the ArcGIS Maps SDK for
 JavaScript application. New interface work targets these primary surfaces.
@@ -212,8 +217,8 @@ oracle, and a Python pipeline.
 |---|---|
 | `index.html`, `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application; `modern.html` is a stable alias. |
 | `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
-| `snow.html` + `src/snow*` | Snowpack view: the seasonal curve, the basin choropleth and site map, and one site's own season. |
-| `drought.html` + `src/drought*` | Drought view: weekly Drought Monitor coverage by drainage area, the monitor's polygons, and the storage-against-drought chart. |
+| `snow.html` + `src/snow*` | Snowpack view: the seasonal curve, the basin choropleth and site map with its key on the map, and one site's own season. |
+| `drought.html` + `src/drought*` | Drought view: weekly Drought Monitor coverage by drainage area, the monitor's polygons over terrain shading, the storage-against-drought scatter, the same comparison ranked, and the severity distribution. |
 | `methods.html` + `src/methods.ts` | Methods and sources page: where the numbers come from and how each value is worked out. |
 | `data.html` + `src/data-docs.ts` | Public data API documentation: stable paths, field definitions, and code examples. |
 | `legacy/index.html`, `maplibre/index.html`, `explore.html` | Compatibility redirects to the storage map and storage charts. |
@@ -260,6 +265,16 @@ The load-bearing rules are:
    page at every tested width on every browser-suite run, at WCAG 2.1 AA. The
    two accepted exceptions are both in vendor components and each is documented
    where it is allowed.
+9. **A borrowed line never draws over the subject.** A basemap's reference
+   layers render above every operational layer, so they are moved beneath this
+   project's own on every map and every basemap swap.
+10. **Every comparison names the years it came from.** Two normals are
+    published per reservoir — the 1991–2020 standard and the years this site
+    collects — and no figure is shown without the period and the number of
+    years behind it.
+11. **Numbers are measurements or arithmetic on measurements.** Nothing is
+    modelled or forecast, and two shares with different denominators are never
+    subtracted into a single figure.
 
 The rationale and rejected alternatives are in the
 [architecture decision records](docs/decisions/).

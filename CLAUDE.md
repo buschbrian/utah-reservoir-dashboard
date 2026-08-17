@@ -60,6 +60,28 @@ of years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
 
+**A basemap has two layer stacks** (ADR-042). `basemap.referenceLayers` draw
+*above* every operational layer, so a boundary in them lands on the data
+whatever order the operational layers are in — that is what drew a grey state
+line through Flaming Gorge, and why reordering the operational stack could not
+fix it. `sinkBasemapReferenceLayers` moves them below, on every basemap
+assignment including theme swaps and the gallery, and `basemapReferenceSunk`
+reports it. A caller inserting at a fixed index must count from a layer it owns,
+not from zero.
+
+**Terrain shades the fills from above, not below** (ADR-043). Multiplying
+thematic fills over a hillshade restyles them, and on the drought map those
+fills are the Drought Monitor's published palette. The shade goes above the
+classes and below this project's own geometry. Note `multiply` can only darken:
+if lit slopes should brighten too, that is `soft-light` or `overlay`, not a
+higher opacity. The Basemap Styles hillshades need an API key (ADR-004 refuses
+one); `World_Hillshade` is public and already inside the content policy.
+
+**Never subtract two shares with different denominators** (ADR-046). A share of
+land minus a share of reservoir capacity is not a quantity. Such a difference
+may rank rows and may set the length of a line; it may not be printed as a
+number or given a baseline.
+
 **Retired routes preserve bookmarks, not runtimes** (ADR-031). Keep
 `legacy/`, `maplibre/`, and `explore.html` as small accessible redirects. Do
 not restore their SDKs, chart libraries, or copies of application logic.
@@ -67,6 +89,13 @@ not restore their SDKs, chart libraries, or copies of application logic.
 **The frozen oracle stays source-only.** `shared/reservoir-viz.js` remains the
 ADR-008 color-table owner and test oracle until a later ADR moves that
 ownership. Do not copy it into `dist/` or load it in a browser page.
+
+**It does not own everything it exports** (ADR-044). `MAP_BOUNDS` and
+`MAP_CENTER` stay pinned to it, because where a reader may go is a contract
+with the links the retired routes translate. The zoom envelope is the view's
+own and is asserted for what it must be true of. Before pinning anything else
+to that module, ask whether it is a contract with something still running or
+parity with a page that no longer exists.
 
 **No `@arcgis/core/widgets/*`.** All widgets are deprecated in 5.0 and removed
 in 6.0. `src/architecture.test.ts` fails the build on a widget import, on a
@@ -82,6 +111,19 @@ Do not regress these; they were each found by a failing test or a screenshot.
 
 - The pages are tested at **1280, 390 and 360** pixels wide. No page may scroll
   sideways at any of them.
+- **`innerText` returns what CSS transformed, not what the code wrote.** A
+  `text-transform: uppercase` on a label makes the page say `STORED NOW`, and
+  every test and reader that goes through rendered text sees that instead. It
+  caught a real design problem too: these labels now name a period, and long
+  uppercase strings are harder to read than sentence case.
+- **A grid track sized `auto` grows to its longest content.** The details
+  panel was `minmax(0, auto) minmax(0, 1fr)`, which was survivable while every
+  label was two words and resolved to 261 of 320 pixels the moment one had to
+  name a period — leaving the values 14 pixels to wrap inside. Labels stack
+  above values now.
+- **A header action that reports state must read it from the surface.** The
+  storage summary's `active` was written into the template as a literal, so it
+  was lit from first paint whether the panel was open or shut.
 - The title card keeps a **56px right gutter below 640px** — that is the zoom
   control's lane. The primary map does this. The retired MapLibre page used to
   push the control down by a measured offset instead, which is late by definition: the
