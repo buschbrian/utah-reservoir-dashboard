@@ -67,6 +67,7 @@ supersedes the old one — the history is the point.
 | [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md) | Withdraw a reading that belongs to another season | Accepted |
 | [ADR-057](ADR-057-a-dam-identifier-names-a-project-not-a-structure.md) | A dam identifier names a project, not a structure | Accepted |
 | [ADR-058](ADR-058-assign-the-county-from-the-water-not-the-dam.md) | Assign the county from the water, not the dam | Accepted |
+| [ADR-059](ADR-059-not-measured-is-not-no-drought.md) | Not measured is not no drought | Accepted |
 
 ## Relationship to the modernization plan
 

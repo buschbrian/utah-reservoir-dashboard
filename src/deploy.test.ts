@@ -21,6 +21,11 @@ const read = (file: string): Promise<string> => readFile(resolve(root, file), "u
  * reviewed source the pipeline assigns every reservoir with, and it stays
  * committed, but no page has fetched it since ADR-047 moved the outlines to
  * the hosted layer and ADR-048 stopped publishing it. */
+/* Committed and deliberately not published, for the reason `huc6.geojson` is
+ * not: the drought engine reads the mask offline and no browser has a use for
+ * it. 142 KB in every deploy, twice, for nobody (ADR-048, ADR-059). */
+const COMMITTED_BUT_UNPUBLISHED = ["huc6.geojson", "data/us-land.geojson"];
+
 const RUNTIME_DATA = [
   "reservoirs.json", "snow_sites.json", "snowpack.json",
   "reference.json", "capacities.json",
@@ -328,5 +333,16 @@ describe("a data-only commit deploys on its own", () => {
     expect(config).toContain('explore: resolve(root, "explore.html")');
     expect(config).not.toContain('resolve(root, "shared")');
     expect(await read("package.json")).not.toContain("@observablehq/plot");
+  });
+
+  it("keeps the analysis-only geometry out of the deploy", async () => {
+    const config = await read("vite.config.ts");
+    for (const file of COMMITTED_BUT_UNPUBLISHED) {
+      /* The build copies a fixed list. This asserts the list does not grow to
+       * include these, which is the plausible well-meant change: a new
+       * committed GeoJSON looks like the others and is not. */
+      expect(config, `${file} is copied into the deploy`)
+        .not.toContain(`"${file}"`);
+    }
   });
 });

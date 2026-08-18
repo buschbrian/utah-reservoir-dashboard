@@ -239,11 +239,32 @@ export interface DroughtAtLeast {
   d4: number;
 }
 
+/**
+ * How much of a drainage area the drought monitor can see (ADR-059).
+ *
+ * Present only when the answer is not the whole of it. The monitor maps the
+ * United States and stops at both borders, so a basin crossing one is
+ * partly unmeasured -- Kootenai is 24.8% United States land. Every drainage
+ * area published today is wholly inside the country and carries no such
+ * block.
+ *
+ * This is a share of a *different denominator* from the class shares beside
+ * it, and lives in its own object for exactly that reason (ADR-046): the
+ * class shares divide by the measured land, this divides by the whole area,
+ * and the two must never be summed.
+ */
+export interface DroughtMeasuredExtent {
+  percent_of_area: number;
+  basis: string;
+}
+
 export interface DroughtUnit {
   huc6: string;
   huc6_name: string;
+  /** Shares of the land the monitor measures, not of the whole area. */
   percent_of_area: DroughtShares;
   percent_of_area_at_least: DroughtAtLeast;
+  measured?: DroughtMeasuredExtent;
 }
 
 /** One earlier week, reduced to what a comparison needs. */

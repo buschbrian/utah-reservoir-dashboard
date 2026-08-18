@@ -1,10 +1,21 @@
 """Compute weekly drought coverage for each published drainage area.
 
-Reads the committed U.S. Drought Monitor polygons and the committed HUC-6
-boundaries, and writes the percent of each drainage area's land in each
-intensity class. The downloaded polygons are *exclusive*: each feature covers
-exactly its class, verified by probing interior points, so "D1 or worse" is a
-sum of disjoint areas rather than a union.
+Reads the committed U.S. Drought Monitor polygons, the committed HUC-6
+boundaries and the committed land mask, and writes the percent of each
+drainage area's *measured* land in each intensity class. The downloaded
+polygons are *exclusive*: each feature covers exactly its class, verified by
+probing interior points, so "D1 or worse" is a sum of disjoint areas rather
+than a union.
+
+The monitor maps the United States and stops at both borders, so a drainage
+area crossing one is only partly measurable. Cells outside the mask are
+dropped before any class is counted, rather than falling into "none" and
+being read as land with no drought on it -- which is what they used to do.
+Measured against the western basins, that put 75.2 phantom drought-free
+points in Kootenai and 51.8 in Upper Columbia (ADR-059). A partly measured
+area publishes a separate `measured` block saying how much of it the figures
+above cover; a wholly measured one publishes none, so every drainage area
+published today is byte-for-byte what it was before the mask existed.
 
     python tools/compute_drought_coverage.py
     python tools/compute_drought_coverage.py --step 0.02 --output out.json
@@ -45,6 +56,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import tempfile
 from pathlib import Path
 
@@ -53,6 +65,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 DROUGHT_PATH = ROOT / "data" / "drought" / "usdm-current.geojson"
 BOUNDARIES_PATH = ROOT / "huc6.geojson"
+LAND_PATH = ROOT / "data" / "us-land.geojson"
 OUTPUT_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
 HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"
 DEFAULT_STEP = 0.01
@@ -120,8 +133,24 @@ def unit_coverage(
     unit_segments: np.ndarray,
     drought_segments: dict[int, np.ndarray],
     step: float,
-) -> dict[str, float]:
-    """Raw percent of one drainage area's land in each exclusive class."""
+    land_segments: np.ndarray | None = None,
+) -> tuple[dict[str, float], float]:
+    """Raw percent of one drainage area's *measured* land in each class.
+
+    Returns the class shares and the share of the drainage area the monitor
+    measures at all.
+
+    The two denominators are deliberately different and are deliberately
+    returned separately (ADR-046). The class shares divide by the measured
+    area, so "D1 or worse" means the same thing in every drainage area and can
+    be compared across them. The measured share divides by the whole area, and
+    says how much of the basin that comparison covers. Adding them together
+    would be the mistake this project already has a rule against.
+
+    Without `land_segments` every cell counts as measured, which is the right
+    answer for a drainage area wholly inside the country and is what all
+    fourteen published areas are.
+    """
     lon_min, lat_min = unit_segments[:, [0, 1]].min(axis=0)
     lon_max, lat_max = unit_segments[:, [2, 3]].max(axis=0)
     # Cell centres, nudged so a grid row cannot sit exactly on a vertex
@@ -133,6 +162,7 @@ def unit_coverage(
         raise ValueError("drainage area smaller than one grid cell")
 
     total_weight = 0.0
+    measured_weight = 0.0
     level_weights = dict.fromkeys(drought_segments, 0.0)
     for lat in lats:
         in_unit = inside_row(row_crossings(unit_segments, lat), lons)
@@ -142,6 +172,14 @@ def unit_coverage(
         weight = math.cos(math.radians(lat))
         total_weight += weight * count
         row_lons = lons[in_unit]
+        # Cells the monitor does not reach are dropped before any class is
+        # counted, so they cannot land in "none" and be read as no drought.
+        if land_segments is not None:
+            on_land = inside_row(row_crossings(land_segments, lat), row_lons)
+            row_lons = row_lons[on_land]
+            if row_lons.size == 0:
+                continue
+        measured_weight += weight * row_lons.size
         # One class per point, worst wins. The classes are exclusive by
         # contract, but their 100-metre-simplified edges can overlap by a
         # sliver, and a point counted twice would push the total past 100.
@@ -154,13 +192,34 @@ def unit_coverage(
 
     if total_weight == 0.0:
         raise ValueError("no grid point landed inside the drainage area")
-    return {
-        f"d{level}": 100.0 * level_weights[level] / total_weight
-        for level in sorted(drought_segments)
-    }
+    if measured_weight == 0.0:
+        # Every cell is outside the monitor's reach. There is no denominator,
+        # so there is no share -- reported as such rather than as zero drought.
+        return {f"d{level}": 0.0 for level in sorted(drought_segments)}, 0.0
+    return (
+        {f"d{level}": 100.0 * level_weights[level] / measured_weight
+         for level in sorted(drought_segments)},
+        100.0 * measured_weight / total_weight,
+    )
 
 
-def build_payload(drought: dict, boundaries: dict, step: float) -> dict:
+def land_mask_segments(land: dict | None) -> np.ndarray | None:
+    """Every state outline in the mask, as one segment array.
+
+    One array rather than one per state, because the even-odd rule works on
+    the union directly: a point inside any state crosses an odd number of
+    edges in total, and the states do not overlap.
+    """
+    if land is None:
+        return None
+    parts = [segments_of(feature["geometry"]) for feature in land["features"]]
+    if not parts:
+        raise ValueError("the land mask carries no geometry")
+    return np.concatenate(parts)
+
+
+def build_payload(drought: dict, boundaries: dict, step: float,
+                  land: dict | None = None) -> dict:
     drought_segments = {}
     for feature in drought["features"]:
         level = feature["properties"]["DM"]
@@ -170,10 +229,13 @@ def build_payload(drought: dict, boundaries: dict, step: float) -> dict:
             raise ValueError(f"duplicate drought intensity D{level}")
         drought_segments[level] = segments_of(feature["geometry"])
 
+    land_segments = land_mask_segments(land)
+
     units = []
     for feature in sorted(boundaries["features"],
                           key=lambda item: item["properties"]["huc6"]):
-        raw = unit_coverage(segments_of(feature["geometry"]), drought_segments, step)
+        raw, measured = unit_coverage(
+            segments_of(feature["geometry"]), drought_segments, step, land_segments)
         # A class the map does not carry this week covers nothing.
         exclusive = {key: raw.get(key, 0.0) for key in LEVELS}
         # One class per sampled point, so this cannot exceed 100; the max
@@ -187,15 +249,29 @@ def build_payload(drought: dict, boundaries: dict, step: float) -> dict:
         for key in reversed(LEVELS):
             running += exclusive[key]
             at_least[key] = round(running, 1)
-        units.append({
+        unit = {
             "huc6": feature["properties"]["huc6"],
             "huc6_name": feature["properties"]["name"],
+            # Shares of the area the monitor measures. "none" is measured land
+            # with no drought on it, and never land the monitor cannot see.
             "percent_of_area": {
                 "none": round(100.0 - in_any, 1) + 0.0,
                 **{key: round(value, 1) for key, value in exclusive.items()},
             },
             "percent_of_area_at_least": {key: at_least[key] for key in LEVELS},
-        })
+        }
+        # A separate block, and separate on purpose: it is a share of a
+        # different denominator, so it must not sit where a reader or a caller
+        # could add it to the class shares (ADR-046). Written only when the
+        # monitor does not cover the whole area, so every drainage area
+        # published today carries exactly what it carried before.
+        measured_rounded = round(measured, 1)
+        if measured_rounded < 100.0:
+            unit["measured"] = {
+                "percent_of_area": measured_rounded,
+                "basis": "land the drought monitor maps; it stops at the border",
+            }
+        units.append(unit)
 
     return {
         "schema_version": 1,
@@ -329,6 +405,8 @@ def main() -> int:
     parser.add_argument("--boundaries", type=Path, default=BOUNDARIES_PATH)
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
     parser.add_argument("--history", type=Path, default=HISTORY_PATH)
+    parser.add_argument("--land", type=Path, default=LAND_PATH,
+                        help="the land mask the monitor's extent follows")
     parser.add_argument("--no-history", action="store_true",
                         help="compute this week only and leave the history alone")
     parser.add_argument("--step", type=float, default=DEFAULT_STEP)
@@ -336,7 +414,16 @@ def main() -> int:
 
     drought = json.loads(args.drought.read_text(encoding="utf-8"))
     boundaries = json.loads(args.boundaries.read_text(encoding="utf-8"))
-    payload = build_payload(drought, boundaries, args.step)
+    # A missing mask is fatal rather than ignored. Running without it does not
+    # fail -- it quietly reports every border basin's Canadian or Mexican half
+    # as land with no drought on it, which is the whole defect this exists to
+    # remove, and it would look like a clean run.
+    if not args.land.exists():
+        print(f"ERROR: no land mask at {args.land}; "
+              "run tools/fetch_us_land_mask.py", file=sys.stderr)
+        return 1
+    land = json.loads(args.land.read_text(encoding="utf-8"))
+    payload = build_payload(drought, boundaries, args.step, land)
     history_changed = False
     history = None
     previous_history = None
