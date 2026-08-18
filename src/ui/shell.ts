@@ -171,6 +171,9 @@ export function wireTableRow(onToggle: (open: boolean) => void): void {
   wireTableRowSplit(row());
 }
 
+/* Still the old repository name on purpose -- see the note on
+ * THEME_STORAGE_KEY in `theme.ts`. Renaming a storage key throws away the
+ * reader's saved split position and shows them nothing in return. */
 const SPLIT_STORAGE_KEY = "utah-reservoir-dashboard-split";
 
 /* Storage can throw rather than answer -- a browser with cookies blocked, or

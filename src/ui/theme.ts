@@ -6,6 +6,11 @@ import {
 } from "../state/theme";
 import { elementById } from "./dom";
 
+/* Deliberately still the old repository name, and it must stay that way.
+ * This is a persistence key, not an identity: renaming it does not rename
+ * anything a reader can see, it silently discards the saved theme of every
+ * reader who has ever set one. The repository rename of 2026-08-18 updated
+ * the URLs that 404 without it and left this alone on purpose. */
 const THEME_STORAGE_KEY = "utah-reservoir-dashboard-theme";
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 

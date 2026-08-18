@@ -60,7 +60,7 @@ NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
              "services/NID_v1/FeatureServer/0")
 NID_ID_FIELDS = ("NIDID", "nidId", "FEDERAL_ID", "federalId", "nidid")
 
-USER_AGENT = "utah-reservoir-dashboard/huc-probe (+https://github.com/buschbrian)"
+USER_AGENT = "utah-water-dashboard/huc-probe (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 

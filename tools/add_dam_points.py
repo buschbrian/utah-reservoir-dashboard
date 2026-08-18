@@ -45,7 +45,7 @@ RESERVOIRS_PATH = ROOT / "reservoirs.json"
 NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
              "services/NID_v1/FeatureServer/0")
 NID_ID_FIELD = "NIDID"
-USER_AGENT = "utah-reservoir-dashboard/dam-points (+https://github.com/buschbrian)"
+USER_AGENT = "utah-water-dashboard/dam-points (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 # A dam further than this from the reservoir's published point is far more

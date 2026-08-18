@@ -54,7 +54,7 @@ def normalize(name: str) -> str:
 
 
 AWDB_STATIONS = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/stations"
-USER_AGENT = "utah-reservoir-dashboard/awdb-audit (+https://github.com/buschbrian)"
+USER_AGENT = "utah-water-dashboard/awdb-audit (+https://github.com/buschbrian)"
 TIMEOUT = 120
 
 

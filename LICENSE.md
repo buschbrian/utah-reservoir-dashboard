@@ -1,4 +1,4 @@
-Required Notice: Copyright © 2026 Brian Busch (https://github.com/buschbrian/utah-reservoir-dashboard). For commercial licensing, contact brian.busch@me.com.
+Required Notice: Copyright © 2026 Brian Busch (https://github.com/buschbrian/utah-water-dashboard). For commercial licensing, contact brian.busch@me.com.
 
 # PolyForm Noncommercial License 1.0.0
 

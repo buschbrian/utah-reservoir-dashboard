@@ -353,8 +353,8 @@ root.innerHTML = `
       </ul>
       <p>The complete source code, the daily refresh pipeline and every architecture
         decision record are public at
-        <a href="https://github.com/buschbrian/utah-reservoir-dashboard" target="_blank"
-          rel="noreferrer">github.com/buschbrian/utah-reservoir-dashboard</a>.
+        <a href="https://github.com/buschbrian/utah-water-dashboard" target="_blank"
+          rel="noreferrer">github.com/buschbrian/utah-water-dashboard</a>.
         The code is copyright &copy; 2026 Brian Busch and is licensed for
         noncommercial use; the <a href="./terms.html">terms and license page</a>
         states what that means and how to license the dashboard commercially.</p>

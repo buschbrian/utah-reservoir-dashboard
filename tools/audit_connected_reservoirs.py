@@ -43,7 +43,7 @@ RISE_RESULT = "https://data.usbr.gov/rise/api/result"
 NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
              "services/NID_v1/FeatureServer/0")
 
-USER_AGENT = "utah-reservoir-dashboard/connected-audit (+https://github.com/buschbrian)"
+USER_AGENT = "utah-water-dashboard/connected-audit (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 # name -> the NID dam that impounds it. The inventory is keyed by dam, and
