@@ -118,6 +118,23 @@ export interface Reservoir {
   huc6_name?: string | null;
   huc_assignment_point?: [number, number] | null;
   huc_assignment_source?: string | null;
+
+  // County membership (ADR-058). Optional for the same reason the drainage
+  // fields are: the payload is rewritten every morning and the pages have to
+  // keep reading the one published before this field existed.
+  //
+  // Assigned from the *published waterbody point*, deliberately not the dam
+  // point above. The two answer different questions and disagree twice: Glen
+  // Canyon Dam is in Coconino County, Arizona, and Lake Powell is the lake in
+  // San Juan County, Utah that a reader is asking about.
+  //
+  // `county_fips` is the key and the name is not. This roster holds two
+  // Summit Counties, two Carbon Counties and two Garfield Counties, each pair
+  // in different states, so grouping by name merges reservoirs that are
+  // hundreds of miles apart.
+  county_fips?: string | null;
+  county_name?: string | null;
+  county_state?: string | null;
 }
 
 export interface ReservoirSource {

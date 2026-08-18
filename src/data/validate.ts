@@ -135,7 +135,10 @@ function isReservoir(value: unknown): value is Reservoir {
     (value.huc6_name === undefined || hasNullableString(value.huc6_name)) &&
     isOptionalPoint(value.huc_assignment_point) &&
     (value.huc_assignment_source === undefined ||
-      hasNullableString(value.huc_assignment_source));
+      hasNullableString(value.huc_assignment_source)) &&
+    (value.county_fips === undefined || hasNullableString(value.county_fips)) &&
+    (value.county_name === undefined || hasNullableString(value.county_name)) &&
+    (value.county_state === undefined || hasNullableString(value.county_state));
 }
 
 export function validateReservoirPayload(value: unknown): ReservoirPayload {

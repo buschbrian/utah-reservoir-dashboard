@@ -40,6 +40,7 @@ import {
   normalComparison,
   overviewScope,
   percentFullValues,
+  countyOptions,
   watershedOptions,
   watershedRecords,
   type ChartMeasure,
@@ -130,6 +131,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   if (!content) return;
   // Built from the widest scope so the list of drainage areas does not
   // change shape when Lake Powell is toggled.
+  const countyChoices = countyOptions(allReservoirs);
   const watershedChoices = watershedOptions(
     overviewScope(allReservoirs, { geography: "connected", lakePowell: "include" }));
   content.innerHTML = `
@@ -164,8 +166,9 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         </div>
       </div>
       <div class="filterbar-controls">
-        <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
+        <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name, drainage area or county" autocomplete="off" /></label>
         <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
+        <label id="county-field" hidden>County<select id="county-filter"><option value="all">All counties</option></select></label>
         <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
         <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
       </div>
@@ -273,6 +276,21 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     watershed?.append(option);
   }
 
+  /* The county control is offered only when the payload carries counties.
+   * The assignment ships with a morning's refresh, so the published payload
+   * has none until then -- and a filter whose every choice narrows to nothing
+   * is worse than no filter. The field is hidden rather than absent so the
+   * markup, and the tests that read it, stay one shape. */
+  const county = document.querySelector<HTMLSelectElement>("#county-filter");
+  const countyField = document.querySelector<HTMLElement>("#county-field");
+  for (const choice of countyChoices) {
+    const option = document.createElement("option");
+    option.value = choice.code;
+    option.textContent = choice.label;
+    county?.append(option);
+  }
+  if (countyField) countyField.hidden = countyChoices.length === 0;
+
   const tbody = document.querySelector<HTMLTableSectionElement>("#reservoir-rows");
   const search = document.querySelector<HTMLInputElement>("#reservoir-search");
   const cadence = document.querySelector<HTMLSelectElement>("#cadence-filter");
@@ -307,7 +325,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
   const chartRank = document.querySelector<HTMLSelectElement>("#chart-rank");
   const exportButton = document.querySelector<HTMLElement>("#download-overview-csv");
-  if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
+  if (!tbody || !search || !watershed || !county || !cadence || !sort || !reset || !status
       || !capacityHost || !watershedHost || !trendHost || !normalHost
       || !distributionHost || !spreadHost
       || !chartLimit || !chartMeasure || !chartRank
@@ -375,6 +393,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const currentUrlState = (): OverviewUrlState => ({
     query: search.value,
     drainageArea: watershed.value,
+    county: county.value,
     reporting: cadence.value as OverviewCadence,
     geography: geography.value as ReservoirGeography,
     lakePowell: lakePowell.checked ? "include" : "exclude",
@@ -395,6 +414,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     const matching = filterOverview(scoped, {
       query: search.value,
       huc6: watershed.value,
+      county: county.value,
       cadence: cadence.value as OverviewCadence
     });
     /* The strip narrows what is below it, but the strip itself keeps showing
@@ -507,7 +527,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
     };
   };
-  for (const control of [search, watershed, cadence, sort, lakePowell, geography,
+  for (const control of [search, watershed, county, cadence, sort, lakePowell, geography,
     chartLimit, chartMeasure, chartRank]) {
     const event = control instanceof HTMLSelectElement
       || (control instanceof HTMLInputElement && control.type === "checkbox")
@@ -524,6 +544,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   reset.addEventListener("click", () => {
     search.value = "";
     watershed.value = "all";
+    county.value = "all";
     cadence.value = "all";
     sort.value = "capacity";
     lakePowell.checked = false;
@@ -545,6 +566,11 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   search.value = wanted.query;
   watershed.value = watershedChoices.some((choice) => choice.code === wanted.drainageArea)
     ? wanted.drainageArea : "all";
+  /* A county in the link that this payload does not carry falls back to all,
+   * the same way a drainage area does. A shared link outliving the roster it
+   * was made from should show everything rather than nothing. */
+  county.value = countyChoices.some((choice) => choice.code === wanted.county)
+    ? wanted.county : "all";
   cadence.value = wanted.reporting;
   geography.value = wanted.geography;
   lakePowell.checked = wanted.lakePowell === "include";

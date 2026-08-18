@@ -51,6 +51,7 @@ OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
 NORMALS_PATH = Path(__file__).parent / "normals.json"
+COUNTIES_PATH = Path(__file__).parent / "counties.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
 
 # A reservoir whose newest observation is older than this many days is
@@ -841,6 +842,62 @@ def dam_points() -> dict[str, tuple[float, float]]:
 
 
 
+def attach_counties(records: list[dict]) -> dict:
+    """Add the committed county assignment to every record.
+
+    Counties answer "where is this, administratively", which is how readers
+    ask for a reservoir when they do not think in drainage areas. The axis is
+    a filter and a search term, never a grouping: 68 reservoirs fall in 34
+    counties and 19 of those hold one, so a county total is a reservoir total
+    with a county's name on it.
+
+    Committed rather than resolved each morning, like the capacities and for
+    the same reason -- and read here rather than recomputed, so a reservoir
+    cannot move county on a morning when nothing about it changed.
+
+    Runs over carried-forward records too. A reservoir whose feed went quiet
+    has not moved counties, and dropping it out of its county filter on the
+    day it goes late is exactly when a reader looking for it would fail to
+    find it.
+
+    A missing or unreadable file is not fatal, matching `attach_watersheds`:
+    losing the whole daily refresh over a county lookup would be much worse
+    than shipping a day without one.
+    """
+    try:
+        document = json.loads(COUNTIES_PATH.read_text(encoding="utf-8"))
+        counties = document["counties"]
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"WARNING: no county assignments ({type(exc).__name__}: {exc}); "
+              "publishing without county fields")
+        return {"assigned": 0, "unassigned": len(records), "county_count": 0}
+
+    unassigned = []
+    for record in records:
+        found = counties.get(record["name"])
+        if not found:
+            unassigned.append(record["name"])
+            continue
+        record["county_fips"] = found["county_fips"]
+        record["county_name"] = found["county_name"]
+        record["county_state"] = found["county_state"]
+
+    distinct = {r["county_fips"] for r in records if r.get("county_fips")}
+    print(f"\nCounties: {len(records) - len(unassigned)}/{len(records)} reservoirs "
+          f"assigned across {len(distinct)} counties")
+    if unassigned:
+        # Named rather than guessed, like an unmatched drainage area. A new
+        # reservoir arrives on the roster before the assignment is rebuilt,
+        # and the honest answer is that its county is not known yet.
+        print("  no county assignment: " + ", ".join(sorted(unassigned)) +
+              " -- run tools/build_county_assignments.py")
+    return {
+        "assigned": len(records) - len(unassigned),
+        "unassigned": len(unassigned),
+        "county_count": len(distinct),
+    }
+
+
 def attach_watersheds(records: list[dict]) -> dict:
     """Add watershed membership to every record and summarize the result.
 
@@ -1258,6 +1315,7 @@ def main() -> int:
     records, withdrawn = partition_by_age(records)
 
     watersheds = attach_watersheds(records)
+    counties = attach_counties(records)
 
     # Physical size is the primary browse order in every surface.
     records.sort(key=lambda r: (r.get("capacity_af") is None,
@@ -1351,6 +1409,15 @@ def main() -> int:
             "in_utah": sum(1 for r in records if r.get("in_utah")),
             "intersects_utah": sum(1 for r in records
                                     if r.get("intersects_utah")),
+        },
+        # Counties are described in the envelope for the same reason, and
+        # carry their assignment rule for the opposite one: it is deliberately
+        # *not* the drainage rule above. A reader comparing the two lines is
+        # meant to see that they differ (ADR-058).
+        "counties": {
+            "source": "Esri Living Atlas, USA Census Counties",
+            "assignment_rule": "the published waterbody point, not the dam",
+            **counties,
         },
         "reservoirs": records,
     }

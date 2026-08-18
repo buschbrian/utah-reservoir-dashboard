@@ -18,11 +18,12 @@ describe("reading the overview view out of a link", () => {
 
   it("reads every field it owns", () => {
     const state = overviewStateFromSearch(
-      "?q=Deer&area=140600&reporting=late&reservoirs=connected&powell=include" +
+      "?q=Deer&area=140600&county=49051&reporting=late&reservoirs=connected&powell=include" +
       "&storage=2&sort=percent&measure=storage&top=25&rank=name");
     expect(state).toEqual({
       query: "Deer",
       drainageArea: "140600",
+      county: "49051",
       reporting: "late",
       geography: "connected",
       lakePowell: "include",
@@ -139,5 +140,25 @@ describe("a link shared between the map and the overview", () => {
   it("does not throw away the map's own month on the way past", () => {
     expect(searchWithOverviewState({ query: "Deer" }, "?month=2026-02"))
       .toContain("month=2026-02");
+  });
+});
+
+/* A FIPS code is fixed-width and zero-padded, so the digit count is the whole
+ * validation -- and the leading zero is real. Arizona is 04, so anything that
+ * treats the code as a number loses a state. */
+describe("the county parameter", () => {
+  it("keeps a leading zero", () => {
+    expect(overviewStateFromSearch("?county=08117").county).toBe("08117");
+  });
+
+  it("refuses anything that is not five digits", () => {
+    for (const value of ["4905", "490511", "49o51", "Summit", ""]) {
+      expect(overviewStateFromSearch(`?county=${value}`).county).toBe("all");
+    }
+  });
+
+  it("writes the county back only when one is chosen", () => {
+    expect(searchWithOverviewState({ county: "49051" })).toContain("county=49051");
+    expect(searchWithOverviewState({ county: "all" })).not.toContain("county");
   });
 });

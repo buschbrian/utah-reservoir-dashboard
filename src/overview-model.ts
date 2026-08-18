@@ -15,6 +15,8 @@ export type OverviewCadence = "all" | "daily" | "monthly" | "late";
 export interface OverviewFilters {
   query: string;
   huc6: string;
+  /** A five-digit FIPS code, or "all". Never a county name -- see `Reservoir`. */
+  county: string;
   cadence: OverviewCadence;
 }
 
@@ -74,6 +76,36 @@ export function overviewScope(
   return reservoirs.filter((reservoir) => reservoirInScope(reservoir, scope));
 }
 
+/**
+ * Lowercased, with commas as spaces and runs of space collapsed.
+ *
+ * The comma is the point. The county control's own labels read "Summit
+ * County, CO", so a reader who copies one into the search box types a comma
+ * the joined text never contained -- the match failed on punctuation the
+ * reader had every reason to include. Normalising both sides means the label
+ * a reader can see is a query that works.
+ */
+function normalize(value: string): string {
+  return value.toLocaleLowerCase("en-US").replace(/,/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The text a reservoir can be found by.
+ *
+ * County is in here because it is the reason the axis exists (ADR-058):
+ * readers ask for "Washington County", not for a drainage area. The state
+ * goes in with it so Summit UT and Summit CO are separable by typing, the
+ * same way the filter separates them by code.
+ */
+function searchText(reservoir: Reservoir): string {
+  return normalize([
+    reservoir.name,
+    reservoir.huc6_name ?? "",
+    reservoir.county_name ?? "",
+    reservoir.county_state ?? ""
+  ].join(" "));
+}
+
 function numberOrLast(value: number | null): number {
   return value === null || !Number.isFinite(value) ? Number.NEGATIVE_INFINITY : value;
 }
@@ -81,10 +113,9 @@ function numberOrLast(value: number | null): number {
 export function filterAndSort(
   reservoirs: readonly Reservoir[], query: string, sort: OverviewSort
 ): Reservoir[] {
-  const needle = query.trim().toLocaleLowerCase("en-US");
+  const needle = normalize(query);
   const filtered = needle
-    ? reservoirs.filter((reservoir) =>
-      `${reservoir.name} ${reservoir.huc6_name ?? ""}`.toLocaleLowerCase("en-US").includes(needle))
+    ? reservoirs.filter((reservoir) => searchText(reservoir).includes(needle))
     : [...reservoirs];
   return filtered.sort((a, b) => {
     if (sort === "name") return a.name.localeCompare(b.name);
@@ -98,16 +129,21 @@ export function filterAndSort(
 export function filterOverview(
   reservoirs: readonly Reservoir[], filters: OverviewFilters
 ): Reservoir[] {
-  const needle = filters.query.trim().toLocaleLowerCase("en-US");
+  const needle = normalize(filters.query);
   return reservoirs.filter((reservoir) => {
-    const matchesQuery = !needle || `${reservoir.name} ${reservoir.huc6_name ?? ""}`
-      .toLocaleLowerCase("en-US").includes(needle);
+    const matchesQuery = !needle || searchText(reservoir).includes(needle);
     const matchesWatershed = filters.huc6 === "all" || reservoir.huc6 === filters.huc6;
+    /* A reservoir with no county cannot match a chosen county. It is left
+     * out rather than shown, because a filter naming one county and
+     * answering with a reservoir whose county is unknown is a claim the
+     * payload does not support. */
+    const matchesCounty = filters.county === "all"
+      || reservoir.county_fips === filters.county;
     const matchesCadence = filters.cadence === "all"
       || (filters.cadence === "late"
         ? isLate(reservoir)
         : reservoir.data_frequency === filters.cadence);
-    return matchesQuery && matchesWatershed && matchesCadence;
+    return matchesQuery && matchesWatershed && matchesCounty && matchesCadence;
   });
 }
 
@@ -118,6 +154,36 @@ export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{
   const labels = new Map<string, string>();
   for (const reservoir of reservoirs) {
     if (reservoir.huc6) labels.set(reservoir.huc6, reservoir.huc6_name ?? reservoir.huc6);
+  }
+  return [...labels].map(([code, label]) => ({ code, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * The counties present in a set, for a filter control.
+ *
+ * Empty when the payload carries no county at all, which is what the morning
+ * before the assignment first ships looks like. A caller offering an empty
+ * control would show a reader a filter that can only narrow to nothing, so
+ * the emptiness is the signal to leave the control out.
+ *
+ * Labelled with the state and keyed on the code. Sorted by label, which puts
+ * "Summit County, CO" before "Summit County, UT" rather than leaving two
+ * identical-looking rows in payload order.
+ */
+export function countyOptions(reservoirs: readonly Reservoir[]): Array<{
+  code: string;
+  label: string;
+}> {
+  const labels = new Map<string, string>();
+  for (const reservoir of reservoirs) {
+    if (!reservoir.county_fips || !reservoir.county_name) continue;
+    labels.set(
+      reservoir.county_fips,
+      reservoir.county_state
+        ? `${reservoir.county_name}, ${reservoir.county_state}`
+        : reservoir.county_name
+    );
   }
   return [...labels].map(([code, label]) => ({ code, label }))
     .sort((a, b) => a.label.localeCompare(b.label));

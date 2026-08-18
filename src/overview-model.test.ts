@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
 import {
+  countyOptions,
   filterAndSort,
   filterOverview,
   monthlyTrend,
@@ -64,7 +65,7 @@ describe("modern overview model", () => {
       is_stale: true });
 
     expect(filterOverview([daily, late, other], {
-      query: "echo", huc6: "160202", cadence: "late"
+      query: "echo", huc6: "160202", county: "all", cadence: "late"
     })).toEqual([late]);
   });
 
@@ -101,5 +102,68 @@ describe("modern overview model", () => {
     expect(watershedOptions(reservoirs)).toEqual([
       { code: "1", label: "Bear" }, { code: "2", label: "Zion" }
     ]);
+  });
+});
+
+/* Counties are a search and filter axis and deliberately not an aggregation
+ * one (ADR-058): 68 reservoirs fall in 34 counties and 19 of those hold one,
+ * so there is nothing here that groups by county and nothing that should. */
+describe("the county axis", () => {
+  const summitUt = reservoir({ name: "Rockport", rise_item_id: 200,
+    county_fips: "49043", county_name: "Summit County", county_state: "UT" });
+  const summitCo = reservoir({ name: "Dillon Reservoir", rise_item_id: 201,
+    county_fips: "08117", county_name: "Summit County", county_state: "CO" });
+  const washington = reservoir({ name: "Gunlock", rise_item_id: 202,
+    county_fips: "49053", county_name: "Washington County", county_state: "UT" });
+  const all = [summitUt, summitCo, washington];
+
+  const filters = (overrides: Partial<Parameters<typeof filterOverview>[1]>) =>
+    ({ query: "", huc6: "all", county: "all", cadence: "all" as const, ...overrides });
+
+  it("separates two counties that share a name in different states", () => {
+    expect(filterOverview(all, filters({ county: "49043" }))).toEqual([summitUt]);
+    expect(filterOverview(all, filters({ county: "08117" }))).toEqual([summitCo]);
+  });
+
+  it("labels the choices with their state, and keys them on the code", () => {
+    expect(countyOptions(all)).toEqual([
+      { code: "08117", label: "Summit County, CO" },
+      { code: "49043", label: "Summit County, UT" },
+      { code: "49053", label: "Washington County, UT" }
+    ]);
+  });
+
+  /* The payload published before the assignment shipped carries no county at
+   * all. An empty list is how the page knows to leave the control out, so a
+   * reader is never offered a filter whose every choice narrows to nothing. */
+  it("offers nothing when the payload carries no counties", () => {
+    /* The keys are removed rather than set to undefined, because that is what
+     * an older payload actually is -- and because the fixture reads the
+     * committed payload, which will carry counties itself once the assignment
+     * ships. A fixture that stops representing the old shape stops testing
+     * backward compatibility on the morning it matters. */
+    const { county_fips, county_name, county_state, ...older } =
+      reservoir({ name: "Older payload", rise_item_id: 203 });
+    void county_fips; void county_name; void county_state;
+    expect(countyOptions([older])).toEqual([]);
+  });
+
+  it("leaves a reservoir with no county out of a chosen county", () => {
+    const unknown = reservoir({ name: "Unassigned", rise_item_id: 204,
+      county_fips: null, county_name: null, county_state: null });
+    expect(filterOverview([...all, unknown], filters({ county: "49043" })))
+      .toEqual([summitUt]);
+    expect(filterOverview([...all, unknown], filters({}))).toHaveLength(4);
+  });
+
+  it("finds a reservoir by its county, which is why the axis exists", () => {
+    expect(filterOverview(all, filters({ query: "washington" }))).toEqual([washington]);
+    /* Typing the state narrows a shared name the same way the code does. */
+    expect(filterOverview(all, filters({ query: "summit county, co" })))
+      .toEqual([summitCo]);
+  });
+
+  it("searches county in the sorted path too, so the two cannot drift", () => {
+    expect(filterAndSort(all, "washington", "name")).toEqual([washington]);
   });
 });

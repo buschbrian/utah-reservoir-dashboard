@@ -1,0 +1,355 @@
+{
+  "source": "Esri Living Atlas, USA Census Counties (U.S. Census Bureau 2020 boundaries)",
+  "source_layer": "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Counties/FeatureServer/0",
+  "retrieved": "2026-08-18",
+  "assignment_point": "published_point",
+  "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
+  "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
+  "counties": {
+    "Bear Lake": {
+      "county_fips": "16007",
+      "county_name": "Bear Lake County",
+      "county_state": "ID"
+    },
+    "Big Sand Wash": {
+      "county_fips": "49013",
+      "county_name": "Duchesne County",
+      "county_state": "UT"
+    },
+    "Causey": {
+      "county_fips": "49057",
+      "county_name": "Weber County",
+      "county_state": "UT"
+    },
+    "Cleveland": {
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "county_state": "UT"
+    },
+    "Currant Creek": {
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "county_state": "UT"
+    },
+    "Deer Creek": {
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "county_state": "UT"
+    },
+    "Dillon Reservoir": {
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "county_state": "CO"
+    },
+    "East Canyon": {
+      "county_fips": "49029",
+      "county_name": "Morgan County",
+      "county_state": "UT"
+    },
+    "Echo": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Elkhead Reservoir": {
+      "county_fips": "08081",
+      "county_name": "Moffat County",
+      "county_state": "CO"
+    },
+    "Flaming Gorge": {
+      "county_fips": "49009",
+      "county_name": "Daggett County",
+      "county_state": "UT"
+    },
+    "Fontenelle": {
+      "county_fips": "56023",
+      "county_name": "Lincoln County",
+      "county_state": "WY"
+    },
+    "Grantsville": {
+      "county_fips": "49045",
+      "county_name": "Tooele County",
+      "county_state": "UT"
+    },
+    "Green Mountain Reservoir": {
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "county_state": "CO"
+    },
+    "Gunlock": {
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "county_state": "UT"
+    },
+    "Gunnison": {
+      "county_fips": "49039",
+      "county_name": "Sanpete County",
+      "county_state": "UT"
+    },
+    "High Savery Reservoir": {
+      "county_fips": "56007",
+      "county_name": "Carbon County",
+      "county_state": "WY"
+    },
+    "Homestake Reservoir": {
+      "county_fips": "08037",
+      "county_name": "Eagle County",
+      "county_state": "CO"
+    },
+    "Huntington North": {
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "county_state": "UT"
+    },
+    "Hyrum": {
+      "county_fips": "49005",
+      "county_name": "Cache County",
+      "county_state": "UT"
+    },
+    "Jackson Flat": {
+      "county_fips": "49025",
+      "county_name": "Kane County",
+      "county_state": "UT"
+    },
+    "Joes Valley": {
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "county_state": "UT"
+    },
+    "Jordanelle": {
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "county_state": "UT"
+    },
+    "Ken's Lake": {
+      "county_fips": "49037",
+      "county_name": "San Juan County",
+      "county_state": "UT"
+    },
+    "Lake Granby": {
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "county_state": "CO"
+    },
+    "Lake Powell": {
+      "county_fips": "49037",
+      "county_name": "San Juan County",
+      "county_state": "UT"
+    },
+    "Lost Creek": {
+      "county_fips": "49029",
+      "county_name": "Morgan County",
+      "county_state": "UT"
+    },
+    "Lost Lake": {
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "county_state": "UT"
+    },
+    "Lower Enterprise": {
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "county_state": "UT"
+    },
+    "Meeks Cabin": {
+      "county_fips": "56041",
+      "county_name": "Uinta County",
+      "county_state": "WY"
+    },
+    "Miller Flat": {
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "county_state": "UT"
+    },
+    "Millsite": {
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "county_state": "UT"
+    },
+    "Minersville": {
+      "county_fips": "49001",
+      "county_name": "Beaver County",
+      "county_state": "UT"
+    },
+    "Moon Lake": {
+      "county_fips": "49013",
+      "county_name": "Duchesne County",
+      "county_state": "UT"
+    },
+    "Narraguinnep Reservoir": {
+      "county_fips": "08083",
+      "county_name": "Montezuma County",
+      "county_state": "CO"
+    },
+    "Newton": {
+      "county_fips": "49005",
+      "county_name": "Cache County",
+      "county_state": "UT"
+    },
+    "Otter Creek": {
+      "county_fips": "49031",
+      "county_name": "Piute County",
+      "county_state": "UT"
+    },
+    "Panguitch": {
+      "county_fips": "49017",
+      "county_name": "Garfield County",
+      "county_state": "UT"
+    },
+    "Pineview": {
+      "county_fips": "49057",
+      "county_name": "Weber County",
+      "county_state": "UT"
+    },
+    "Piute": {
+      "county_fips": "49031",
+      "county_name": "Piute County",
+      "county_state": "UT"
+    },
+    "Porcupine": {
+      "county_fips": "49005",
+      "county_name": "Cache County",
+      "county_state": "UT"
+    },
+    "Quail Creek": {
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "county_state": "UT"
+    },
+    "Red Fleet": {
+      "county_fips": "49047",
+      "county_name": "Uintah County",
+      "county_state": "UT"
+    },
+    "Rockport": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Ruedi Reservoir": {
+      "county_fips": "08097",
+      "county_name": "Pitkin County",
+      "county_state": "CO"
+    },
+    "Sand Hollow": {
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "county_state": "UT"
+    },
+    "Scofield": {
+      "county_fips": "49007",
+      "county_name": "Carbon County",
+      "county_state": "UT"
+    },
+    "Settlement Canyon": {
+      "county_fips": "49045",
+      "county_name": "Tooele County",
+      "county_state": "UT"
+    },
+    "Shadow Mountain Reservoir": {
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "county_state": "CO"
+    },
+    "Smith and Morehouse": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Stagecoach Reservoir nr Oak Creek": {
+      "county_fips": "08107",
+      "county_name": "Routt County",
+      "county_state": "CO"
+    },
+    "Starvation": {
+      "county_fips": "49013",
+      "county_name": "Duchesne County",
+      "county_state": "UT"
+    },
+    "Stateline": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Steinaker": {
+      "county_fips": "49047",
+      "county_name": "Uintah County",
+      "county_state": "UT"
+    },
+    "Strawberry": {
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "county_state": "UT"
+    },
+    "Trial Lake": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Upper Enterprise": {
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "county_state": "UT"
+    },
+    "Upper Stillwater": {
+      "county_fips": "49013",
+      "county_name": "Duchesne County",
+      "county_state": "UT"
+    },
+    "Utah Lake": {
+      "county_fips": "49049",
+      "county_name": "Utah County",
+      "county_state": "UT"
+    },
+    "Vega Reservoir": {
+      "county_fips": "08077",
+      "county_name": "Mesa County",
+      "county_state": "CO"
+    },
+    "Washington Lake": {
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "county_state": "UT"
+    },
+    "Willard Bay": {
+      "county_fips": "49003",
+      "county_name": "Box Elder County",
+      "county_state": "UT"
+    },
+    "Williams Fork Reservoir": {
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "county_state": "CO"
+    },
+    "Willow Creek Reservoir": {
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "county_state": "CO"
+    },
+    "Wolford Mountain Reservoir": {
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "county_state": "CO"
+    },
+    "Woodruff Creek": {
+      "county_fips": "49033",
+      "county_name": "Rich County",
+      "county_state": "UT"
+    },
+    "Woodruff Narrows": {
+      "county_fips": "56041",
+      "county_name": "Uinta County",
+      "county_state": "WY"
+    },
+    "Yamcolo Reservoir": {
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "county_state": "CO"
+    },
+    "Yuba": {
+      "county_fips": "49023",
+      "county_name": "Juab County",
+      "county_state": "UT"
+    }
+  }
+}

@@ -37,6 +37,7 @@ import { STORAGE_CLASSES } from "../viz/classes";
 const OVERVIEW_PARAMS = {
   query: "q",
   drainageArea: "area",
+  county: "county",
   reporting: "reporting",
   geography: "reservoirs",
   lakePowell: "powell",
@@ -67,6 +68,8 @@ export interface OverviewUrlState {
   query: string;
   /** A drainage-area code the payload carries, or "all". */
   drainageArea: string;
+  /** A five-digit county FIPS code, or "all". Never a county name. */
+  county: string;
   reporting: OverviewCadence;
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
@@ -82,6 +85,7 @@ export interface OverviewUrlState {
 export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
   query: "",
   drainageArea: "all",
+  county: "all",
   reporting: "all",
   geography: "utah",
   lakePowell: "exclude",
@@ -136,6 +140,13 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
   const state: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE };
   for (const [key, value] of parseQuery(search)) {
     if (key === OVERVIEW_PARAMS.query) state.query = value.trim();
+    else if (key === OVERVIEW_PARAMS.county) {
+      /* Exactly five digits, or nothing. A FIPS code is fixed-width and
+       * zero-padded, so the digit count is the whole validation -- and a
+       * leading zero is real (Arizona is 04), which is why this stays a
+       * string and is never parsed as a number. */
+      state.county = /^[0-9]{5}$/.test(value) ? value : "all";
+    }
     else if (key === OVERVIEW_PARAMS.drainageArea || key === MAP_FILTER_PARAMS.drainageArea) {
       /* Shape only, as the map does: whether this area is in the current
        * scope is the page's business, and it falls back to every area. */
@@ -188,6 +199,7 @@ export function searchWithOverviewState(
 
   if (full.query.trim() !== "") write("query", full.query.trim());
   if (full.drainageArea !== "all") write("drainageArea", full.drainageArea);
+  if (full.county !== "all") write("county", full.county);
   if (full.reporting !== "all") write("reporting", full.reporting);
   if (full.geography !== "utah") write("geography", full.geography);
   if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
