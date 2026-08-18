@@ -138,56 +138,19 @@ export function createWatershedLayer(options: WatershedLayerOptions): FeatureLay
   return new FeatureLayer(properties as never);
 }
 
-export interface WatershedShape {
-  code: string;
-  name: string;
-  /** Rings in longitude and latitude, the shape the drawing code already
-   * takes. A multipolygon is several. */
-  rings: number[][][];
-}
-
-/**
- * The scope's geometry, once, for the surfaces that colour each area by data.
+/*
+ * There is deliberately no "fetch the shapes into the browser" helper here.
  *
- * The snow map fills every basin by its percent of normal, which no hosted
- * renderer can do: the values are this project's and the service has never
- * heard of them. So that map needs the shapes in hand.
+ * There was one, written for the snow map on the assumption that a map
+ * colouring each basin by this project's own numbers must hold the geometry
+ * to do it. It does not: a unique-value renderer keyed on the area code says
+ * one symbol per area without the browser ever seeing a coordinate, which is
+ * what `ui/snow-map.ts` does now.
  *
- * It asks the layer rather than a committed file, which is the whole saving --
- * and it asks with the view's own resolution, so a wide card pays for a wide
- * card. A failure resolves to an empty list rather than throwing: a snow page
- * without basin fills still has its curve, its table and its sites.
+ * The helper is gone rather than kept for later because it was quietly
+ * expensive and did not look it. `queryFeatures` on a layer answers at full
+ * source resolution -- it is not the view's quantized request, whatever an
+ * `outSpatialReference` might suggest -- so for the fourteen published basins
+ * it moved 935 KB as binary and 4.7 MB as JSON. Anything that needs shapes in
+ * hand should arrive at that cost on purpose.
  */
-export async function queryWatershedShapes(
-  layer: FeatureLayer, level: number
-): Promise<WatershedShape[]> {
-  const field = watershedCodeField(level);
-  try {
-    /* Query properties rather than a constructed `Query`: under
-     * `exactOptionalPropertyTypes` a real Query does not satisfy the
-     * parameter type, because its own optional members are
-     * `T | null | undefined` where the properties shape accepts only
-     * `T | null`. The same narrowing the basemap assignment needs. */
-    const result = await layer.queryFeatures({
-      where: layer.definitionExpression || "1=1",
-      outFields: [field, WATERSHED_NAME_FIELD],
-      returnGeometry: true,
-      outSpatialReference: { wkid: 4326 }
-    } as never);
-    const shapes: WatershedShape[] = [];
-    for (const feature of result.features) {
-      const geometry = feature.geometry as { rings?: number[][][] } | null;
-      const code = feature.attributes?.[field];
-      if (!geometry?.rings || typeof code !== "string") continue;
-      shapes.push({
-        code,
-        name: String(feature.attributes?.[WATERSHED_NAME_FIELD] ?? ""),
-        rings: geometry.rings
-      });
-    }
-    return shapes;
-  } catch (error) {
-    console.warn("The drainage-area shapes could not be read:", error);
-    return [];
-  }
-}

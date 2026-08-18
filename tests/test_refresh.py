@@ -419,7 +419,7 @@ def test_committed_reservoirs_json_is_well_formed():
 def test_one_export_contains_capacity_and_every_visualization_geography():
     sections = R.build_export_sections()
 
-    assert sections["schema_version"] == 1
+    assert sections["schema_version"] == 2
     assert sections["capacity_catalog"]["capacities"]["Deer Creek"]["nid_id"] == "UT10117"
     geography = sections["geography"]
     assert geography["state"]["features"][0]["properties"]["name"] == "Utah"
@@ -446,23 +446,56 @@ def test_the_committed_reference_export_matches_the_files_it_is_built_from():
         "re-run python tools/build_reference_export.py")
 
 
-def test_the_export_publishes_the_committed_boundaries_unchanged():
+def test_the_export_publishes_the_committed_roster_unchanged():
     """One geography, not a second copy of it that can disagree.
 
-    Two files drawing the same outlines is how the maps come to disagree
-    about where a drainage area is. The export is a repackaging of the
-    committed boundaries and must stay byte-for-byte the same geometry.
+    Two files naming the same areas is how the maps come to disagree about
+    which drainage area a reservoir is in. The export is a repackaging of
+    the committed boundary files and must name exactly the areas they hold,
+    in their order -- that is the ADR-018 guarantee, and it survives the
+    polygons leaving the payload because the codes still come out of the
+    same file the pipeline assigns reservoirs with.
+
+    The state outline is still republished whole. It is 19 KB, both maps
+    mask with it, and no hosted service publishes the reviewed UGRC polygon.
     """
     geography = R.build_export_sections()["geography"]
     root = Path(__file__).resolve().parent.parent
 
     assert geography["state"] == json.loads(
         (root / "utah-boundary.geojson").read_text())
+
+    def roster(path):
+        return [{"huc6": feature["properties"]["huc6"],
+                 "name": feature["properties"].get("name", ""),
+                 "states": feature["properties"].get("states", "")}
+                for feature in json.loads((root / path).read_text())["features"]]
+
     scopes = geography["watersheds"]["scopes"]
-    assert scopes["utah-connected"]["boundaries"] == json.loads(
-        (root / "huc6.geojson").read_text())
-    assert scopes["upper-colorado"]["boundaries"] == json.loads(
-        (root / "data/watersheds/upper-colorado-huc6.geojson").read_text())
+    assert scopes["utah-connected"]["units"] == roster("huc6.geojson")
+    assert scopes["upper-colorado"]["units"] == roster(
+        "data/watersheds/upper-colorado-huc6.geojson")
+
+
+def test_the_export_carries_no_polygons_but_the_state_outline():
+    """The 982 KB that used to travel in this file, asserted gone.
+
+    Every map page fetches this file whole on every load, and the drainage
+    polygons in it were 98% of its bytes -- then walked coordinate by
+    coordinate on the main thread to type-check them. The maps take their
+    outlines from the hosted Watershed Boundary Dataset now. This is the
+    guard that keeps the geometry from drifting back in: a scope entry that
+    quietly regained a `boundaries` key would restore the whole cost without
+    changing a single rendered pixel.
+    """
+    from tools.build_reference_export import render
+
+    sections = R.build_export_sections()
+    for name, scope in sections["geography"]["watersheds"]["scopes"].items():
+        assert "boundaries" not in scope, f"{name} is publishing polygons again"
+        assert all(set(unit) == {"huc6", "name", "states"} for unit in scope["units"])
+
+    assert len(render(sections).encode("utf-8")) < 120_000
 
 
 # --- watershed enrichment -------------------------------------------------

@@ -24,6 +24,7 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
+| `huc6.geojson` | The reviewed drainage-area polygons. Committed, read by the pipeline to assign reservoirs, and still a documented direct download -- but no longer inside `reference.json` and no longer drawn from by any page (ADR-048). |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules
@@ -60,6 +61,17 @@ not asked for without saying so, and a median never appears without the number
 of years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
+
+**The payload carries the roster; the service carries the shapes**
+(ADR-047, ADR-048). `reference.json` publishes each area's code, name and
+states and no drainage geometry -- it was 1,001 KB and is 21 KB, and every
+map page fetches it whole on every load. Outlines come from the hosted
+Watershed Boundary Dataset, quantized to the view. A map that needs each area
+coloured by one of this project's own numbers does **not** need the shapes in
+hand: that is a unique-value renderer keyed on the code, which is what the
+snow map does. Never fetch geometry into the browser to colour something.
+`docs/data-transfer.md` holds the measurements and is the file to update when
+they change.
 
 **A watershed scope carries its own level.** `watershed_scopes.py` is the one
 place that decides which drainage areas exist and how big they are; the level

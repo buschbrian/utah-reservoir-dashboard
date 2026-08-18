@@ -1697,8 +1697,18 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
  * the pointer and stays inside the map it belongs to.
  */
 async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, expected) {
-  await tab.evaluate(async ({ hostId, layerId }) => {
+  await tab.evaluate(async ({ hostId, cardId, layerId }) => {
     const element = document.querySelector("#" + hostId + " arcgis-map");
+    /* Put the card back to "nothing hovered" first.
+     *
+     * The wait below is for the card to become visible, and a card left
+     * open by the previous hover is already visible -- so without this the
+     * wait returns at once and the assertion reads the last hover's text.
+     * It passed for as long as every resolve settled within a microtask,
+     * and stopped passing the moment one of these layers had to ask a
+     * server for the attributes to hover over. */
+    const previous = document.querySelector("#" + cardId);
+    if (previous) previous.hidden = true;
     const layer = element.view.map.findLayerById(layerId);
     /* Three kinds of layer answer this differently. A client-side feature
      * layer holds its features in `source`, a graphics layer in `graphics`,
@@ -1725,7 +1735,7 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
     };
     element.dispatchEvent(new CustomEvent("arcgisViewPointerMove",
       { detail: { x: 220, y: 140 } }));
-  }, { hostId, layerId });
+  }, { hostId, cardId, layerId });
   await tab.waitForFunction(
     (cardId) => document.querySelector("#" + cardId)?.hidden === false,
     cardId, { timeout: 10000 });

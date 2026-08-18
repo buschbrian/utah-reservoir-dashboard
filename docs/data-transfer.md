@@ -78,10 +78,41 @@ thing no automated check can see. Two layers are correct by construction. If
 the base ever grows enough for 2× to matter, the CIM version is the first thing
 to try, and it needs a person's eye on a real browser to accept.
 
-## What is still additive
+## The payload, after the polygons left it
 
-`reference.json` is **still fetched in full on every map page**, because the
-drainage-area codes and names come from it and the snow map fills each basin by
-a value the hosted service has never heard of. Until that is retired the hosted
-layers are on top of the file rather than instead of it, and the page-level
-figure has gone up, not down. Retiring it is the remaining work.
+ADR-048. `reference.json` publishes the roster -- code, name and states per
+area -- and the state outline, and no drainage geometry at all.
+
+| | bytes |
+|---|---:|
+| Before | 1,024,952 |
+| After | **21,714** |
+
+A 47-fold reduction on a file every map page fetches on **every** load, since
+`src/data/fetch.ts` sets `cache: "no-store"`. The main-thread coordinate walk
+that came with it is gone too, which appears in none of these numbers and is
+the part a reader feels first.
+
+## What each page now pays for its geography
+
+Everything fetched to draw the areas, measured per page against a built
+`dist/`:
+
+| page | before | reference.json | hosted | after |
+|---|---:|---:|---:|---:|
+| Storage map | 1,001 KB | 21.2 KB | 42.5 KB (10 req) | **63.7 KB** |
+| Drought map | 1,001 KB | 21.2 KB | 60.4 KB (28 req) | **81.6 KB** |
+| Snow map | 1,001 KB | 21.2 KB | 124.5 KB (14 req) | **145.7 KB** |
+
+The snow map is the expensive one, and the reason is the point of the whole
+arrangement rather than a fault in it: its opening view is tighter, so the
+quantized geometry it asks for is finer. The cost follows what is on screen.
+It also means every figure in this table moves with a map's opening extent --
+re-measure rather than reason.
+
+## What still ships that nobody fetches
+
+`huc6.geojson` is still copied into `dist/` twice, at 652 KB each, because it
+is a documented direct download and was one before any of this. No page
+requests it. That is deploy weight rather than reader weight, and it is a
+separate decision from this one.

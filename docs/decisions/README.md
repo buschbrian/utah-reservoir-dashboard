@@ -56,6 +56,7 @@ supersedes the old one — the history is the point.
 | [ADR-045](ADR-045-name-the-site-for-the-water-and-each-page-for-its-subject.md) | Name the site for the water, and each page for its own subject | Accepted |
 | [ADR-046](ADR-046-never-subtract-shares-with-different-denominators.md) | Never subtract two shares with different denominators | Accepted |
 | [ADR-047](ADR-047-let-the-label-engine-place-drainage-names.md) | Let the label engine place the drainage-area names | Accepted |
+| [ADR-048](ADR-048-publish-the-roster-not-the-polygons.md) | Publish the drainage roster, not the drainage polygons | Accepted |
 
 ## Relationship to the modernization plan
 

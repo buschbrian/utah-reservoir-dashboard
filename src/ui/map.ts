@@ -35,7 +35,6 @@ import {
 
 import {
   DRAINAGE_NAME_FIELD,
-  createDrainageLayer,
   createHighlightLayer,
   drainageLabelingInfo,
   drainageRenderer,

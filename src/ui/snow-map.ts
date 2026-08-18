@@ -25,6 +25,7 @@ import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { DrainageArea } from "../data/boundaries";
+import { createWatershedLayer } from "../arcgis/watershed-layers";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
 import { SNOW_CLASSES, snowClassIndex } from "../viz/snow-classes";
@@ -99,6 +100,36 @@ function basinSymbol(percent: number | null, chosen: boolean): FillSymbol {
   };
 }
 
+/**
+ * One symbol per drainage area, keyed on its code.
+ *
+ * A unique-value renderer rather than a class-breaks one, because the thing
+ * being matched is which area this is, not how much snow it holds -- the
+ * snow class has already been turned into a colour by `basinSymbol`, which
+ * is the same function the key and the site markers read.
+ *
+ * `defaultSymbol` covers an area the values do not mention, which is the
+ * same grey `basinSymbol` gives a null percent. Without it such an area
+ * would not draw at all, and a missing outline reads as a hole in the map
+ * rather than as a basin with nothing reported.
+ */
+function basinRenderer(
+  areas: readonly DrainageArea[],
+  values: MapDayValues | null,
+  chosen: string | null
+): unknown {
+  return {
+    type: "unique-value",
+    field: "huc6",
+    defaultSymbol: basinSymbol(null, false),
+    uniqueValueInfos: areas.map((area) => ({
+      value: area.huc6,
+      symbol: basinSymbol(
+        values?.basins.get(area.huc6) ?? null, area.huc6 === chosen)
+    }))
+  };
+}
+
 function siteSymbol(percent: number | null): MarkerSymbol {
   const index = snowClassIndex(percent);
   const entry = index === null ? null : SNOW_CLASSES[index];
@@ -124,26 +155,28 @@ export async function createSnowMap(
   sites: readonly SnowSite[],
   firstDay: { values: MapDayValues; day: string } | null
 ): Promise<SnowMapController> {
-  const basinLayer = new GraphicsLayer({ id: BASIN_LAYER_ID });
+  /*
+   * The basins are the hosted layer, coloured by a value the service has
+   * never heard of.
+   *
+   * This is the map that looked like it needed the geometry in hand: it
+   * fills each area by this project's own percent of normal, and no hosted
+   * renderer knows those numbers. But it does not need the shapes to do
+   * that -- it needs one symbol per area, and a unique-value renderer keyed
+   * on the code says exactly that. The service supplies the outlines, this
+   * supplies which colour each one is, and neither has to know the other's
+   * business.
+   *
+   * It also makes the day slider cheaper than it was: a new day is a new
+   * renderer, and the features are already in the browser.
+   */
   const siteLayer = new GraphicsLayer({ id: SITE_LAYER_ID });
-
-  const basinGraphics = new Map<string, Graphic>();
-  for (const area of areas) {
-    /* All rings of all parts in one polygon: the even-odd rule keeps holes
-     * and multiple parts correct without carrying the distinction. */
-    const graphic = new Graphic({
-      geometry: new Polygon({
-        rings: area.polygons.flat().map((ring) => ring.map((point) => [...point]))
-      }),
-      attributes: { huc6: area.huc6, name: area.name }
-    });
-    /* Assigned rather than constructed: the constructor's property type
-     * refuses a built symbol instance under exact optional properties, the
-     * instance property accepts it. */
-    graphic.symbol = basinSymbol(null, false);
-    basinGraphics.set(area.huc6, graphic);
-    basinLayer.add(graphic);
-  }
+  const basinLayer = createWatershedLayer({
+    id: BASIN_LAYER_ID,
+    level: 6,
+    codes: areas.map((area) => area.huc6),
+    renderer: basinRenderer(areas, null, null)
+  });
 
   const siteByStation = new Map(sites.map((site) => [site.station, site]));
   const siteGraphics = new Map<string, Graphic>();
@@ -161,7 +194,7 @@ export async function createSnowMap(
     basemap: false,
     basemapDegraded: false,
     viewReady: false,
-    basins: basinGraphics.size,
+    basins: areas.length,
     sites: siteGraphics.size,
     basinsWithValues: 0,
     sitesWithValues: 0,
@@ -186,11 +219,10 @@ export async function createSnowMap(
       currentValues = values;
       status.day = day;
       let basinsWithValues = 0;
-      for (const [huc6, graphic] of basinGraphics) {
-        const percent = values.basins.get(huc6) ?? null;
-        if (percent !== null) basinsWithValues += 1;
-        graphic.symbol = basinSymbol(percent, huc6 === chosenArea);
+      for (const area of areas) {
+        if ((values.basins.get(area.huc6) ?? null) !== null) basinsWithValues += 1;
       }
+      basinLayer.renderer = basinRenderer(areas, values, chosenArea) as never;
       let sitesWithValues = 0;
       for (const [station, graphic] of siteGraphics) {
         const percent = values.sites.get(station) ?? null;

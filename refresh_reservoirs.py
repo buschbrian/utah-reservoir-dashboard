@@ -80,7 +80,7 @@ MIN_BASELINE_YEARS = 10
 # Version of the reference export's shape, not of the numbers in it. It is
 # here so a reader that finds a payload it does not understand can say so
 # instead of quietly rendering half of it.
-EXPORT_SCHEMA_VERSION = 1
+EXPORT_SCHEMA_VERSION = 2
 RESERVOIR_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
@@ -856,7 +856,21 @@ def _feature_collection(path: Path) -> dict:
 
 
 def build_watershed_sections() -> dict:
-    """Every named scope's boundaries, validated, plus which one is published.
+    """Every named scope's units, validated, plus which one is published.
+
+    Names and codes, not polygons. The geometry used to travel here -- 982 KB
+    of it, which was 98% of this file -- and every map page fetched the whole
+    thing and then walked it coordinate by coordinate on the main thread to
+    type-check it. The maps take their outlines from the hosted Watershed
+    Boundary Dataset now, quantized to whatever the reader is looking at, so
+    what this file still owes them is the roster: which areas are in scope,
+    what each is called, and which states it touches.
+
+    The committed GeoJSON does not go away. `source_file` still names it, the
+    pipeline still assigns every reservoir with it, and it stays reviewable in
+    the repository -- it simply stops being published, exactly as normals.json
+    already is. That is what keeps the outlines from disagreeing with the
+    assignments: the codes published here are read out of that same file.
 
     All of them, not just the published one: the scopes exist to be compared
     (docs/UPPER-COLORADO-PIPELINE.md), and a research scope that ships only
@@ -894,7 +908,14 @@ def build_watershed_sections() -> dict:
             "level": scope.level,
             "unit_count": len(codes),
             field: codes,
-            "boundaries": boundaries,
+            "units": [
+                {
+                    field: feature["properties"][field],
+                    "name": feature["properties"].get("name", ""),
+                    "states": feature["properties"].get("states", ""),
+                }
+                for feature in boundaries["features"]
+            ],
         }
     return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
 
