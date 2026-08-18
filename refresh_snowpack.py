@@ -30,6 +30,16 @@ RETRIES = 3
 LATE_AFTER_DAYS = 2
 MIN_ROLLUP_SITES = 2
 
+#: The share of stations that may go quiet before the refresh refuses the day.
+#:
+#: Two percent, which is four stations of 217 and about thirty-four of the
+#: western network. Small enough that a real outage still fails loudly, large
+#: enough that ordinary winter silence does not throw away every other
+#: station's reading. The sites that did not answer are named in the log and
+#: counted in the payload, so a shrinking network is visible rather than
+#: quietly tolerated.
+MISSING_SITE_TOLERANCE = 0.02
+
 
 def water_year_start(day: date) -> date:
     return date(day.year if day.month >= 10 else day.year - 1, 10, 1)
@@ -93,9 +103,31 @@ def fetch_all(session, station_ids: list[str], begin: date, end: date,
 
     missing = sorted(expected - set(received))
     if missing:
-        raise RuntimeError(
-            f"snow data response omitted {len(missing)} station(s): {', '.join(missing)}")
-    return [received[station] for station in station_ids]
+        # A few silent stations are weather, not a broken refresh.
+        #
+        # This used to refuse the whole day over one station. At 217 sites
+        # that was a defensible trade -- one quiet gauge is a real signal and
+        # a person would want to look. Across the western network it is
+        # roughly 1,725 sites on radios and solar panels in the mountains in
+        # winter, and "every one of them answered" is not a condition that
+        # holds daily. Refusing the day would mean publishing nothing all
+        # winter, which is a worse answer than publishing 1,720 sites and
+        # saying which are absent.
+        #
+        # The tolerance is a share rather than a count, so it means the same
+        # thing at any roster size, and it is small: past it, something is
+        # wrong with the service rather than with a few stations, and the
+        # old behaviour is the right one.
+        allowed = int(len(expected) * MISSING_SITE_TOLERANCE)
+        if len(missing) > allowed:
+            raise RuntimeError(
+                f"snow data response omitted {len(missing)} of {len(expected)} "
+                f"station(s), more than the {allowed} tolerated: "
+                f"{', '.join(missing[:10])}"
+                + (" ..." if len(missing) > 10 else ""))
+        print(f"  {len(missing)} station(s) did not answer and are left out of "
+              f"today's file: {', '.join(missing)}")
+    return [received[station] for station in station_ids if station in received]
 
 
 def _number(value):
@@ -204,8 +236,14 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         normalize_site(sites_by_station[record["stationTriplet"]], record, as_of)
         for record in records
     ]
-    if {site["station"] for site in normalized} != set(sites_by_station):
-        raise ValueError("normalized snow data does not cover the complete inventory")
+    drawn = {site["station"] for site in normalized}
+    if not drawn <= set(sites_by_station):
+        raise ValueError("snow data covers stations that are not in the inventory")
+    missing_sites = sorted(set(sites_by_station) - drawn)
+    if len(missing_sites) > int(len(sites_by_station) * MISSING_SITE_TOLERANCE):
+        raise ValueError(
+            f"normalized snow data is missing {len(missing_sites)} of "
+            f"{len(sites_by_station)} inventory stations")
     normalized.sort(key=lambda site: (site["huc6"], site["name"], site["station"]))
     huc_names = {site["huc6"]: site["huc6_name"] for site in inventory["sites"]}
     rollups = build_rollups(normalized, huc_names)
@@ -248,6 +286,11 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         "source": DATA_URL,
         "site_count": len(normalized),
         "late_site_count": sum(site["late"] for site in normalized),
+        # Inventory stations that published nothing at all today. A separate
+        # fact from `late_site_count`, which counts stations that answered
+        # with an old reading -- one is a station whose newest value is
+        # stale, the other is a station that is not in the file.
+        "missing_site_count": len(missing_sites),
         "rollups": rollups,
         "sites": compact_sites,
     }

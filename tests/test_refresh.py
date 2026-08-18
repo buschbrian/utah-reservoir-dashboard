@@ -554,3 +554,38 @@ def test_a_missing_boundary_file_does_not_lose_the_days_data(monkeypatch, tmp_pa
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+def test_the_refresh_hour_puts_every_western_zone_on_one_date():
+    """`LOCAL_TZ` is a safe simplification only because of when this runs.
+
+    Staleness is `today - as_of`, and `today` is decided in one zone while
+    the west spans three. That only matters if the refresh runs near a date
+    boundary somewhere -- so this asserts it does not, from the workflow's
+    own cron rather than from a comment.
+    """
+    import re
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    workflow = (Path(__file__).resolve().parent.parent
+                / ".github/workflows/refresh-data.yml").read_text(encoding="utf-8")
+    hours = {int(match) for match in re.findall(r'cron:\s*"\d+\s+(\d+)', workflow)}
+    assert hours, "no cron hour found in the refresh workflow"
+
+    western = ("America/Los_Angeles", "America/Denver", "America/Chicago",
+               "America/Phoenix")
+    # Both sides of the daylight-saving change, since the cron does not move.
+    for month, day in ((1, 15), (7, 15)):
+        for hour in hours:
+            moment = datetime(2026, month, day, hour, tzinfo=timezone.utc)
+            dates = {moment.astimezone(ZoneInfo(zone)).date() for zone in western}
+            assert len(dates) == 1, (
+                f"at {hour:02d}:00 UTC on {month}/{day} the western zones "
+                f"disagree about the date ({sorted(dates)}), so LOCAL_TZ "
+                "would change how stale a reading looks")
+            # And far enough from midnight that a slow start cannot drift over.
+            local = moment.astimezone(ZoneInfo("America/Los_Angeles"))
+            assert 1 <= local.hour <= 22, (
+                f"the refresh starts at {local.hour:02d}:00 Pacific, close "
+                "enough to a date boundary that the zone choice matters")

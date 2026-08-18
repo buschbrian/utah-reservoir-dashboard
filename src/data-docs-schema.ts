@@ -171,6 +171,7 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),
     f("late_site_count", "sites", "Number of sites with late readings."),
+    f("missing_site_count", "sites", "Number of inventory sites that published nothing today and are absent from this file. Files written before this field was recorded omit it.", true),
     f("rollups", "array", "Daily drainage-area summaries."),
     f("sites", "array", "Site details and daily series.")
   ]},

@@ -227,7 +227,20 @@ RETRY_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s
 MAX_PAGES = 50  # ~100k daily rows; a stop so a bad meta block can't spin forever
 
 
-LOCAL_TZ = "America/Denver"  # every reservoir here is on Mountain Time
+#: The zone "today" is decided in.
+#:
+#: Not because every reservoir is on Mountain Time -- at western scope they
+#: run from Pacific to Central -- but because at the hour this pipeline
+#: actually runs, the choice cannot change a single figure. The refresh cron
+#: is 12:00 UTC, which is 04:00 Pacific through 06:00 Central: every western
+#: zone is on the same calendar date, hours from the nearest boundary, so
+#: `local_today()` returns the same day whichever of them is named.
+#:
+#: That is a property of the schedule rather than of the code, so
+#: tests/test_refresh.py asserts it instead of this comment being trusted. A
+#: manual run near local midnight is the case it does not cover, and the
+#: figure it would move is `days_stale` by one day.
+LOCAL_TZ = "America/Denver"
 
 
 def load_capacities() -> dict[str, dict]:
