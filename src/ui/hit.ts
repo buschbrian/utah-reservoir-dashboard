@@ -1,8 +1,7 @@
 import { findReservoir } from "../state/selection";
+import { NAME_FIELD, OBJECT_ID_FIELD } from "./layers";
 
 const RESERVOIR_LAYER_ID = "reservoirs";
-const OBJECT_ID_FIELD = "objectid";
-const NAME_FIELD = "name";
 
 export interface HitGraphic {
   attributes?: Record<string, unknown>;
@@ -61,12 +60,20 @@ export function reservoirFromHits<T extends { name: string }>(
     const attributes = graphic?.attributes;
     if (!graphic || !attributes) continue;
 
-    const name = attributes[NAME_FIELD];
-    const named = typeof name === "string" ? findReservoir(reservoirs, name) : null;
-    if (named) return { reservoir: named, graphic };
+    const layerId = result.layer?.id ?? graphic.layer?.id;
+
+    /* The drainage areas are hosted features since ADR-048 and carry a
+     * `name` of their own, so a name only proves reservoir identity when
+     * the hit does not claim another layer. A hit with no layer metadata
+     * still resolves by name: a materialized layer view can omit fields,
+     * not invent a layer. */
+    if (layerId == null || layerId === RESERVOIR_LAYER_ID) {
+      const name = attributes[NAME_FIELD];
+      const named = typeof name === "string" ? findReservoir(reservoirs, name) : null;
+      if (named) return { reservoir: named, graphic };
+    }
 
     const objectId = attributes[OBJECT_ID_FIELD];
-    const layerId = result.layer?.id ?? graphic.layer?.id;
     if (layerId === RESERVOIR_LAYER_ID
       && Number.isInteger(objectId)
       && (objectId as number) >= 1) {

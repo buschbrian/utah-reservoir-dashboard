@@ -94,6 +94,30 @@ describe("snowpack payload validation", () => {
       .toThrow("Invalid snow site record at index 0 (Testsnow)");
   });
 
+  /* Positions out of order or repeated would rebuild a series that jumps
+   * backward in time or says one day twice; whatever reads the last row for
+   * "latest" would be quietly wrong. Refused, like every other shape this
+   * decoder cannot vouch for. */
+  it("rejects positions that run backward", () => {
+    const payload = validPayload();
+    const site = (payload.sites as Record<string, unknown>[])[0]!;
+    site.series_days = [1, 0];
+    site.series_values = [0.0, 0.0];
+    site.series_normals = [0.0, 0.0];
+    expect(() => validateSnowpackPayload(payload))
+      .toThrow("Invalid snow site record at index 0 (Testsnow)");
+  });
+
+  it("rejects a position that repeats", () => {
+    const payload = validPayload();
+    const site = (payload.sites as Record<string, unknown>[])[0]!;
+    site.series_days = [1, 1];
+    site.series_values = [0.0, 0.0];
+    site.series_normals = [0.0, 0.0];
+    expect(() => validateSnowpackPayload(payload))
+      .toThrow("Invalid snow site record at index 0 (Testsnow)");
+  });
+
   it("rejects renamed series columns before a chart reads the wrong one", () => {
     const payload = validPayload();
     payload.site_series_fields = ["series_days", "series_values", "median"];

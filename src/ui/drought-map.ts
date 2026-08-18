@@ -33,6 +33,7 @@ import type { ReferenceLayers } from "../arcgis/reference-layers";
 import { createHillshadeLayer } from "../arcgis/hillshade";
 import {
   createWatershedLayer,
+  watershedCodeField,
   WATERSHED_NAME_FIELD
 } from "../arcgis/watershed-layers";
 import type { DrainageScope } from "../data/boundaries";
@@ -163,6 +164,9 @@ export async function createDroughtMap(
    */
   const { level, areas } = scope;
   const codes = areas.map((area) => area.huc6);
+  /* The attribute the hosted features carry their code in, named by the
+   * scope's own level (ADR-050) -- never a literal "huc6". */
+  const codeField = watershedCodeField(level);
   const boundarySymbol = (color: string, width: number): FillSymbol => ({
     type: "simple-fill",
     color: [0, 0, 0, 0],
@@ -345,7 +349,7 @@ export async function createDroughtMap(
         }
 
         if (layerId === OUTLINE_LAYER_ID) {
-          const huc6 = String(attributes["huc6"]);
+          const huc6 = String(attributes[codeField]);
           const unit = unitByHuc6.get(huc6);
           if (!unit) continue;
           return {

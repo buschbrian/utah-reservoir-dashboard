@@ -14,7 +14,11 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
-import { createWatershedLayer, WATERSHED_NAME_FIELD } from "../arcgis/watershed-layers";
+import {
+  createWatershedLayer,
+  watershedCodeField,
+  WATERSHED_NAME_FIELD
+} from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageScope, UtahBoundary } from "../data/boundaries";
@@ -29,12 +33,10 @@ import {
   eventPoint,
   wireMapHover,
   type HighlightView,
-  type HoverResolution,
-  type ScreenPoint
+  type HoverResolution
 } from "./map-hover";
 
 import {
-  DRAINAGE_NAME_FIELD,
   createHighlightLayer,
   drainageLabelingInfo,
   drainageRenderer,
@@ -409,6 +411,10 @@ export async function loadMap(
   }
   let drainageLayer: FeatureLayer | null = null;
   let drainageLabelLayer: GraphicsLayer | null = null;
+  /* The attribute the hosted features carry their code in. Named by the
+   * scope's own level when the areas draw (ADR-050); null until then, and
+   * until then there is nothing drawn to hover over. */
+  let drainageCodeField: string | null = null;
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: HighlightView | null = null;
   let pendingFilter: string | null = null;
@@ -450,13 +456,14 @@ export async function loadMap(
        * number a reader wants from an area, and it is the same arithmetic
        * the drought view joins storage by. */
       for (const result of results) {
-        const name = result.graphic?.attributes?.[DRAINAGE_NAME_FIELD];
-        const huc6 = result.graphic?.attributes?.["huc6"];
-        if (typeof name !== "string" || typeof huc6 !== "string") continue;
+        if (!drainageCodeField) break;
+        const name = result.graphic?.attributes?.[WATERSHED_NAME_FIELD];
+        const code = result.graphic?.attributes?.[drainageCodeField];
+        if (typeof name !== "string" || typeof code !== "string") continue;
         return {
           content: {
             heading: name,
-            lines: drainageAreaLines(areaStorage.get(huc6))
+            lines: drainageAreaLines(areaStorage.get(code))
           }
           /* No `graphic`: the emphasis is the reservoir layer view's named
            * highlight, and lighting up a whole drainage polygon under the
@@ -695,6 +702,7 @@ export async function loadMap(
         labelingInfo: drainageLabelingInfo(WATERSHED_NAME_FIELD),
         labelsVisible: true
       });
+      drainageCodeField = watershedCodeField(level);
       const base = map.layers.indexOf(maskLayer) + 1;
       map.add(drainageLayer, base);
       status.drainageLevel = level;

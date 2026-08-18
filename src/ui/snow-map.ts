@@ -21,25 +21,15 @@
 import ArcGISMap from "@arcgis/core/Map";
 import Graphic from "@arcgis/core/Graphic";
 import Point from "@arcgis/core/geometry/Point";
-import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { DrainageArea, DrainageScope } from "../data/boundaries";
-import { createWatershedLayer } from "../arcgis/watershed-layers";
+import { createWatershedLayer, watershedCodeField } from "../arcgis/watershed-layers";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
 import { SNOW_CLASSES, snowClassIndex } from "../viz/snow-classes";
 import { hitLayerId, type GraphicHit } from "./hit";
-import {
-  referenceReservoirLines,
-  snowBasinLines,
-  snowSiteLines
-} from "./hover-content";
-import {
-  createReservoirReferenceLayer,
-  RESERVOIR_REFERENCE_LAYER_ID,
-  type ReservoirReference
-} from "./layers";
+import { snowBasinLines, snowSiteLines } from "./hover-content";
 import { wireMapHover, type HoverResolution } from "./map-hover";
 import { followThemeBasemap } from "./theme-basemap";
 import {
@@ -114,13 +104,17 @@ function basinSymbol(percent: number | null, chosen: boolean): FillSymbol {
  * rather than as a basin with nothing reported.
  */
 function basinRenderer(
+  codeField: string,
   areas: readonly DrainageArea[],
   values: MapDayValues | null,
   chosen: string | null
 ): unknown {
   return {
     type: "unique-value",
-    field: "huc6",
+    /* The join key is the attribute the scope's level names (ADR-050);
+     * a literal "huc6" here matches nothing on a HUC-4 or HUC-8 layer and
+     * every basin would fall silently to the default grey. */
+    field: codeField,
     defaultSymbol: basinSymbol(null, false),
     uniqueValueInfos: areas.map((area) => ({
       value: area.huc6,
@@ -171,12 +165,13 @@ export async function createSnowMap(
    * renderer, and the features are already in the browser.
    */
   const { level, areas } = scope;
+  const codeField = watershedCodeField(level);
   const siteLayer = new GraphicsLayer({ id: SITE_LAYER_ID });
   const basinLayer = createWatershedLayer({
     id: BASIN_LAYER_ID,
     level,
     codes: areas.map((area) => area.huc6),
-    renderer: basinRenderer(areas, null, null)
+    renderer: basinRenderer(codeField, areas, null, null)
   });
 
   const siteByStation = new Map(sites.map((site) => [site.station, site]));
@@ -223,7 +218,7 @@ export async function createSnowMap(
       for (const area of areas) {
         if ((values.basins.get(area.huc6) ?? null) !== null) basinsWithValues += 1;
       }
-      basinLayer.renderer = basinRenderer(areas, values, chosenArea) as never;
+      basinLayer.renderer = basinRenderer(codeField, areas, values, chosenArea) as never;
       let sitesWithValues = 0;
       for (const [station, graphic] of siteGraphics) {
         const percent = values.sites.get(station) ?? null;
@@ -274,7 +269,7 @@ export async function createSnowMap(
         }
 
         if (layerId === BASIN_LAYER_ID) {
-          const huc6 = String(attributes["huc6"]);
+          const huc6 = String(attributes[codeField]);
           if (!currentValues) continue;
           const percent = currentValues.basins.get(huc6) ?? null;
           const reporting = currentValues.reporting.get(huc6) ?? 0;

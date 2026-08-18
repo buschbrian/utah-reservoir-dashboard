@@ -779,6 +779,16 @@ for (const viewport of VIEWPORTS) {
       `${label}: map pointer selection did not open ${pointerName}`);
     }
 
+    /* The drainage area under the pointer when no reservoir is. This card
+     * went silently dark once already: the resolver read `area_name`, a
+     * field the hosted features never carry (they answer with `name`), so
+     * every drainage hover resolved to nothing while the reservoir hover
+     * above kept passing. Driven through the shared helper so the
+     * attributes come from the layer's own service fields, the same way
+     * the snow and drought maps are checked. */
+    await checkViewMapHover(tab, check, label, "map-host", "map-hover",
+      "drainage-areas", "reservoir");
+
     /* Which period "normal" means.
      *
      * The two facts worth a browser check are the ones no unit test can see:
@@ -1719,13 +1729,18 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
     const layer = element.view.map.findLayerById(layerId);
     /* Three kinds of layer answer this differently. A client-side feature
      * layer holds its features in `source`, a graphics layer in `graphics`,
-     * and a hosted layer holds none of them -- its features are on a server,
-     * so the attributes have to be asked for. `queryFeatures` answers from
-     * the layer rather than from a view, so it settles here where the render
-     * loop does not run. */
+     * and a hosted layer's features are on a server, so the attributes have
+     * to be asked for. The hosted case is detected by capability rather
+     * than by absence: once a hosted layer has loaded, `source` is the
+     * SDK's internal source object -- truthy, and not a collection -- so
+     * "is there a collection with features in it" is the only test that
+     * answers the same before and after load. `queryFeatures` answers from
+     * the layer rather than from a view, so it settles here where the
+     * render loop does not run. */
     const source = layer.type === "feature" ? layer.source : layer.graphics;
-    const attributes = source
-      ? source.at(0).attributes
+    const first = typeof source?.at === "function" ? source.at(0) : null;
+    const attributes = first
+      ? first.attributes
       : (await layer.queryFeatures({
           where: layer.definitionExpression || "1=1",
           outFields: ["*"],

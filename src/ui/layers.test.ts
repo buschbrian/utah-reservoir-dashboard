@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import type { Reservoir } from "../types";
 import { STORAGE_CLASSES } from "../viz/classes";
 import {
@@ -9,12 +9,11 @@ import {
   RESERVOIR_LABEL_SCALE
 } from "../viz/label-scales";
 import { DRAINAGE_FILL, DRAINAGE_LINE } from "../data/boundaries";
-import { cssPixelsToPoints } from "../viz/units";
+import { WATERSHED_NAME_FIELD } from "../arcgis/watershed-layers";
 import {
   DRAINAGE_LABEL_HALO_COLOR,
   DRAINAGE_LABEL_MIN_SCALE,
   DRAINAGE_LABEL_HALO_PX,
-  DRAINAGE_NAME_FIELD,
   NAME_FIELD,
   RESERVOIR_REFERENCE_LAYER_ID,
   createReservoirLayer,
@@ -23,11 +22,6 @@ import {
   drainageRenderer,
   reservoirLabelingInfo
 } from "./layers";
-
-const square = (west: number, south: number): [number, number][] => [
-  [west, south], [west + 1, south], [west + 1, south + 1],
-  [west, south + 1], [west, south]
-];
 
 const reservoirNamed = (name: string): Reservoir => ({
   name,
@@ -72,7 +66,7 @@ describe("the drainage-area names", () => {
    * scale it appears at, and the appearance ADR-030 was right about. Where
    * each name lands is the engine's answer, per frame, and not a fact a
    * unit test can pin. */
-  const [labelClass] = drainageLabelingInfo(DRAINAGE_NAME_FIELD) as {
+  const [labelClass] = drainageLabelingInfo(WATERSHED_NAME_FIELD) as {
     labelExpressionInfo: { expression: string };
     labelPlacement: string;
     deconflictionStrategy: string;
@@ -92,7 +86,7 @@ describe("the drainage-area names", () => {
      * and an expression naming a field the layer does not have throws once
      * per tile inside a worker while the map looks merely unlabelled. */
     expect(labelClass?.labelExpressionInfo.expression)
-      .toBe(`$feature.${DRAINAGE_NAME_FIELD}`);
+      .toBe(`$feature.${WATERSHED_NAME_FIELD}`);
     const [hosted] = drainageLabelingInfo("name") as typeof labelClass[];
     expect(hosted?.labelExpressionInfo.expression).toBe("$feature.name");
   });
@@ -106,7 +100,7 @@ describe("the drainage-area names", () => {
   });
 
   it("appears at the regional map scale, with one class for every area", () => {
-    expect(drainageLabelingInfo(DRAINAGE_NAME_FIELD)).toHaveLength(1);
+    expect(drainageLabelingInfo(WATERSHED_NAME_FIELD)).toHaveLength(1);
     expect(labelClass?.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
   });
 

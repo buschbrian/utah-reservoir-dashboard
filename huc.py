@@ -187,9 +187,10 @@ def assign_huc(point: Point, units) -> dict | None:
 
     The bounding-box test in front of the ring scan is what makes this
     affordable at western scale. Ray casting walks every vertex of every ring
-    it is given, and the western HUC-8 collection is 1,247 units and 815,761
-    vertices: measured at 44 ms a point, which is half a minute for a
-    690-reservoir roster and over a minute for the snow network. A box
+    it is given: measured at 44 ms a point on the pre-scoping western HUC-8
+    file (1,247 units, 815,761 vertices; the drainage-scoped file committed
+    since is 571 units and roughly half the vertices), which is half a minute
+    for a 690-reservoir roster and over a minute for the snow network. A box
     comparison rejects almost all of them in four float comparisons, and the
     answer is identical -- a point outside the box cannot be inside the
     polygon.

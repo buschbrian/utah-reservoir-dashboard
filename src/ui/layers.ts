@@ -17,7 +17,6 @@ import Polygon from "@arcgis/core/geometry/Polygon";
 import Point from "@arcgis/core/geometry/Point";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
-import type { UniqueValueInfoProperties } from "@arcgis/core/renderers/support/UniqueValueInfo";
 
 import {
   DRAINAGE_FILL,
@@ -25,7 +24,6 @@ import {
   MASK_FILL,
   MASK_LINE,
   utahMaskRings,
-  type DrainageArea,
   type UtahBoundary
 } from "../data/boundaries";
 import type { Ring } from "../data/huc";
@@ -52,11 +50,6 @@ export const OBJECT_ID_FIELD = "objectid";
 /** Which of the renderer's twelve symbols a reservoir draws with. */
 export const SYMBOL_KEY_FIELD = "symbol_key";
 
-/** One source feature and therefore at most one label for each drainage area. */
-export const DRAINAGE_OBJECT_ID_FIELD = "objectid";
-/* Deliberately not the reservoir layer's `name` field: pointer hit testing
- * treats that field as selectable reservoir identity. */
-export const DRAINAGE_NAME_FIELD = "area_name";
 export const DRAINAGE_LABEL_MIN_SCALE = 25_000_000;
 export const DRAINAGE_LABEL_HALO_PX = 2;
 export const DRAINAGE_LABEL_HALO_COLOR = "rgba(255,255,255,0.5)";

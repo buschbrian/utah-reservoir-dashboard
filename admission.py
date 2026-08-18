@@ -283,8 +283,24 @@ def admit(candidate, dams):
     if not observed:
         return Decision(name, False, "no storage series")
 
-    match = find_dam((candidate["lon"], candidate["lat"]), name, dams)
+    # The lenient screen is applied while choosing, not after. Applied after,
+    # the wrong structure has already won on position, and the strict ceiling
+    # below then refuses the *candidate* -- "holds more water than the dam
+    # can contain" -- when the truth is that its real dam sits further out.
+    point = (candidate["lon"], candidate["lat"])
+    match = find_dam(point, name, dams,
+                     plausible=lambda dam: could_hold(dam, observed))
     if not match:
+        # Asked again without the screen, for the honest refusal: a
+        # structure at the gauge that could not hold the water is a
+        # different fact from no structure at all, and the audit's refusal
+        # buckets read the difference.
+        undersized = find_dam(point, name, dams)
+        if undersized:
+            return Decision(
+                name, False,
+                f"holds more water than the dam can contain "
+                f"({observed:,.0f} acre-feet seen)", undersized)
         return Decision(name, False, "no dam close enough to confirm")
 
     capacity, basis = capacity_of(match.dam)

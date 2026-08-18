@@ -12,8 +12,34 @@ and is not listed here.
   decides which drainage areas the project reads now takes the size of those
   areas as a setting rather than assuming the six-digit ones, and the western
   scopes are registered so their geography can be fetched and checked before
-  any page draws it. Measured against the published service: 110 subregions,
-  181 basins and 1,247 subbasins across the nine western hydrologic regions.
+  any page draws it. The scope is drawn by where the water goes, not by
+  longitude: everything draining to the Pacific plus the Great Basin, which
+  is 44 subregions, 75 basins and 571 subbasins across hydrologic regions 14
+  through 18 (ADR-053). The Missouri, Arkansas, Texas-Gulf and Rio Grande are
+  western in longitude, eastern in hydrology, and out.
+
+- **The maps take their drainage outlines from the hosted Watershed Boundary
+  Dataset, and the pages got much lighter for it.** The outlines used to
+  travel inside `reference.json` — 982 KB of a 1,001 KB file, fetched whole
+  by every map page on every visit — and the drainage-area names were placed
+  as fixed text that cannot avoid covering things at western density. The
+  hosted layer sends only what the current view can show, the label engine
+  places the names and drops one it cannot fit (ADR-047, ADR-048), and
+  `reference.json` now carries each area's code, name and states in 21 KB.
+  The snowpack payload also stopped repeating its calendar once per site
+  (ADR-052) — 54% off the wire — and runtime fetches now revalidate instead
+  of re-downloading, so an unchanged file costs a "not modified" answer
+  rather than its whole weight (ADR-051). `docs/data-transfer.md` holds the
+  before-and-after measurements.
+
+- **The pipeline is ready for a western roster.** Point-in-area assignment
+  short-circuits on bounding boxes (30 seconds down to a tenth for a
+  690-reservoir roster at HUC-8); the snow refresh tolerates up to 2% of
+  stations not answering — solar radios in mountain winters — naming the
+  absentees instead of refusing the whole day; and dam matching for new
+  candidates confirms by position first and name second, screening out
+  structures that could not hold the observed water, like the settling pond
+  0.29 km from Huntington North's gauge.
 
 - **The snowpack and drought maps can change their background.** Both now
   carry the basemap gallery the storage map has always had. It was left out

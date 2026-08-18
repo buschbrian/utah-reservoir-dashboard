@@ -43,6 +43,7 @@ function rebuildSeries(
   }
   if (days.length !== values.length || days.length !== normals.length) return null;
   const rows: SnowSeriesRow[] = [];
+  let previousDay = -1;
   for (let index = 0; index < days.length; index += 1) {
     const day = days[index];
     /* A position outside the shared calendar is a payload this cannot read,
@@ -52,6 +53,12 @@ function rebuildSeries(
     if (!Number.isInteger(day) || (day as number) < 0 || (day as number) >= dates.length) {
       return null;
     }
+    /* Strictly ascending, for the same reason: positions out of order or
+     * repeated would rebuild a series that jumps backward in time or says
+     * one day twice, and whatever reads the last row for "latest" would be
+     * quietly wrong rather than loudly refused. */
+    if ((day as number) <= previousDay) return null;
+    previousDay = day as number;
     const date = dates[day as number];
     if (date === undefined) return null;
     if (!hasNullableNumber(values[index]) || !hasNullableNumber(normals[index])) {

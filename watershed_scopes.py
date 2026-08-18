@@ -138,9 +138,10 @@ SCOPES = {
         where=WEST_REGION_WHERE.format(field="huc6"),
         output="data/watersheds/west-huc6.geojson",
         published=False,
-        # Measured against the service on 2026-08-17: 181 basins. Banded
-        # rather than pinned because nine regions of the WBD are revised more
-        # often than one, and a split subbasin upstream must not stop a run.
+        # Measured 2026-08-18, after the scope narrowed to regions 14-18:
+        # 75 basins (181 under the earlier longitude rule). Banded rather
+        # than pinned because nine regions of the WBD are revised more often
+        # than one, and a split subbasin upstream must not stop a run.
         expected_range=(70, 85),
     ),
     "west-huc4": WatershedScope(
@@ -150,7 +151,7 @@ SCOPES = {
         output="data/watersheds/west-huc4.geojson",
         published=False,
         level=4,
-        # Measured 2026-08-17: 110 subregions.
+        # Measured 2026-08-18, regions 14-18: 44 subregions.
         expected_range=(40, 50),
     ),
     "west-huc8": WatershedScope(
@@ -160,9 +161,9 @@ SCOPES = {
         output="data/watersheds/west-huc8.geojson",
         published=False,
         level=8,
-        # Measured 2026-08-17: 1,247 subbasins. This is the finest level the
-        # drought engine holds its published precision at; see the module
-        # docstring.
+        # Measured 2026-08-18, regions 14-18: 571 subbasins. This is the
+        # finest level the drought engine holds its published precision at;
+        # see the module docstring.
         expected_range=(540, 610),
     ),
 }

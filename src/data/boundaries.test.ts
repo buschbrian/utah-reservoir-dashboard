@@ -158,9 +158,9 @@ describe("the reference export", () => {
   });
 
   /* The saving, asserted rather than described. This file is fetched by
-   * every map page on every load (`cache: "no-store"`), so its size is a
-   * cost the reader pays each time -- and it was 1,001 KB, of which 982 KB
-   * was geometry no page draws from any more. */
+   * every map page on every load (`cache: "no-cache"`, so an unchanged file
+   * is a 304 but a changed one is paid whole), and it was 1,001 KB, of
+   * which 982 KB was geometry no page draws from any more. */
   it("is small enough that every page can afford to fetch it whole", () => {
     const bytes = JSON.stringify(readReferenceExport()).length;
     expect(bytes).toBeLessThan(120_000);

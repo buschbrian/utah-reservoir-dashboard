@@ -355,6 +355,8 @@ measurements, and implementation history live in
 - [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md)
   — the owner, endpoint, copy policy, failure behavior, geometry precision,
   and next migration step for every current or planned data source.
+- [`docs/data-transfer.md`](docs/data-transfer.md) — what each page actually
+  fetches, measured; the file to update when a payload or layer changes cost.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
