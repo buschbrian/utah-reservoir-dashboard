@@ -37,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import (  # noqa: E402
-    assign_huc, distance_to_boundary_km, haversine_km, in_polygon,
+    assign_huc, distance_to_boundary_km, haversine_km,
 )
 
 RESERVOIRS_PATH = ROOT / "reservoirs.json"

@@ -12,12 +12,7 @@ import {
   tableCsv
 } from "./data/export";
 import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
-import {
-  isLate,
-  statewideRollup,
-  type LakePowellChoice,
-  type ReservoirGeography
-} from "./data/rollup";
+import { isLate, statewideRollup } from "./data/rollup";
 import {
   DEFAULT_SCOPE,
   overviewScope,

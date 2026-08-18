@@ -115,17 +115,6 @@ export function dropBasemapReferenceLayers(map: ArcGISMap): number {
   return count;
 }
 
-/**
- * The index the first layer this project owns should sit at.
- *
- * Callers that insert a layer at a fixed position need this, because the
- * reference layers have taken the bottom of the stack and a hard-coded `1` no
- * longer means what it did.
- */
-export function firstOwnLayerIndex(map: ArcGISMap): number {
-  return (moved.get(map) ?? []).length;
-}
-
 /** How a map wants its basemap's reference layers treated. */
 export type BasemapReferenceMode = "sink" | "drop";
 

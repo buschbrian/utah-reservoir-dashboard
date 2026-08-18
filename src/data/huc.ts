@@ -39,11 +39,6 @@ import type { MonthlyRecord, NullableNumber } from "../types";
  */
 export const HUC_CODE = /^(?:\d{2}){1,6}$/;
 
-/** The level a code is expressed at, which is simply its length. */
-export function hucLevel(code: string): number | null {
-  return HUC_CODE.test(code) ? code.length : null;
-}
-
 export type Point = readonly [number, number];
 
 /** A linear ring: the outer ring first, then any holes. */
@@ -132,42 +127,6 @@ function inPolygon(point: Point, rings: readonly Ring[]): boolean {
   const [outer, ...holes] = rings;
   if (outer === undefined || !inRing(point, outer)) return false;
   return !holes.some((hole) => inRing(point, hole));
-}
-
-/** Twice the signed planar area. Only relative size matters at HUC6 scale. */
-function ringArea2(ring: Ring): number {
-  let total = 0;
-  for (let index = 0; index < ring.length - 1; index += 1) {
-    const from = ring[index];
-    const to = ring[index + 1];
-    if (!from || !to) continue;
-    total += from[0] * to[1] - to[0] * from[1];
-  }
-  return total;
-}
-
-/** The usual area-weighted centroid. It can fall outside a concave polygon. */
-function ringCentroid(ring: Ring): Point | null {
-  let area2 = 0;
-  let magnitude = 0;
-  let x = 0;
-  let y = 0;
-  for (let index = 0; index < ring.length - 1; index += 1) {
-    const from = ring[index];
-    const to = ring[index + 1];
-    if (!from || !to) continue;
-    const cross = from[0] * to[1] - to[0] * from[1];
-    area2 += cross;
-    magnitude += Math.abs(cross);
-    x += (from[0] + to[0]) * cross;
-    y += (from[1] + to[1]) * cross;
-  }
-  /* Degenerate means the signed terms cancelled. At coordinate magnitudes
-   * near 100 the cancellation leaves rounding noise far above machine
-   * epsilon, so the threshold has to scale with the terms that cancelled,
-   * not with 1. */
-  if (!(Math.abs(area2) > magnitude * Number.EPSILON * 4)) return null;
-  return [x / (3 * area2), y / (3 * area2)];
 }
 
 /**

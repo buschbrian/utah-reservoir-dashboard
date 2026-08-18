@@ -192,11 +192,6 @@ export function loadReference(url = REFERENCE_URL): Promise<unknown> {
   return request;
 }
 
-/** Test seam: drop the shared request so the next load asks again. */
-export function forgetReference(): void {
-  inFlight.clear();
-}
-
 export async function loadUtahBoundary(url = REFERENCE_URL): Promise<UtahBoundary> {
   const boundary = parseUtahBoundary(referenceGeography(await loadReference(url))?.state);
   if (!boundary) throw new Error(`Malformed Utah boundary in ${url}`);
