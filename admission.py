@@ -139,12 +139,21 @@ def positive(value):
     return number if number > 0 else None
 
 
-def find_dam(point, name, dams):
+def find_dam(point, name, dams, plausible=None):
     """Find the dam for a reservoir, by position first and by name second.
 
     A dam is confirmed two ways. It is near enough that nothing else could be
     the dam, or it is further away and named the same. Anything weaker than
     both is refused; see the constants above for the measurements.
+
+    `plausible` is an optional test the caller applies to a candidate before
+    distance is considered at all -- for "could this structure hold the water
+    we have watched this reservoir hold?". It exists because position alone
+    picks the nearest *thing*, not the nearest dam: Huntington North has a
+    Pacificorp settling pond 0.29 km from its gauge holding 360 acre-feet,
+    and its own dam 13.49 km away holding 5,420, against 4,259 acre-feet this
+    project has actually observed in the reservoir. Without the test the pond
+    wins on position and the answer is confidently wrong.
 
     Returns a Match, or None when no dam is close enough to be sure.
     """
@@ -154,6 +163,8 @@ def find_dam(point, name, dams):
     measured = sorted(((distance_km(point, (dam["lon"], dam["lat"])), dam) for dam in dams
                        if dam.get("lon") is not None and dam.get("lat") is not None),
                       key=lambda pair: pair[0])
+    if plausible is not None:
+        measured = [pair for pair in measured if plausible(pair[1])]
     if not measured:
         return None
 
@@ -161,6 +172,17 @@ def find_dam(point, name, dams):
     # must never override a structure at the gauge.
     near = [(distance, dam) for distance, dam in measured if distance <= NEAR_RADIUS_KM]
     if near:
+        # Among structures that are all near enough to be the dam, a matching
+        # name says which one. Hyrum's gauge has Hyrum Dike 0.93 km away and
+        # Hyrum Dam 1.06 km; both are the same impoundment and hold the same
+        # water, and the dam is the structure this project means. Where no
+        # near name agrees the nearest still wins, which is the previous
+        # behaviour and the measured one.
+        named_near = [pair for pair in near
+                      if normalize_name(pair[1].get("name")) == wanted]
+        if named_near:
+            distance, dam = named_near[0]
+            return Match(dam, distance, "name and position")
         distance, dam = near[0]
         return Match(dam, distance, "position")
 
@@ -216,6 +238,38 @@ def holds_more_than_the_dam(dam, observed_max_af):
     if others:
         return observed_max_af > max(others) * (1 + CONSERVATION_ALLOWANCE)
     return False
+
+
+def could_hold(dam, observed_max_af):
+    """A lenient screen for choosing between candidate structures.
+
+    Deliberately not `holds_more_than_the_dam`, which is the strict ceiling
+    used to *accept* a match once it is found. This is the weaker question
+    asked while there are still several candidates: could this structure be
+    the one, at all?
+
+    The difference is not academic. Echo has been observed holding 74,791
+    acre-feet against a maximum pool of 73,940, which is 1.2% over -- the
+    strict test refuses it, and the reviewed capacity table accepts it,
+    because reservoirs are operated a little above their pools. Using the
+    strict test to choose between candidates therefore throws away the right
+    dam and settles for whatever is left, which is how Trial Lake ends up
+    matched to Washington Lake Dam.
+
+    So every figure gets the same small allowance here, including a real
+    maximum pool. A structure still has to be in the right order of
+    magnitude: Huntington North's gauge has a settling pond 0.29 km away
+    holding 360 acre-feet, and no allowance makes that a reservoir seen
+    holding 4,259.
+    """
+    if not observed_max_af:
+        return True
+    figures = [value for value in (positive(dam.get("max_storage_af")),
+                                   positive(dam.get("nid_storage_af")),
+                                   positive(dam.get("normal_storage_af"))) if value]
+    if not figures:
+        return True
+    return max(figures) * (1 + CONSERVATION_ALLOWANCE) >= observed_max_af
 
 
 def admit(candidate, dams):

@@ -18,6 +18,13 @@ change underneath you is not reproducible.
 
     python tools/add_dam_points.py --dry-run   # report, write nothing
     python tools/add_dam_points.py             # update capacities.json
+
+Superseded, and kept only for repair. `tools/build_capacity_table.py` writes
+`dam_lon` and `dam_lat` itself now: it fetches the geometry to match on
+position, so the coordinates are already in hand and a second pass over the
+same rows can only disagree with the first. Running this after that tool
+rewrites the same fields from a second query, which is the arrangement that
+lets two files describe one dam differently.
 """
 
 import argparse

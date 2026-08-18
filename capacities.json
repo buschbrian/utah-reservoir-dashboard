@@ -1,7 +1,7 @@
 {
   "source": "U.S. Army Corps of Engineers, National Inventory of Dams",
   "source_layer": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0",
-  "retrieved": "2026-08-09",
+  "retrieved": "2026-08-17",
   "denominator": "normal_storage (storage at the normal/conservation pool), falling back to max_storage then nid_storage. Each reservoir records which one it used as capacity_basis.",
   "note": "Capacities are NID's, not Utah DWR's; the two can differ on what counts as capacity. Every entry was checked against the storage observed since 2015 and rejected if it came in lower.",
   "unmatched": [],
@@ -328,7 +328,7 @@
   },
   "dam_points": {
     "source": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0",
-    "note": "Dam coordinates, queried by NID id. Used as the watershed assignment point: the drainage area is where the stored water leaves, not where the middle of the lake is.",
+    "note": "Dam coordinates, from the matched inventory row. Used as the watershed assignment point: the drainage area is where the stored water leaves, not where the middle of the lake is.",
     "count": 29
   }
 }

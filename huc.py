@@ -107,6 +107,43 @@ def location_fields(name: str, lat: float, lon: float) -> dict:
     }
 
 
+def _bounds(polygons) -> tuple[float, float, float, float]:
+    """West, south, east, north for every ring of every part."""
+    west = south = float("inf")
+    east = north = float("-inf")
+    for polygon in polygons:
+        for ring in polygon:
+            for lon, lat in ring:
+                if lon < west:
+                    west = lon
+                if lon > east:
+                    east = lon
+                if lat < south:
+                    south = lat
+                if lat > north:
+                    north = lat
+    return west, south, east, north
+
+
+def unit_code(properties: dict) -> str:
+    """The unit's code, whatever size the collection is.
+
+    Hydrologic codes are fixed width, so the level is the digit count and the
+    attribute is named after it -- `huc6` in a six-digit collection, `huc8`
+    in an eight. Reading a fixed `huc6` raised a KeyError against the western
+    HUC-8 file, which is the polite version of this mistake; the client
+    version of it parsed the payload as no areas at all and drew a blank map
+    (ADR-050).
+    """
+    for level in (2, 4, 6, 8, 10, 12):
+        code = properties.get(f"huc{level}")
+        if isinstance(code, str):
+            return code
+    raise KeyError(
+        "feature carries no huc code; expected one of "
+        + ", ".join(f"huc{level}" for level in (2, 4, 6, 8, 10, 12)))
+
+
 def units_from_collection(payload: dict) -> list[dict]:
     """Normalize a GeoJSON feature collection to the assignment shape.
 
@@ -114,16 +151,22 @@ def units_from_collection(payload: dict) -> list[dict]:
     also need to classify divide-adjacent points against an un-generalized
     federal response without writing that much larger geometry to the
     repository first.
+
+    Each unit carries its bounding box, computed once here. See
+    :func:`assign_huc` for why.
     """
     units = []
     for feature in payload["features"]:
         geometry = feature["geometry"]
         coordinates = geometry["coordinates"]
+        polygons = (coordinates if geometry["type"] == "MultiPolygon"
+                    else [coordinates])
         units.append({
-            "huc6": feature["properties"]["huc6"],
+            "huc6": unit_code(feature["properties"]),
             "name": feature["properties"]["name"],
             "states": feature["properties"].get("states", ""),
-            "polygons": coordinates if geometry["type"] == "MultiPolygon" else [coordinates],
+            "polygons": polygons,
+            "bounds": _bounds(polygons),
         })
     return sorted(units, key=lambda unit: unit["huc6"])
 
@@ -141,8 +184,26 @@ def assign_huc(point: Point, units) -> dict | None:
     a point inside two of them means the boundary data is wrong; picking the
     first is no worse than any other arbitrary choice, and
     tests/test_huc.py asserts the situation does not arise.
+
+    The bounding-box test in front of the ring scan is what makes this
+    affordable at western scale. Ray casting walks every vertex of every ring
+    it is given, and the western HUC-8 collection is 1,247 units and 815,761
+    vertices: measured at 44 ms a point, which is half a minute for a
+    690-reservoir roster and over a minute for the snow network. A box
+    comparison rejects almost all of them in four float comparisons, and the
+    answer is identical -- a point outside the box cannot be inside the
+    polygon.
+
+    `bounds` is optional so that a unit built by hand, in a test or an older
+    caller, still works; it is simply slower.
     """
+    lon, lat = point
     for unit in units:
+        bounds = unit.get("bounds")
+        if bounds is not None:
+            west, south, east, north = bounds
+            if lon < west or lon > east or lat < south or lat > north:
+                continue
         if any(in_polygon(point, polygon) for polygon in unit["polygons"]):
             return unit
     return None
