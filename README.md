@@ -1,6 +1,6 @@
 # Utah Water Dashboard
 
-**Live site:** <https://buschbrian.github.io/utah-reservoir-dashboard/>
+**Live site:** <https://buschbrian.github.io/utah-water-dashboard/>
 
 A public dashboard for water conditions in Utah and the connected Colorado
 River and Great Basin drainage areas: what is stored in the reservoirs, how
@@ -422,8 +422,8 @@ agency — contact <brian.busch@me.com>.
 
 The license covers the code, not the measurements. The published JSON data
 files are built from public-domain sources produced by the federal agencies
-credited on the [methods page](https://buschbrian.github.io/utah-reservoir-dashboard/methods.html),
+credited on the [methods page](https://buschbrian.github.io/utah-water-dashboard/methods.html),
 and those agencies' own terms govern their data. Mapping and geospatial
 services are provided by [Esri](https://www.esri.com/) under Esri's own terms.
-See [terms.html](https://buschbrian.github.io/utah-reservoir-dashboard/terms.html)
+See [terms.html](https://buschbrian.github.io/utah-water-dashboard/terms.html)
 for the site's terms of use.
