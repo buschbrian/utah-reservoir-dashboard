@@ -13,6 +13,7 @@ from tools.fetch_watershed_scope import (
     normalize_collection,
 )
 from watershed_scopes import (
+    ROOT,
     WBD_LAYER_BY_LEVEL,
     get_scope,
     huc_field,
@@ -50,11 +51,36 @@ def test_the_western_scopes_are_defined_but_publish_nowhere_near_the_dashboard()
         assert scope.expected_count is None
         assert scope.expected_range is not None
 
-    # Regions 10 through 18, as a range on the leading two digits rather than
-    # nine LIKE clauses. Region 19 is Alaska and is out.
+    # Regions 14 through 18, as a range on the leading two digits rather than
+    # five LIKE clauses. Region 19 is Alaska and is out.
     where = get_scope("west-huc6").where
-    assert "SUBSTRING(huc6, 1, 2) >= '10'" in where
+    assert "SUBSTRING(huc6, 1, 2) >= '14'" in where
     assert "SUBSTRING(huc6, 1, 2) <= '18'" in where
+
+
+def test_the_scope_is_pacific_draining_water_and_closed_basins():
+    """The subject is where the water goes, not where the state lines are.
+
+    Regions 14 and 15 reach the Pacific through the Gulf of California, 17
+    and 18 reach it directly, and 16 -- the Great Basin -- reaches nothing.
+    Regions 10 to 13 are western in longitude and eastern in hydrology: the
+    Missouri and the Arkansas leave through the Mississippi, Texas-Gulf and
+    the Rio Grande reach the Gulf of Mexico directly. They are two thirds of
+    the basins in 10-18, so this is the difference between a dashboard about
+    western water and one about most of the country.
+    """
+    for name in ("west-huc4", "west-huc6", "west-huc8"):
+        scope = get_scope(name)
+        path = ROOT / scope.output
+        if not path.exists():
+            continue
+        field = f"huc{scope.level}"
+        codes = [feature["properties"][field]
+                 for feature in json.loads(path.read_text(encoding="utf-8"))["features"]]
+        regions = sorted({code[:2] for code in codes})
+        assert regions == ["14", "15", "16", "17", "18"], (
+            f"{name} carries regions {regions}; 10-13 drain to the Gulf of "
+            "Mexico and are not this product's subject")
 
 
 def test_upper_colorado_scope_is_separate_from_the_published_scope():

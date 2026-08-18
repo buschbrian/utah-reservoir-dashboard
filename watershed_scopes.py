@@ -73,11 +73,32 @@ class WatershedScope:
 
 #: The region filter shared by every western scope, as an ArcGIS `where`.
 #:
-#: A string comparison on the leading two digits rather than nine `LIKE`
-#: clauses: the codes are fixed-width and zero-padded, so '10' <= region <=
+#: Regions 14 through 18: Upper Colorado, Lower Colorado, Great Basin,
+#: Pacific Northwest and California. That is the water this dashboard is
+#: about -- everything that reaches the Pacific, including the Colorado
+#: through the Gulf of California, plus the Great Basin, which reaches
+#: nothing at all.
+#:
+#: Regions 10 through 13 are deliberately outside it. Missouri and
+#: Arkansas-White-Red drain to the Gulf of Mexico through the Mississippi,
+#: Texas-Gulf drains to it directly, and the Rio Grande reaches it at
+#: Brownsville. They are western in longitude and eastern in hydrology, and
+#: a site about western water supply has nothing to say about them: 106 of
+#: the 181 HUC6 basins in regions 10-18 are theirs, so including them more
+#: than doubles the scope with water that leaves the region.
+#:
+#: The one genuine argument for an exception is HUC4 **1305, "Rio Grande
+#: Closed Basins"** (New Mexico and Texas) -- Basin and Range country whose
+#: water reaches no ocean, filed under a region that does. It is left out
+#: because it is administered as part of the Rio Grande system, and because
+#: one closed basin inside an excluded region is a footnote rather than a
+#: rule. If it is ever wanted, it is one added clause here and nothing else.
+#:
+#: A string comparison on the leading two digits rather than five `LIKE`
+#: clauses: the codes are fixed-width and zero-padded, so '14' <= region <=
 #: '18' is exactly the set, and it reads as the range it is.
 WEST_REGION_WHERE = (
-    "SUBSTRING({field}, 1, 2) >= '10' AND SUBSTRING({field}, 1, 2) <= '18'")
+    "SUBSTRING({field}, 1, 2) >= '14' AND SUBSTRING({field}, 1, 2) <= '18'")
 
 
 SCOPES = {
@@ -106,34 +127,35 @@ SCOPES = {
     # on this site is keyed to, so a half basin is not a smaller answer, it is
     # a wrong one.
     #
-    # Regions 10 through 18: Missouri, Arkansas-White-Red, Texas-Gulf, Rio
-    # Grande, Upper Colorado, Lower Colorado, Great Basin, Pacific Northwest
-    # and California. Region 19 is Alaska and is not "the west" in any sense
-    # this dashboard means.
+    # Regions 14 through 18: Upper Colorado, Lower Colorado, Great Basin,
+    # Pacific Northwest and California -- everything draining to the Pacific
+    # plus the Great Basin, which drains nowhere. See WEST_REGION_WHERE for
+    # why the Gulf of Mexico regions are not here. Region 19 is Alaska and is
+    # not "the west" in any sense this dashboard means.
     "west-huc6": WatershedScope(
         name="west-huc6",
-        description="Every HUC6 basin in hydrologic regions 10 through 18",
+        description="Every HUC6 basin draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc6"),
         output="data/watersheds/west-huc6.geojson",
         published=False,
         # Measured against the service on 2026-08-17: 181 basins. Banded
         # rather than pinned because nine regions of the WBD are revised more
         # often than one, and a split subbasin upstream must not stop a run.
-        expected_range=(170, 195),
+        expected_range=(70, 85),
     ),
     "west-huc4": WatershedScope(
         name="west-huc4",
-        description="Every HUC4 subregion in hydrologic regions 10 through 18",
+        description="Every HUC4 subregion draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc4"),
         output="data/watersheds/west-huc4.geojson",
         published=False,
         level=4,
         # Measured 2026-08-17: 110 subregions.
-        expected_range=(100, 120),
+        expected_range=(40, 50),
     ),
     "west-huc8": WatershedScope(
         name="west-huc8",
-        description="Every HUC8 subbasin in hydrologic regions 10 through 18",
+        description="Every HUC8 subbasin draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc8"),
         output="data/watersheds/west-huc8.geojson",
         published=False,
@@ -141,7 +163,7 @@ SCOPES = {
         # Measured 2026-08-17: 1,247 subbasins. This is the finest level the
         # drought engine holds its published precision at; see the module
         # docstring.
-        expected_range=(1180, 1320),
+        expected_range=(540, 610),
     ),
 }
 
