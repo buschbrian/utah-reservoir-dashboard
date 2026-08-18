@@ -152,6 +152,51 @@ land minus a share of reservoir capacity is not a quantity. Such a difference
 may rank rows and may set the length of a line; it may not be printed as a
 number or given a baseline.
 
+**A county is where a thing is; a drainage area is where its water goes**
+(ADR-058, ADR-060). Counties are a *search and filter* axis and never a
+grouping one — 69 reservoirs fall in 35 counties and 19 hold exactly one, so a
+county total is a reservoir total wearing a county's name. The key is the
+five-digit FIPS code and never the name: this roster holds two Summit, two
+Carbon and two Garfield Counties. The assignment point is the **waterbody**,
+deliberately not the dam the drainage area uses — Glen Canyon Dam is in
+Coconino County, Arizona and Lake Powell is in San Juan County, Utah. No
+county geometry is ever committed; the service resolves the point and answers
+with a code, and the *detailed* Living Atlas layer is required rather than
+preferred, because the generalized one puts Lost Lake outside Wasatch County.
+
+**A state is three questions** (ADR-060). `state` is the one state holding the
+published point, `waterbody_states` every state the water touches, and
+`connected_states` every state the drainage area reaches. Hyrum is wholly in
+Utah and fed from Idaho. A filter must pick one and say which; ADR-011's
+warning is unchanged. `waterbody_states` defaults to the point's state, and
+that default is *not* a finding — the reviewed table holds three waterbodies
+and does not claim to be complete. Re-run the dam-versus-waterbody check when
+the roster grows; it is cheap, it is already written, and it is what found
+Lake Powell.
+
+**Not measured is not no drought** (ADR-059). The monitor maps the United
+States and stops at both borders, so cells outside `data/us-land.geojson` are
+dropped before any class is counted rather than falling into `none`. Class
+shares divide by the **measured** land; `measured.percent_of_area` divides by
+the whole area and lives in its own block so nothing can sum the two
+(ADR-046). An area with no measured land publishes no share at all, not zeros.
+**A missing mask stops the run** — without one the engine reports every border
+basin's far half as drought-free and looks like a clean run.
+
+**Two reservoirs are large enough to be controls, not filters** (ADR-011,
+ADR-062). Lake Powell and Lake Mead each dominate any total they enter, so
+both have their own include/exclude choice and **absent means excluded** —
+a default of include would have every existing caller silently start adding
+28 million acre-feet. `shared/reservoir-viz.js` predates Mead, so oracle
+parity is only meaningful with both controls open.
+
+**A roster addition needs a refresh in the same change.** `tests/test_refresh.py`
+asserts every roster name is either published or withdrawn, and there is no
+"pending" state on purpose: a name on the roster and absent from the payload is
+what a silently failed fetch looks like. `refresh_reservoirs.py --only` prints
+and never writes, so it is a probe. `tools/build_normal_baselines.py --only`
+merges — it used to write its one reservoir as the whole file.
+
 **Late and out-of-season are different faults** (ADR-056). `carry_forward`
 keeps publishing a quiet feed's last value because a point vanishing with no
 explanation is worse — true for days, false for months. Past

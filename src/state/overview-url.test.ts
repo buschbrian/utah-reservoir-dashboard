@@ -19,7 +19,7 @@ describe("reading the overview view out of a link", () => {
   it("reads every field it owns", () => {
     const state = overviewStateFromSearch(
       "?q=Deer&area=140600&county=49051&reporting=late&reservoirs=connected&powell=include" +
-      "&storage=2&sort=percent&measure=storage&top=25&rank=name");
+      "&mead=include&storage=2&sort=percent&measure=storage&top=25&rank=name");
     expect(state).toEqual({
       query: "Deer",
       drainageArea: "140600",
@@ -27,6 +27,7 @@ describe("reading the overview view out of a link", () => {
       reporting: "late",
       geography: "connected",
       lakePowell: "include",
+      lakeMead: "include",
       storageClass: 2,
       sort: "percent",
       measure: "storage",

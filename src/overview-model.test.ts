@@ -30,10 +30,16 @@ describe("modern overview model", () => {
   it("leaves no published reservoir unreachable by some scope choice", () => {
     const published = readPayload().reservoirs;
     const reachable = new Set<string>();
+    /* Every control, not every control this test happened to know about.
+     * Lake Mead's admission added a third (ADR-062) and it was unreachable
+     * until this loop learned it -- which is exactly the failure ADR-020
+     * exists to catch, arriving through the test rather than the payload. */
     for (const geography of ["utah", "connected"] as const) {
       for (const lakePowell of ["include", "exclude"] as const) {
-        for (const shown of overviewScope(published, { geography, lakePowell })) {
-          reachable.add(shown.name);
+        for (const lakeMead of ["include", "exclude"] as const) {
+          for (const shown of overviewScope(published, { geography, lakePowell, lakeMead })) {
+            reachable.add(shown.name);
+          }
         }
       }
     }

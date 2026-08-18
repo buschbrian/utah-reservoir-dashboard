@@ -55,6 +55,11 @@ CROSS_BORDER_WATERBODIES = {
     "Bear Lake": {"states": ("ID", "UT"), "nhd_permanent_id": "120026431"},
     "Lake Powell": {"states": ("AZ", "UT"),
                     "evidence": "dam point in Arizona, waterbody point in Utah"},
+    # Measured against the NHD polygon: 66.7% Nevada, 33.2% Arizona. RISE's
+    # own five monitoring points on the lake are all in Clark County, Nevada,
+    # so the provider's evidence alone would have defaulted this to Nevada and
+    # been a third wrong.
+    "Lake Mead": {"states": ("AZ", "NV"), "nhd_permanent_id": "122648503"},
     "Meeks Cabin": {"states": ("UT", "WY"), "nhd_permanent_id": "120025290"},
 }
 
@@ -75,6 +80,21 @@ UTAH_POLYGONS = _load_utah_polygons()
 UTAH_RING = UTAH_POLYGONS[0][0]
 
 Point = tuple[float, float]
+
+#: How far inside its drainage area an assignment point has to sit.
+#:
+#: The committed boundaries are generalized, so a point nearer the divide than
+#: the generalization can resolve is not assigned to a basin -- it is assigned
+#: to whichever side the simplification happened to leave it on.
+#:
+#: ADR-013 assigns from the dam because that is where the stored water leaves.
+#: The rule assumes the dam is *inside* the basin, and for a dam that defines
+#: the basin's own outlet it is degenerate: Hoover Dam is 0.00 km from the
+#: 150100 divide, because 150100 ends at Hoover Dam. Measured across every
+#: committed dam point, the next closest is Lost Lake at 2.73 km, so this
+#: threshold separates the degenerate case from the real ones with room on
+#: both sides. `tests/test_huc.py` holds the same 2 km against the roster.
+MIN_ASSIGNMENT_MARGIN_KM = 2.0
 
 
 def in_ring(point: Point, ring) -> bool:
@@ -322,6 +342,16 @@ def describe(lat: float, lon: float, units, *, name: str,
     site = (lon, lat)
     point = tuple(assignment_point) if assignment_point else site
     unit = assign_huc(point, units)
+    # A dam sitting on the divide it defines cannot say which side it is on.
+    # Fall back to the waterbody, which is unambiguously upstream of it, and
+    # record that the fallback happened rather than quietly taking it.
+    if (unit is not None and assignment_point is not None
+            and distance_to_boundary_km(point, unit) < MIN_ASSIGNMENT_MARGIN_KM):
+        from_site = assign_huc(site, units)
+        if (from_site is not None
+                and distance_to_boundary_km(site, from_site) >= MIN_ASSIGNMENT_MARGIN_KM):
+            point, unit = site, from_site
+            source = "published_point_dam_on_divide"
     return {
         **location_fields(name, lat, lon),
         "huc6": unit["huc6"] if unit else None,

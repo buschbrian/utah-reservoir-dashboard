@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { reservoirSymbol, sizeDomain } from "../viz/symbols";
-import { statewideRollup, percentFull, isLate, sizeBasis } from "./rollup";
+import {
+  isLakeMead, isLakePowell, percentFull, isLate, reservoirInScope, sizeBasis,
+  statewideRollup
+} from "./rollup";
+import type { Reservoir } from "../types";
 import { validateReservoirPayload } from "./validate";
 import { loadLegacyApi } from "./legacy-harness";
 import { STORAGE_CLASSES, storageClass } from "../viz/classes";
@@ -12,9 +16,17 @@ const payload = validateReservoirPayload(JSON.parse(
 
 const legacy = loadLegacyApi();
 const legacyAll = legacy.statewideSummary(payload.reservoirs);
+/* Every dominant-reservoir control open.
+ *
+ * `shared/reservoir-viz.js` is frozen and predates Lake Mead's admission
+ * (ADR-062), so it has no concept of excluding it and simply sums whatever
+ * the payload holds. Parity is therefore only meaningful with the controls
+ * open -- closed, the two sides answer different questions, which is the
+ * point of a control rather than a defect in the oracle. */
 const CONNECTED_WITH_LAKE_POWELL = {
   geography: "connected",
-  lakePowell: "include"
+  lakePowell: "include",
+  lakeMead: "include"
 } as const;
 
 /* The port recomputes the headline percentage from `current_storage_af` and
@@ -56,7 +68,8 @@ describe("statewide rollup parity with shared/reservoir-viz.js", () => {
   it("reproduces the legacy exclude-Lake-Powell aggregation", () => {
     const ported = statewideRollup(payload.reservoirs, {
       geography: "connected",
-      lakePowell: "exclude"
+      lakePowell: "exclude",
+      lakeMead: "include"
     });
     expect(ported.count).toBe(legacyAll.without_lake_powell.count);
     expect(ported.storageAf).toBeCloseTo(legacyAll.without_lake_powell.storage_af, 6);
@@ -134,9 +147,15 @@ describe("rollup rules independent of today's data", () => {
     const example = payload.reservoirs[0];
     expect(example).toBeDefined();
     if (!example) return;
+    /* Explicit ids, because the fixture is spread from a real record and
+     * would otherwise inherit that record's provider identity -- and if the
+     * payload happens to lead with a dominant reservoir (ADR-062) the fixture
+     * inherits its exclusion too, and the test measures the wrong thing. */
     const reservoirs = [
-      { ...example, name: "Cross-border example", in_utah: false, intersects_utah: true },
-      { ...example, name: "Connected example", in_utah: false, intersects_utah: false }
+      { ...example, name: "Cross-border example", rise_item_id: 9001,
+        in_utah: false, intersects_utah: true },
+      { ...example, name: "Connected example", rise_item_id: 9002,
+        in_utah: false, intersects_utah: false }
     ];
 
     const utah = statewideRollup(reservoirs, {
@@ -159,6 +178,7 @@ describe("rollup rules independent of today's data", () => {
     const lakePowell = {
       ...example,
       name: "Lake Powell",
+      rise_item_id: 509,
       in_utah: false,
       intersects_utah: true
     };
@@ -268,5 +288,72 @@ describe("rollup rules independent of today's data", () => {
       expect(reservoirSymbol(reservoir, sizeDomain(payload.reservoirs)).accent !== null)
         .toBe(isLate(reservoir));
     }
+  });
+});
+
+/* Built from a real published record so the fixture cannot drift from the
+ * payload's shape, the same arrangement `overview-model.test.ts` uses. */
+const base = payload.reservoirs[0]!;
+const reservoir = (overrides: Partial<Reservoir>): Reservoir =>
+  ({ ...base, ...overrides });
+
+/* ADR-062. Lake Mead is 28 million acre-feet in a drainage area this site has
+ * published since ADR-009, so it is the same problem ADR-011 solved for Lake
+ * Powell arriving a second time: a total with it and a total without are both
+ * true and are not the same measurement. */
+describe("the dominant-reservoir controls", () => {
+  const mead = (overrides: Partial<Reservoir> = {}): Reservoir => reservoir({
+    name: "Lake Mead", rise_item_id: 6124, intersects_utah: false, ...overrides
+  });
+  const powell = (): Reservoir => reservoir({
+    name: "Lake Powell", rise_item_id: 509, intersects_utah: true
+  });
+  const ordinary = (): Reservoir => reservoir({
+    name: "Deer Creek", rise_item_id: 290, intersects_utah: true
+  });
+
+  it("identifies each by its provider item id", () => {
+    expect(isLakeMead(mead())).toBe(true);
+    expect(isLakePowell(mead())).toBe(false);
+    expect(isLakeMead(powell())).toBe(false);
+    expect(isLakeMead(ordinary())).toBe(false);
+  });
+
+  it("falls back to the name for a payload predating the id", () => {
+    expect(isLakeMead(mead({ rise_item_id: 0 }))).toBe(true);
+    expect(isLakeMead(mead({ rise_item_id: 0, name: "  lake   MEAD " }))).toBe(true);
+  });
+
+  /* The property that keeps every caller written before Mead existed
+   * answering what it answered: absent must mean excluded, or those callers
+   * silently start adding 28 million acre-feet to totals nobody changed. */
+  it("excludes Mead when no choice is given at all", () => {
+    const scope = { geography: "connected" as const, lakePowell: "include" as const };
+    expect(reservoirInScope(mead(), scope)).toBe(false);
+    expect(reservoirInScope(ordinary(), scope)).toBe(true);
+  });
+
+  it("includes Mead only when asked", () => {
+    const base = { geography: "connected" as const, lakePowell: "exclude" as const };
+    expect(reservoirInScope(mead(), { ...base, lakeMead: "include" })).toBe(true);
+    expect(reservoirInScope(mead(), { ...base, lakeMead: "exclude" })).toBe(false);
+  });
+
+  it("keeps the two controls independent", () => {
+    const scope = {
+      geography: "connected" as const,
+      lakePowell: "exclude" as const,
+      lakeMead: "include" as const
+    };
+    expect(reservoirInScope(powell(), scope)).toBe(false);
+    expect(reservoirInScope(mead(), scope)).toBe(true);
+  });
+
+  /* Mead is connected to Utah by drainage and its water never enters the
+   * state, so the Utah geography excludes it whatever the toggle says. */
+  it("keeps Mead out of the Utah geography however it is toggled", () => {
+    expect(reservoirInScope(mead(), {
+      geography: "utah", lakePowell: "include", lakeMead: "include"
+    })).toBe(false);
   });
 });

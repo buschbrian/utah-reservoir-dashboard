@@ -41,8 +41,9 @@ The ArcGIS dashboard provides these map controls:
 
 - Point at a reservoir for its name, percent full, and data date.
 - Select a reservoir for its complete record and 12-month chart.
-- Filter by drainage area, percent-full class, or show only reservoirs with
-  late data. Other reservoirs remain visible in gray to preserve geographic
+- Filter by drainage area, county, percent-full class, or show only reservoirs
+  with late data. Search by reservoir name, drainage area or county.
+  Other reservoirs remain visible in gray to preserve geographic
   context.
 - Move or play the month slider to compare the last 12 months.
 - Open the reservoir table below the map to sort every matching reservoir by

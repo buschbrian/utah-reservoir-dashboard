@@ -5,6 +5,7 @@ import {
   reservoirInScope,
   statewideRollup,
   type LakePowellChoice,
+  type ReservoirInclusion,
   type ReservoirGeography
 } from "./data/rollup";
 import { STALE_COLOR, storageClass } from "./viz/classes";
@@ -57,6 +58,8 @@ function classOf(percent: number): { classLabel: string; classColor: string } {
 export interface ScopeChoice {
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
+  /** Absent means excluded, like Lake Powell's default (ADR-062). */
+  lakeMead?: ReservoirInclusion;
 }
 
 export const DEFAULT_SCOPE: ScopeChoice = { geography: "utah", lakePowell: "exclude" };
@@ -381,9 +384,13 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
     groups.set(label, [...(groups.get(label) ?? []), reservoir]);
   }
   return [...groups].map(([label, group], index) => {
-    /* The group is already scoped by the caller; including Lake Powell here
-     * only means "do not filter it out a second time", not "add it back". */
-    const rollup = statewideRollup(group, { geography: "connected", lakePowell: "include" });
+    /* The group is already scoped by the caller; opening both dominant-
+     * reservoir controls here only means "do not filter them out a second
+     * time", not "add them back". Missing `lakeMead` dropped Lake Mead's
+     * storage out of its own drainage area's total (ADR-062). */
+    const rollup = statewideRollup(group, {
+      geography: "connected", lakePowell: "include", lakeMead: "include"
+    });
     const percent = Number((rollup.percentFull ?? 0).toFixed(1));
     return {
       id: index + 1,

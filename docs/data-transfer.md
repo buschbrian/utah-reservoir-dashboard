@@ -14,8 +14,14 @@ Two rules before any figure below is read:
 | file | raw | gzip |
 |---|---:|---:|
 | `snowpack.json` | 1,166 KB | **98.8 KB** |
-| `reservoirs.json` | 357 KB | 41.8 KB |
-| `reference.json` | 21 KB | 5.5 KB |
+| `reservoirs.json` | 359 KB | 43.0 KB |
+| `reference.json` | 22 KB | 5.7 KB |
+
+Re-measured 2026-08-18, after Lake Mead joined the roster (ADR-062) and the
+county and state fields joined every record (ADR-058, ADR-060): `reservoirs.json`
+gained 1.2 KB on the wire for a reservoir and five new fields per record. The
+new fields are short strings and short arrays, so they compress well against
+the twelve months of numbers already in each record.
 
 `snowpack.json` was 1,913 KB raw and 216.6 KB gzipped until ADR-052 wrote the
 water-year calendar once instead of once per site: **54% off the wire**, with

@@ -138,6 +138,18 @@ RESERVOIRS = {
     "Starvation": (764, 40.19324, -110.44722),
     "Flaming Gorge": (337, 40.97789, -109.57304),
     "Lake Powell": (509, 37.05778, -111.30332),
+    # RISE item 6124, reached by walking location 3514 -> catalog record 4370
+    # (Lower Colorado Hydrologic Database) -> its four water-operations items.
+    # The `locationId` query filter is ignored by the API and returns an
+    # unfiltered page, which is how four Utah reservoirs first came back
+    # wearing Lake Mead's name; the walk is the way in (ADR-062).
+    #
+    # The point is "Lake Mead At Temple Bar", RISE location 3534 -- on the
+    # water, like every other published point here. The obvious choice was
+    # Hoover Dam, which is what RISE publishes for the *storage* location, and
+    # it is the one point on this lake that cannot be used: the dam is the
+    # basin outlet, so it sits exactly on the 150100 divide (ADR-062).
+    "Lake Mead": (6124, 36.0467, -114.2733),
     "Causey": (219, 41.29828, -111.58591),
     "Currant Creek": (278, 40.33841, -111.05821),
     "Huntington North": (432, 39.38458, -111.09082),

@@ -101,7 +101,9 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
   /* The rows handed in are already the scope the reader chose, so this must
    * not apply a second Lake Powell filter on top of it -- "include" here
    * means "do not filter again", which is what makes the toggle work. */
-  const rollup = statewideRollup(reservoirs, { geography: "connected", lakePowell: "include" });
+  const rollup = statewideRollup(reservoirs, {
+    geography: "connected", lakePowell: "include", lakeMead: "include"
+  });
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const values: Record<string, string> = {
@@ -133,7 +135,9 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   // change shape when Lake Powell is toggled.
   const countyChoices = countyOptions(allReservoirs);
   const watershedChoices = watershedOptions(
-    overviewScope(allReservoirs, { geography: "connected", lakePowell: "include" }));
+    overviewScope(allReservoirs, {
+      geography: "connected", lakePowell: "include", lakeMead: "include"
+    }));
   content.innerHTML = `
     <!-- Two rows, and each row is one kind of thing: what this section is
          and how to undo it, then the controls themselves. They used to share
@@ -162,6 +166,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
         <div class="filterbar-head-actions">
           <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
+          <label class="switch-label" for="lake-mead-toggle"><span>Include Lake Mead</span><input id="lake-mead-toggle" type="checkbox" role="switch" /></label>
           <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
@@ -296,6 +301,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const cadence = document.querySelector<HTMLSelectElement>("#cadence-filter");
   const sort = document.querySelector<HTMLSelectElement>("#reservoir-sort");
   const lakePowell = document.querySelector<HTMLInputElement>("#lake-powell-toggle");
+  const lakeMead = document.querySelector<HTMLInputElement>("#lake-mead-toggle");
   const geography = document.querySelector<HTMLSelectElement>("#geography-filter");
   const reset = document.querySelector<HTMLButtonElement>("#reset-filters");
   const status = document.querySelector<HTMLElement>("#filter-status");
@@ -329,7 +335,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       || !capacityHost || !watershedHost || !trendHost || !normalHost
       || !distributionHost || !spreadHost
       || !chartLimit || !chartMeasure || !chartRank
-      || !lakePowell || !geography || !exportButton) return;
+      || !lakePowell || !lakeMead || !geography || !exportButton) return;
 
   let exportRows: readonly Reservoir[] = [];
   exportButton.addEventListener("click", () => {
@@ -354,7 +360,9 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const renderClassStrip = (visible: readonly Reservoir[]): void => {
     const host = document.querySelector<HTMLElement>("[data-classes]");
     if (!host) return;
-    const rollup = statewideRollup(visible, { geography: "connected", lakePowell: "include" });
+    const rollup = statewideRollup(visible, {
+      geography: "connected", lakePowell: "include", lakeMead: "include"
+    });
     const total = rollup.classes.reduce((sum, entry) => sum + entry.count, 0);
     host.replaceChildren(...rollup.classes.map((entry, index) => {
       const button = document.createElement("button");
@@ -397,6 +405,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     reporting: cadence.value as OverviewCadence,
     geography: geography.value as ReservoirGeography,
     lakePowell: lakePowell.checked ? "include" : "exclude",
+    lakeMead: lakeMead.checked ? "include" : "exclude",
     storageClass: storageClassFilter,
     sort: sort.value as OverviewSort,
     measure: chartMeasure.value as ChartMeasure,
@@ -409,7 +418,8 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     const currentRevision = ++revision;
     const scoped = overviewScope(allReservoirs, {
       geography: geography.value as ReservoirGeography,
-      lakePowell: lakePowell.checked ? "include" : "exclude"
+      lakePowell: lakePowell.checked ? "include" : "exclude",
+      lakeMead: lakeMead.checked ? "include" : "exclude"
     });
     const matching = filterOverview(scoped, {
       query: search.value,
@@ -548,6 +558,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     cadence.value = "all";
     sort.value = "capacity";
     lakePowell.checked = false;
+    lakeMead.checked = false;
     geography.value = "utah";
     chartLimit.value = "15";
     chartMeasure.value = "percent";
@@ -574,6 +585,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   cadence.value = wanted.reporting;
   geography.value = wanted.geography;
   lakePowell.checked = wanted.lakePowell === "include";
+  lakeMead.checked = wanted.lakeMead === "include";
   sort.value = wanted.sort;
   chartMeasure.value = wanted.measure;
   chartRank.value = wanted.rank;

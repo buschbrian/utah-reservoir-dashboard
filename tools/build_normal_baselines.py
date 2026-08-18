@@ -277,6 +277,35 @@ def main() -> int:
         "reservoirs": records,
     }
 
+    if args.only:
+        # Merge, never replace.
+        #
+        # `--only` used to write `records` as the whole file, so building one
+        # reservoir silently deleted the other sixty-eight -- a thirty-year,
+        # twenty-minute job to undo, and nothing said it had happened. The
+        # flag exists so a roster addition does not cost a full rebuild, which
+        # is the thing it was destroying.
+        #
+        # This matters more as the roster grows: at western coverage a full
+        # rebuild is about an hour, so adding one reservoir has to be cheap.
+        if not OUTPUT_PATH.exists():
+            print(f"ERROR: --only merges into {OUTPUT_PATH.name} and it does not "
+                  "exist; run a full build first", file=sys.stderr)
+            return 1
+        existing = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+        built = {record["name"] for record in records}
+        kept = [r for r in existing["reservoirs"] if r["name"] not in built]
+        payload["reservoirs"] = sorted(kept + records, key=lambda r: r["name"])
+        # The period and method belong to the whole file; a one-reservoir run
+        # must not restate them from today's constants if the committed file
+        # was built under different ones.
+        for field in ("period", "window_days", "minimum_years", "method",
+                      "schema_version"):
+            if field in existing:
+                payload[field] = existing[field]
+        print(f"\nmerging {len(records)} into {len(existing['reservoirs'])} "
+              f"existing -> {len(payload['reservoirs'])}")
+
     if args.dry_run:
         print(f"\n--dry-run: {OUTPUT_PATH.name} not written")
         return 0

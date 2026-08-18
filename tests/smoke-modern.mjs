@@ -2074,10 +2074,11 @@ for (const viewport of VIEWPORTS) {
      * against what actually loaded rather than against a fixed list -- a
      * refused state service is a supported outcome, and a test that failed
      * on it would be testing Esri's uptime. */
-    /* Borrowed reference geography draws behind everything this project
-     * draws, so the states and counties come first in the layer list. Their
-     * labels are unaffected: the SDK paints those above every layer whatever
-     * the operational order. */
+    /* On this map the borrowed geography draws *above* the classes, because
+     * the classes are continuous (ADR-061) -- so the states and counties come
+     * late in the layer list here and early on the maps whose subject is a
+     * point. Their labels are unaffected either way: the SDK paints those
+     * above every layer whatever the operational order. */
     const boundaryLayers = [
       ...(mapState.ready?.mapStateBoundaries ? ["reference-states"] : []),
       ...(mapState.ready?.mapCountyBoundaries ? ["reference-counties"] : [])
@@ -2087,19 +2088,22 @@ for (const viewport of VIEWPORTS) {
       counties: mapState.ready?.mapCountyBoundaries
     }));
     await checkViewMapParity(tab, check, label, "drought-map-host", "drought-map-hover",
-      /* Terrain shade is the ground, at the very bottom of the stack
-       * (ADR-054). The classes are drawn at 0.45 alpha, so a reader sees
-       * through them to it; above them it was a glaze on the subject, and
-       * from underneath it can only be `normal` -- `soft-light` against the
-       * near-white canvas is about a 1% swing. See `arcgis/hillshade.ts`. */
+      /* No terrain, and the borrowed boundaries above the classes rather
+       * than beneath them (ADR-061). Drought classes are a continuous
+       * surface: they tile the region with no gaps, so a line over them
+       * always has fill on both sides and partitions the subject instead of
+       * hiding it. That is why this order is safe here and why the storage
+       * and snow maps, whose subject is a point, keep theirs sunk -- a line
+       * across a point occludes it, which is the Flaming Gorge failure
+       * ADR-042 was written from. */
       /* The boundary is cased: a wide bright pass under a narrow dark one,
        * so the outline reads on the palest class and on the darkest. They
        * are two layers over one service because a casing has to be down
        * before any core is drawn, and one layer cannot order that across
        * features -- a neighbour's casing would paint over a shared edge.
        * The names ride the core layer's label pass (ADR-047). */
-      ["terrain-shade", ...boundaryLayers, "usdm-classes",
-        "drainage-outline-casing", "drainage-outlines", "reservoir-reference"]);
+      ["usdm-classes", "drainage-outline-casing", "drainage-outlines",
+        ...boundaryLayers, "reservoir-reference"]);
     /* The label ladder: at the opening view the states and the drainage areas
      * are named and the reservoirs are not, which is the whole point of the
      * thresholds -- the drainage areas are this map's subject and the

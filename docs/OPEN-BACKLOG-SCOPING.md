@@ -198,6 +198,25 @@ about where a reservoir is, arriving in a new place.
 This is the largest of the three and the only one that needs a product
 decision before an estimate is meaningful.
 
+## Delivered 2026-08-18
+
+All four decisions below were acted on the same day they were recorded.
+
+1. **The dam inventory migration** — done (ADR-057). The parity report found
+   no differences and the migration exposed something the plan had not asked
+   about: a dam identifier names a project, not a structure.
+2. **County as a search and filter axis** — done (ADR-058), and it grew a
+   third field on the way. Generalising "which state" turned the Utah pair
+   into three questions (ADR-060) and found Lake Powell missing from the
+   reviewed cross-border table.
+3. **The conservancy district axis** — not built, as decided.
+4. **Per-reservoir pages** — not started. Still the one open item here.
+
+Two things were found while building that this document did not predict, both
+recorded against the western expansion rather than here: the drought engine
+counted unmeasurable land as drought-free (ADR-059), and the drought map
+carried more ink than its one question needed (ADR-061).
+
 ## The order, and what was decided
 
 Decided 2026-08-18, from the measurements above.

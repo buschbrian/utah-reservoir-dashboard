@@ -127,6 +127,17 @@
       "dam_lon": -109.42191,
       "dam_lat": 40.91491
     },
+    "Lake Mead": {
+      "capacity_af": 28255000.0,
+      "capacity_basis": "normal_storage",
+      "normal_storage_af": 28255000.0,
+      "max_storage_af": 30237000.0,
+      "nid_storage_af": 30237000.0,
+      "nid_id": "NV10122",
+      "nid_dam_name": "Hoover Dam",
+      "dam_lon": -114.7374,
+      "dam_lat": 36.0163
+    },
     "Lake Powell": {
       "capacity_af": 25025826.0,
       "capacity_basis": "max_storage",

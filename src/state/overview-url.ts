@@ -41,6 +41,7 @@ const OVERVIEW_PARAMS = {
   reporting: "reporting",
   geography: "reservoirs",
   lakePowell: "powell",
+  lakeMead: "mead",
   storageClass: "storage",
   sort: "sort",
   measure: "measure",
@@ -73,6 +74,8 @@ export interface OverviewUrlState {
   reporting: OverviewCadence;
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
+  /** Lake Mead's own control (ADR-062). Excluded by default, like Powell. */
+  lakeMead: LakePowellChoice;
   /** An index into the storage class table, or null for every class. */
   storageClass: number | null;
   sort: OverviewSort;
@@ -89,6 +92,7 @@ export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
   reporting: "all",
   geography: "utah",
   lakePowell: "exclude",
+  lakeMead: "exclude",
   storageClass: null,
   sort: "capacity",
   measure: "percent",
@@ -159,6 +163,8 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
       state.geography = oneOf(value, ["utah", "connected"] as const, "utah");
     } else if (key === OVERVIEW_PARAMS.lakePowell) {
       state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
+    } else if (key === OVERVIEW_PARAMS.lakeMead) {
+      state.lakeMead = oneOf(value, ["include", "exclude"] as const, "exclude");
     } else if (key === OVERVIEW_PARAMS.storageClass || key === MAP_FILTER_PARAMS.storageClass) {
       const index = /^\d+$/.test(value) ? Number(value) : -1;
       state.storageClass = index >= 0 && index < STORAGE_CLASSES.length ? index : null;
@@ -203,6 +209,7 @@ export function searchWithOverviewState(
   if (full.reporting !== "all") write("reporting", full.reporting);
   if (full.geography !== "utah") write("geography", full.geography);
   if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
+  if (full.lakeMead !== "exclude") write("lakeMead", full.lakeMead);
   if (full.storageClass !== null) write("storageClass", String(full.storageClass));
   if (full.sort !== DEFAULT_OVERVIEW_STATE.sort) write("sort", full.sort);
   if (full.measure !== DEFAULT_OVERVIEW_STATE.measure) write("measure", full.measure);

@@ -131,6 +131,11 @@
       "county_name": "Grand County",
       "state": "CO"
     },
+    "Lake Mead": {
+      "county_fips": "32003",
+      "county_name": "Clark County",
+      "state": "NV"
+    },
     "Lake Powell": {
       "county_fips": "49037",
       "county_name": "San Juan County",
