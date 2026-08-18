@@ -37,15 +37,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import admission  # noqa: E402
 from refresh_reservoirs import RESERVOIRS, load_previous, OUTPUT_PATH  # noqa: E402
 
-AGOL_SEARCH = "https://www.arcgis.com/sharing/rest/search"
 CAPACITY_PATH = Path(__file__).resolve().parent.parent / "capacities.json"
 
-# Hosted copies of the inventory don't agree on field names: some use
-# `dam_name`/`normal_storage`, others `NAME`/`NORMAL_STORAGE`, others drop
-# the underscores entirely. Match on the squashed lowercase form and keep
-# the real field name, rather than demanding one exact spelling -- the
-# first attempt required `dam_name` and rejected two perfectly good copies
-# of the inventory for calling it something else.
+# The inventory, from the agency that maintains it. Pinned rather than
+# searched for: this tool used to locate a layer by querying ArcGIS Online
+# for "National Inventory of Dams" and taking the most-viewed result, which
+# had two problems. It cannot reach this service at all -- USACE runs its own
+# ArcGIS Server and publishes nothing to ArcGIS Online, so the search could
+# only ever return somebody's hosted copy -- and it wrote whatever it landed
+# on into `source_layer`, making the provenance of capacities.json a record
+# of that day's search ranking. Measured 2026-08-18: the owner service and
+# the hosted copy this file used to credit return byte-identical rows for
+# every committed identifier, so pinning changes no published number.
+NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
+             "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
+
+# The owner service names states in full ("Utah", not "UT"). Two-letter codes
+# return zero rows rather than an error, which is the kind of empty answer
+# that looks like a scope decision.
+NID_STATE_WHERE = "STATE IN ('Utah', 'Arizona', 'Wyoming', 'Nevada')"
+
+# Field names are still resolved rather than hard-coded. Against one pinned
+# service this is no longer a compatibility shim for hosted copies that spell
+# things differently -- it is a guard: if the owner renames a column, the
+# resolution fails loudly here instead of writing a table full of nulls.
 FIELD_OPTIONS = {
     "name": ("damname", "name", "officialname", "damnameofficial", "dam"),
     "normal": ("normalstorage", "normalstor", "conservationstorage", "normal"),
@@ -81,19 +96,10 @@ def usable(resolved: dict) -> bool:
 # named for neither. Each entry is a human decision a reviewer can check.
 ALIASES = {
     "Lake Powell": "Glen Canyon",        # Glen Canyon Dam impounds Lake Powell
+    "Lake Mead": "Hoover",               # Hoover Dam impounds Lake Mead
     "Willard Bay": "Arthur V Watkins",   # Arthur V. Watkins Dam
     "Strawberry": "Soldier Creek",       # Soldier Creek Dam
     "Rockport": "Wanship",               # Wanship Dam
-}
-
-# Not every reservoir a Utah dashboard tracks sits in Utah: Glen Canyon Dam
-# is in Arizona and Meeks Cabin is in Wyoming, and filtering the inventory
-# to state='UT' silently dropped both. Utah rows are still preferred when a
-# name appears in more than one state.
-STATES = {
-    "UT": ("UT", "AZ", "WY"),
-    "Utah": ("Utah", "Arizona", "Wyoming"),
-    "UTAH": ("UTAH", "ARIZONA", "WYOMING"),
 }
 
 # Name normalization lives in `admission.py` now. Two copies of the rule
@@ -116,38 +122,35 @@ def get(url: str, params: dict | None = None, timeout: int = 60):
         return None
 
 
-def find_nid_layer() -> str | None:
-    """Locate a hosted National Inventory of Dams layer carrying the NID schema."""
-    for query in ('"National Inventory of Dams"', "National Inventory of Dams NID",
-                  "NID dams inventory"):
-        print(f"\n=== searching AGOL: {query}")
-        payload = get(AGOL_SEARCH, {"f": "json", "num": 15, "q": query,
-                                    "sortField": "numViews", "sortOrder": "desc"})
-        for item in (payload or {}).get("results", []):
-            url = item.get("url")
-            if item.get("type") != "Feature Service" or not url:
-                continue
-            meta = get(url, {"f": "json"}) or {}
-            for layer in (meta.get("layers") or [])[:3]:
-                layer_url = f"{url}/{layer['id']}"
-                info = get(layer_url, {"f": "json"}) or {}
-                resolved = field_map(info)
-                if not usable(resolved):
-                    continue
-                print(f"    {item['title'][:52]!r} layer {layer['id']}: {resolved}")
-                for value in ("UT", "Utah", "UTAH"):
-                    where = f"{resolved['state']}='{value}'"
-                    count = get(f"{layer_url}/query", {
-                        "f": "json", "where": where, "returnCountOnly": "true"})
-                    utah = (count or {}).get("count", 0)
-                    print(f"      {where} -> {utah} rows")
-                    if utah > 100:
-                        states = STATES[value]
-                        joined = ",".join(f"'{s}'" for s in states)
-                        full = f"{resolved['state']} IN ({joined})"
-                        print(f"    -> using {layer_url} with {full}")
-                        return layer_url, resolved, full, states[0]
-    return None, None, None, None
+def resolve_nid_layer():
+    """Confirm the pinned inventory still publishes the schema this tool reads.
+
+    Returns the same shape the ArcGIS Online search used to, so `main` is
+    unchanged: the layer, the resolved field names, and the `where` that
+    selects the states in scope. The difference is that a failure here means
+    the owner changed something, not that a search ranked a different copy
+    first.
+    """
+    print(f"=== inventory: {NID_LAYER}")
+    info = get(NID_LAYER, {"f": "json"}) or {}
+    resolved = field_map(info)
+    if not usable(resolved):
+        print(f"    !! schema not recognised: resolved {resolved}", file=sys.stderr)
+        return None, None, None, None
+    print(f"    fields: {resolved}")
+
+    count = get(f"{NID_LAYER}/query", {
+        "f": "json", "where": NID_STATE_WHERE, "returnCountOnly": "true"})
+    rows = (count or {}).get("count", 0)
+    print(f"    {NID_STATE_WHERE} -> {rows} rows")
+    # The states in scope hold thousands of dams between them. A handful means
+    # the state values changed spelling again, which is a silent scope change
+    # rather than an error, so it is refused here.
+    if rows < 100:
+        print(f"    !! only {rows} dams in scope; the state values have moved",
+              file=sys.stderr)
+        return None, None, None, None
+    return NID_LAYER, resolved, NID_STATE_WHERE, "Utah"
 
 
 def fetch_utah_dams(layer_url: str, where: str) -> list[dict]:
@@ -208,9 +211,10 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    layer_url, resolved, where, _state_value = find_nid_layer()
+    layer_url, resolved, where, _state_value = resolve_nid_layer()
     if not layer_url:
-        print("ERROR: no dam inventory found with a usable schema", file=sys.stderr)
+        print("ERROR: the pinned dam inventory did not answer with the "
+              "schema this tool reads", file=sys.stderr)
         return 1
 
     dams = fetch_utah_dams(layer_url, where)
@@ -252,6 +256,27 @@ def main() -> int:
 
 
     table, problems = {}, []
+
+    # A failed match must not delete a reviewed entry. Lake Mead's was
+    # confirmed by hand (ADR-062): Hoover Dam stands 42 km from the
+    # published point, outside both match radii, so no automatic pass can
+    # re-derive it. Kept and said out loud rather than silently rewritten
+    # away -- the same rule that moved build_normal_baselines.py --only
+    # from rewriting the file to merging into it.
+    committed = {}
+    if CAPACITY_PATH.exists():
+        committed = (json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
+                     .get("capacities") or {})
+
+    def keep_or_report(name: str, why: str) -> None:
+        kept = committed.get(name)
+        if kept is not None:
+            table[name] = kept
+            problems.append(f"{name}: {why}; kept the committed entry "
+                            f"({kept.get('nid_dam_name')})")
+        else:
+            problems.append(f"{name}: {why}")
+
     print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'nid_af':>12} "
           f"{'record max':>12}  dam")
     for name, (_rise_id, lat, lon) in RESERVOIRS.items():
@@ -270,8 +295,9 @@ def main() -> int:
             (lon, lat), ALIASES.get(name, name), located,
             plausible=lambda dam, floor=floor: admission.could_hold(dam, floor))
         if match is None:
-            problems.append(
-                f"{name}: no dam within {admission.NEAR_RADIUS_KM} km, and none "
+            keep_or_report(
+                name,
+                f"no dam within {admission.NEAR_RADIUS_KM} km, and none "
                 f"named the same within {admission.NAMED_RADIUS_KM} km")
             continue
         dam = match.dam["_row"]
@@ -294,14 +320,15 @@ def main() -> int:
         basis = ("normal_storage" if normal else
                  "max_storage" if maximum else "nid_storage")
         if denominator is None:
-            problems.append(f"{name}: no usable storage figure in the inventory")
+            keep_or_report(name, "no usable storage figure in the inventory")
             continue
         # The load-bearing check: we have observed this reservoir since 2015,
         # so a capacity below what we have already seen in it means the match
         # is wrong -- not that it overflowed for a decade.
         if record_max and denominator < record_max * 0.9:
-            problems.append(
-                f"{name}: capacity {denominator:,.0f} af is below the observed "
+            keep_or_report(
+                name,
+                f"capacity {denominator:,.0f} af is below the observed "
                 f"record max {record_max:,.0f} af -- probably the wrong dam "
                 f"({dam.get(name_field)})")
             continue

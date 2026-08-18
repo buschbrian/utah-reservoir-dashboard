@@ -122,7 +122,7 @@ describe("the committed coverage through the model", () => {
     // Data-independent: whatever the week looks like, the ordering must not
     // lose or invent a unit, and a region with any drought has a worst class.
     const anyDrought = payload.units.some(
-      (entry) => entry.percent_of_area_at_least.d0 > 0);
+      (entry) => shareAtOrWorse(entry, "d0") > 0);
     expect(regionWorst(payload.units) !== null).toBe(anyDrought);
   });
 });
@@ -159,7 +159,7 @@ describe("narrowing the areas by severity", () => {
   });
 
   it("reads the published cumulative share rather than re-summing it", () => {
-    expect(shareAtOrWorse(dry, "d2")).toBe(dry.percent_of_area_at_least.d2);
+    expect(shareAtOrWorse(dry, "d2")).toBe(dry.percent_of_area_at_least?.d2);
   });
 });
 

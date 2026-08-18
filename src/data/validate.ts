@@ -7,6 +7,7 @@ import type {
   ReservoirPayload,
   ReservoirSource
 } from "../types";
+import { HUC_CODE } from "./huc";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -18,6 +19,14 @@ function hasNumber(value: unknown): value is number {
 
 function hasNullableNumber(value: unknown): value is number | null {
   return value === null || hasNumber(value);
+}
+
+/* A list of two-letter state codes, or absent. Empty is allowed and means
+ * something: a reservoir whose point falls in no state, or one whose drainage
+ * area is unassigned, has no states to name and must not be given any. */
+function isOptionalStateList(value: unknown): boolean {
+  return value === undefined ||
+    (Array.isArray(value) && value.every((item) => typeof item === "string"));
 }
 
 function hasNullableString(value: unknown): value is string | null {
@@ -135,7 +144,12 @@ function isReservoir(value: unknown): value is Reservoir {
     (value.huc6_name === undefined || hasNullableString(value.huc6_name)) &&
     isOptionalPoint(value.huc_assignment_point) &&
     (value.huc_assignment_source === undefined ||
-      hasNullableString(value.huc_assignment_source));
+      hasNullableString(value.huc_assignment_source)) &&
+    (value.county_fips === undefined || hasNullableString(value.county_fips)) &&
+    (value.county_name === undefined || hasNullableString(value.county_name)) &&
+    (value.state === undefined || hasNullableString(value.state)) &&
+    isOptionalStateList(value.waterbody_states) &&
+    isOptionalStateList(value.connected_states);
 }
 
 export function validateReservoirPayload(value: unknown): ReservoirPayload {
@@ -232,6 +246,25 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
       if (entry.days_stale <= value.withdraw_after_days) {
         throw new Error("a withdrawn entry is inside the publication window");
       }
+    }
+  }
+  /* Optional like the withdrawal record: a payload written before the
+   * envelope existed is old, not malformed. Present, the part the surfaces
+   * read is checked strictly -- a malformed roster would otherwise pass the
+   * validator and take the whole overview page down at render instead. */
+  if (value.watersheds !== undefined) {
+    if (!isObject(value.watersheds)) {
+      throw new Error("reservoirs.json has an invalid watersheds envelope");
+    }
+    const subregionRoster = value.watersheds.subregions;
+    if (subregionRoster !== undefined &&
+        (!Array.isArray(subregionRoster) ||
+         !subregionRoster.every((entry) =>
+           isObject(entry) &&
+           typeof entry.huc4 === "string" &&
+           HUC_CODE.test(entry.huc4) && entry.huc4.length === 4 &&
+           typeof entry.name === "string" && entry.name.length > 0))) {
+      throw new Error("reservoirs.json has an invalid subregion roster");
     }
   }
   return value as unknown as ReservoirPayload;

@@ -51,6 +51,7 @@ OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
 NORMALS_PATH = Path(__file__).parent / "normals.json"
+COUNTIES_PATH = Path(__file__).parent / "counties.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
 
 # A reservoir whose newest observation is older than this many days is
@@ -137,6 +138,18 @@ RESERVOIRS = {
     "Starvation": (764, 40.19324, -110.44722),
     "Flaming Gorge": (337, 40.97789, -109.57304),
     "Lake Powell": (509, 37.05778, -111.30332),
+    # RISE item 6124, reached by walking location 3514 -> catalog record 4370
+    # (Lower Colorado Hydrologic Database) -> its four water-operations items.
+    # The `locationId` query filter is ignored by the API and returns an
+    # unfiltered page, which is how four Utah reservoirs first came back
+    # wearing Lake Mead's name; the walk is the way in (ADR-062).
+    #
+    # The point is "Lake Mead At Temple Bar", RISE location 3534 -- on the
+    # water, like every other published point here. The obvious choice was
+    # Hoover Dam, which is what RISE publishes for the *storage* location, and
+    # it is the one point on this lake that cannot be used: the dam is the
+    # basin outlet, so it sits exactly on the 150100 divide (ADR-062).
+    "Lake Mead": (6124, 36.0467, -114.2733),
     "Causey": (219, 41.29828, -111.58591),
     "Currant Creek": (278, 40.33841, -111.05821),
     "Huntington North": (432, 39.38458, -111.09082),
@@ -841,6 +854,71 @@ def dam_points() -> dict[str, tuple[float, float]]:
 
 
 
+def attach_counties(records: list[dict]) -> dict:
+    """Add the committed county assignment to every record.
+
+    Counties answer "where is this, administratively", which is how readers
+    ask for a reservoir when they do not think in drainage areas. The axis is
+    a filter and a search term, never a grouping: 68 reservoirs fall in 34
+    counties and 19 of those hold one, so a county total is a reservoir total
+    with a county's name on it.
+
+    Committed rather than resolved each morning, like the capacities and for
+    the same reason -- and read here rather than recomputed, so a reservoir
+    cannot move county on a morning when nothing about it changed.
+
+    Runs over carried-forward records too. A reservoir whose feed went quiet
+    has not moved counties, and dropping it out of its county filter on the
+    day it goes late is exactly when a reader looking for it would fail to
+    find it.
+
+    A missing or unreadable file is not fatal, matching `attach_watersheds`:
+    losing the whole daily refresh over a county lookup would be much worse
+    than shipping a day without one.
+    """
+    try:
+        document = json.loads(COUNTIES_PATH.read_text(encoding="utf-8"))
+        counties = document["counties"]
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"WARNING: no county assignments ({type(exc).__name__}: {exc}); "
+              "publishing without county fields")
+        return {"assigned": 0, "unassigned": len(records), "county_count": 0}
+
+    unassigned = []
+    for record in records:
+        found = counties.get(record["name"])
+        if not found:
+            unassigned.append(record["name"])
+            continue
+        record["county_fips"] = found["county_fips"]
+        record["county_name"] = found["county_name"]
+        record["state"] = found["state"]
+        # Where the water is, as opposed to where the point is. Reviewed
+        # against NHD for the waterbodies that cross a line; the point's own
+        # state for every other, which is a default rather than a finding
+        # (ADR-060). `connected_states` is attached with the drainage area,
+        # because that is what knows it.
+        record["waterbody_states"] = huc.waterbody_states(
+            record["name"], found["state"])
+
+    distinct = {r["county_fips"] for r in records if r.get("county_fips")}
+    states = {r["state"] for r in records if r.get("state")}
+    print(f"\nCounties: {len(records) - len(unassigned)}/{len(records)} reservoirs "
+          f"assigned across {len(distinct)} counties in {len(states)} states")
+    if unassigned:
+        # Named rather than guessed, like an unmatched drainage area. A new
+        # reservoir arrives on the roster before the assignment is rebuilt,
+        # and the honest answer is that its county is not known yet.
+        print("  no county assignment: " + ", ".join(sorted(unassigned)) +
+              " -- run tools/build_county_assignments.py")
+    return {
+        "assigned": len(records) - len(unassigned),
+        "unassigned": len(unassigned),
+        "county_count": len(distinct),
+        "state_count": len(states),
+    }
+
+
 def attach_watersheds(records: list[dict]) -> dict:
     """Add watershed membership to every record and summarize the result.
 
@@ -937,6 +1015,37 @@ def _feature_collection(path: Path) -> dict:
     return payload
 
 
+def subregion_roster(codes) -> list[dict]:
+    """The HUC-4 subregions a set of finer codes belongs to, named.
+
+    The codes need nothing published: they are the first four digits of a code
+    every record already carries, because HUC codes are fixed-width (ADR-050).
+    The *names* have to come from somewhere, and this is ADR-048's rule -- the
+    roster, not the polygons -- applied one level up. Eleven entries today.
+
+    Read from the committed west-huc4 file, which covers every region any
+    scope here can reach. Absent, the names are empty and a caller labels by
+    code: a filter that says "1401" is worse than one that says "Colorado
+    Headwaters" and much better than no filter at all.
+
+    Published in `reservoirs.json` rather than in `reference.json`, because
+    every surface fetches the payload and only the maps fetch the reference --
+    and one copy of a roster is the point of having a roster.
+    """
+    names: dict[str, str] = {}
+    path = watershed_scopes.ROOT / watershed_scopes.get_scope("west-huc4").output
+    if path.exists():
+        for feature in _feature_collection(path)["features"]:
+            code = feature["properties"].get("huc4")
+            if code:
+                names[code] = feature["properties"].get("name", "")
+    else:
+        print(f"WARNING: {path.name} is absent; publishing subregion codes "
+              "without names")
+    return [{"huc4": code, "name": names.get(code, "")}
+            for code in sorted({str(c)[:4] for c in codes if c})]
+
+
 def build_watershed_sections() -> dict:
     """Every named scope's units, validated, plus which one is published.
 
@@ -999,6 +1108,7 @@ def build_watershed_sections() -> dict:
                 for feature in boundaries["features"]
             ],
         }
+
     return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
 
 
@@ -1258,6 +1368,7 @@ def main() -> int:
     records, withdrawn = partition_by_age(records)
 
     watersheds = attach_watersheds(records)
+    counties = attach_counties(records)
 
     # Physical size is the primary browse order in every surface.
     records.sort(key=lambda r: (r.get("capacity_af") is None,
@@ -1351,6 +1462,19 @@ def main() -> int:
             "in_utah": sum(1 for r in records if r.get("in_utah")),
             "intersects_utah": sum(1 for r in records
                                     if r.get("intersects_utah")),
+            # The coarser grouping, for a reader who wants subregions rather
+            # than the fourteen areas. Derived from the codes in this payload,
+            # so it can never name an area the payload does not contain.
+            "subregions": subregion_roster(r.get("huc6") for r in records),
+        },
+        # Counties are described in the envelope for the same reason, and
+        # carry their assignment rule for the opposite one: it is deliberately
+        # *not* the drainage rule above. A reader comparing the two lines is
+        # meant to see that they differ (ADR-058).
+        "counties": {
+            "source": "Esri Living Atlas, USA Census Counties",
+            "assignment_rule": "the published waterbody point, not the dam",
+            **counties,
         },
         "reservoirs": records,
     }

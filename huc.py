@@ -29,15 +29,38 @@ from pathlib import Path
 BOUNDARY_PATH = Path(__file__).resolve().parent / "huc6.geojson"
 UTAH_BOUNDARY_PATH = Path(__file__).resolve().parent / "utah-boundary.geojson"
 
-# Provider points outside Utah do not settle whether the stored water crosses
-# the state line. These two waterbodies were reviewed against the official
-# USGS NHDPlus HR NHDWaterbody layer. The permanent identifiers make the
-# evidence reproducible without adding a remote geometry dependency to the
-# daily refresh. See ADR-013.
+# A provider point sits in exactly one state; a waterbody need not. These were
+# reviewed against the official USGS NHDPlus HR NHDWaterbody layer, and the
+# permanent identifiers make the evidence reproducible without adding a remote
+# geometry dependency to the daily refresh. See ADR-013 and ADR-060.
 # Source: https://hydro.nationalmap.gov/arcgis/rest/services/NHDPlus_HR/MapServer/9
-CROSS_BORDER_UTAH_WATERBODIES = {
-    "Bear Lake": "120026431",
-    "Meeks Cabin": "120025290",
+#
+# The value is *every* state the waterbody touches, including the one holding
+# the provider point, so an entry describes the waterbody rather than a
+# correction to somewhere else. Bear Lake's point is in Idaho and Meeks
+# Cabin's in Wyoming; both reach into Utah, which is why they are here.
+#
+# Absence means "the waterbody is in the state its point is in", which is true
+# of every reservoir nobody has had reason to review. That is a default, not a
+# finding, and `waterbody_states` says so by returning the point's state alone.
+# Lake Powell carries different evidence, and it is this project's own: its
+# reviewed dam point is in Coconino County, Arizona and its published
+# waterbody point in San Juan County, Utah (ADR-057, ADR-058), so the water
+# between them crosses the line and no external lookup is needed to say so.
+# Measured across every reservoir holding both points, it is the only one --
+# which is why the Utah-only table never needed it: that table existed to add
+# Utah to waterbodies whose *point* was elsewhere, and Powell's point is
+# already in Utah. Generalising the question exposed the gap.
+CROSS_BORDER_WATERBODIES = {
+    "Bear Lake": {"states": ("ID", "UT"), "nhd_permanent_id": "120026431"},
+    "Lake Powell": {"states": ("AZ", "UT"),
+                    "evidence": "dam point in Arizona, waterbody point in Utah"},
+    # Measured against the NHD polygon: 66.7% Nevada, 33.2% Arizona. RISE's
+    # own five monitoring points on the lake are all in Clark County, Nevada,
+    # so the provider's evidence alone would have defaulted this to Nevada and
+    # been a third wrong.
+    "Lake Mead": {"states": ("AZ", "NV"), "nhd_permanent_id": "122648503"},
+    "Meeks Cabin": {"states": ("UT", "WY"), "nhd_permanent_id": "120025290"},
 }
 
 def _load_utah_polygons(path: Path = UTAH_BOUNDARY_PATH):
@@ -57,6 +80,21 @@ UTAH_POLYGONS = _load_utah_polygons()
 UTAH_RING = UTAH_POLYGONS[0][0]
 
 Point = tuple[float, float]
+
+#: How far inside its drainage area an assignment point has to sit.
+#:
+#: The committed boundaries are generalized, so a point nearer the divide than
+#: the generalization can resolve is not assigned to a basin -- it is assigned
+#: to whichever side the simplification happened to leave it on.
+#:
+#: ADR-013 assigns from the dam because that is where the stored water leaves.
+#: The rule assumes the dam is *inside* the basin, and for a dam that defines
+#: the basin's own outlet it is degenerate: Hoover Dam is 0.00 km from the
+#: 150100 divide, because 150100 ends at Hoover Dam. Measured across every
+#: committed dam point, the next closest is Lost Lake at 2.73 km, so this
+#: threshold separates the degenerate case from the real ones with room on
+#: both sides. `tests/test_huc.py` holds the same 2 km against the roster.
+MIN_ASSIGNMENT_MARGIN_KM = 2.0
 
 
 def in_ring(point: Point, ring) -> bool:
@@ -89,13 +127,32 @@ def in_utah(point: Point) -> bool:
     return any(in_polygon(point, polygon) for polygon in UTAH_POLYGONS)
 
 
+def waterbody_states(name: str, point_state: str | None) -> list[str]:
+    """Every state this reservoir's water touches.
+
+    The reviewed answer where there is one, and the point's own state
+    otherwise. Sorted so two records carrying the same states compare equal
+    however the table was written.
+
+    A reservoir whose point falls in no state at all -- which the mask can
+    produce for a waterbody just off a generalized outline -- returns the
+    reviewed list if it has one and an empty list if it does not, rather than
+    inventing a state to be in.
+    """
+    reviewed = CROSS_BORDER_WATERBODIES.get(name)
+    if reviewed:
+        return sorted(reviewed["states"])
+    return [point_state] if point_state else []
+
+
 def waterbody_intersects_utah(name: str, point: Point) -> bool:
     """Whether the reservoir surface intersects Utah.
 
     A point inside Utah proves intersection. A point outside the state needs
     a reviewed polygon; the current exceptions are versioned above.
     """
-    return in_utah(point) or name in CROSS_BORDER_UTAH_WATERBODIES
+    reviewed = CROSS_BORDER_WATERBODIES.get(name)
+    return in_utah(point) or bool(reviewed and "UT" in reviewed["states"])
 
 
 def location_fields(name: str, lat: float, lon: float) -> dict:
@@ -285,10 +342,28 @@ def describe(lat: float, lon: float, units, *, name: str,
     site = (lon, lat)
     point = tuple(assignment_point) if assignment_point else site
     unit = assign_huc(point, units)
+    # A dam sitting on the divide it defines cannot say which side it is on.
+    # Fall back to the waterbody, which is unambiguously upstream of it, and
+    # record that the fallback happened rather than quietly taking it.
+    if (unit is not None and assignment_point is not None
+            and distance_to_boundary_km(point, unit) < MIN_ASSIGNMENT_MARGIN_KM):
+        from_site = assign_huc(site, units)
+        if (from_site is not None
+                and distance_to_boundary_km(site, from_site) >= MIN_ASSIGNMENT_MARGIN_KM):
+            point, unit = site, from_site
+            source = "published_point_dam_on_divide"
     return {
         **location_fields(name, lat, lon),
         "huc6": unit["huc6"] if unit else None,
         "huc6_name": unit["name"] if unit else None,
+        # Every state the drainage area reaches, which is a different question
+        # from where the reservoir is (ADR-060). Lake Powell sits in Utah and
+        # its water arrives from Wyoming and Colorado; a reader asking "what
+        # does Colorado feed" wants this list, and one asking "what is in
+        # Colorado" wants the state above. The drainage file already carries
+        # it, so this costs a split rather than a lookup.
+        "connected_states": sorted(
+            s for s in (unit.get("states") or "").split(",") if s) if unit else [],
         "huc_assignment_point": [round(point[0], 5), round(point[1], 5)],
         "huc_assignment_source": source if unit else None,
     }

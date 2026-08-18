@@ -24,23 +24,72 @@ export interface StatewideRollup {
 
 export type ReservoirGeography = "utah" | "connected";
 export type LakePowellChoice = "include" | "exclude";
+/** The same two values, for any reservoir large enough to need its own control. */
+export type ReservoirInclusion = LakePowellChoice;
 
 export interface StatewideRollupOptions {
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
+  /** Defaults to excluded, like Lake Powell, for the same reason (ADR-062). */
+  lakeMead?: ReservoirInclusion;
+}
+
+/**
+ * Reservoirs big enough that including them answers a different question.
+ *
+ * ADR-011 made Lake Powell a control rather than a filter: at 25 million
+ * acre-feet it is most of any total it appears in, so a combined figure with
+ * it and one without are both true and are not the same measurement. Lake
+ * Mead is 28 million and sits in Lower Colorado-Lake Mead, one of the
+ * fourteen published areas, where it would be substantially the whole of that
+ * area's storage (ADR-062).
+ *
+ * Keyed on the RISE item id, which is the stable provider identity (ADR-003),
+ * with the name as a fallback for a payload that predates the id.
+ */
+const LAKE_POWELL = { key: "lakePowell", riseItemId: 509, name: "lake powell" } as const;
+const LAKE_MEAD = { key: "lakeMead", riseItemId: 6124, name: "lake mead" } as const;
+const DOMINANT_RESERVOIRS = [LAKE_POWELL, LAKE_MEAD] as const;
+
+/**
+ * The scope with every control open: all connected reservoirs and no
+ * dominant reservoir filtered out. For callers whose rows are already the
+ * scope the reader chose, where "include" means "do not filter again" and
+ * never "add them back". `Required` is the point: admitting the next
+ * dominant reservoir makes this line refuse to compile until it is named
+ * here, instead of every call site silently reverting to excluding it
+ * (ADR-062).
+ */
+export const WIDEST_SCOPE: Required<StatewideRollupOptions> = {
+  geography: "connected", lakePowell: "include", lakeMead: "include"
+};
+
+function matches(reservoir: Reservoir, entry: (typeof DOMINANT_RESERVOIRS)[number]): boolean {
+  return reservoir.rise_item_id === entry.riseItemId
+    || reservoir.name.trim().toLocaleLowerCase("en-US").replace(/\s+/g, " ") === entry.name;
 }
 
 /** RISE item 509 is Lake Powell's stable provider identity (ADR-003). */
 export function isLakePowell(reservoir: Reservoir): boolean {
-  return reservoir.rise_item_id === 509
-    || reservoir.name.trim().toLocaleLowerCase("en-US").replace(/\s+/g, " ") === "lake powell";
+  return matches(reservoir, LAKE_POWELL);
+}
+
+/** RISE item 6124 is Lake Mead's, reached through catalog record 4370. */
+export function isLakeMead(reservoir: Reservoir): boolean {
+  return matches(reservoir, LAKE_MEAD);
 }
 
 export function reservoirInScope(
   reservoir: Reservoir, options: StatewideRollupOptions
 ): boolean {
   if (options.geography === "utah" && !reservoir.intersects_utah) return false;
-  return options.lakePowell === "include" || !isLakePowell(reservoir);
+  /* Absent means excluded, which keeps every existing caller's answer
+   * unchanged: they were written before Mead was on the roster and would
+   * otherwise silently start including 28 million acre-feet. */
+  for (const entry of DOMINANT_RESERVOIRS) {
+    if (options[entry.key] !== "include" && matches(reservoir, entry)) return false;
+  }
+  return true;
 }
 
 export function sizeBasis(reservoir: Reservoir): number {

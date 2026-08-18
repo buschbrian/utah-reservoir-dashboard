@@ -7,6 +7,69 @@ and is not listed here.
 
 ### Added
 
+- **Lake Mead, and a control for it.** Lake Mead sits in Lower Colorado-Lake
+  Mead, one of the fourteen drainage areas this site has always published, and
+  had never been admitted -- so the area named after it carried none of it. At
+  28,255,000 acre-feet it is larger than Lake Powell and would be
+  substantially the whole of that area's storage, so it gets its own
+  include/exclude control for the same reason Powell has one: a total with it
+  and a total without are both true and are not the same measurement
+  (ADR-062). Excluded by default. Its water is 67% in Nevada and 33% in
+  Arizona and never reaches Utah, so it appears only under the connected
+  geography.
+
+- **Filter by state and by subregion, and drill down.** Three geographic
+  controls that narrow each other, coarsest first: a state holds subregions, a
+  subregion holds drainage areas, and a reader can start anywhere and stop
+  anywhere. Picking Wyoming does not then offer a subregion Wyoming has none
+  of. "In a state" means where the *water* is, so Bear Lake — whose point is
+  in Idaho — is in Utah's list, which is what the site has always meant by it.
+  Subregion codes cost nothing to publish: they are the first four digits of a
+  code every record already carries. Only the eleven names are new.
+
+- **Find a reservoir by its county.** Counties are a search and filter axis,
+  not a grouping one -- measured first: 69 reservoirs fall in 35 counties and
+  19 of those hold exactly one, so a county chart would be a reservoir chart
+  wearing a county's name (ADR-058). The county comes from the reservoir's own
+  waterbody point, deliberately not the dam point the drainage area uses: Glen
+  Canyon Dam is in Coconino County, Arizona and Lake Powell is the lake in San
+  Juan County, Utah.
+
+- **Three ways to ask about a state.** Where a reservoir is, where its water
+  is, and what its water drains are three different questions, and the Utah
+  pair only ever answered two of them for one state (ADR-060). Hyrum is wholly
+  inside Utah and fed from Idaho; a reader asking what Idaho's snow feeds and
+  one asking what is in Idaho now get different answers.
+
+- **The drought engine knows the difference between dry and unmeasured.** The
+  U.S. Drought Monitor stops at both borders, and every cell beyond one used
+  to count as land with no drought on it. Nothing published today changes --
+  all fourteen current areas are inside the country -- but at western coverage
+  it mattered a great deal: Kootenai would have reported 75 points of
+  drought-free area that is really British Columbia (ADR-059).
+
+### Changed
+
+- **The drought map is quieter.** No terrain under the classes, the state and
+  county outlines above them rather than beneath, and thinner, fainter
+  drainage lines. What may sit over the subject now depends on whether the
+  subject is continuous or discrete: a line over a drought class partitions
+  it, a line over a reservoir hides it (ADR-061).
+
+- **The dam inventory is read from the agency that maintains it.** The
+  National Inventory of Dams now comes from the U.S. Army Corps service rather
+  than a hosted copy found by searching ArcGIS Online for the most-viewed
+  result. No published number moved. A dam identifier turns out to name a
+  project rather than a structure, and three of ours return several; the point
+  is now chosen by rule instead of by whichever row arrived last (ADR-057).
+
+### Fixed
+
+- **`--only` no longer destroys the file it is meant to add to.** Building one
+  reservoir's climate normal wrote that reservoir as the whole of
+  `normals.json`, discarding the other sixty-eight and the thirty-year job
+  that produced them. It merges now.
+
 - **Groundwork for covering the whole west.** Nothing on the site looks
   different yet, and that is the point of this step. The machinery that
   decides which drainage areas the project reads now takes the size of those

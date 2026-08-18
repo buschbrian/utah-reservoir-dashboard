@@ -100,3 +100,64 @@ describe("the committed drought coverage", () => {
     expect(payload.units.map((unit) => unit.huc6).sort()).toEqual(expected);
   });
 });
+
+/* ADR-059. The monitor stops at both borders, so a drainage area crossing one
+ * is partly unmeasured and says so. Nothing published today carries this, and
+ * the validator has to accept both shapes -- the payload is fetched at
+ * runtime, so the page reading it is older than the file more often than not. */
+describe("the measured-extent block", () => {
+  const unit = () => ({
+    huc6: "170101",
+    huc6_name: "Kootenai",
+    percent_of_area: { none: 0, d0: 0, d1: 0, d2: 100, d3: 0, d4: 0 },
+    percent_of_area_at_least: { d0: 100, d1: 100, d2: 100, d3: 0, d4: 0 }
+  });
+  const payload = (units: unknown[]) => ({
+    schema_version: 1,
+    map_date: "2026-08-11",
+    release_date: "2026-08-13",
+    source: "https://example.com/usdm",
+    attribution: "U.S. Drought Monitor",
+    level: 6,
+    unit_count: units.length,
+    units
+  });
+
+  it("accepts a unit with no block, which is every unit published today", () => {
+    expect(() => validateDroughtCoverage(payload([unit()]))).not.toThrow();
+  });
+
+  it("accepts a partly measured unit", () => {
+    const partial = {
+      ...unit(),
+      measured: { percent_of_area: 24.8, basis: "land the drought monitor maps" }
+    };
+    const result = validateDroughtCoverage(payload([partial]));
+    expect(result.units[0]!.measured?.percent_of_area).toBe(24.8);
+  });
+
+  it("refuses a block claiming the whole area is measured", () => {
+    /* The writer omits the block at 100, so one that says 100 is a file
+     * disagreeing with itself rather than a redundant statement. */
+    const full = {
+      ...unit(),
+      measured: { percent_of_area: 100, basis: "land the drought monitor maps" }
+    };
+    expect(() => validateDroughtCoverage(payload([full]))).toThrow();
+  });
+
+  it("refuses a share with no basis to read it against", () => {
+    const bare = { ...unit(), measured: { percent_of_area: 24.8 } };
+    expect(() => validateDroughtCoverage(payload([bare]))).toThrow();
+  });
+
+  it("refuses a share outside nought to a hundred", () => {
+    for (const percent of [-1, 101, Number.NaN]) {
+      const bad = {
+        ...unit(),
+        measured: { percent_of_area: percent, basis: "land the monitor maps" }
+      };
+      expect(() => validateDroughtCoverage(payload([bad]))).toThrow();
+    }
+  });
+});

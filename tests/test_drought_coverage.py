@@ -22,6 +22,7 @@ from compute_drought_coverage import (  # noqa: E402
     LEVELS,
     build_payload,
     history_entry,
+    land_mask_segments,
     merge_history,
     previous_week,
     segments_of,
@@ -135,8 +136,11 @@ class TestEngine:
         # because northern cells are narrower.
         unit = polygon(square(0, 40, 1, 48))
         north = polygon(square(0, 44, 1, 48))
-        raw = unit_coverage(
+        raw, measured = unit_coverage(
             segments_of(unit), {0: segments_of(north)}, 0.01)
+        # No mask, so every cell is measured. The shares below are therefore
+        # against the whole unit, as they were before the mask existed.
+        assert measured == 100.0
         assert raw["d0"] < 49.7
         # (sin 48 - sin 44) / (sin 48 - sin 40) = 48.3%.
         assert raw["d0"] == pytest.approx(48.3, abs=0.5)
@@ -335,3 +339,148 @@ class TestCommittedHistory:
         assert previous["map_date"] < current["map_date"]
         assert ({unit["huc6"] for unit in previous["units"]}
                 == {unit["huc6"] for unit in current["units"]})
+
+
+def land_fixture(*geometries):
+    """A land mask in the shape `build_payload` reads."""
+    return {"features": [{"properties": {"STUSAB": "XX"}, "geometry": g}
+                         for g in geometries]}
+
+
+class TestUnmeasuredLand:
+    """The drought monitor stops at the border (ADR-059).
+
+    Without a mask the engine counted every cell outside a drought polygon as
+    land with no drought on it, so a basin's Canadian or Mexican half became
+    a drought-free share. Measured against the western basins, Kootenai
+    reported 75.2 points of drought-free area that is really British Columbia,
+    and Upper Columbia 51.8.
+    """
+
+    def covered(self, drought_features, unit_geometry, land=None, step=0.005):
+        payload = build_payload(
+            drought_fixture(drought_features), boundaries_fixture(unit_geometry),
+            step, land)
+        return payload["units"][0]
+
+    def test_land_outside_the_mask_is_not_counted_as_drought_free(self):
+        """The defect, at the smallest scale that shows it.
+
+        A unit whose west half is off the map entirely, with drought over the
+        whole of the half that is on it. The honest answer is 100% -- every
+        acre anyone can see is in drought -- not 50%.
+        """
+        unit = polygon(square(0, 0, 1, 1))
+        east_half = polygon(square(0.5, 0, 1, 1))
+        land = land_fixture(east_half)
+
+        without = self.covered([(2, east_half)], unit)
+        assert without["percent_of_area"]["d2"] == pytest.approx(50.0, abs=0.5)
+        assert without["percent_of_area"]["none"] == pytest.approx(50.0, abs=0.5)
+        assert "measured" not in without
+
+        with_mask = self.covered([(2, east_half)], unit, land)
+        assert with_mask["percent_of_area"]["d2"] == pytest.approx(100.0, abs=0.5)
+        assert with_mask["percent_of_area"]["none"] == pytest.approx(0.0, abs=0.5)
+        assert with_mask["measured"]["percent_of_area"] == pytest.approx(50.0, abs=0.5)
+
+    def test_a_wholly_measured_area_carries_no_measured_block(self):
+        """Every drainage area published today is inside the country.
+
+        The block is absent rather than set to 100, so the committed payload
+        is byte-for-byte what it was before the mask existed -- which is how
+        this change was verified against the real inputs.
+        """
+        unit = polygon(square(0, 0, 1, 1))
+        result = self.covered([(1, polygon(square(0, 0, 0.5, 1)))], unit,
+                              land_fixture(polygon(square(-1, -1, 2, 2))))
+        assert "measured" not in result
+        assert result["percent_of_area"]["d1"] == pytest.approx(50.0, abs=0.5)
+
+    def test_the_measured_share_is_kept_out_of_the_class_shares(self):
+        """ADR-046, structurally rather than by convention.
+
+        The class shares divide by measured area and the measured share
+        divides by the whole area. Two denominators must not sit in one dict
+        where something could sum them.
+        """
+        unit = polygon(square(0, 0, 1, 1))
+        east_half = polygon(square(0.5, 0, 1, 1))
+        result = self.covered([(2, east_half)], unit, land_fixture(east_half))
+
+        assert "measured" not in result["percent_of_area"]
+        assert "measured" not in result["percent_of_area_at_least"]
+        # The class shares still close on their own denominator.
+        assert sum(result["percent_of_area"].values()) == pytest.approx(100.0, abs=0.2)
+
+    def test_an_area_the_monitor_cannot_see_at_all_reports_no_drought_share(self):
+        """Not zero drought -- no denominator, so no share.
+
+        Rio De La Concepcion is 1.3% United States land. A basin that fell to
+        zero would have no honest figure to publish, and publishing zeros
+        would read as "no drought here".
+        """
+        unit = polygon(square(0, 0, 1, 1))
+        elsewhere = polygon(square(10, 10, 11, 11))
+        result = self.covered([(3, polygon(square(0, 0, 1, 1)))], unit,
+                              land_fixture(elsewhere))
+
+        assert result["measured"]["percent_of_area"] == 0.0
+        # No share blocks at all: zeros here would publish "not measured"
+        # as "no drought", and a "none" of 100 is the same lie made total.
+        assert "percent_of_area" not in result
+        assert "percent_of_area_at_least" not in result
+        # And no share means nothing to difference: the history skips it.
+        payload = build_payload(
+            drought_fixture([(3, polygon(square(0, 0, 1, 1)))]),
+            boundaries_fixture(unit), 0.005, land_fixture(elsewhere))
+        assert history_entry(payload)["units"] == []
+
+    def test_the_mask_is_read_as_one_union(self):
+        """Adjacent states must not cancel each other out.
+
+        The states are simplified one feature at a time, so their shared
+        border overlaps by slivers in the committed mask. Under pooled
+        even-odd parity a point inside two states crosses an even number of
+        edges and reads as outside the country; each state answering alone
+        means an overlap can only add land, never remove it.
+        """
+        segments = land_mask_segments(land_fixture(
+            polygon(square(0, 0, 1, 1)), polygon(square(1, 0, 2, 1))))
+        assert segments is not None
+        assert [len(part) for part in segments] == [4, 4]
+        assert land_mask_segments(None) is None
+
+    def test_overlapping_states_still_read_as_land(self):
+        """The sliver case itself, at the smallest scale that shows it.
+
+        Two states overlapping on [0.9, 1.1]: every cell of a unit spanning
+        both is on land, so the whole unit is measured. Pooled parity read
+        the overlap as a hole in the country and dropped its cells from the
+        denominators.
+        """
+        unit = polygon(square(0, 0, 2, 1))
+        land = land_fixture(
+            polygon(square(0, 0, 1.1, 1)), polygon(square(0.9, 0, 2, 1)))
+        result = self.covered([(2, polygon(square(0, 0, 2, 1)))], unit, land)
+        assert "measured" not in result
+        assert result["percent_of_area"]["d2"] == pytest.approx(100.0, abs=0.5)
+
+    def test_the_history_does_not_carry_the_measured_share(self):
+        """A border does not move from week to week.
+
+        The measured share is a property of the geography, so storing it in
+        every weekly entry would store one static fact 520 times per area --
+        in the one file the western scoping already identified as the thing
+        that does not scale.
+        """
+        unit = polygon(square(0, 0, 1, 1))
+        east_half = polygon(square(0.5, 0, 1, 1))
+        payload = build_payload(
+            drought_fixture([(2, east_half)]), boundaries_fixture(unit),
+            0.005, land_fixture(east_half))
+
+        assert "measured" in payload["units"][0]
+        entry = history_entry(payload)
+        assert "measured" not in entry["units"][0]
+        assert set(entry["units"][0]) == {"huc6", "percent_of_area_at_least"}

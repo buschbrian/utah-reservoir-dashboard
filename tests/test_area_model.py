@@ -173,7 +173,9 @@ def test_the_area_model_cannot_move_a_published_figure(units):
     for feature in units:
         segments = segments_of(feature["geometry"])
         drought = banded_drought(feature)
-        spherical = unit_coverage(segments, drought, DEFAULT_STEP)
+        # The measured share is not part of this comparison: it is a ratio of
+        # cell counts, so it carries no area model at all.
+        spherical, _measured = unit_coverage(segments, drought, DEFAULT_STEP)
         elliptical = _coverage_with_weight(segments, drought, DEFAULT_STEP,
                                            ellipsoidal_weight)
         for key in spherical:

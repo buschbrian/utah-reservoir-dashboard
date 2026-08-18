@@ -28,7 +28,7 @@
  *     comparing a week with itself.
  */
 import type { DroughtCoveragePayload, Reservoir, SnowpackPayload } from "./types";
-import { worstClass, type StorageSource } from "./drought-model";
+import { isMeasured, shareAtOrWorse, worstClass, type StorageSource } from "./drought-model";
 import { percentOfNormal } from "./snow-model";
 import type { DroughtClass } from "./viz/drought-classes";
 
@@ -285,7 +285,7 @@ export function weeklyDrought(payload: DroughtCoveragePayload): WeeklyDrought {
   for (const unit of payload.units) {
     const unitWorst = worstClass(unit);
     if (unitWorst && (worst === null || unitWorst.key > worst.key)) worst = unitWorst;
-    if (unit.percent_of_area_at_least.d2 > 0) areas += 1;
+    if (shareAtOrWorse(unit, "d2") > 0) areas += 1;
   }
 
   /* The week before this one travels in the same file, so the comparison
@@ -300,7 +300,9 @@ export function weeklyDrought(payload: DroughtCoveragePayload): WeeklyDrought {
   if (previous) {
     for (const unit of payload.units) {
       const was = before.get(unit.huc6);
-      if (!was) continue;
+      /* An unmeasured area has no share to difference; it is skipped, not
+       * compared at zero (ADR-059). */
+      if (!was || !isMeasured(unit)) continue;
       const now = unit.percent_of_area_at_least[CHANGE_CLASS];
       const change = now - was[CHANGE_CLASS];
       /* A tenth of a point is the published precision, so anything smaller is

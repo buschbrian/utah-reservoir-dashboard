@@ -169,6 +169,14 @@ this week and last week, because those travel in the coverage file.
   ~20-minute job over 30 years for 69 reservoirs. At ~193 that is close to an
   hour, still off the build path and off CI, but worth knowing before it is a
   surprise on the morning someone runs it.
+- **Answered 2026-08-18: the aggregation axes are not the answer.** This
+  document called the county and district axes "the strongest argument" for
+  keeping a 193-row list browsable. Measured (ADR-058), counties group 69
+  reservoirs into 35, with 19 holding exactly one, and the count grows with
+  the roster — so the axis gets thinner rather than richer. Counties are a
+  search and filter axis. State and HUC-4 are the grouping axes worth having:
+  about 11 and 44 groups at western coverage, against 75 basins.
+
 - **What happens to the reservoir list at ~193 rows?** It already scrolls in
   its own box, so nothing breaks; whether it stays *browsable* is a design
   question rather than a data one, and it is the strongest argument for the

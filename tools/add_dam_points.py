@@ -29,6 +29,7 @@ lets two files describe one dam differently.
 
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -42,9 +43,30 @@ from huc import assign_huc, haversine_km, load_units  # noqa: E402
 CAPACITIES_PATH = ROOT / "capacities.json"
 RESERVOIRS_PATH = ROOT / "reservoirs.json"
 
-NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
-             "services/NID_v1/FeatureServer/0")
+NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
+             "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
 NID_ID_FIELD = "NIDID"
+NID_NAME_FIELD = "NAME"
+
+# A dam identifier names a *project*, not a structure, and three of the ones
+# committed here return more than one row: Lost Lake and Hyrum have a dike
+# beside the dam, Stateline has two. Every row of a project carries the same
+# storage figures, so capacity was never at risk -- but they sit up to 600
+# metres apart, and the point written here is the drainage assignment point.
+#
+# This used to keep whichever row the service happened to return last, which
+# is not a decision anybody made and not the same answer twice: the two
+# inventory copies return the same three Stateline rows in different orders,
+# so a rebuild against one wrote the dam and against the other a dike.
+# Measured 2026-08-18: no published assignment changes either way, because
+# all the structures of a project fall in one drainage area at HUC-6. That is
+# a property of this level rather than of the data, and the western expansion
+# scoping puts HUC-8 on the path, where 600 metres straddles divides.
+#
+# The rule is the main structure: a dike is a secondary embankment holding
+# the same pool, so the dam is where the stored water leaves. It reproduces
+# every point currently committed.
+SECONDARY_STRUCTURE = re.compile(r"\b(dike|dyke|saddle|auxiliary)\b", re.IGNORECASE)
 USER_AGENT = "utah-water-dashboard/dam-points (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
@@ -69,20 +91,48 @@ def get_json(url: str, params: dict) -> dict | None:
     return payload
 
 
+def principal_structure(rows: list[dict]) -> dict:
+    """The row a project's point should come from, chosen the same way twice.
+
+    Sorted rather than filtered, so a project whose rows are *all* named as
+    dikes still resolves to one of them rather than to nothing. The name is
+    the tie-break after that, because two rows equally entitled to be the
+    answer still have to produce one answer.
+    """
+    return sorted(
+        rows, key=lambda row: (bool(SECONDARY_STRUCTURE.search(row["name"] or "")),
+                               row["name"] or ""))[0]
+
+
 def fetch_dam_points(nid_ids: list[str]) -> dict[str, tuple[float, float]]:
-    points: dict[str, tuple[float, float]] = {}
+    rows: dict[str, list[dict]] = {}
     for start in range(0, len(nid_ids), 40):
         chunk = nid_ids[start:start + 40]
         quoted = ",".join(f"'{value}'" for value in chunk)
         payload = get_json(f"{NID_LAYER}/query", {
-            "where": f"{NID_ID_FIELD} IN ({quoted})", "outFields": NID_ID_FIELD,
+            "where": f"{NID_ID_FIELD} IN ({quoted})",
+            "outFields": f"{NID_ID_FIELD},{NID_NAME_FIELD}",
             "returnGeometry": "true", "outSR": "4326", "f": "json",
         })
         for feature in (payload or {}).get("features", []):
             geometry = feature.get("geometry") or {}
-            key = (feature.get("attributes") or {}).get(NID_ID_FIELD)
+            attributes = feature.get("attributes") or {}
+            key = attributes.get(NID_ID_FIELD)
             if key and geometry.get("x") is not None:
-                points[key] = (round(geometry["x"], 5), round(geometry["y"], 5))
+                rows.setdefault(key, []).append({
+                    "name": attributes.get(NID_NAME_FIELD),
+                    "point": (round(geometry["x"], 5), round(geometry["y"], 5)),
+                })
+
+    points: dict[str, tuple[float, float]] = {}
+    for key, found in rows.items():
+        chosen = principal_structure(found)
+        if len(found) > 1:
+            others = ", ".join(sorted(r["name"] or "?" for r in found
+                                      if r is not chosen))
+            print(f"    {key}: {len(found)} structures, using "
+                  f"{chosen['name']!r} (also {others})")
+        points[key] = chosen["point"]
     return points
 
 

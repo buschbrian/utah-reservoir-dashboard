@@ -38,12 +38,41 @@ function isAtLeast(value: unknown): value is DroughtAtLeast {
   return true;
 }
 
-function isDroughtUnit(value: unknown): value is DroughtUnit {
+/**
+ * The measured-extent block, when there is one (ADR-059).
+ *
+ * A share between 0 and 100 and a stated basis. The basis is required rather
+ * than decorative: a number saying a drainage area is 24.8% measured is
+ * unreadable without the sentence saying what measured means, and a caller
+ * putting the figure on screen has to have something to put beside it.
+ *
+ * Refused at exactly 100: the writer omits the block when the whole area is
+ * measured, so a block claiming 100 is a file disagreeing with itself.
+ */
+function isMeasuredExtent(value: unknown): boolean {
   return isObject(value) &&
-    typeof value.huc6 === "string" && HUC_CODE.test(value.huc6) &&
-    typeof value.huc6_name === "string" && value.huc6_name.length > 0 &&
-    isShares(value.percent_of_area) &&
-    isAtLeast(value.percent_of_area_at_least);
+    typeof value.percent_of_area === "number" &&
+    Number.isFinite(value.percent_of_area) &&
+    value.percent_of_area >= 0 && value.percent_of_area < 100 &&
+    typeof value.basis === "string" && value.basis.length > 0;
+}
+
+function isDroughtUnit(value: unknown): value is DroughtUnit {
+  if (!isObject(value) ||
+      typeof value.huc6 !== "string" || !HUC_CODE.test(value.huc6) ||
+      typeof value.huc6_name !== "string" || value.huc6_name.length === 0 ||
+      (value.measured !== undefined && !isMeasuredExtent(value.measured))) {
+    return false;
+  }
+  /* No share at all is legal, and legal only, for an area with no measured
+   * land (ADR-059): both blocks absent together, with the measured block
+   * saying why. Anything in between -- one block without the other, or
+   * zeros published for an unmeasured area -- is a file disagreeing with
+   * itself. */
+  if (value.percent_of_area === undefined && value.percent_of_area_at_least === undefined) {
+    return isObject(value.measured) && value.measured.percent_of_area === 0;
+  }
+  return isShares(value.percent_of_area) && isAtLeast(value.percent_of_area_at_least);
 }
 
 /**

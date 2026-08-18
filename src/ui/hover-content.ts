@@ -14,7 +14,7 @@
  * "reservoir", so the card says which drainage area it is in -- which is
  * the fact that lets a reader carry a reading from one view to another.
  */
-import type { StorageContext } from "../drought-model";
+import { isMeasured, type StorageContext } from "../drought-model";
 import type { SiteDayDepth } from "../snow-model";
 import type { DroughtUnit, NullableNumber, Reservoir, SnowSite } from "../types";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "../viz/drought-classes";
@@ -152,7 +152,9 @@ export interface WorstDroughtShare {
  * name reads as a statement about all of it, and the share is what says
  * whether it is a corner or nearly the whole thing.
  */
-export function worstDroughtShare(unit: DroughtUnit): WorstDroughtShare {
+export function worstDroughtShare(unit: DroughtUnit): WorstDroughtShare | null {
+  /* No shares means no answer, not "no drought" (ADR-059). */
+  if (!isMeasured(unit)) return null;
   for (let index = DROUGHT_CLASSES.length - 1; index >= 0; index -= 1) {
     const entry = DROUGHT_CLASSES[index]!;
     const share = unit.percent_of_area_at_least[entry.key];
@@ -166,13 +168,22 @@ export function droughtAreaLines(
   unit: DroughtUnit, storage: StorageContext | undefined
 ): string[] {
   const worst = worstDroughtShare(unit);
+  const storageLine = storage
+    ? `Reservoirs here: ${formatPercent(storage.percent)} full across ` +
+      `${storage.reservoirCount}`
+    : "No reservoir reading for this area";
+  /* `worst === null` and `!isMeasured` are one fact; both are tested so the
+   * shares narrow to present for the measured sentences below. */
+  if (worst === null || !isMeasured(unit)) {
+    return [
+      "The drought monitor does not measure land in this area",
+      storageLine
+    ];
+  }
   return [
     `${formatPercent(worst.share)} of the land is ${worst.label} or worse`,
     `${formatPercent(unit.percent_of_area.none)} of it is in no class`,
-    storage
-      ? `Reservoirs here: ${formatPercent(storage.percent)} full across ` +
-        `${storage.reservoirCount}`
-      : "No reservoir reading for this area"
+    storageLine
   ];
 }
 
@@ -187,9 +198,11 @@ export function droughtClassLines(code: string): string[] {
 }
 
 /** The short note about the land under a reservoir, for the drought map's
- * reference card. Null when the area has no coverage row. */
+ * reference card. Null when the area has no coverage row -- or no measured
+ * land, which must not read as a claim about it (ADR-059). */
 export function droughtNoteForArea(unit: DroughtUnit | undefined): string | null {
   if (!unit) return null;
   const worst = worstDroughtShare(unit);
+  if (worst === null) return null;
   return `${formatPercent(worst.share)} of that land is ${worst.label} or worse`;
 }

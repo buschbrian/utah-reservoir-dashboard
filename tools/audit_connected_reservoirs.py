@@ -40,8 +40,8 @@ from huc import assign_huc, in_utah, load_units  # noqa: E402
 RISE_CATALOG_ITEM = "https://data.usbr.gov/rise/api/catalog-item"
 RISE_LOCATION = "https://data.usbr.gov/rise/api/location"
 RISE_RESULT = "https://data.usbr.gov/rise/api/result"
-NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
-             "services/NID_v1/FeatureServer/0")
+NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
+             "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
 
 USER_AGENT = "utah-water-dashboard/connected-audit (+https://github.com/buschbrian)"
 TIMEOUT = 90

@@ -37,6 +37,7 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("withdrawn_count", "reservoirs", "Number of reservoirs held back for old data."),
     f("withdrawn", "array", "Reservoirs held back because their newest reading is too old to belong beside the others."),
     f("watersheds", "object", "Summary of drainage-area assignment coverage."),
+    f("counties", "object", "Summary of county assignment coverage."),
     f("reservoirs", "array", "Current storage records and 12-month histories.")
   ]},
   { id: "reservoir-normal-period", title: "Weekly comparison period", path: "normal_period", fields: [
@@ -73,6 +74,15 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("rise", "reservoirs", "Records from the Bureau of Reclamation."),
     f("awdb", "reservoirs", "Records from the Natural Resources Conservation Service.")
   ]},
+  { id: "reservoir-counties", title: "County summary", path: "counties", fields: [
+    f("source", "text", "County boundary publisher."),
+    f("assignment_rule", "text",
+      "Point used to place a reservoir in a county. Deliberately not the one above."),
+    f("assigned", "reservoirs", "Records with a county assignment."),
+    f("unassigned", "reservoirs", "Records without one."),
+    f("county_count", "counties", "Number of counties holding at least one reservoir."),
+    f("state_count", "states", "Number of states holding at least one reservoir.")
+  ]},
   { id: "reservoir-watersheds", title: "Drainage-area summary", path: "watersheds", fields: [
     f("source", "text", "Boundary publisher."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
@@ -83,8 +93,15 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("unassigned", "reservoirs", "Records without an assignment."),
     f("assigned_by_dam", "reservoirs", "Assignments made from a reviewed dam or outlet point."),
     f("in_utah", "reservoirs", "Records whose provider point is in Utah."),
-    f("intersects_utah", "reservoirs", "Records whose reviewed waterbody reaches Utah.")
+    f("intersects_utah", "reservoirs", "Records whose reviewed waterbody reaches Utah."),
+    f("subregions", "array",
+      "Four-digit subregions the drainage areas roll up into, with their names.")
   ]},
+  { id: "reservoir-subregion", title: "Subregion", path: "watersheds.subregions[]",
+    fields: [
+      f("huc4", "identifier", "Four-digit subregion code."),
+      f("name", "text", "Subregion name.")
+    ]},
   { id: "reservoir-record", title: "Reservoir record", path: "reservoirs[]", fields: [
     f("name", "text", "Reservoir name."),
     f("rise_item_id", "identifier", "Bureau of Reclamation item identifier, or null for another provider."),
@@ -131,7 +148,14 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("huc6", "identifier", "Six-digit drainage-area code."),
     f("huc6_name", "text", "Six-digit drainage-area name."),
     f("huc_assignment_point", "longitude, latitude", "Point used for drainage-area assignment."),
-    f("huc_assignment_source", "text", "Evidence used for the assignment point.")
+    f("huc_assignment_source", "text", "Evidence used for the assignment point."),
+    f("state", "state code", "State holding the published point. One state."),
+    f("waterbody_states", "array of state codes",
+      "Every state the water touches. Reviewed where the water crosses a state line."),
+    f("connected_states", "array of state codes",
+      "Every state the drainage area reaches, which is where the water comes from."),
+    f("county_fips", "identifier", "Five-digit county code holding the published point."),
+    f("county_name", "text", "County name. Read it with the state: several names repeat.")
   ]},
   { id: "reservoir-month", title: "Monthly history entry", path: "reservoirs[].monthly[]", fields: [
     f("month", "year and month", "Month represented by the entry."),
@@ -259,8 +283,12 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
   { id: "drought-unit", title: "Drainage-area record", path: "units[]", fields: [
     f("huc6", "identifier", "Six-digit drainage-area code."),
     f("huc6_name", "text", "Six-digit drainage-area name."),
-    f("percent_of_area", "object", "Share of the area's land in exactly each class."),
-    f("percent_of_area_at_least", "object", "Share of the area's land in each class or worse.")
+    f("percent_of_area", "object",
+      "Share of the measured land in exactly each class. " +
+      "Absent when the drought monitor measures none of the area.", true),
+    f("percent_of_area_at_least", "object",
+      "Share of the measured land in each class or worse. " +
+      "Absent when the drought monitor measures none of the area.", true)
   ]},
   { id: "drought-shares", title: "Share in exactly each class",
     path: "units[].percent_of_area", fields: [

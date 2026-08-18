@@ -118,6 +118,41 @@ export interface Reservoir {
   huc6_name?: string | null;
   huc_assignment_point?: [number, number] | null;
   huc_assignment_source?: string | null;
+
+  // County membership (ADR-058). Optional for the same reason the drainage
+  // fields are: the payload is rewritten every morning and the pages have to
+  // keep reading the one published before this field existed.
+  //
+  // Assigned from the *published waterbody point*, deliberately not the dam
+  // point above. The two answer different questions and disagree twice: Glen
+  // Canyon Dam is in Coconino County, Arizona, and Lake Powell is the lake in
+  // San Juan County, Utah that a reader is asking about.
+  //
+  // `county_fips` is the key and the name is not. This roster holds two
+  // Summit Counties, two Carbon Counties and two Garfield Counties, each pair
+  // in different states, so grouping by name merges reservoirs that are
+  // hundreds of miles apart.
+  county_fips?: string | null;
+  county_name?: string | null;
+
+  /**
+   * Where the reservoir is, where its water is, and what its water drains
+   * (ADR-060). Three questions the Utah pair answered for one state.
+   *
+   * `state` is the state containing the published point -- exactly one, and
+   * `in_utah` is its Utah special case. `waterbody_states` is every state the
+   * water touches: the reviewed answer where a waterbody crosses a line, and
+   * the point's own state otherwise, which is a default rather than a
+   * finding. `connected_states` is every state the drainage area reaches.
+   *
+   * They differ in ways a reader cares about. Lake Powell is in Utah, its
+   * water is in Utah and Arizona, and it drains Utah and Arizona. Bear Lake's
+   * point is in Idaho and its water reaches Utah. Hyrum is wholly in Utah and
+   * fed from Idaho.
+   */
+  state?: string | null;
+  waterbody_states?: string[];
+  connected_states?: string[];
 }
 
 export interface ReservoirSource {
@@ -222,11 +257,39 @@ export interface DroughtAtLeast {
   d4: number;
 }
 
+/**
+ * How much of a drainage area the drought monitor can see (ADR-059).
+ *
+ * Present only when the answer is not the whole of it. The monitor maps the
+ * United States and stops at both borders, so a basin crossing one is
+ * partly unmeasured -- Kootenai is 24.8% United States land. Every drainage
+ * area published today is wholly inside the country and carries no such
+ * block.
+ *
+ * This is a share of a *different denominator* from the class shares beside
+ * it, and lives in its own object for exactly that reason (ADR-046): the
+ * class shares divide by the measured land, this divides by the whole area,
+ * and the two must never be summed.
+ */
+export interface DroughtMeasuredExtent {
+  percent_of_area: number;
+  basis: string;
+}
+
 export interface DroughtUnit {
   huc6: string;
   huc6_name: string;
-  percent_of_area: DroughtShares;
-  percent_of_area_at_least: DroughtAtLeast;
+  /**
+   * Shares of the land the monitor measures, not of the whole area.
+   *
+   * Absent -- together with the cumulative block -- only when the monitor
+   * measures none of the area (ADR-059): no denominator means no share at
+   * all, never zeros, and `measured.percent_of_area` is 0 to say why. The
+   * validator holds the two blocks and that condition together.
+   */
+  percent_of_area?: DroughtShares;
+  percent_of_area_at_least?: DroughtAtLeast;
+  measured?: DroughtMeasuredExtent;
 }
 
 /** One earlier week, reduced to what a comparison needs. */
@@ -306,6 +369,15 @@ export interface ReservoirPayload {
   withdrawn_count?: number;
   /** Reservoirs this run declined to publish, and why. Never charted. */
   withdrawn?: WithdrawnReservoir[];
+  /**
+   * The drainage-area envelope. Only the part the surfaces read is typed:
+   * the block carries counts and provenance too, and a payload is not a
+   * place to restate the pipeline's own bookkeeping as a contract.
+   */
+  watersheds?: {
+    /** HUC-4 subregions the payload's areas roll up into, named (ADR-048). */
+    subregions?: { huc4: string; name: string }[];
+  };
   reservoirs: Reservoir[];
 }
 

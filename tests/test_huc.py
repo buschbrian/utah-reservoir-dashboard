@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import (  # noqa: E402
     UTAH_POLYGONS, UTAH_RING, assign_huc, describe, distance_to_boundary_km, in_polygon,
-    in_utah, load_units,
+    in_utah, load_units, waterbody_intersects_utah, waterbody_states,
 )
 
 BOUNDARIES = ROOT / "huc6.geojson"
@@ -246,3 +246,62 @@ def test_boundary_distance_is_zero_on_the_edge_and_grows_inward():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+class TestStateMembership:
+    """Three questions the Utah pair answered for one state (ADR-060).
+
+    `state` is where the point is, `waterbody_states` is where the water is,
+    and `connected_states` is what the water drains. They differ, and the
+    differences are the reason the generalization exists.
+    """
+
+    def test_a_reviewed_waterbody_names_every_state_it_touches(self):
+        assert waterbody_states("Bear Lake", "ID") == ["ID", "UT"]
+        assert waterbody_states("Meeks Cabin", "WY") == ["UT", "WY"]
+
+    def test_an_unreviewed_waterbody_is_where_its_point_is(self):
+        """A default, not a finding.
+
+        Most reservoirs sit well inside one state and nobody has had reason to
+        review them. The answer must be the honest default rather than an
+        empty list, which would drop them out of every state filter.
+        """
+        assert waterbody_states("Deer Creek", "UT") == ["UT"]
+
+    def test_lake_powell_reaches_arizona(self):
+        """The gap generalising the question exposed.
+
+        The Utah-only table existed to add Utah to waterbodies whose point was
+        elsewhere. Powell's point is already in Utah, so it never needed an
+        entry -- and its water crosses into Arizona all the same. This
+        project's own committed points are the evidence: the dam is in
+        Coconino County and the waterbody point in San Juan County.
+        """
+        assert waterbody_states("Lake Powell", "UT") == ["AZ", "UT"]
+
+    def test_a_point_in_no_state_invents_none(self):
+        assert waterbody_states("Nowhere", None) == []
+        assert waterbody_states("Bear Lake", None) == ["ID", "UT"]
+
+    def test_the_utah_predicate_still_reads_the_generalized_table(self):
+        """ADR-013's answer must not change when its table grows."""
+        assert waterbody_intersects_utah("Bear Lake", (-111.3, 42.11667))
+        assert waterbody_intersects_utah("Deer Creek", (-111.50035, 40.43511))
+        assert not waterbody_intersects_utah("Dillon Reservoir", (-106.06621, 39.62071))
+
+    def test_connected_states_come_from_the_drainage_area(self):
+        """Where the water comes from, not where the reservoir is.
+
+        Lake Powell is in Utah and its basin reaches Arizona; Hyrum is wholly
+        in Utah and fed from Idaho. A reader asking what Idaho feeds wants
+        this list and not the one above it.
+        """
+        units = load_units()
+        powell = describe(37.05778, -111.30332, units, name="Lake Powell")
+        hyrum = describe(41.62401, -111.87321, units, name="Hyrum")
+
+        assert powell["connected_states"] == ["AZ", "UT"]
+        assert hyrum["connected_states"] == ["ID", "UT"]
+        # Hyrum's own water never leaves Utah, which is the distinction.
+        assert waterbody_states("Hyrum", "UT") == ["UT"]

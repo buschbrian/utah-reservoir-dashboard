@@ -1,6 +1,6 @@
 # ADR-054: Make the terrain the ground under the drought classes
 
-- Status: Accepted
+- Status: Superseded by ADR-061 (the drought map draws no terrain)
 - Date: 2026-08-18
 - Supersedes: [ADR-043](ADR-043-shade-thematic-fills-from-above-with-a-no-key-hillshade.md)
 

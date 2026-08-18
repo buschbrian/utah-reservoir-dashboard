@@ -4,7 +4,9 @@ import {
   isLate,
   reservoirInScope,
   statewideRollup,
+  WIDEST_SCOPE,
   type LakePowellChoice,
+  type ReservoirInclusion,
   type ReservoirGeography
 } from "./data/rollup";
 import { STALE_COLOR, storageClass } from "./viz/classes";
@@ -14,8 +16,42 @@ export type OverviewCadence = "all" | "daily" | "monthly" | "late";
 
 export interface OverviewFilters {
   query: string;
+  /**
+   * The three geographic filters narrow each other, coarsest first: a state
+   * holds subregions, a subregion holds drainage areas. A reader can start
+   * anywhere and stop anywhere.
+   */
+  state: string;
+  /** A four-digit subregion code, or "all". The first four digits of `huc6`. */
+  huc4: string;
   huc6: string;
+  /** A five-digit FIPS code, or "all". Never a county name -- see `Reservoir`. */
+  county: string;
   cadence: OverviewCadence;
+}
+
+/**
+ * Which state filter means what.
+ *
+ * ADR-060 records that "in Idaho" is three questions. This picks the second:
+ * every state the *water* touches. It is what `intersects_utah` has always
+ * meant for Utah, so Bear Lake stays in Utah's list where a reader expects
+ * it, and it is the only one of the three that answers "show me the water in
+ * my state" rather than "show me the dams filed under it".
+ */
+export function reservoirInState(reservoir: Reservoir, state: string): boolean {
+  if (state === "all") return true;
+  const states = reservoir.waterbody_states;
+  /* Fall back to the point's own state for a payload published before
+   * `waterbody_states` existed -- the field is optional for that reason. */
+  return states && states.length > 0
+    ? states.includes(state)
+    : reservoir.state === state;
+}
+
+/** The subregion a drainage area belongs to. Codes are fixed-width (ADR-050). */
+export function subregionOf(reservoir: Reservoir): string | null {
+  return reservoir.huc6 ? reservoir.huc6.slice(0, 4) : null;
 }
 
 export interface OverviewChartRecord {
@@ -55,6 +91,8 @@ function classOf(percent: number): { classLabel: string; classColor: string } {
 export interface ScopeChoice {
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
+  /** Absent means excluded, like Lake Powell's default (ADR-062). */
+  lakeMead?: ReservoirInclusion;
 }
 
 export const DEFAULT_SCOPE: ScopeChoice = { geography: "utah", lakePowell: "exclude" };
@@ -74,6 +112,36 @@ export function overviewScope(
   return reservoirs.filter((reservoir) => reservoirInScope(reservoir, scope));
 }
 
+/**
+ * Lowercased, with commas as spaces and runs of space collapsed.
+ *
+ * The comma is the point. The county control's own labels read "Summit
+ * County, CO", so a reader who copies one into the search box types a comma
+ * the joined text never contained -- the match failed on punctuation the
+ * reader had every reason to include. Normalising both sides means the label
+ * a reader can see is a query that works.
+ */
+function normalize(value: string): string {
+  return value.toLocaleLowerCase("en-US").replace(/,/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The text a reservoir can be found by.
+ *
+ * County is in here because it is the reason the axis exists (ADR-058):
+ * readers ask for "Washington County", not for a drainage area. The state
+ * goes in with it so Summit UT and Summit CO are separable by typing, the
+ * same way the filter separates them by code.
+ */
+function searchText(reservoir: Reservoir): string {
+  return normalize([
+    reservoir.name,
+    reservoir.huc6_name ?? "",
+    reservoir.county_name ?? "",
+    reservoir.state ?? ""
+  ].join(" "));
+}
+
 function numberOrLast(value: number | null): number {
   return value === null || !Number.isFinite(value) ? Number.NEGATIVE_INFINITY : value;
 }
@@ -81,10 +149,9 @@ function numberOrLast(value: number | null): number {
 export function filterAndSort(
   reservoirs: readonly Reservoir[], query: string, sort: OverviewSort
 ): Reservoir[] {
-  const needle = query.trim().toLocaleLowerCase("en-US");
+  const needle = normalize(query);
   const filtered = needle
-    ? reservoirs.filter((reservoir) =>
-      `${reservoir.name} ${reservoir.huc6_name ?? ""}`.toLocaleLowerCase("en-US").includes(needle))
+    ? reservoirs.filter((reservoir) => searchText(reservoir).includes(needle))
     : [...reservoirs];
   return filtered.sort((a, b) => {
     if (sort === "name") return a.name.localeCompare(b.name);
@@ -98,17 +165,71 @@ export function filterAndSort(
 export function filterOverview(
   reservoirs: readonly Reservoir[], filters: OverviewFilters
 ): Reservoir[] {
-  const needle = filters.query.trim().toLocaleLowerCase("en-US");
+  const needle = normalize(filters.query);
   return reservoirs.filter((reservoir) => {
-    const matchesQuery = !needle || `${reservoir.name} ${reservoir.huc6_name ?? ""}`
-      .toLocaleLowerCase("en-US").includes(needle);
+    const matchesQuery = !needle || searchText(reservoir).includes(needle);
+    const matchesState = reservoirInState(reservoir, filters.state);
+    const matchesSubregion = filters.huc4 === "all"
+      || subregionOf(reservoir) === filters.huc4;
     const matchesWatershed = filters.huc6 === "all" || reservoir.huc6 === filters.huc6;
+    /* A reservoir with no county cannot match a chosen county. It is left
+     * out rather than shown, because a filter naming one county and
+     * answering with a reservoir whose county is unknown is a claim the
+     * payload does not support. */
+    const matchesCounty = filters.county === "all"
+      || reservoir.county_fips === filters.county;
     const matchesCadence = filters.cadence === "all"
       || (filters.cadence === "late"
         ? isLate(reservoir)
         : reservoir.data_frequency === filters.cadence);
-    return matchesQuery && matchesWatershed && matchesCadence;
+    return matchesQuery && matchesState && matchesSubregion && matchesWatershed
+      && matchesCounty && matchesCadence;
   });
+}
+
+export interface FilterOption {
+  code: string;
+  label: string;
+}
+
+/**
+ * The states a set of reservoirs touches.
+ *
+ * Every state in `waterbody_states`, not one per reservoir: Lake Powell is in
+ * both Utah's list and Arizona's, because its water is in both. That is the
+ * whole reason the field is an array (ADR-060).
+ *
+ * Two-letter codes are the label as well as the key. Spelling them out would
+ * be a second table to keep, and a filter listing UT, WY, CO reads fine.
+ */
+export function stateOptions(reservoirs: readonly Reservoir[]): FilterOption[] {
+  const codes = new Set<string>();
+  for (const reservoir of reservoirs) {
+    const states = reservoir.waterbody_states?.length
+      ? reservoir.waterbody_states
+      : (reservoir.state ? [reservoir.state] : []);
+    for (const code of states) codes.add(code);
+  }
+  return [...codes].sort().map((code) => ({ code, label: code }));
+}
+
+/**
+ * The subregions a set of reservoirs falls in.
+ *
+ * `names` comes from the payload's own roster; a code with no name is
+ * labelled by its code rather than dropped, because a subregion that exists
+ * in the data and not in the roster is still somewhere a reader can be.
+ */
+export function subregionOptions(
+  reservoirs: readonly Reservoir[], names: ReadonlyMap<string, string>
+): FilterOption[] {
+  const codes = new Set<string>();
+  for (const reservoir of reservoirs) {
+    const code = subregionOf(reservoir);
+    if (code) codes.add(code);
+  }
+  return [...codes].sort()
+    .map((code) => ({ code, label: names.get(code) || code }));
 }
 
 export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{
@@ -118,6 +239,36 @@ export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{
   const labels = new Map<string, string>();
   for (const reservoir of reservoirs) {
     if (reservoir.huc6) labels.set(reservoir.huc6, reservoir.huc6_name ?? reservoir.huc6);
+  }
+  return [...labels].map(([code, label]) => ({ code, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * The counties present in a set, for a filter control.
+ *
+ * Empty when the payload carries no county at all, which is what the morning
+ * before the assignment first ships looks like. A caller offering an empty
+ * control would show a reader a filter that can only narrow to nothing, so
+ * the emptiness is the signal to leave the control out.
+ *
+ * Labelled with the state and keyed on the code. Sorted by label, which puts
+ * "Summit County, CO" before "Summit County, UT" rather than leaving two
+ * identical-looking rows in payload order.
+ */
+export function countyOptions(reservoirs: readonly Reservoir[]): Array<{
+  code: string;
+  label: string;
+}> {
+  const labels = new Map<string, string>();
+  for (const reservoir of reservoirs) {
+    if (!reservoir.county_fips || !reservoir.county_name) continue;
+    labels.set(
+      reservoir.county_fips,
+      reservoir.state
+        ? `${reservoir.county_name}, ${reservoir.state}`
+        : reservoir.county_name
+    );
   }
   return [...labels].map(([code, label]) => ({ code, label }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -315,9 +466,11 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
     groups.set(label, [...(groups.get(label) ?? []), reservoir]);
   }
   return [...groups].map(([label, group], index) => {
-    /* The group is already scoped by the caller; including Lake Powell here
-     * only means "do not filter it out a second time", not "add it back". */
-    const rollup = statewideRollup(group, { geography: "connected", lakePowell: "include" });
+    /* The group is already scoped by the caller; WIDEST_SCOPE only means
+     * "do not filter them out a second time", not "add them back". A
+     * hand-written option object here once dropped Lake Mead's storage out
+     * of its own drainage area's total (ADR-062). */
+    const rollup = statewideRollup(group, WIDEST_SCOPE);
     const percent = Number((rollup.percentFull ?? 0).toFixed(1));
     return {
       id: index + 1,

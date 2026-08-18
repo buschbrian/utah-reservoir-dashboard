@@ -13,7 +13,8 @@ import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
 import {
-  isLakePowell, isLate, statewideRollup, type ReservoirGeography
+  isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
+  type ReservoirGeography
 } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import {
@@ -40,6 +41,12 @@ import {
   normalComparison,
   overviewScope,
   percentFullValues,
+  countyOptions,
+  reservoirInState,
+  stateOptions,
+  subregionOf,
+  subregionOptions,
+  type FilterOption,
   watershedOptions,
   watershedRecords,
   type ChartMeasure,
@@ -98,9 +105,9 @@ function renderRows(tbody: HTMLTableSectionElement, reservoirs: readonly Reservo
 
 function updateKpis(reservoirs: readonly Reservoir[]): void {
   /* The rows handed in are already the scope the reader chose, so this must
-   * not apply a second Lake Powell filter on top of it -- "include" here
-   * means "do not filter again", which is what makes the toggle work. */
-  const rollup = statewideRollup(reservoirs, { geography: "connected", lakePowell: "include" });
+   * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
+   * means "do not filter again", which is what makes the toggles work. */
+  const rollup = statewideRollup(reservoirs, WIDEST_SCOPE);
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const values: Record<string, string> = {
@@ -125,13 +132,18 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
   }
 }
 
-async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): Promise<void> {
+async function renderOverview(
+  allReservoirs: Reservoir[], generatedAt: string,
+  subregions: readonly { huc4: string; name: string }[]
+): Promise<void> {
   const content = document.querySelector<HTMLElement>("#overview-content");
   if (!content) return;
   // Built from the widest scope so the list of drainage areas does not
   // change shape when Lake Powell is toggled.
-  const watershedChoices = watershedOptions(
-    overviewScope(allReservoirs, { geography: "connected", lakePowell: "include" }));
+  const countyChoices = countyOptions(allReservoirs);
+  const stateChoices = stateOptions(allReservoirs);
+  const widestScope = overviewScope(allReservoirs, WIDEST_SCOPE);
+  const watershedChoices = watershedOptions(widestScope);
   content.innerHTML = `
     <!-- Two rows, and each row is one kind of thing: what this section is
          and how to undo it, then the controls themselves. They used to share
@@ -160,12 +172,16 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
         <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
         <div class="filterbar-head-actions">
           <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
+          <label class="switch-label" for="lake-mead-toggle"><span>Include Lake Mead</span><input id="lake-mead-toggle" type="checkbox" role="switch" /></label>
           <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
       <div class="filterbar-controls">
-        <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name or drainage area" autocomplete="off" /></label>
+        <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name, drainage area or county" autocomplete="off" /></label>
+        <label>State<select id="state-filter"><option value="all">All states</option></select></label>
+        <label>Subregion<select id="subregion-filter"><option value="all">All subregions</option></select></label>
         <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
+        <label id="county-field" hidden>County<select id="county-filter"><option value="all">All counties</option></select></label>
         <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
         <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
       </div>
@@ -273,11 +289,72 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     watershed?.append(option);
   }
 
+  /* The county control is offered only when the payload carries counties.
+   * The assignment ships with a morning's refresh, so the published payload
+   * has none until then -- and a filter whose every choice narrows to nothing
+   * is worse than no filter. The field is hidden rather than absent so the
+   * markup, and the tests that read it, stay one shape. */
+  /* The subregion names travel in the payload's own envelope (ADR-048), so a
+   * code the roster does not carry is labelled by its code rather than lost. */
+  const subregionNames = new Map<string, string>(
+    subregions.map((entry) => [entry.huc4, entry.name]));
+  /* Built from the widest scope like the drainage-area list, and for the
+   * same reason -- and so the full list exists before the link's choice is
+   * restored, or a shared ?huc4= would be discarded against an empty
+   * control. */
+  const subregionChoices = subregionOptions(widestScope, subregionNames);
+
+  /* Repopulating a `<select>` has to preserve the reader's choice when it is
+   * still on offer. Rebuilding blind resets the control on every keystroke,
+   * which is the bug this exists to not have. */
+  function fillOptions(
+    element: HTMLSelectElement, options: FilterOption[], allLabel: string
+  ): void {
+    const wanted = element.value;
+    element.replaceChildren();
+    const all = document.createElement("option");
+    all.value = "all";
+    all.textContent = allLabel;
+    element.append(all);
+    for (const choice of options) {
+      const option = document.createElement("option");
+      option.value = choice.code;
+      option.textContent = choice.label;
+      element.append(option);
+    }
+    element.value = options.some((choice) => choice.code === wanted) ? wanted : "all";
+  }
+
+  const state = document.querySelector<HTMLSelectElement>("#state-filter");
+  const subregion = document.querySelector<HTMLSelectElement>("#subregion-filter");
+  const county = document.querySelector<HTMLSelectElement>("#county-filter");
+  const countyField = document.querySelector<HTMLElement>("#county-field");
+  for (const choice of countyChoices) {
+    const option = document.createElement("option");
+    option.value = choice.code;
+    option.textContent = choice.label;
+    county?.append(option);
+  }
+  if (countyField) countyField.hidden = countyChoices.length === 0;
+  /* The state list is built once from the widest scope, like the county list:
+   * it is the coarsest control, so nothing above it can narrow it. */
+  for (const choice of stateChoices) {
+    const option = document.createElement("option");
+    option.value = choice.code;
+    option.textContent = choice.label;
+    state?.append(option);
+  }
+  /* The subregion list starts at its widest; the first update() narrows it
+   * to the chosen state. It must exist before the URL restore below, so a
+   * link's subregion has an option to land on. */
+  if (subregion) fillOptions(subregion, subregionChoices, "All subregions");
+
   const tbody = document.querySelector<HTMLTableSectionElement>("#reservoir-rows");
   const search = document.querySelector<HTMLInputElement>("#reservoir-search");
   const cadence = document.querySelector<HTMLSelectElement>("#cadence-filter");
   const sort = document.querySelector<HTMLSelectElement>("#reservoir-sort");
   const lakePowell = document.querySelector<HTMLInputElement>("#lake-powell-toggle");
+  const lakeMead = document.querySelector<HTMLInputElement>("#lake-mead-toggle");
   const geography = document.querySelector<HTMLSelectElement>("#geography-filter");
   const reset = document.querySelector<HTMLButtonElement>("#reset-filters");
   const status = document.querySelector<HTMLElement>("#filter-status");
@@ -307,11 +384,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
   const chartRank = document.querySelector<HTMLSelectElement>("#chart-rank");
   const exportButton = document.querySelector<HTMLElement>("#download-overview-csv");
-  if (!tbody || !search || !watershed || !cadence || !sort || !reset || !status
+  if (!tbody || !search || !state || !subregion || !watershed || !county
+      || !cadence || !sort || !reset || !status
       || !capacityHost || !watershedHost || !trendHost || !normalHost
       || !distributionHost || !spreadHost
       || !chartLimit || !chartMeasure || !chartRank
-      || !lakePowell || !geography || !exportButton) return;
+      || !lakePowell || !lakeMead || !geography || !exportButton) return;
 
   let exportRows: readonly Reservoir[] = [];
   exportButton.addEventListener("click", () => {
@@ -336,7 +414,7 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const renderClassStrip = (visible: readonly Reservoir[]): void => {
     const host = document.querySelector<HTMLElement>("[data-classes]");
     if (!host) return;
-    const rollup = statewideRollup(visible, { geography: "connected", lakePowell: "include" });
+    const rollup = statewideRollup(visible, WIDEST_SCOPE);
     const total = rollup.classes.reduce((sum, entry) => sum + entry.count, 0);
     host.replaceChildren(...rollup.classes.map((entry, index) => {
       const button = document.createElement("button");
@@ -375,9 +453,13 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   const currentUrlState = (): OverviewUrlState => ({
     query: search.value,
     drainageArea: watershed.value,
+    state: state.value,
+    subregion: subregion.value,
+    county: county.value,
     reporting: cadence.value as OverviewCadence,
     geography: geography.value as ReservoirGeography,
     lakePowell: lakePowell.checked ? "include" : "exclude",
+    lakeMead: lakeMead.checked ? "include" : "exclude",
     storageClass: storageClassFilter,
     sort: sort.value as OverviewSort,
     measure: chartMeasure.value as ChartMeasure,
@@ -390,11 +472,26 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     const currentRevision = ++revision;
     const scoped = overviewScope(allReservoirs, {
       geography: geography.value as ReservoirGeography,
-      lakePowell: lakePowell.checked ? "include" : "exclude"
+      lakePowell: lakePowell.checked ? "include" : "exclude",
+      lakeMead: lakeMead.checked ? "include" : "exclude"
     });
+    /* Each geographic control is repopulated from what the ones above it
+     * leave, so a reader who picks Wyoming is not then offered a subregion
+     * Wyoming has none of. A selection that survives the narrowing is kept;
+     * one that does not falls back to "all" rather than filtering to nothing
+     * silently. */
+    const byState = scoped.filter((item) => reservoirInState(item, state.value));
+    fillOptions(subregion, subregionOptions(byState, subregionNames), "All subregions");
+    const bySubregion = byState.filter((item) =>
+      subregion.value === "all" || subregionOf(item) === subregion.value);
+    fillOptions(watershed, watershedOptions(bySubregion), "All drainage areas");
+
     const matching = filterOverview(scoped, {
       query: search.value,
+      state: state.value,
+      huc4: subregion.value,
       huc6: watershed.value,
+      county: county.value,
       cadence: cadence.value as OverviewCadence
     });
     /* The strip narrows what is below it, but the strip itself keeps showing
@@ -420,9 +517,13 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
     renderRows(tbody, exportRows);
     const chosenClass = storageClassFilter === null
       ? "" : ` · ${STORAGE_CLASSES[storageClassFilter]?.label ?? ""}`;
+    /* Both dominant reservoirs are named, whatever their state: a scope
+     * that includes 28 million acre-feet without saying so is the silent
+     * total ADR-011 and ADR-062 exist to prevent. */
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +
       `${geography.value === "connected" ? "All connected" : "Utah waterbodies"} · Lake Powell ` +
-      `${lakePowell.checked ? "included" : "excluded"}${chosenClass}`;
+      `${lakePowell.checked ? "included" : "excluded"} · Lake Mead ` +
+      `${lakeMead.checked ? "included" : "excluded"}${chosenClass}`;
     for (const host of chartHosts) host.setAttribute("aria-busy", "true");
     const still = (): boolean => currentRevision === revision;
     const measure = chartMeasure.value as ChartMeasure;
@@ -504,11 +605,12 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
       reservoirs: scoped.length,
       visible: visible.length,
       charts: chartHosts.length,
-      lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
+      lakePowellExcluded: !visible.some(isLakePowell),
+      lakeMeadExcluded: !visible.some(isLakeMead)
     };
   };
-  for (const control of [search, watershed, cadence, sort, lakePowell, geography,
-    chartLimit, chartMeasure, chartRank]) {
+  for (const control of [search, state, subregion, watershed, county, cadence, sort,
+    lakePowell, lakeMead, geography, chartLimit, chartMeasure, chartRank]) {
     const event = control instanceof HTMLSelectElement
       || (control instanceof HTMLInputElement && control.type === "checkbox")
       ? "change"
@@ -524,9 +626,13 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   reset.addEventListener("click", () => {
     search.value = "";
     watershed.value = "all";
+    state.value = "all";
+    subregion.value = "all";
+    county.value = "all";
     cadence.value = "all";
     sort.value = "capacity";
     lakePowell.checked = false;
+    lakeMead.checked = false;
     geography.value = "utah";
     chartLimit.value = "15";
     chartMeasure.value = "percent";
@@ -545,9 +651,22 @@ async function renderOverview(allReservoirs: Reservoir[], generatedAt: string): 
   search.value = wanted.query;
   watershed.value = watershedChoices.some((choice) => choice.code === wanted.drainageArea)
     ? wanted.drainageArea : "all";
+  /* A county in the link that this payload does not carry falls back to all,
+   * the same way a drainage area does. A shared link outliving the roster it
+   * was made from should show everything rather than nothing. */
+  county.value = countyChoices.some((choice) => choice.code === wanted.county)
+    ? wanted.county : "all";
+  /* State first, then subregion: the update below repopulates the subregion
+   * list from the chosen state, and a selection that survives that narrowing
+   * is kept while one that does not falls back to "all". */
+  state.value = stateChoices.some((choice) => choice.code === wanted.state)
+    ? wanted.state : "all";
+  subregion.value = subregionChoices.some((choice) => choice.code === wanted.subregion)
+    ? wanted.subregion : "all";
   cadence.value = wanted.reporting;
   geography.value = wanted.geography;
   lakePowell.checked = wanted.lakePowell === "include";
+  lakeMead.checked = wanted.lakeMead === "include";
   sort.value = wanted.sort;
   chartMeasure.value = wanted.measure;
   chartRank.value = wanted.rank;
@@ -640,7 +759,8 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
 
 try {
   const payload = await loadReservoirs();
-  await renderOverview(payload.reservoirs, payload.generated_at);
+  await renderOverview(payload.reservoirs, payload.generated_at,
+    payload.watersheds?.subregions ?? []);
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");

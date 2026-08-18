@@ -29,6 +29,7 @@
  * and both are only testable if the functions take a string and return one.
  */
 
+import { HUC_CODE } from "../data/huc";
 import type { ReservoirGeography, LakePowellChoice } from "../data/rollup";
 import type { ChartMeasure, ChartRank, OverviewCadence, OverviewSort } from "../overview-model";
 import { STORAGE_CLASSES } from "../viz/classes";
@@ -37,9 +38,13 @@ import { STORAGE_CLASSES } from "../viz/classes";
 const OVERVIEW_PARAMS = {
   query: "q",
   drainageArea: "area",
+  state: "state",
+  subregion: "huc4",
+  county: "county",
   reporting: "reporting",
   geography: "reservoirs",
   lakePowell: "powell",
+  lakeMead: "mead",
   storageClass: "storage",
   sort: "sort",
   measure: "measure",
@@ -67,9 +72,17 @@ export interface OverviewUrlState {
   query: string;
   /** A drainage-area code the payload carries, or "all". */
   drainageArea: string;
+  /** A two-letter state code, or "all". Every state the water touches. */
+  state: string;
+  /** A four-digit subregion code, or "all". */
+  subregion: string;
+  /** A five-digit county FIPS code, or "all". Never a county name. */
+  county: string;
   reporting: OverviewCadence;
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
+  /** Lake Mead's own control (ADR-062). Excluded by default, like Powell. */
+  lakeMead: LakePowellChoice;
   /** An index into the storage class table, or null for every class. */
   storageClass: number | null;
   sort: OverviewSort;
@@ -82,9 +95,13 @@ export interface OverviewUrlState {
 export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
   query: "",
   drainageArea: "all",
+  state: "all",
+  subregion: "all",
+  county: "all",
   reporting: "all",
   geography: "utah",
   lakePowell: "exclude",
+  lakeMead: "exclude",
   storageClass: null,
   sort: "capacity",
   measure: "percent",
@@ -136,6 +153,23 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
   const state: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE };
   for (const [key, value] of parseQuery(search)) {
     if (key === OVERVIEW_PARAMS.query) state.query = value.trim();
+    else if (key === OVERVIEW_PARAMS.state) {
+      /* Two upper-case letters, or nothing. Anything else is not a state code
+       * and must not narrow the view to an empty list. */
+      state.state = /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : "all";
+    }
+    else if (key === OVERVIEW_PARAMS.subregion) {
+      /* The shared code shape, at the subregion's width: the level is the
+       * digit count, and HUC_CODE is the one pattern for the shape. */
+      state.subregion = HUC_CODE.test(value) && value.length === 4 ? value : "all";
+    }
+    else if (key === OVERVIEW_PARAMS.county) {
+      /* Exactly five digits, or nothing. A FIPS code is fixed-width and
+       * zero-padded, so the digit count is the whole validation -- and a
+       * leading zero is real (Arizona is 04), which is why this stays a
+       * string and is never parsed as a number. */
+      state.county = /^[0-9]{5}$/.test(value) ? value : "all";
+    }
     else if (key === OVERVIEW_PARAMS.drainageArea || key === MAP_FILTER_PARAMS.drainageArea) {
       /* Shape only, as the map does: whether this area is in the current
        * scope is the page's business, and it falls back to every area. */
@@ -148,6 +182,8 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
       state.geography = oneOf(value, ["utah", "connected"] as const, "utah");
     } else if (key === OVERVIEW_PARAMS.lakePowell) {
       state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
+    } else if (key === OVERVIEW_PARAMS.lakeMead) {
+      state.lakeMead = oneOf(value, ["include", "exclude"] as const, "exclude");
     } else if (key === OVERVIEW_PARAMS.storageClass || key === MAP_FILTER_PARAMS.storageClass) {
       const index = /^\d+$/.test(value) ? Number(value) : -1;
       state.storageClass = index >= 0 && index < STORAGE_CLASSES.length ? index : null;
@@ -188,9 +224,13 @@ export function searchWithOverviewState(
 
   if (full.query.trim() !== "") write("query", full.query.trim());
   if (full.drainageArea !== "all") write("drainageArea", full.drainageArea);
+  if (full.state !== "all") write("state", full.state);
+  if (full.subregion !== "all") write("subregion", full.subregion);
+  if (full.county !== "all") write("county", full.county);
   if (full.reporting !== "all") write("reporting", full.reporting);
   if (full.geography !== "utah") write("geography", full.geography);
   if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
+  if (full.lakeMead !== "exclude") write("lakeMead", full.lakeMead);
   if (full.storageClass !== null) write("storageClass", String(full.storageClass));
   if (full.sort !== DEFAULT_OVERVIEW_STATE.sort) write("sort", full.sort);
   if (full.measure !== DEFAULT_OVERVIEW_STATE.measure) write("measure", full.measure);
