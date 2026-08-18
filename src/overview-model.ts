@@ -102,7 +102,7 @@ function searchText(reservoir: Reservoir): string {
     reservoir.name,
     reservoir.huc6_name ?? "",
     reservoir.county_name ?? "",
-    reservoir.county_state ?? ""
+    reservoir.state ?? ""
   ].join(" "));
 }
 
@@ -180,8 +180,8 @@ export function countyOptions(reservoirs: readonly Reservoir[]): Array<{
     if (!reservoir.county_fips || !reservoir.county_name) continue;
     labels.set(
       reservoir.county_fips,
-      reservoir.county_state
-        ? `${reservoir.county_name}, ${reservoir.county_state}`
+      reservoir.state
+        ? `${reservoir.county_name}, ${reservoir.state}`
         : reservoir.county_name
     );
   }

@@ -68,6 +68,7 @@ supersedes the old one — the history is the point.
 | [ADR-057](ADR-057-a-dam-identifier-names-a-project-not-a-structure.md) | A dam identifier names a project, not a structure | Accepted |
 | [ADR-058](ADR-058-assign-the-county-from-the-water-not-the-dam.md) | Assign the county from the water, not the dam | Accepted |
 | [ADR-059](ADR-059-not-measured-is-not-no-drought.md) | Not measured is not no drought | Accepted |
+| [ADR-060](ADR-060-three-questions-about-a-state.md) | Three questions about a state | Accepted |
 
 ## Relationship to the modernization plan
 

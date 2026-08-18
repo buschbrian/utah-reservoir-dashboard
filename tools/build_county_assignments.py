@@ -113,7 +113,11 @@ def county_at(lon: float, lat: float) -> dict | None:
     return {
         "county_fips": attributes["FIPS"],
         "county_name": attributes["NAME"],
-        "county_state": attributes["STATE_ABBR"],
+        # The state of the point, not of the county -- they are the same fact
+        # because the county was found by this reservoir's own point, and
+        # storing it twice under two names is how two names drift (ADR-060).
+        # `in_utah` is this field's Utah special case.
+        "state": attributes["STATE_ABBR"],
     }
 
 
@@ -147,7 +151,7 @@ def main() -> int:
             missing.append(f"{name}: no county contains ({lon}, {lat})")
             continue
         assignments[name] = found
-        print(f"{name:<34} {found['county_name']}, {found['county_state']}")
+        print(f"{name:<34} {found['county_name']}, {found['state']}")
         # The service is somebody else's, and 68 queries in a burst is rude.
         time.sleep(0.1)
 

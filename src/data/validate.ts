@@ -20,6 +20,14 @@ function hasNullableNumber(value: unknown): value is number | null {
   return value === null || hasNumber(value);
 }
 
+/* A list of two-letter state codes, or absent. Empty is allowed and means
+ * something: a reservoir whose point falls in no state, or one whose drainage
+ * area is unassigned, has no states to name and must not be given any. */
+function isOptionalStateList(value: unknown): boolean {
+  return value === undefined ||
+    (Array.isArray(value) && value.every((item) => typeof item === "string"));
+}
+
 function hasNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
@@ -138,7 +146,9 @@ function isReservoir(value: unknown): value is Reservoir {
       hasNullableString(value.huc_assignment_source)) &&
     (value.county_fips === undefined || hasNullableString(value.county_fips)) &&
     (value.county_name === undefined || hasNullableString(value.county_name)) &&
-    (value.county_state === undefined || hasNullableString(value.county_state));
+    (value.state === undefined || hasNullableString(value.state)) &&
+    isOptionalStateList(value.waterbody_states) &&
+    isOptionalStateList(value.connected_states);
 }
 
 export function validateReservoirPayload(value: unknown): ReservoirPayload {

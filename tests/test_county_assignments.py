@@ -67,7 +67,7 @@ def test_lake_powell_is_in_utah_not_at_its_dam():
     about is in San Juan County, Utah.
     """
     powell = COUNTIES["counties"]["Lake Powell"]
-    assert powell["county_state"] == "UT"
+    assert powell["state"] == "UT"
     assert powell["county_name"] == "San Juan County"
 
 

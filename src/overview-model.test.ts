@@ -110,11 +110,11 @@ describe("modern overview model", () => {
  * so there is nothing here that groups by county and nothing that should. */
 describe("the county axis", () => {
   const summitUt = reservoir({ name: "Rockport", rise_item_id: 200,
-    county_fips: "49043", county_name: "Summit County", county_state: "UT" });
+    county_fips: "49043", county_name: "Summit County", state: "UT" });
   const summitCo = reservoir({ name: "Dillon Reservoir", rise_item_id: 201,
-    county_fips: "08117", county_name: "Summit County", county_state: "CO" });
+    county_fips: "08117", county_name: "Summit County", state: "CO" });
   const washington = reservoir({ name: "Gunlock", rise_item_id: 202,
-    county_fips: "49053", county_name: "Washington County", county_state: "UT" });
+    county_fips: "49053", county_name: "Washington County", state: "UT" });
   const all = [summitUt, summitCo, washington];
 
   const filters = (overrides: Partial<Parameters<typeof filterOverview>[1]>) =>
@@ -142,15 +142,15 @@ describe("the county axis", () => {
      * committed payload, which will carry counties itself once the assignment
      * ships. A fixture that stops representing the old shape stops testing
      * backward compatibility on the morning it matters. */
-    const { county_fips, county_name, county_state, ...older } =
+    const { county_fips, county_name, state, ...older } =
       reservoir({ name: "Older payload", rise_item_id: 203 });
-    void county_fips; void county_name; void county_state;
+    void county_fips; void county_name; void state;
     expect(countyOptions([older])).toEqual([]);
   });
 
   it("leaves a reservoir with no county out of a chosen county", () => {
     const unknown = reservoir({ name: "Unassigned", rise_item_id: 204,
-      county_fips: null, county_name: null, county_state: null });
+      county_fips: null, county_name: null, state: null });
     expect(filterOverview([...all, unknown], filters({ county: "49043" })))
       .toEqual([summitUt]);
     expect(filterOverview([...all, unknown], filters({}))).toHaveLength(4);

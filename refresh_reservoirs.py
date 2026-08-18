@@ -880,11 +880,19 @@ def attach_counties(records: list[dict]) -> dict:
             continue
         record["county_fips"] = found["county_fips"]
         record["county_name"] = found["county_name"]
-        record["county_state"] = found["county_state"]
+        record["state"] = found["state"]
+        # Where the water is, as opposed to where the point is. Reviewed
+        # against NHD for the waterbodies that cross a line; the point's own
+        # state for every other, which is a default rather than a finding
+        # (ADR-060). `connected_states` is attached with the drainage area,
+        # because that is what knows it.
+        record["waterbody_states"] = huc.waterbody_states(
+            record["name"], found["state"])
 
     distinct = {r["county_fips"] for r in records if r.get("county_fips")}
+    states = {r["state"] for r in records if r.get("state")}
     print(f"\nCounties: {len(records) - len(unassigned)}/{len(records)} reservoirs "
-          f"assigned across {len(distinct)} counties")
+          f"assigned across {len(distinct)} counties in {len(states)} states")
     if unassigned:
         # Named rather than guessed, like an unmatched drainage area. A new
         # reservoir arrives on the roster before the assignment is rebuilt,
@@ -895,6 +903,7 @@ def attach_counties(records: list[dict]) -> dict:
         "assigned": len(records) - len(unassigned),
         "unassigned": len(unassigned),
         "county_count": len(distinct),
+        "state_count": len(states),
     }
 
 

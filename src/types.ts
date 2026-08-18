@@ -134,7 +134,25 @@ export interface Reservoir {
   // hundreds of miles apart.
   county_fips?: string | null;
   county_name?: string | null;
-  county_state?: string | null;
+
+  /**
+   * Where the reservoir is, where its water is, and what its water drains
+   * (ADR-060). Three questions the Utah pair answered for one state.
+   *
+   * `state` is the state containing the published point -- exactly one, and
+   * `in_utah` is its Utah special case. `waterbody_states` is every state the
+   * water touches: the reviewed answer where a waterbody crosses a line, and
+   * the point's own state otherwise, which is a default rather than a
+   * finding. `connected_states` is every state the drainage area reaches.
+   *
+   * They differ in ways a reader cares about. Lake Powell is in Utah, its
+   * water is in Utah and Arizona, and it drains Utah and Arizona. Bear Lake's
+   * point is in Idaho and its water reaches Utah. Hyrum is wholly in Utah and
+   * fed from Idaho.
+   */
+  state?: string | null;
+  waterbody_states?: string[];
+  connected_states?: string[];
 }
 
 export interface ReservoirSource {
