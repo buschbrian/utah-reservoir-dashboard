@@ -45,9 +45,34 @@ expensive payloads.** It costs only in the roster and the drought coverage
 rows, both of which are small. The reader-selectable level the request asks
 for is the cheap half of this work.
 
-One caveat on 225: that is the AWDB BOR network alone. Today's published
-reservoirs come from RISE and AWDB together, so 225 is a **floor** for the
-western reservoir count, not a total. RISE will add to it.
+One caveat on 225: that is the AWDB BOR network alone, and this dashboard
+draws on RISE as well. Measured separately, below.
+
+## Measured: what RISE adds
+
+RISE publishes **280** Lake/Reservoir locations with a position, of which
+**180** fall inside `west-huc6`. Matched against the AWDB stations by
+position — 3 km, far tighter than the 20 km `admission.py` allows between a
+dam and its reservoir, because both of these are the water itself:
+
+| | RISE | AWDB | both | **distinct** |
+|---|---:|---:|---:|---:|
+| `utah-connected` (today) | 54 | 86 | 32 | **108** |
+| `west-huc6` | 180 | 225 | 99 | **306** |
+
+**RISE adds 81 reservoirs on top of AWDB's 225.** The overlap is large — 99
+of them report through both networks — which is why adding the two catalogues
+together would have overstated the west by nearly a third.
+
+The union is a **candidate pool, not a roster**. Today's 108 candidates yield
+68 published reservoirs, an admission rate of 63% after capacity tracing and
+review. At the same rate the west yields roughly **193 published reservoirs**,
+with 306 as the ceiling if everything were admitted. The western multiple is
+**2.83×** on candidates.
+
+That refines the transfer projection below: `reservoirs.json` lands near
+**95 KB gzipped** at the historical admission rate, and **142 KB** at the
+ceiling. Both are comfortable; the conclusion does not turn on which.
 
 ## Measured: what expansion costs over the wire
 
@@ -65,7 +90,7 @@ Projected at western coverage:
 
 | payload | today | west | change |
 |---|---:|---:|---:|
-| `reservoirs.json` | 41 KB | **~108 KB** | 2.6× |
+| `reservoirs.json` | 41 KB | **~95 KB** (142 KB at the ceiling) | 2.3× |
 | `snowpack.json` | 99 KB | **~287 KB** | 2.9× |
 | drought coverage, HUC4 | — | ~3 KB | — |
 | drought coverage, HUC6 | 0.9 KB | **4.8 KB** | measured |
@@ -140,12 +165,16 @@ this week and last week, because those travel in the coverage file.
 
 ## Open questions this did not answer
 
-- **How many reservoirs does RISE add** on top of the 225 AWDB stations? That
-  needs a RISE catalog query, and it is the one number here that is a floor
-  rather than a measurement.
 - **Does `normals.json` have to grow with the roster?** It is rebuilt by a
-  ~20-minute job over 30 years for 69 reservoirs. At 225-plus that is over an
-  hour, still off the build path, but worth knowing before it is a surprise.
-- **What happens to the details panel and the reservoir list at 225 rows?**
-  The list already scrolls in its own box; whether it stays usable is a design
-  question rather than a data one.
+  ~20-minute job over 30 years for 69 reservoirs. At ~193 that is close to an
+  hour, still off the build path and off CI, but worth knowing before it is a
+  surprise on the morning someone runs it.
+- **What happens to the reservoir list at ~193 rows?** It already scrolls in
+  its own box, so nothing breaks; whether it stays *browsable* is a design
+  question rather than a data one, and it is the strongest argument for the
+  county and district aggregation axes already on the backlog.
+- **Which of the 306 actually have traceable capacity?** The admission rate
+  of 63% is this project's own history against the Utah-connected pool, and
+  capacity tracing is most of what it measures. Nothing says the west behaves
+  the same way, and a reservoir without a full level cannot be drawn with a
+  percent (`sizeBasis` falls back to the record maximum).
