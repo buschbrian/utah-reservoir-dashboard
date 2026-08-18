@@ -105,10 +105,13 @@ function renderSnow(payload: SnowpackPayload): void {
     <section class="dashboard-filterbar" aria-labelledby="snow-filter-heading">
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Mountain snow</p><h2 id="snow-filter-heading">Choose a drainage area</h2></div>
+        <!-- Beside the title rather than in the control row below: this search
+             narrows the site table further down the page, not the drainage
+             area the rest of the row is choosing among. -->
+        <label class="filterbar-head-search">Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
       </div>
       <div class="filterbar-controls">
         <label>Drainage area<select id="snow-area"><option value="all">The whole region</option></select></label>
-        <label>Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
         <label>Elevation<select id="snow-elev">${ELEVATION_BANDS.map((band) => `<option value="${band}">${elevationBandLabel(band)}</option>`).join("")}</select></label>
         <label>Reporting<select id="snow-reporting">
           <option value="all">Every site</option>
@@ -150,6 +153,13 @@ function renderSnow(payload: SnowpackPayload): void {
         <div class="table-scroll" tabindex="0" role="region" aria-label="First-of-month table, scrolls sideways"><table class="overview-table"><thead><tr><th>Month</th><th>Of normal</th><th>Reporting sites</th></tr></thead><tbody id="snow-month-rows"></tbody></table></div>
       </details>
     </section>
+    <section class="overview-card" aria-labelledby="snow-basin-heading">
+      <div class="card-heading">
+        <div><h2 id="snow-basin-heading">One drainage area through the season</h2><p>The mean of the chosen area's site values as a percent of normal, day by day, with the middle value for the same day in the years ${normalPeriodLabel(payload)} as the dashed line. Choose an area here, or select one on the map above.</p></div>
+        <label class="sort-control">Drainage area<select id="snow-basin-pick"><option value="">Choose a drainage area</option></select></label>
+      </div>
+      <div id="snow-basin-detail"><p class="chart-empty">Choose a drainage area above, or select one on the map.</p></div>
+    </section>
     <section class="overview-card" aria-labelledby="snow-site-heading">
       <div class="card-heading">
         <div><h2 id="snow-site-heading">One site through the season</h2><p>Snow water in inches at the chosen site, day by day, against the middle value for the same day in the years ${normalPeriodLabel(payload)}. The markers show the site's normal season: when snow usually starts to build, its usual highest value, and when it has usually melted.</p></div>
@@ -181,8 +191,11 @@ function renderSnow(payload: SnowpackPayload): void {
   const dayReading = document.querySelector<HTMLElement>("#snow-day-reading");
   const sitePicker = document.querySelector<HTMLSelectElement>("#snow-site");
   const siteDetail = document.querySelector<HTMLElement>("#snow-site-detail");
+  const basinPicker = document.querySelector<HTMLSelectElement>("#snow-basin-pick");
+  const basinDetail = document.querySelector<HTMLElement>("#snow-basin-detail");
   if (!area || !status || !curveHost || !monthRows || !siteRowsBody
-    || !mapHost || !daySlider || !dayReading || !sitePicker || !siteDetail) return;
+    || !mapHost || !daySlider || !dayReading || !sitePicker || !siteDetail
+    || !basinPicker || !basinDetail) return;
 
   /* Every site, grouped by drainage area, in the payload's own order. The
    * picker always offers all of them: the area filter narrows the table,
@@ -208,6 +221,17 @@ function renderSnow(payload: SnowpackPayload): void {
     option.value = choice.code;
     option.textContent = `${choice.label} (${choice.siteCount} sites)`;
     area.append(option);
+  }
+
+  /* The season card's own picker carries the same fourteen areas as the
+   * filter above, and is deliberately not that filter: the filter narrows
+   * the whole page, this names the one area whose season is drawn in full
+   * -- the same relationship the site picker has to the site table. */
+  for (const choice of choices) {
+    const option = document.createElement("option");
+    option.value = choice.code;
+    option.textContent = choice.label;
+    basinPicker.append(option);
   }
 
   /*
@@ -260,6 +284,7 @@ function renderSnow(payload: SnowpackPayload): void {
   let currentDay = startDay;
   let currentArea: string | null = null;
   let currentSite: string | null = null;
+  let currentBasin: string | null = null;
   /* The three controls that narrow only the site table. Held together so
    * every writer of the address bar carries all of them -- the reason the
    * whole state is written at once rather than per control. */
@@ -270,12 +295,14 @@ function renderSnow(payload: SnowpackPayload): void {
    * link. */
   function urlState(): {
     area: string | null; day: string | null; site: string | null;
+    basin: string | null;
     query: string; band: ElevationBand; status: SiteStatus;
   } {
     return {
       area: currentArea,
       day: currentDay === startDay ? null : currentDay,
       site: currentSite,
+      basin: currentBasin,
       query: siteFilter.query,
       band: siteFilter.band,
       status: siteFilter.status
@@ -283,6 +310,7 @@ function renderSnow(payload: SnowpackPayload): void {
   }
   let lastCurvePoints = 0;
   let lastSiteCurvePoints = 0;
+  let lastBasinCurvePoints = 0;
 
   const publishReady = (): void => {
     const rows = siteRows(payload, currentArea);
@@ -295,6 +323,8 @@ function renderSnow(payload: SnowpackPayload): void {
       area: currentArea,
       site: currentSite,
       siteCurvePoints: lastSiteCurvePoints,
+      basin: currentBasin,
+      basinCurvePoints: lastBasinCurvePoints,
       ...(map ? {
         mapBasins: map.status.basins,
         mapSites: map.status.sites,
@@ -303,6 +333,11 @@ function renderSnow(payload: SnowpackPayload): void {
         mapDay: map.status.day,
         mapBasemap: map.status.basemap,
         mapViewReady: map.status.viewReady,
+        /* The areas carry their names now, placed by the label engine.
+         * Published so the browser suite can hold the map to it -- an
+         * unlabelled basin layer looks like a working map. */
+        mapBasinLabels: map.status.basinLabels,
+        mapBasinLabelsDeconflicted: map.status.basinLabelsDeconflicted,
         /* The class table's own length, published so the browser suite can
          * hold the legend to it rather than to a number written twice. */
         mapClasses: SNOW_CLASSES.length
@@ -421,6 +456,108 @@ function renderSnow(payload: SnowpackPayload): void {
       }
       children.push(reading, timingLine, table);
       siteDetail.replaceChildren(...children);
+    }
+    writeSnowUrl(urlState());
+    publishReady();
+  };
+
+  /* The one drainage area the reader is studying, mirroring the site card
+   * above it: same construction, same discipline. Real elements throughout
+   * -- every word except the fixed prompts comes from the payload. */
+  const renderBasinDetail = (huc6: string | null): void => {
+    const rollup = huc6
+      ? payload.rollups.find((entry) => entry.huc6 === huc6) ?? null
+      : null;
+    currentBasin = rollup ? rollup.huc6 : null;
+    basinPicker.value = rollup ? rollup.huc6 : "";
+    if (!rollup) {
+      lastBasinCurvePoints = 0;
+      const prompt = document.createElement("p");
+      prompt.className = "chart-empty";
+      prompt.textContent =
+        "Choose a drainage area above, or select one on the map.";
+      basinDetail.replaceChildren(prompt);
+    } else {
+      const points = basinCurve(payload, rollup.huc6) ?? [];
+
+      const stats = document.createElement("p");
+      stats.className = "snow-site-stats";
+      stats.textContent = `${rollup.huc6_name} · ${rollup.site_count} ` +
+        `measurement sites · A day's mean needs at least ` +
+        `${rollup.minimum_reporting_sites} sites with a value`;
+
+      const chart = renderSnowCurve(points,
+        `Mean snow water for ${rollup.huc6_name} as a percent of normal, ` +
+        `day by day for the season ${seasonLabel(payload)}. The dashed line ` +
+        `marks normal. The table below lists the value on the first day of ` +
+        `each month.`);
+      lastBasinCurvePoints = chart
+        ? points.filter((point) => point.percent !== null).length : 0;
+
+      /* The same floor the page's headlines hold to: at least half the
+       * area's sites, so October's first flurries cannot headline the
+       * card. */
+      const floor = headlineFloor(rollup.site_count, rollup.minimum_reporting_sites);
+      const reading = document.createElement("p");
+      reading.className = "snow-site-reading";
+      const parts: string[] = [];
+      const latest = newestHeadline(points, floor);
+      if (latest) {
+        parts.push(`Newest value: ${formatPercent(latest.percent)} of normal ` +
+          `on ${formatDate(latest.date)}, from ${latest.reportingSites} of ` +
+          `${rollup.site_count} sites.`);
+      }
+      const peak = seasonHighPoint(points, floor);
+      if (peak) {
+        parts.push(`Season high point: ${formatPercent(peak.percent)} of ` +
+          `normal on ${formatDate(peak.date)}.`);
+      }
+      reading.textContent = parts.length > 0 ? parts.join(" ")
+        : "Too few sites in this area have values yet this season.";
+
+      const table = document.createElement("details");
+      table.className = "snow-month-details";
+      const summary = document.createElement("summary");
+      summary.textContent = "Values on the first day of each month";
+      const scroller = document.createElement("div");
+      scroller.className = "table-scroll";
+      const tableElement = document.createElement("table");
+      tableElement.className = "overview-table";
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      for (const label of ["Month", "Of normal", "Reporting sites"]) {
+        const cell = document.createElement("th");
+        cell.textContent = label;
+        headRow.append(cell);
+      }
+      head.append(headRow);
+      const body = document.createElement("tbody");
+      for (const month of monthReadings(points)) {
+        const row = document.createElement("tr");
+        const name = document.createElement("th");
+        name.scope = "row";
+        name.textContent = month.label;
+        const percent = document.createElement("td");
+        percent.textContent = month.point ? formatPercent(month.point.percent) : "—";
+        const sites = document.createElement("td");
+        sites.textContent = month.point ? String(month.point.reportingSites) : "—";
+        row.append(name, percent, sites);
+        body.append(row);
+      }
+      tableElement.append(head, body);
+      scroller.append(tableElement);
+      table.append(summary, scroller);
+
+      const children: Node[] = [stats];
+      if (chart) children.push(chart);
+      else {
+        const empty = document.createElement("p");
+        empty.className = "chart-empty";
+        empty.textContent = "This area has no values to draw this season.";
+        children.push(empty);
+      }
+      children.push(reading, table);
+      basinDetail.replaceChildren(...children);
     }
     writeSnowUrl(urlState());
     publishReady();
@@ -641,6 +778,9 @@ function renderSnow(payload: SnowpackPayload): void {
   sitePicker.addEventListener("change", () => {
     renderSiteDetail(sitePicker.value || null);
   });
+  basinPicker.addEventListener("change", () => {
+    renderBasinDetail(basinPicker.value || null);
+  });
   daySlider.addEventListener("calciteSliderInput", () => {
     const index = Number(daySlider.value ?? 0);
     const day = days[Math.max(0, Math.min(days.length - 1, index))];
@@ -668,6 +808,11 @@ function renderSnow(payload: SnowpackPayload): void {
   if (wanted.site !== null && siteByStation(payload, wanted.site)) {
     renderSiteDetail(wanted.site);
   }
+  // Same rule for a linked drainage area's season card.
+  if (wanted.basin !== null
+    && payload.rollups.some((rollup) => rollup.huc6 === wanted.basin)) {
+    renderBasinDetail(wanted.basin);
+  }
 
   /* The map starts after the figures are on screen. Boundaries or basemap
    * failing costs the picture only; the note says so and the page keeps
@@ -686,7 +831,14 @@ function renderSnow(payload: SnowpackPayload): void {
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
-      map = await createSnowMap(mapElement, card, scope, payload.sites, firstDay);
+      map = await createSnowMap(mapElement, card, scope, payload.sites, firstDay, {
+        /* A click inside a basin opens its season card below; the card's
+         * own picker is the keyboard path to the same place. */
+        onAreaChoose: (huc6) => {
+          renderBasinDetail(huc6);
+          basinDetail.closest("section")?.scrollIntoView({ block: "start" });
+        }
+      });
       map.setArea(currentArea);
       /* After the map claims the host, never before: see the note beside the
        * key's construction. */

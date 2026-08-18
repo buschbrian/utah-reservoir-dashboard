@@ -1662,14 +1662,18 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
   }, { hostId, cardId });
   check(frame !== null, `${label}: ${hostId} has no ready view to measure`);
   if (!frame) return;
-  /* Same set and same order as the storage map. The expand holds the basemap
-   * gallery, which these maps gained once `followThemeBasemap` learned to
-   * stand down after a reader picks a background of their own; the compass
-   * is there because rotation is not disabled, so a reader can turn the map
-   * and needs a way back to north; the locate control uses the browser's own
-   * geolocation and no Esri service. */
+  /* Navigation on the right edge, appearance on the left, and no locate.
+   * The storage map's six-control stack measures about 240px, which a
+   * full-viewport map holds down its edge and a 416px card mostly cannot,
+   * so these cards split it: zoom, home and compass -- what a lost reader
+   * reaches for -- stay top-right, and the basemap expand and fullscreen
+   * take the otherwise-empty top-left, above the legend's corner. Locate
+   * is gone on purpose: the view is constrained to the region, so for any
+   * reader outside it the control is an error with a button on it. The
+   * compass is there because rotation is not disabled, so a reader can
+   * turn the map and needs a way back to north. */
   check(frame.controls.join(",") ===
-    "arcgis-zoom,arcgis-home,arcgis-compass,arcgis-locate,arcgis-expand," +
+    "arcgis-zoom,arcgis-home,arcgis-compass,arcgis-expand," +
     "arcgis-fullscreen,arcgis-scale-bar",
   `${label}: ${hostId} carries ${frame.controls.join(",")}`);
   check(frame.controlsInside,
@@ -2083,16 +2087,18 @@ for (const viewport of VIEWPORTS) {
       counties: mapState.ready?.mapCountyBoundaries
     }));
     await checkViewMapParity(tab, check, label, "drought-map-host", "drought-map-hover",
-      /* Terrain shade sits above the classes and below the outlines: it
-       * varies the classes' lightness with the ground without darkening this
-       * project's own reference geometry. See `arcgis/hillshade.ts`. */
+      /* Terrain shade is the ground, at the very bottom of the stack
+       * (ADR-054). The classes are drawn at 0.45 alpha, so a reader sees
+       * through them to it; above them it was a glaze on the subject, and
+       * from underneath it can only be `normal` -- `soft-light` against the
+       * near-white canvas is about a 1% swing. See `arcgis/hillshade.ts`. */
       /* The boundary is cased: a wide bright pass under a narrow dark one,
        * so the outline reads on the palest class and on the darkest. They
        * are two layers over one service because a casing has to be down
        * before any core is drawn, and one layer cannot order that across
        * features -- a neighbour's casing would paint over a shared edge.
        * The names ride the core layer's label pass (ADR-047). */
-      [...boundaryLayers, "usdm-classes", "terrain-shade",
+      ["terrain-shade", ...boundaryLayers, "usdm-classes",
         "drainage-outline-casing", "drainage-outlines", "reservoir-reference"]);
     /* The label ladder: at the opening view the states and the drainage areas
      * are named and the reservoirs are not, which is the whole point of the

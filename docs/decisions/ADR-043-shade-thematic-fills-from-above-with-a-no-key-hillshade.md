@@ -1,6 +1,6 @@
 # ADR-043: Shade thematic fills from above, with a hillshade that needs no key
 
-- Status: Accepted
+- Status: Superseded by [ADR-054](ADR-054-make-the-terrain-the-ground-under-the-drought-classes.md)
 - Date: 2026-08-16
 
 ## Context

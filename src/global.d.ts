@@ -131,6 +131,15 @@ interface Window {
     site?: string | null;
     /** Days the open site's curve drew. 0 while no site is chosen. */
     siteCurvePoints?: number;
+    /** The drainage area whose season card is open, or null for none.
+     * Separate from `area`, which is the page-wide filter. */
+    basin?: string | null;
+    /** Days the open area's curve drew. 0 while no area is chosen. */
+    basinCurvePoints?: number;
+    /** Drainage areas carrying their name on the map, placed by the label
+     * engine (ADR-047). */
+    mapBasinLabels?: number;
+    mapBasinLabelsDeconflicted?: boolean;
   };
   /** The drought view finished drawing. `units` is what the coverage file
    * provided; `rows` is what the page rendered; `storageJoined` counts the

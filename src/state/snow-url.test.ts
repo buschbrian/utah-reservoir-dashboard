@@ -22,13 +22,24 @@ describe("snow URL state", () => {
     expect(snowStateFromSearch("").site).toBeNull();
   });
 
+  /* `?basin=` opens an area's own season card; `?area=` filters the page.
+   * The two are separate for the same reason `?site=` is separate from the
+   * table's narrowing controls. */
+  it("reads a drainage-area code for the season card and refuses others", () => {
+    expect(snowStateFromSearch("?basin=160201").basin).toBe("160201");
+    expect(snowStateFromSearch("?basin=abc").basin).toBeNull();
+    expect(snowStateFromSearch("").basin).toBeNull();
+  });
+
   it("round-trips every reachable state", () => {
     for (const area of ["140100", null]) {
       for (const day of ["2026-04-01", null]) {
         for (const site of ["1030:CO:SNTL", null]) {
-          const state = { area, day, site, query: "", band: "all" as const,
-            status: "all" as const };
-          expect(snowStateFromSearch(snowSearchFromState(state, ""))).toEqual(state);
+          for (const basin of ["160201", null]) {
+            const state = { area, day, site, basin, query: "", band: "all" as const,
+              status: "all" as const };
+            expect(snowStateFromSearch(snowSearchFromState(state, ""))).toEqual(state);
+          }
         }
       }
     }
@@ -36,14 +47,17 @@ describe("snow URL state", () => {
 
   it("drops every parameter entirely for the default view", () => {
     expect(snowSearchFromState(
-      { area: null, day: null, site: null, query: "", band: "all", status: "all" },
-      "?area=160201&day=2026-04-01&site=1030%3ACO%3ASNTL&q=alta&elev=high&status=late"))
+      { area: null, day: null, site: null, basin: null, query: "", band: "all",
+        status: "all" },
+      "?area=160201&day=2026-04-01&site=1030%3ACO%3ASNTL&basin=140100" +
+      "&q=alta&elev=high&status=late"))
       .toBe("");
   });
 
   it("leaves parameters it does not own alone", () => {
     const search = snowSearchFromState(
-      { area: "140100", day: null, site: null, query: "", band: "all", status: "all" },
+      { area: "140100", day: null, site: null, basin: null, query: "",
+        band: "all", status: "all" },
       "?theme=dark");
     expect(search).toContain("theme=dark");
     expect(search).toContain("area=140100");
@@ -72,7 +86,8 @@ describe("snow URL state", () => {
 
   it("leaves a whitespace-only search out of the address bar", () => {
     expect(snowSearchFromState(
-      { area: null, day: null, site: null, query: "   ", band: "all", status: "all" }, ""))
+      { area: null, day: null, site: null, basin: null, query: "   ",
+        band: "all", status: "all" }, ""))
       .toBe("");
   });
 });

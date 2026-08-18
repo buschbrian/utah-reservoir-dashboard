@@ -22,6 +22,12 @@ export interface SnowUrlState {
   day: string | null;
   /** A measurement site's station identifier, or null for none chosen. */
   site: string | null;
+  /** The drainage area whose own season card is open, or null for none.
+   * Separate from `area` on purpose: `area` is the shared cross-page filter
+   * and narrows the whole page, while this names the one area the reader is
+   * studying in its detail card -- the same relationship `site` has to the
+   * table. */
+  basin: string | null;
   /** A name or county search over the site table. Empty for no search. */
   query: string;
   band: ElevationBand;
@@ -37,6 +43,7 @@ export function snowStateFromSearch(search: string): SnowUrlState {
   const area = params.get("area");
   const day = params.get("day");
   const site = params.get("site");
+  const basin = params.get("basin");
   const band = params.get("elev");
   const status = params.get("status");
   /* Trimmed and capped. A search box is the one field a link can carry an
@@ -47,6 +54,7 @@ export function snowStateFromSearch(search: string): SnowUrlState {
     area: area && HUC_CODE.test(area) ? area : null,
     day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
     site: site && STATION_PATTERN.test(site) ? site : null,
+    basin: basin && HUC_CODE.test(basin) ? basin : null,
     query,
     band: band && isElevationBand(band) ? band : "all",
     status: status && isSiteStatus(status) ? status : "all"
@@ -61,6 +69,8 @@ export function snowSearchFromState(state: SnowUrlState, search: string): string
   else params.delete("day");
   if (state.site) params.set("site", state.site);
   else params.delete("site");
+  if (state.basin) params.set("basin", state.basin);
+  else params.delete("basin");
   /* The default of each narrowing control is the absence of its parameter,
    * so a shared link carries what the reader changed and nothing else. */
   if (state.query.trim()) params.set("q", state.query.trim());

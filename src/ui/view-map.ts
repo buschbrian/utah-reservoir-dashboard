@@ -17,7 +17,6 @@ import "@arcgis/map-components/components/arcgis-fullscreen";
 import "@arcgis/map-components/components/arcgis-basemap-gallery";
 import "@arcgis/map-components/components/arcgis-compass";
 import "@arcgis/map-components/components/arcgis-expand";
-import "@arcgis/map-components/components/arcgis-locate";
 import "@arcgis/map-components/components/arcgis-home";
 import "@arcgis/map-components/components/arcgis-map";
 import "@arcgis/map-components/components/arcgis-scale-bar";
@@ -78,10 +77,30 @@ export function createViewMap(
      * the box, but where a reader is allowed to go should not. */
     geometry: { type: "extent", ...regionExtent() }
   };
-  /* Every control on the right, in the storage map's order. Zoom is
-   * included because a map component adds none of its own: without it the
-   * only way to zoom is the scroll wheel, which is no way at all on a
-   * trackpad inside a scrolling page.
+  /* Two clusters, split by what the control does, because these cards do
+   * not have the storage map's height. All six controls in one top-right
+   * stack is the storage map's arrangement, and it measures about 240px --
+   * fine down the edge of a full-viewport map, most of the height of a
+   * 416px card, and past it once the phone layout shortens the card
+   * further. A stack the card cannot hold does not scroll; it collides
+   * with the scale bar in the corner below it.
+   *
+   * So the right edge keeps only navigation -- zoom, then home, then
+   * compass, the things a reader lost in the map reaches for -- and the
+   * appearance controls (the background gallery and fullscreen) take the
+   * top-left corner, which on these cards nothing else owns: the legend
+   * sits at the *bottom* left, and the two meet only if the card shrinks
+   * below anything the suite tests. Zoom is included at all because a map
+   * component adds none of its own: without it the only way to zoom is the
+   * scroll wheel, which is no way at all on a trackpad inside a scrolling
+   * page.
+   *
+   * Locate is deliberately not here. These views are constrained to the
+   * drainage region -- a reader outside it (which is nearly every reader of
+   * a public dashboard) taps it and the view either refuses or leaves the
+   * region it cannot leave; an error with a button on it. The storage map
+   * keeps it for the reader standing on a reservoir; a 416px context card
+   * does not need to know where the reader is standing.
    *
    * The basemap gallery is here now, and was left out before for a reason
    * that has since been dealt with: these maps follow the page theme, so a
@@ -93,12 +112,11 @@ export function createViewMap(
     <arcgis-zoom slot="top-right"></arcgis-zoom>
     <arcgis-home slot="top-right"></arcgis-home>
     <arcgis-compass slot="top-right"></arcgis-compass>
-    <arcgis-locate slot="top-right"></arcgis-locate>
-    <arcgis-expand slot="top-right" close-on-esc
+    <arcgis-expand slot="top-left" close-on-esc
       expand-icon="basemap" expand-tooltip="Map background">
       <arcgis-basemap-gallery></arcgis-basemap-gallery>
     </arcgis-expand>
-    <arcgis-fullscreen slot="top-right"></arcgis-fullscreen>
+    <arcgis-fullscreen slot="top-left"></arcgis-fullscreen>
     <arcgis-scale-bar slot="bottom-right" unit="dual"></arcgis-scale-bar>`;
   const card = createHoverCard(options.cardId);
   host.replaceChildren(element, card);

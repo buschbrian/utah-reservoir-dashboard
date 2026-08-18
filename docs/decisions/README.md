@@ -51,7 +51,7 @@ supersedes the old one — the history is the point.
 | [ADR-040](ADR-040-open-the-snow-map-on-the-season-peak.md) | Open the snow map on the season's peak snow | Accepted |
 | [ADR-041](ADR-041-let-the-reader-choose-the-comparison-period.md) | Let the reader choose the comparison period, and open on the standard one | Accepted |
 | [ADR-042](ADR-042-sink-the-basemaps-reference-layers-below-the-data.md) | Sink the basemap's reference layers below this project's data | Accepted |
-| [ADR-043](ADR-043-shade-thematic-fills-from-above-with-a-no-key-hillshade.md) | Shade thematic fills from above, with a hillshade that needs no key | Accepted |
+| [ADR-043](ADR-043-shade-thematic-fills-from-above-with-a-no-key-hillshade.md) | Shade thematic fills from above, with a hillshade that needs no key | Superseded by ADR-054 |
 | [ADR-044](ADR-044-the-view-envelope-is-the-views-own.md) | The zoom envelope belongs to the view, not to the frozen module | Accepted |
 | [ADR-045](ADR-045-name-the-site-for-the-water-and-each-page-for-its-subject.md) | Name the site for the water, and each page for its own subject | Accepted |
 | [ADR-046](ADR-046-never-subtract-shares-with-different-denominators.md) | Never subtract two shares with different denominators | Accepted |
@@ -62,6 +62,7 @@ supersedes the old one — the history is the point.
 | [ADR-051](ADR-051-revalidate-do-not-refetch.md) | Revalidate, do not refetch | Accepted |
 | [ADR-052](ADR-052-write-the-snow-calendar-once.md) | Write the snow calendar once | Accepted |
 | [ADR-053](ADR-053-scope-the-west-by-drainage-not-longitude.md) | Scope the west by where the water goes, not by longitude | Accepted |
+| [ADR-054](ADR-054-make-the-terrain-the-ground-under-the-drought-classes.md) | Make the terrain the ground under the drought classes | Accepted |
 
 ## Relationship to the modernization plan
 

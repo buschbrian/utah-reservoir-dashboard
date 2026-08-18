@@ -24,11 +24,16 @@ import Point from "@arcgis/core/geometry/Point";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { DrainageArea, DrainageScope } from "../data/boundaries";
-import { createWatershedLayer, watershedCodeField } from "../arcgis/watershed-layers";
+import {
+  createWatershedLayer,
+  watershedCodeField,
+  WATERSHED_NAME_FIELD
+} from "../arcgis/watershed-layers";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
 import { SNOW_CLASSES, snowClassIndex } from "../viz/snow-classes";
 import { hitLayerId, type GraphicHit } from "./hit";
+import { drainageLabelingInfo } from "./layers";
 import { snowBasinLines, snowSiteLines } from "./hover-content";
 import { wireMapHover, type HoverResolution } from "./map-hover";
 import { followThemeBasemap } from "./theme-basemap";
@@ -51,6 +56,13 @@ export interface SnowMapStatus {
   basinsWithValues: number;
   sitesWithValues: number;
   day: string | null;
+  /** Drainage areas carrying their name, which is every area in scope --
+   * the label engine decides per frame which of them fit. */
+  basinLabels: number;
+  /** True while those names are placed by the label engine rather than at
+   * fixed points, so a name that cannot fit is dropped instead of being
+   * drawn over its neighbour (ADR-047). */
+  basinLabelsDeconflicted: boolean;
 }
 
 export interface SnowMapController {
@@ -59,6 +71,14 @@ export interface SnowMapController {
   setDay(values: MapDayValues, day: string): void;
   /** Emphasises one drainage area's outline, or none. */
   setArea(huc6: string | null): void;
+}
+
+export interface SnowMapOptions {
+  /** Called with an area's code when the reader clicks inside it. A pointer
+   * affordance only, like hover: the page's keyboard path to the same card
+   * is the picker on the card itself, so this never has to be reachable any
+   * other way. */
+  onAreaChoose?: (huc6: string) => void;
 }
 
 const OUTLINE = { color: "#5b6b7a", width: 0.7 };
@@ -147,7 +167,8 @@ export async function createSnowMap(
   card: HTMLElement,
   scope: DrainageScope,
   sites: readonly SnowSite[],
-  firstDay: { values: MapDayValues; day: string } | null
+  firstDay: { values: MapDayValues; day: string } | null,
+  options: SnowMapOptions = {}
 ): Promise<SnowMapController> {
   /*
    * The basins are the hosted layer, coloured by a value the service has
@@ -167,11 +188,32 @@ export async function createSnowMap(
   const { level, areas } = scope;
   const codeField = watershedCodeField(level);
   const siteLayer = new GraphicsLayer({ id: SITE_LAYER_ID });
+  /*
+   * The areas carry their names.
+   *
+   * They did not, and a reader had to hover each one to find out which
+   * basin they were looking at -- on the one map of the three where the
+   * areas *are* the subject rather than reference geometry over it. The
+   * hover card is the wrong instrument for "which of these is the Sevier":
+   * it answers one area at a time and only for a pointer, so a keyboard
+   * reader and a screenshot both got nothing.
+   *
+   * `drainageLabelingInfo` rather than a symbol written out here, and the
+   * hosted service's `name` field rather than a literal: this is the same
+   * treatment the storage map draws its drainage names in, and a drainage
+   * name that looked like one thing on one map and another on the next
+   * would be the label ladder disagreeing with itself. It brings ADR-047's
+   * dynamic deconfliction with it, which is what a scope that grows needs
+   * -- a name that cannot be placed drops rather than piling onto its
+   * neighbour.
+   */
   const basinLayer = createWatershedLayer({
     id: BASIN_LAYER_ID,
     level,
     codes: areas.map((area) => area.huc6),
-    renderer: basinRenderer(codeField, areas, null, null)
+    renderer: basinRenderer(codeField, areas, null, null),
+    labelsVisible: true,
+    labelingInfo: drainageLabelingInfo(WATERSHED_NAME_FIELD)
   });
 
   const siteByStation = new Map(sites.map((site) => [site.station, site]));
@@ -194,7 +236,9 @@ export async function createSnowMap(
     sites: siteGraphics.size,
     basinsWithValues: 0,
     sitesWithValues: 0,
-    day: null
+    day: null,
+    basinLabels: areas.length,
+    basinLabelsDeconflicted: true
   };
 
   /* Order is the reading order: the basin fill is the background and the
@@ -285,6 +329,36 @@ export async function createSnowMap(
       return null;
     }
   });
+
+  /* A click inside a basin opens that basin's own season card below the
+   * map. The same `hitTest` the hover path uses, restricted to the basin
+   * layer: a click on a site marker still lands in the basin under it,
+   * because the question a click asks is "this area, in full" and the
+   * answer to "this site, in full" is the site card, reached from the
+   * table. Like hover, this cannot settle in a hidden pane, and like hover
+   * nothing depends on it -- the card's picker is the path that always
+   * works. */
+  if (options.onAreaChoose) {
+    const chooseArea = options.onAreaChoose;
+    element.addEventListener("arcgisViewClick", (event) => {
+      const detail = (event as CustomEvent<{
+        screenPoint?: { x: number; y: number };
+      }>).detail;
+      const point = detail?.screenPoint;
+      if (!point) return;
+      void element.hitTest(point, { include: [basinLayer] }).then((hit) => {
+        for (const result of hit.results) {
+          const attributes = result.graphic?.attributes;
+          if (!attributes) continue;
+          const huc6 = String(attributes[codeField] ?? "");
+          if (huc6) {
+            chooseArea(huc6);
+            return;
+          }
+        }
+      });
+    });
+  }
 
   /* The page must not wait forever on a WebGL view: after the deadline the
    * readiness signal reports the view unready and the page moves on -- the

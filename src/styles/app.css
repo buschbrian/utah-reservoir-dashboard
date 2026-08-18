@@ -515,8 +515,15 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
    * added, at which point the theme control sat 8px outside a 360px
    * viewport -- not scrolled off, amputated, which nothing about the page
    * looked wrong for. Subtracting the end controls' lane means the title
-   * gives up characters to an ellipsis instead, which is visible. */
-  #brand { max-width: min(13rem, calc(100vw - 11rem)); }
+   * gives up characters to an ellipsis instead, which is visible.
+   *
+   * The lane is this page's five 32px actions plus the brand's own padding,
+   * measured at 176px -- and it is the whole rule. There was a 13rem cap
+   * min()ed in front of it, which on a 390px phone was the binding term:
+   * the title gave up characters while the bar had room, an ellipsis with
+   * nothing to point to. A cap that is not protecting the actions is only
+   * eating the title, so the lane subtraction stands alone. */
+  #brand { max-width: calc(100vw - 11rem); }
   /* The `height="m"` preset leaves about two rows on a phone, which is a
      table only in the sense that it has a heading.
 
@@ -633,11 +640,20 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
    * in the narrow bar. */
   .brand-title-wide { display: none; }
   .brand-title-narrow { display: inline; }
-  /* The overview has fewer actions than the map, but Calcite reserves more
-   * space around its slotted end controls there. Give those controls an
-   * explicit 12.5rem lane; max-width alone leaves the theme action clipped
-   * by 18px at 360px even with the shorter visible title. */
-  .overview-nav #brand { max-width: min(13rem, calc(100vw - 12.5rem)); }
+  /* Every page except the storage map carries two 32px end actions -- the
+   * page menu and the theme toggle -- so their lane is 64px of controls
+   * plus a small buffer for Calcite's own slot spacing, not the map's
+   * five-action 11rem. The old lane here was 12.5rem, sized as if these
+   * bars were the map's, and it applied only to `.overview-nav` besides:
+   * at 360px it clamped the brand to 160px and "Utah Snowpack" lost
+   * characters to an ellipsis while 136px of the bar sat empty beside it,
+   * and the methods and data pages fell through to the map's lane and
+   * clipped "Methods and Sources" the same way. Measured with the clamp
+   * lifted, every one of these titles fits every tested width with the
+   * actions untouched; the 6rem lane is there for the title that does
+   * not. */
+  .overview-nav #brand,
+  .methods-nav #brand { max-width: calc(100vw - 6rem); }
 }
 
 /* The twelve-month slider. Sits between the analysis controls and the list,

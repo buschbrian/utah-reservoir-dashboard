@@ -77,6 +77,13 @@ body {
 }
 .filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
+/* The site search rides in the head row next to the title rather than
+   stacked among the row of controls below: it narrows the table further
+   down the page, not the drainage area the row underneath is choosing
+   among. `min-width: 0` for the reason every filter control needs it here
+   -- an input sizes to its placeholder and would otherwise refuse to shrink
+   below it, which is what widens the page at 360px. */
+.filterbar-head-search { flex: 0 1 18rem; min-width: 0; }
 /* Every control gets the same share of the row and the same floor, so they
  * reflow together instead of one long select dragging the rest around.
  * `min(…, 100%)` keeps the floor from setting a page-widening minimum at
@@ -340,6 +347,18 @@ body {
   box-shadow: 0 .15rem .5rem rgb(20 45 56 / 14%);
   pointer-events: none;
 }
+/* Laid over the map, the key reads top to bottom in one column rather than
+   wrapping into rows: a reader's eye is already moving between the pattern
+   and a small box in the corner, and hunting across columns inside that box
+   as well is the wrong place to ask for more work. The plain form below --
+   used when the map cannot start, and again under a phone map -- keeps
+   wrapping, because there it is reading room, not a corner. */
+.drought-legend.map-inset-legend {
+  flex-direction: column;
+  align-items: start;
+  gap: .25rem;
+  max-inline-size: min(13rem, calc(100% - 5rem));
+}
 .view-map-host.has-inset-legend .chart-empty { inset-block-start: 40%; }
 
 @media (max-width: 42rem) {
@@ -353,6 +372,14 @@ body {
     border: 0;
     box-shadow: none;
     padding: 0;
+  }
+  /* Below the map the key is reading room again, not a corner overlay, so
+     it goes back to a wrapping row -- a single column of six chips would
+     run taller than the card needs to be. */
+  .drought-legend.map-inset-legend {
+    flex-direction: row;
+    gap: .4rem .9rem;
+    max-inline-size: none;
   }
 }
 
@@ -401,6 +428,10 @@ body {
      the whole width together rather than sitting in a corner of the
      heading row, where they would each be a third of a 360px line. */
   .filterbar-controls { grid-template-columns: 1fr; }
+  /* The search takes the head row's full width too, for the same reason
+     every other control drops to one per line here: a shared row only
+     works with room to share. */
+  .filterbar-head-search { flex-basis: 100%; }
   .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
   .dashboard-filterbar .reset-button { flex: 0 1 auto; }
   /* The headline gets its own line on a phone; the rest pair up. */

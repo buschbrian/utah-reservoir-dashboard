@@ -161,6 +161,16 @@ export async function createDroughtMap(
    * Achromatic on purpose. These outlines are reference geometry over the
    * monitor's own palette, and a coloured boundary would read as a sixth
    * class (ADR-032).
+   *
+   * **Both passes are quieter than they were**, and the casing more than the
+   * core. A 3.4px casing at 0.85 is a white line in its own right: fourteen
+   * of them ringed the region in a colour no class uses, and the eye went to
+   * the rings before the pattern they were drawn to locate. The casing's job
+   * is to keep the core legible on a maroon fill, which is a job it can do
+   * without being visible as a line -- so it is narrower and much more
+   * transparent, and the core is thinner and no longer near-opaque. The
+   * cased arrangement is unchanged; only its volume is. These are reference
+   * geometry on a map whose subject is underneath them.
    */
   const { level, areas } = scope;
   const codes = areas.map((area) => area.huc6);
@@ -192,33 +202,45 @@ export async function createDroughtMap(
     id: OUTLINE_CASING_LAYER_ID,
     level,
     codes,
-    renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.85)", 3.4) }
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.62)", 2.6) }
   });
   /*
    * The core carries the names as well as the dark line.
    *
    * ADR-047: fixed text symbols do not deconflict, and this map's inventory
-   * grows with the scope like every other. Cased like the boundary and for
-   * the same reason -- dark letters read on the pale classes, the bright
-   * halo reads on the dark ones -- so this keeps its own heavier halo rather
-   * than the storage map's, because it is written over the monitor's palette
-   * and not over terrain.
+   * grows with the scope like every other. The treatment is in the label
+   * symbol below, which is where the note about it lives.
    */
   const outlineLayer = createWatershedLayer({
     id: OUTLINE_LAYER_ID,
     level,
     codes,
-    renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.95)", 1.3) },
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.68)", 0.9) },
     labelsVisible: true,
     labelingInfo: [{
       labelExpressionInfo: { expression: `$feature.${WATERSHED_NAME_FIELD}` },
       labelPlacement: "always-horizontal",
       deconflictionStrategy: "dynamic",
+      /*
+       * Cased like the boundary, and for the same reason -- dark letters
+       * read on the pale classes, the halo reads on the dark ones -- but
+       * the halo was doing far more than that. At 2.4px and 0.92 it drew a
+       * white slab the width of the word behind every name, and fourteen of
+       * those over a five-class pattern is the map's loudest element sitting
+       * on top of its quietest question. Enough halo to separate the letters
+       * from a maroon fill, and no more.
+       *
+       * The weight stays bold. That is the label ladder's own rule
+       * (`viz/label-scales.ts`): drainage names are the one bold tier on
+       * every map on this site, and a name that changed weight per page
+       * would be the ladder disagreeing with itself. Colour and halo are
+       * where this map's volume is set.
+       */
       symbol: {
         type: "text",
-        color: "rgba(23,32,38,0.98)",
-        haloColor: "rgba(255,255,255,0.92)",
-        haloSize: "2.4px",
+        color: "rgba(31,41,48,0.82)",
+        haloColor: "rgba(255,255,255,0.62)",
+        haloSize: "1.4px",
         font: {
           family: LABEL_FONT_FAMILY,
           size: `${DRAINAGE_LABEL_SIZE_PX}px`,
@@ -272,27 +294,32 @@ export async function createDroughtMap(
    * their reservoirs, because those are what the figures on the page describe.
    */
   /*
-   * Terrain over the classes, not under them.
+   * Terrain under the classes, not over them (ADR-054, superseding ADR-043).
    *
-   * The usual way round is to multiply thematic fills over a hillshade, but
-   * that darkens the fills themselves -- and these fills are the Drought
-   * Monitor's own published colours, which this site is not entitled to
-   * restate in a different hue. Putting the shade *above* the classes and
-   * multiplying it leaves every class the colour the monitor gave it and
-   * varies only its lightness with the ground, which is the part a reader
-   * was missing: the classes are drawn on the flattest possible background,
-   * so nothing said where the mountains that make the water actually are.
+   * It was above them for two versions, on the argument that shading from
+   * above varies a class's lightness and leaves the monitor's hue untouched.
+   * The argument holds and the result did not: a glaze over the subject puts
+   * terrain and drought in the same pixels, so the relief has to be strong
+   * enough to read through a class before it says anything, and by then it is
+   * competing with the thing it was added to support.
    *
-   * Above the classes and below the outlines and reservoirs, so the shade
-   * never darkens this project's own reference geometry.
+   * Underneath, it is simply the ground. The classes are drawn at 0.45 alpha,
+   * so a reader was already seeing through them -- to the flattest possible
+   * background. This is the same view with something beneath it that says
+   * where the mountains that make the water are.
+   *
+   * At the very bottom, below the borrowed state and county lines as well:
+   * those are outlines over a transparent fill, and a shade above them would
+   * tint the lines themselves for no gain. `arcgis/hillshade.ts` carries why
+   * the blend operator is `normal` here and could not be `soft-light`.
    */
   const hillshade = createHillshadeLayer();
   const map = new ArcGISMap({
     layers: [
+      hillshade,
       ...(boundaries.states ? [boundaries.states] : []),
       ...(boundaries.counties ? [boundaries.counties] : []),
       droughtLayer,
-      hillshade,
       casingLayer,
       outlineLayer,
       reference.layer

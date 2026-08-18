@@ -14,38 +14,43 @@
  * `*.arcgisonline.com` allowance, and the policy was written from a
  * measurement of what the pages actually request, so nothing widened for it.
  *
- * ## Why it is drawn with `soft-light`
+ * ## Why it is the ground now, and not a glaze
  *
- * Blending is not new in 5.x — `layer.blendMode` has been there since 4.16 —
- * but it is what makes a hillshade usable as an overlay rather than a
- * background.
+ * This layer was drawn *above* the drought classes for its first two
+ * versions, first with `multiply` and then with `soft-light` (ADR-043). The
+ * argument was that shading from above varies the classes' lightness and
+ * leaves every hue exactly as the Drought Monitor published it. That is true,
+ * and it is also what made the map hard to read: a glaze over the subject
+ * puts terrain and drought in the same pixels, so neither is clean, and the
+ * relief has to be strong enough to see through a class before it says
+ * anything at all.
  *
- * This was `multiply` first, and `multiply` can only darken: it keeps a
- * layer's darks and lets its lights pass through, so where the hillshade is
- * light it multiplies toward 1 and does nothing at all. The result was
- * shadows and no highlights — terrain that reads as shading on the shaded
- * side and disappears on the lit side, which is exactly what it looked like
- * in use. Raising the opacity does not fix that; it only deepens the
- * shadows, because the operator has no way to make anything brighter.
+ * ADR-054 puts the shade underneath instead. The classes are drawn at 0.45
+ * alpha, so the ground is already visible through them — it was simply the
+ * flattest possible ground. Terrain beneath gives the classes something to
+ * sit on without touching the pixels the monitor's palette occupies.
  *
- * `soft-light` is the operator that does both. Mid-grey leaves the colour
- * beneath unchanged, lighter than mid-grey lightens it and darker darkens
- * it — so a hillshade's lit slopes brighten the class beneath them and its
- * shaded slopes deepen it, which is what relief shading is for. It is also
- * the gentler of the two candidates: `overlay` applies the same idea with
- * far more contrast and pushes the paler drought classes toward white.
+ * ## Why `normal` and not `soft-light`
  *
- * That is why this layer goes *above* the thematic fills on the drought map
- * rather than beneath them. Multiplying the fills over a hillshade would work
- * too, and would change the fills' own colours in the process — and those
- * fills are the Drought Monitor's published palette, which this site reports
- * rather than restyles. Shading from above varies their lightness with the
- * ground and leaves every hue exactly as the monitor set it.
+ * Because from underneath, `soft-light` does nothing measurable, and the
+ * arithmetic says so before a screenshot does.
  *
- * The opacity is the whole tuning surface. Too high and the map reads as a
- * relief map with a drought tint; too low and the terrain does nothing. It is
- * higher here than it was under `multiply`, because `soft-light` is a gentler
- * operator: the same opacity through it would be less terrain, not more.
+ * `soft-light` and `overlay` both pivot around mid-grey: their whole effect
+ * is proportional to `b * (1 - b)` of the backdrop they are composited over.
+ * Above the classes that backdrop is a mid-tone fill, where the term is
+ * large — which is exactly why it worked there. Underneath, the backdrop is
+ * the theme canvas. On `canvas/light-gray`, b is about 0.93, `b * (1 - b)`
+ * is 0.065, and at 0.3 opacity the entire luminance swing between a lit
+ * slope and a shaded one comes to roughly 1.2%. `overlay` computes to the
+ * same magnitude. Neither is a subtle effect; both are no effect.
+ *
+ * `normal` is what a hillshade is drawn for. It is a greyscale relief image
+ * meant to be ground, and over the light canvas at 0.3 the same two slopes
+ * land about fifteen points of luminance apart — relief a reader can see
+ * without it competing with the classes above. `multiply` was measured too
+ * and is indistinguishable from `normal` over a near-white canvas (a
+ * multiply against white *is* the source) while going nearly dead over the
+ * dark one, so it buys a theme-dependent result for nothing.
  */
 import TileLayer from "@arcgis/core/layers/TileLayer";
 
@@ -54,28 +59,31 @@ export const HILLSHADE_URL =
   "https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer";
 
 /**
- * How strongly the ground shows through.
+ * How strongly the ground shows.
  *
- * Restrained on purpose. At 1 the drought classes read as a terrain map that
- * happens to be tinted; the point is the opposite — classes first, with just
- * enough relief to say which of them are mountains and which are desert
- * basin. This is the one number to change if the terrain is too strong or too
- * faint; the operator below is what decides whether it can brighten at all.
+ * Restrained on purpose, and more so now that the shade is the ground rather
+ * than a glaze: the drought classes are drawn at 0.45 alpha over this, so
+ * whatever relief is here arrives at the reader already halved. At 1 the map
+ * reads as a relief map with a drought tint; the point is the opposite —
+ * classes first, with just enough terrain to say which of them are mountains
+ * and which are desert basin. This is the one number to change if the ground
+ * is too strong or too faint.
  */
-export const HILLSHADE_OPACITY = 0.6;
+export const HILLSHADE_OPACITY = 0.3;
 
 /**
  * How the shade is combined with what is beneath it.
  *
- * `soft-light` both lightens and darkens around mid-grey. `multiply` — what
- * this was — can only darken. `overlay` is the same idea as `soft-light` with
- * much more contrast, and is the one to try if the relief is still too
- * subtle at a high opacity.
+ * `normal`, because this layer is now underneath the subject rather than
+ * over it, and the pivot-around-mid-grey operators have almost nothing to
+ * work with against a near-white canvas — see the note above for the
+ * arithmetic. Change this line to `soft-light` or `overlay` to see that for
+ * yourself; the layer is otherwise unchanged.
  */
-export const HILLSHADE_BLEND_MODE = "soft-light";
+export const HILLSHADE_BLEND_MODE = "normal";
 
 /**
- * A terrain layer meant to be drawn over thematic fills.
+ * A terrain layer meant to be drawn as the ground beneath thematic fills.
  *
  * `listMode: "hide"` because it is not a layer a reader turns on and off; it
  * is part of how the map is drawn. It carries no data and answers no hit

@@ -116,12 +116,19 @@ assignment including theme swaps and the gallery, and `basemapReferenceSunk`
 reports it. A caller inserting at a fixed index must count from a layer it owns,
 not from zero.
 
-**Terrain shades the fills from above, not below** (ADR-043). Multiplying
-thematic fills over a hillshade restyles them, and on the drought map those
-fills are the Drought Monitor's published palette. The shade goes above the
-classes and below this project's own geometry. Note `multiply` can only darken:
-if lit slopes should brighten too, that is `soft-light` or `overlay`, not a
-higher opacity. The Basemap Styles hillshades need an API key (ADR-004 refuses
+**Terrain is the ground, at the bottom of the stack** (ADR-054, superseding
+ADR-043). It was above the drought classes for two versions, so that it varied
+their lightness and left the monitor's hues alone. The range between invisible
+and intrusive turned out to be empty: a shade over the subject has to be
+strong enough to read through a class before it says anything, and by then it
+is competing with it. The classes are drawn at 0.45 alpha, so a reader was
+always seeing through them — to a flat background. Now there is terrain there.
+**The blend operator is not a free choice from below.** `soft-light` and
+`overlay` pivot around mid-grey, so their effect scales with `b · (1 − b)` of
+the backdrop; against the `canvas/light-gray` theme canvas that is a swing of
+about 1% at 0.3 opacity, which is no effect at all. `normal` is the operator,
+and `HILLSHADE_BLEND_MODE` in `src/arcgis/hillshade.ts` carries the
+arithmetic. The Basemap Styles hillshades need an API key (ADR-004 refuses
 one); `World_Hillshade` is public and already inside the content policy.
 
 **A week-over-week drought change needs two files and uses one.** The current
