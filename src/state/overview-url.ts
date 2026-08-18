@@ -37,6 +37,8 @@ import { STORAGE_CLASSES } from "../viz/classes";
 const OVERVIEW_PARAMS = {
   query: "q",
   drainageArea: "area",
+  state: "state",
+  subregion: "huc4",
   county: "county",
   reporting: "reporting",
   geography: "reservoirs",
@@ -69,6 +71,10 @@ export interface OverviewUrlState {
   query: string;
   /** A drainage-area code the payload carries, or "all". */
   drainageArea: string;
+  /** A two-letter state code, or "all". Every state the water touches. */
+  state: string;
+  /** A four-digit subregion code, or "all". */
+  subregion: string;
   /** A five-digit county FIPS code, or "all". Never a county name. */
   county: string;
   reporting: OverviewCadence;
@@ -88,6 +94,8 @@ export interface OverviewUrlState {
 export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
   query: "",
   drainageArea: "all",
+  state: "all",
+  subregion: "all",
   county: "all",
   reporting: "all",
   geography: "utah",
@@ -144,6 +152,14 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
   const state: OverviewUrlState = { ...DEFAULT_OVERVIEW_STATE };
   for (const [key, value] of parseQuery(search)) {
     if (key === OVERVIEW_PARAMS.query) state.query = value.trim();
+    else if (key === OVERVIEW_PARAMS.state) {
+      /* Two upper-case letters, or nothing. Anything else is not a state code
+       * and must not narrow the view to an empty list. */
+      state.state = /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : "all";
+    }
+    else if (key === OVERVIEW_PARAMS.subregion) {
+      state.subregion = /^[0-9]{4}$/.test(value) ? value : "all";
+    }
     else if (key === OVERVIEW_PARAMS.county) {
       /* Exactly five digits, or nothing. A FIPS code is fixed-width and
        * zero-padded, so the digit count is the whole validation -- and a
@@ -205,6 +221,8 @@ export function searchWithOverviewState(
 
   if (full.query.trim() !== "") write("query", full.query.trim());
   if (full.drainageArea !== "all") write("drainageArea", full.drainageArea);
+  if (full.state !== "all") write("state", full.state);
+  if (full.subregion !== "all") write("subregion", full.subregion);
   if (full.county !== "all") write("county", full.county);
   if (full.reporting !== "all") write("reporting", full.reporting);
   if (full.geography !== "utah") write("geography", full.geography);

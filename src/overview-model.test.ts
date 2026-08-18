@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
 import {
   countyOptions,
+  reservoirInState,
+  stateOptions,
+  subregionOf,
+  subregionOptions,
   filterAndSort,
   filterOverview,
   monthlyTrend,
@@ -71,7 +75,8 @@ describe("modern overview model", () => {
       is_stale: true });
 
     expect(filterOverview([daily, late, other], {
-      query: "echo", huc6: "160202", county: "all", cadence: "late"
+      query: "echo", state: "all", huc4: "all", huc6: "160202",
+      county: "all", cadence: "late"
     })).toEqual([late]);
   });
 
@@ -124,7 +129,8 @@ describe("the county axis", () => {
   const all = [summitUt, summitCo, washington];
 
   const filters = (overrides: Partial<Parameters<typeof filterOverview>[1]>) =>
-    ({ query: "", huc6: "all", county: "all", cadence: "all" as const, ...overrides });
+    ({ query: "", state: "all", huc4: "all", huc6: "all", county: "all",
+       cadence: "all" as const, ...overrides });
 
   it("separates two counties that share a name in different states", () => {
     expect(filterOverview(all, filters({ county: "49043" }))).toEqual([summitUt]);
@@ -171,5 +177,77 @@ describe("the county axis", () => {
 
   it("searches county in the sorted path too, so the two cannot drift", () => {
     expect(filterAndSort(all, "washington", "name")).toEqual([washington]);
+  });
+});
+
+/* State and subregion, the two grouping axes the western expansion actually
+ * wants. Both narrow each other: a state holds subregions, a subregion holds
+ * drainage areas, and a reader starts wherever they like. */
+describe("the state and subregion axes", () => {
+  const powell = reservoir({ name: "Lake Powell", rise_item_id: 509,
+    huc6: "140700", state: "UT", waterbody_states: ["AZ", "UT"] });
+  const bear = reservoir({ name: "Bear Lake", rise_item_id: 601,
+    huc6: "160101", state: "ID", waterbody_states: ["ID", "UT"] });
+  const hyrum = reservoir({ name: "Hyrum", rise_item_id: 602,
+    huc6: "160102", state: "UT", waterbody_states: ["UT"] });
+  const all = [powell, bear, hyrum];
+
+  const filters = (overrides: Partial<Parameters<typeof filterOverview>[1]>) =>
+    ({ query: "", state: "all", huc4: "all", huc6: "all", county: "all",
+       cadence: "all" as const, ...overrides });
+
+  /* The choice ADR-060 forces: "in Utah" means the water, not the point.
+   * Bear Lake's point is in Idaho and it belongs in Utah's list, which is
+   * exactly what `intersects_utah` has always meant. */
+  it("matches on where the water is, not where the point is", () => {
+    expect(filterOverview(all, filters({ state: "UT" })))
+      .toEqual([powell, bear, hyrum]);
+    expect(filterOverview(all, filters({ state: "ID" }))).toEqual([bear]);
+    expect(filterOverview(all, filters({ state: "AZ" }))).toEqual([powell]);
+  });
+
+  it("lists a reservoir under every state its water touches", () => {
+    expect(stateOptions(all).map((o) => o.code)).toEqual(["AZ", "ID", "UT"]);
+  });
+
+  /* An older payload has no `waterbody_states`, and must not vanish from
+   * every state filter because of it. */
+  it("falls back to the point's state for a payload without the array", () => {
+    const { waterbody_states, ...older } = reservoir({
+      name: "Older", rise_item_id: 603, state: "WY" });
+    void waterbody_states;
+    expect(reservoirInState(older, "WY")).toBe(true);
+    expect(reservoirInState(older, "UT")).toBe(false);
+    expect(stateOptions([older]).map((o) => o.code)).toEqual(["WY"]);
+  });
+
+  /* Codes are fixed-width, so a subregion needs nothing published but its
+   * name -- the first four digits are already in every record (ADR-050). */
+  it("derives the subregion from the drainage-area code", () => {
+    expect(subregionOf(powell)).toBe("1407");
+    expect(subregionOf(bear)).toBe("1601");
+    expect(subregionOf(reservoir({ huc6: null }))).toBeNull();
+  });
+
+  it("filters by subregion", () => {
+    expect(filterOverview(all, filters({ huc4: "1601" }))).toEqual([bear, hyrum]);
+    expect(filterOverview(all, filters({ huc4: "1407" }))).toEqual([powell]);
+  });
+
+  it("names subregions from the roster and falls back to the code", () => {
+    const names = new Map([["1601", "Bear"]]);
+    expect(subregionOptions(all, names)).toEqual([
+      { code: "1407", label: "1407" },
+      { code: "1601", label: "Bear" }
+    ]);
+  });
+
+  it("narrows: state, then subregion, then drainage area", () => {
+    expect(filterOverview(all, filters({ state: "UT", huc4: "1601" })))
+      .toEqual([bear, hyrum]);
+    expect(filterOverview(all, filters({ state: "ID", huc4: "1601", huc6: "160102" })))
+      .toEqual([]);
+    expect(filterOverview(all, filters({ state: "UT", huc4: "1601", huc6: "160102" })))
+      .toEqual([hyrum]);
   });
 });

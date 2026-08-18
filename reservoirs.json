@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-18T22:16:46+00:00",
+  "generated_at": "2026-08-18T22:34:24+00:00",
   "start_date": "2015-01-01",
   "normal_period": {
     "start_year": 2015,
@@ -80,7 +80,53 @@
     "unassigned": 0,
     "assigned_by_dam": 43,
     "in_utah": 50,
-    "intersects_utah": 52
+    "intersects_utah": 52,
+    "subregions": [
+      {
+        "huc4": "1401",
+        "name": "Colorado Headwaters"
+      },
+      {
+        "huc4": "1403",
+        "name": "Upper Colorado-Dolores"
+      },
+      {
+        "huc4": "1404",
+        "name": "Great Divide-Upper Green"
+      },
+      {
+        "huc4": "1405",
+        "name": "White-Yampa"
+      },
+      {
+        "huc4": "1406",
+        "name": "Lower Green"
+      },
+      {
+        "huc4": "1407",
+        "name": "Upper Colorado-Dirty Devil"
+      },
+      {
+        "huc4": "1408",
+        "name": "San Juan"
+      },
+      {
+        "huc4": "1501",
+        "name": "Lower Colorado-Lake Mead"
+      },
+      {
+        "huc4": "1601",
+        "name": "Bear"
+      },
+      {
+        "huc4": "1602",
+        "name": "Great Salt Lake"
+      },
+      {
+        "huc4": "1603",
+        "name": "Escalante Desert-Sevier Lake"
+      }
+    ]
   },
   "counties": {
     "source": "Esri Living Atlas, USA Census Counties",

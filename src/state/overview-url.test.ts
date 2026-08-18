@@ -18,11 +18,13 @@ describe("reading the overview view out of a link", () => {
 
   it("reads every field it owns", () => {
     const state = overviewStateFromSearch(
-      "?q=Deer&area=140600&county=49051&reporting=late&reservoirs=connected&powell=include" +
+      "?q=Deer&area=140600&state=UT&huc4=1406&county=49051&reporting=late&reservoirs=connected&powell=include" +
       "&mead=include&storage=2&sort=percent&measure=storage&top=25&rank=name");
     expect(state).toEqual({
       query: "Deer",
       drainageArea: "140600",
+      state: "UT",
+      subregion: "1406",
       county: "49051",
       reporting: "late",
       geography: "connected",
@@ -161,5 +163,33 @@ describe("the county parameter", () => {
   it("writes the county back only when one is chosen", () => {
     expect(searchWithOverviewState({ county: "49051" })).toContain("county=49051");
     expect(searchWithOverviewState({ county: "all" })).not.toContain("county");
+  });
+});
+
+describe("the state and subregion parameters", () => {
+  it("accepts a two-letter code in any case and normalises it", () => {
+    expect(overviewStateFromSearch("?state=ut").state).toBe("UT");
+    expect(overviewStateFromSearch("?state=WY").state).toBe("WY");
+  });
+
+  it("refuses anything that is not a state code", () => {
+    for (const value of ["U", "UTA", "4", "Utah", ""]) {
+      expect(overviewStateFromSearch(`?state=${value}`).state).toBe("all");
+    }
+  });
+
+  it("takes a four-digit subregion and nothing else", () => {
+    expect(overviewStateFromSearch("?huc4=1601").subregion).toBe("1601");
+    for (const value of ["160", "16011", "16a1", ""]) {
+      expect(overviewStateFromSearch(`?huc4=${value}`).subregion).toBe("all");
+    }
+  });
+
+  it("writes each back only when one is chosen", () => {
+    expect(searchWithOverviewState({ state: "UT" })).toContain("state=UT");
+    expect(searchWithOverviewState({ subregion: "1601" })).toContain("huc4=1601");
+    const empty = searchWithOverviewState({ state: "all", subregion: "all" });
+    expect(empty).not.toContain("state=");
+    expect(empty).not.toContain("huc4=");
   });
 });

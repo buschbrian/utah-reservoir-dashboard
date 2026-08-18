@@ -18,6 +18,15 @@ and is not listed here.
   Arizona and never reaches Utah, so it appears only under the connected
   geography.
 
+- **Filter by state and by subregion, and drill down.** Three geographic
+  controls that narrow each other, coarsest first: a state holds subregions, a
+  subregion holds drainage areas, and a reader can start anywhere and stop
+  anywhere. Picking Wyoming does not then offer a subregion Wyoming has none
+  of. "In a state" means where the *water* is, so Bear Lake — whose point is
+  in Idaho — is in Utah's list, which is what the site has always meant by it.
+  Subregion codes cost nothing to publish: they are the first four digits of a
+  code every record already carries. Only the eleven names are new.
+
 - **Find a reservoir by its county.** Counties are a search and filter axis,
   not a grouping one -- measured first: 69 reservoirs fall in 35 counties and
   19 of those hold exactly one, so a county chart would be a reservoir chart

@@ -15,10 +15,42 @@ export type OverviewCadence = "all" | "daily" | "monthly" | "late";
 
 export interface OverviewFilters {
   query: string;
+  /**
+   * The three geographic filters narrow each other, coarsest first: a state
+   * holds subregions, a subregion holds drainage areas. A reader can start
+   * anywhere and stop anywhere.
+   */
+  state: string;
+  /** A four-digit subregion code, or "all". The first four digits of `huc6`. */
+  huc4: string;
   huc6: string;
   /** A five-digit FIPS code, or "all". Never a county name -- see `Reservoir`. */
   county: string;
   cadence: OverviewCadence;
+}
+
+/**
+ * Which state filter means what.
+ *
+ * ADR-060 records that "in Idaho" is three questions. This picks the second:
+ * every state the *water* touches. It is what `intersects_utah` has always
+ * meant for Utah, so Bear Lake stays in Utah's list where a reader expects
+ * it, and it is the only one of the three that answers "show me the water in
+ * my state" rather than "show me the dams filed under it".
+ */
+export function reservoirInState(reservoir: Reservoir, state: string): boolean {
+  if (state === "all") return true;
+  const states = reservoir.waterbody_states;
+  /* Fall back to the point's own state for a payload published before
+   * `waterbody_states` existed -- the field is optional for that reason. */
+  return states && states.length > 0
+    ? states.includes(state)
+    : reservoir.state === state;
+}
+
+/** The subregion a drainage area belongs to. Codes are fixed-width (ADR-050). */
+export function subregionOf(reservoir: Reservoir): string | null {
+  return reservoir.huc6 ? reservoir.huc6.slice(0, 4) : null;
 }
 
 export interface OverviewChartRecord {
@@ -135,6 +167,9 @@ export function filterOverview(
   const needle = normalize(filters.query);
   return reservoirs.filter((reservoir) => {
     const matchesQuery = !needle || searchText(reservoir).includes(needle);
+    const matchesState = reservoirInState(reservoir, filters.state);
+    const matchesSubregion = filters.huc4 === "all"
+      || subregionOf(reservoir) === filters.huc4;
     const matchesWatershed = filters.huc6 === "all" || reservoir.huc6 === filters.huc6;
     /* A reservoir with no county cannot match a chosen county. It is left
      * out rather than shown, because a filter naming one county and
@@ -146,8 +181,54 @@ export function filterOverview(
       || (filters.cadence === "late"
         ? isLate(reservoir)
         : reservoir.data_frequency === filters.cadence);
-    return matchesQuery && matchesWatershed && matchesCounty && matchesCadence;
+    return matchesQuery && matchesState && matchesSubregion && matchesWatershed
+      && matchesCounty && matchesCadence;
   });
+}
+
+export interface FilterOption {
+  code: string;
+  label: string;
+}
+
+/**
+ * The states a set of reservoirs touches.
+ *
+ * Every state in `waterbody_states`, not one per reservoir: Lake Powell is in
+ * both Utah's list and Arizona's, because its water is in both. That is the
+ * whole reason the field is an array (ADR-060).
+ *
+ * Two-letter codes are the label as well as the key. Spelling them out would
+ * be a second table to keep, and a filter listing UT, WY, CO reads fine.
+ */
+export function stateOptions(reservoirs: readonly Reservoir[]): FilterOption[] {
+  const codes = new Set<string>();
+  for (const reservoir of reservoirs) {
+    const states = reservoir.waterbody_states?.length
+      ? reservoir.waterbody_states
+      : (reservoir.state ? [reservoir.state] : []);
+    for (const code of states) codes.add(code);
+  }
+  return [...codes].sort().map((code) => ({ code, label: code }));
+}
+
+/**
+ * The subregions a set of reservoirs falls in.
+ *
+ * `names` comes from the payload's own roster; a code with no name is
+ * labelled by its code rather than dropped, because a subregion that exists
+ * in the data and not in the roster is still somewhere a reader can be.
+ */
+export function subregionOptions(
+  reservoirs: readonly Reservoir[], names: ReadonlyMap<string, string>
+): FilterOption[] {
+  const codes = new Set<string>();
+  for (const reservoir of reservoirs) {
+    const code = subregionOf(reservoir);
+    if (code) codes.add(code);
+  }
+  return [...codes].sort()
+    .map((code) => ({ code, label: names.get(code) || code }));
 }
 
 export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{

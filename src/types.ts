@@ -362,6 +362,15 @@ export interface ReservoirPayload {
   withdrawn_count?: number;
   /** Reservoirs this run declined to publish, and why. Never charted. */
   withdrawn?: WithdrawnReservoir[];
+  /**
+   * The drainage-area envelope. Only the part the surfaces read is typed:
+   * the block carries counts and provenance too, and a payload is not a
+   * place to restate the pipeline's own bookkeeping as a contract.
+   */
+  watersheds?: {
+    /** HUC-4 subregions the payload's areas roll up into, named (ADR-048). */
+    subregions?: { huc4: string; name: string }[];
+  };
   reservoirs: Reservoir[];
 }
 

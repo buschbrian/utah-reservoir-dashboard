@@ -164,6 +164,24 @@ county geometry is ever committed; the service resolves the point and answers
 with a code, and the *detailed* Living Atlas layer is required rather than
 preferred, because the generalized one puts Lost Lake outside Wasatch County.
 
+**The geographic filters narrow each other, coarsest first.** State holds
+subregion holds drainage area, and each control is repopulated from what the
+ones above it leave — a reader who picks Wyoming is never offered a subregion
+Wyoming has none of. A selection that survives the narrowing is kept; one that
+does not falls back to "all" rather than silently filtering to nothing.
+Repopulating a `<select>` must preserve the reader's choice when it is still on
+offer, or the control resets on every keystroke. **A subregion code is
+published nowhere**: codes are fixed-width, so it is `huc6.slice(0, 4)`. Only
+the *names* are published, in `reservoirs.json`'s `watersheds.subregions` —
+in the payload every surface fetches, not in `reference.json` which only the
+maps do, because one copy of a roster is the point of having one.
+
+**A state filter means the water** (ADR-060). Of the three questions, the
+control picks `waterbody_states`: it is what `intersects_utah` has always
+meant, so Bear Lake stays in Utah's list where a reader expects it. A payload
+without the array falls back to the point's own state rather than vanishing
+from every state filter.
+
 **A state is three questions** (ADR-060). `state` is the one state holding the
 published point, `waterbody_states` every state the water touches, and
 `connected_states` every state the drainage area reaches. Hyrum is wholly in

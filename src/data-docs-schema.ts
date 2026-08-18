@@ -93,8 +93,15 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("unassigned", "reservoirs", "Records without an assignment."),
     f("assigned_by_dam", "reservoirs", "Assignments made from a reviewed dam or outlet point."),
     f("in_utah", "reservoirs", "Records whose provider point is in Utah."),
-    f("intersects_utah", "reservoirs", "Records whose reviewed waterbody reaches Utah.")
+    f("intersects_utah", "reservoirs", "Records whose reviewed waterbody reaches Utah."),
+    f("subregions", "array",
+      "Four-digit subregions the drainage areas roll up into, with their names.")
   ]},
+  { id: "reservoir-subregion", title: "Subregion", path: "watersheds.subregions[]",
+    fields: [
+      f("huc4", "identifier", "Four-digit subregion code."),
+      f("name", "text", "Subregion name.")
+    ]},
   { id: "reservoir-record", title: "Reservoir record", path: "reservoirs[]", fields: [
     f("name", "text", "Reservoir name."),
     f("rise_item_id", "identifier", "Bureau of Reclamation item identifier, or null for another provider."),
