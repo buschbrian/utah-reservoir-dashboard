@@ -383,3 +383,20 @@ measurements, and implementation history live in
 - ArcGIS map pixels render blank in headless Chromium even when the map and
   reservoir layers are ready, so smoke tests assert runtime state as well as
   capturing screenshots.
+
+## License and commercial use
+
+Copyright © 2026 Brian Busch. The source code in this repository is licensed
+under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): you may read,
+run, study, and modify it for any noncommercial purpose, but commercial use
+requires a separate license. To license this dashboard commercially — for
+example, an embedded or white-label version for a news organization or
+agency — contact <brian.busch@me.com>.
+
+The license covers the code, not the measurements. The published JSON data
+files are built from public-domain sources produced by the federal agencies
+credited on the [methods page](https://buschbrian.github.io/utah-reservoir-dashboard/methods.html),
+and those agencies' own terms govern their data. Mapping and geospatial
+services are provided by [Esri](https://www.esri.com/) under Esri's own terms.
+See [terms.html](https://buschbrian.github.io/utah-reservoir-dashboard/terms.html)
+for the site's terms of use.

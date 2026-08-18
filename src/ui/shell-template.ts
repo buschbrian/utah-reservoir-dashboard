@@ -132,7 +132,8 @@ function panelContents(suffix: string): string {
         <div class="list-host" data-list="reservoirs" role="group"
           aria-labelledby="list-${suffix}"></div>
       </section>
-      <footer class="app-footer"><a href="./data.html">Use the public data API</a></footer>
+      <footer class="app-footer"><a href="./data.html">Use the public data API</a> ·
+        <a href="./terms.html">Terms and license</a></footer>
     </div>`;
 }
 

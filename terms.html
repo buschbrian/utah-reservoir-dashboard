@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- A static page: no scripts, no external requests, so the policy can be
+       far stricter than the application pages need. Inline style is the one
+       allowance, because this page carries its own stylesheet. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23356b6f'/%3E%3Cpath d='M16 6c-4 6-7 9-7 13a7 7 0 0 0 14 0c0-4-3-7-7-13Z' fill='white'/%3E%3C/svg%3E" />
+  <meta name="description" content="Terms of use, license, and credits for the Utah Water Dashboard." />
+  <title>Terms and License — Utah Water Dashboard</title>
+  <style>
+    :root {
+      --app-accent: #356b6f;
+      --app-border: #d4c5b2;
+      --app-muted: #655f55;
+      --app-surface: #f3eee6;
+      --app-surface-raised: #fffaf2;
+      --app-text: #2f342f;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --app-accent: #86b9b5;
+        --app-border: #5f5a50;
+        --app-muted: #c9c0b2;
+        --app-surface: #242723;
+        --app-surface-raised: #30332e;
+        --app-text: #f5efe5;
+      }
+    }
+    body {
+      margin: 0;
+      color: var(--app-text);
+      background: var(--app-surface);
+      font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    main {
+      max-width: 44rem;
+      margin-inline: auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    .eyebrow {
+      color: var(--app-muted);
+      font-size: .8125rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-block-end: .25rem;
+    }
+    h1 { font-size: 1.75rem; margin-block: 0 .5rem; }
+    h2 {
+      font-size: 1.125rem;
+      margin-block: 2rem .5rem;
+      padding-block-start: 1.25rem;
+      border-block-start: 1px solid var(--app-border);
+    }
+    a { color: var(--app-accent); }
+    .card {
+      background: var(--app-surface-raised);
+      border: 1px solid var(--app-border);
+      border-radius: .5rem;
+      padding: 1rem 1.25rem;
+      margin-block: 1rem;
+    }
+    footer {
+      max-width: 44rem;
+      margin-inline: auto;
+      padding: 0 1.25rem 2rem;
+      color: var(--app-muted);
+      font-size: .8125rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Utah Water Dashboard</p>
+    <h1>Terms and license</h1>
+    <p>This page states who made this site, what you may do with it, and what it
+      promises — which is deliberately little. The
+      <a href="./methods.html">methods page</a> explains where every number comes
+      from and credits every provider in full.</p>
+
+    <h2 id="not-official">Not an official product</h2>
+    <p>This is an independent project. It is not an official product of, and is
+      not sponsored or checked by, any government agency or data provider named
+      on this site. Where this site and an agency disagree, the agency is right.
+      Nothing here is a forecast, and nothing here is advice on water supply,
+      safety, or operations.</p>
+
+    <h2 id="license">Code license</h2>
+    <div class="card">
+      <p>Copyright © 2026 Brian Busch. The dashboard's source code is licensed
+        under the
+        <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" rel="noreferrer">PolyForm
+        Noncommercial License 1.0.0</a>: use it for any noncommercial purpose;
+        commercial use requires a separate license.</p>
+      <p><strong>Commercial licensing</strong> — for an embedded, branded, or
+        white-label version of this dashboard (news organizations, agencies,
+        districts), contact
+        <a href="mailto:brian.busch@me.com">brian.busch@me.com</a>.</p>
+    </div>
+
+    <h2 id="data">The data</h2>
+    <p>The measurements shown here are collected and published by the federal
+      and state providers credited on the
+      <a href="./methods.html#credit">methods page</a>. Their measurements are
+      public data under their own terms; the code license above does not apply
+      to them. The <a href="./data.html">public data API</a> republishes this
+      site's derived JSON files for anyone to read.</p>
+
+    <h2 id="geospatial">Geospatial services</h2>
+    <p>Mapping and geospatial services are provided by
+      <a href="https://www.esri.com/" rel="noreferrer">Esri</a>: the ArcGIS Maps
+      SDK for JavaScript, the Calcite design system, and the basemap and
+      location services the maps run on. Esri's own
+      <a href="https://www.esri.com/en-us/legal/terms/full-master-agreement" rel="noreferrer">terms</a>
+      govern those services. Naming Esri credits its work; it does not mean
+      Esri is involved with this site or endorses it.</p>
+
+    <h2 id="warranty">No warranty</h2>
+    <p>This site and its code come as is, without any warranty or condition.
+      Readings can arrive late, be revised by their providers, or be wrong, and
+      the site can be unavailable. Decisions that depend on water data should
+      rest on the responsible agency's own publications, not on this site.</p>
+  </main>
+  <footer>
+    <p><a href="./">Storage map</a> · <a href="./methods.html">Methods and
+      sources</a> · <a href="./data.html">Public data API</a> ·
+      <a href="https://github.com/buschbrian/utah-reservoir-dashboard" rel="noreferrer">Source
+      code</a></p>
+  </footer>
+</body>
+</html>
