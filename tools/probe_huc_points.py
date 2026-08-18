@@ -51,13 +51,13 @@ WBD_LAYER = "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/3"
 WBD_WHERE = "states LIKE '%UT%'"
 EXPECTED_UNITS = 14
 
-# The same inventory build_capacity_table.py resolves by searching ArcGIS
-# Online. Pinned here instead: this probe queries by NID id, so it needs one
-# known-good copy rather than schema-sniffing, and a probe that silently
-# picks a different layer than the capacity table would be comparing two
-# different inventories.
-NID_LAYER = ("https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/"
-             "services/NID_v1/FeatureServer/0")
+# The same inventory build_capacity_table.py reads, and now the same pinned
+# service: both point at the agency that maintains it. That was the reason
+# this constant was written out by hand in the first place -- a probe reading
+# a different copy of the inventory than the capacity table would be
+# comparing two things and reporting it as one.
+NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
+             "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
 NID_ID_FIELDS = ("NIDID", "nidId", "FEDERAL_ID", "federalId", "nidid")
 
 USER_AGENT = "utah-water-dashboard/huc-probe (+https://github.com/buschbrian)"

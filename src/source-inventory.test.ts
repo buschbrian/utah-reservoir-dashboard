@@ -46,15 +46,50 @@ describe("the authoritative source inventory", () => {
       .toContain(DROUGHT_SERVICE);
   });
 
-  it("keeps the dam-service migration visible until every active tool moves", async () => {
+  /* The migration is done, so this test changed sides. It used to assert that
+   * `add_dam_points.py` still named the retired layer -- the point being that
+   * a half-finished migration must stay visible rather than look complete.
+   * Now it asserts the opposite for every tool, which is what step 5 of the
+   * inventory's migration plan asks for: "a regression test that rejects the
+   * old service URL in active tools". The retired URL stays named in the
+   * inventory document, because that is the record of what moved and why. */
+  it("reads the dam inventory from the agency that maintains it", async () => {
     const inventory = await read("docs/AUTHORITATIVE-SOURCE-INVENTORY.md");
     expect(inventory).toContain(DAM_SERVICE);
     expect(inventory).toContain(OLD_DAM_SERVICE);
-    expect(inventory).toContain("Migration candidate");
-    expect(joinedPythonStrings(await read("tools/audit_candidate_capacity.py")))
-      .toContain(DAM_SERVICE);
-    expect(joinedPythonStrings(await read("tools/add_dam_points.py")))
-      .toContain(OLD_DAM_SERVICE);
+    expect(inventory).not.toContain("Migration candidate");
+
+    for (const tool of ["tools/audit_candidate_capacity.py", "tools/add_dam_points.py",
+      "tools/build_capacity_table.py", "tools/probe_huc_points.py",
+      "tools/audit_connected_reservoirs.py"]) {
+      const source = joinedPythonStrings(await read(tool));
+      expect(source, `${tool} does not name the owner-operated dam service`)
+        .toContain(DAM_SERVICE);
+      expect(source, `${tool} still names the retired hosted layer`)
+        .not.toContain(OLD_DAM_SERVICE);
+    }
+
+    /* The committed table and the payload that republishes it. `capacities.json`
+     * credited the retired layer while already holding the owner service's
+     * values, which is the failure mode a URL constant in a tool cannot catch:
+     * the provenance was wrong in the file, not in the code. */
+    for (const file of ["capacities.json", "reference.json", "connected_reservoirs.json"]) {
+      const source = await read(file);
+      expect(source, `${file} still credits the retired hosted layer`)
+        .not.toContain(OLD_DAM_SERVICE);
+    }
+  });
+
+  /* `build_capacity_table.py` used to find its layer by asking ArcGIS Online
+   * for "National Inventory of Dams" and taking the most-viewed answer, then
+   * writing whatever it found into `capacities.json`. The owner runs its own
+   * ArcGIS Server and publishes nothing to ArcGIS Online, so that search could
+   * never reach the authoritative copy -- and the provenance of the committed
+   * table was a record of a search ranking. */
+  it("pins the dam inventory rather than searching for it", async () => {
+    const source = await read("tools/build_capacity_table.py");
+    expect(source).not.toContain("arcgis.com/sharing/rest/search");
+    expect(source).not.toContain("find_nid_layer");
   });
 
   /* The default for new committed geometry is 100 metres, and every file that
