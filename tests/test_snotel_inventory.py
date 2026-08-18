@@ -63,3 +63,36 @@ def test_committed_inventory_is_internally_complete():
     }
     assert payload["selection"]["watershed_geometry"] == "full_resolution"
     assert payload["normal_period"] == {"start_year": 1991, "end_year": 2020}
+
+
+def test_a_drainage_area_with_no_sites_is_published_not_refused():
+    """Twenty-four of the 75 western basins hold no automated snow site.
+
+    Every one explains itself -- Sonoran and Mojave desert, Pacific coastal
+    lowland, Central Valley floor, and three basins that are in Mexico. This
+    used to raise, which was right while every area in scope had sites and
+    wrong the moment the scope reached ground that has none.
+    """
+    precise = [unit("111111", "One", 0, 1), unit("222222", "Desert", 1, 2)]
+    payload = build_inventory(
+        [station("1", 0.5)], precise, precise, scope_name="west-huc6")
+
+    assert payload["by_huc6"] == {"111111": 1, "222222": 0}
+    assert payload["unmonitored_areas"] == ["222222"]
+    assert payload["unmonitored_area_count"] == 1
+    validate_inventory(payload)
+
+
+def test_an_assignment_that_matches_nothing_still_fails():
+    """The failure the old guard was really protecting against.
+
+    A changed code field or a geometry mismatch assigns every station to
+    nothing, and that must stop the build rather than publish an inventory of
+    no sites and call every area unmonitored.
+    """
+    import pytest
+
+    precise = [unit("111111", "One", 0, 1)]
+    with pytest.raises(ValueError, match="do not agree"):
+        build_inventory([station("1", 5.0)], precise, precise,
+                        scope_name="west-huc6")

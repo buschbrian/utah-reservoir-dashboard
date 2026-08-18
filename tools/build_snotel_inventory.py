@@ -1,16 +1,23 @@
 """Build the reviewed snow monitoring site inventory.
 
-The map boundary is generalized to about 500 metres. That is safe for the
-reservoirs, but three snow sites sit within 65 metres of a divide. This tool
-therefore downloads the same fourteen six-digit hydrologic units without a
-generalization offset, assigns every active automated snow site by point, and
-writes the small station inventory rather than committing the large geometry.
+The committed boundary is generalized, and that is safe for the reservoirs but
+not for the snow sites: several sit within 65 metres of a divide. This tool
+therefore downloads the scope's hydrologic units *without* a generalization
+offset, assigns every active automated snow site by point against the full
+resolution geometry, and writes the small station inventory rather than
+committing the large shapes. Sites the two resolutions disagree about are
+listed in the result rather than resolved silently.
 
 Run this deliberately when reviewing station membership; the daily data
 refresh reads the committed result and does not silently add or remove sites.
 
+The scope is a choice, and every scope in the registry is offered -- including
+the ones registered but not yet published, because reviewing a geography
+before anything draws it is exactly what an unpublished scope is for.
+
     python tools/build_snotel_inventory.py
     python tools/build_snotel_inventory.py --dry-run
+    python tools/build_snotel_inventory.py --scope west-huc6 --dry-run
 """
 
 import argparse
@@ -28,10 +35,10 @@ from huc import assign_huc, units_from_collection  # noqa: E402
 from tools.audit_awdb_stations import AWDB_STATIONS, USER_AGENT  # noqa: E402
 from tools.fetch_watershed_scope import (  # noqa: E402
     ArcGISRestClient,
-    WBD_LAYER,
+    layer_for,
     normalize_collection,
 )
-from watershed_scopes import get_scope, load_scope_units  # noqa: E402
+from watershed_scopes import SCOPES, get_scope, load_scope_units  # noqa: E402
 
 OUTPUT = ROOT / "snow_sites.json"
 TIMEOUT = 120
@@ -59,7 +66,11 @@ def fetch_station_catalog(session=None) -> list[dict]:
 
 def fetch_precise_units(scope_name: str, session=None) -> list[dict]:
     scope = get_scope(scope_name)
-    collection = ArcGISRestClient(WBD_LAYER, session=session).query(
+    # The layer the scope's own level names, not a pinned six-digit one. Each
+    # hydrologic level is a separate layer on the service, so a level-4 or
+    # level-8 scope fetched from layer 3 would return the wrong sized units --
+    # or nothing -- rather than failing. ADR-050's rule, at the fetch end.
+    collection = ArcGISRestClient(layer_for(scope.level), session=session).query(
         scope,
         geometry_precision="6",
         max_allowable_offset=None,
@@ -133,9 +144,26 @@ def build_inventory(stations: list[dict], precise_units: list[dict],
     by_huc6 = {unit["huc6"]: 0 for unit in precise_units}
     for site in sites:
         by_huc6[site["huc6"]] += 1
-    empty = [huc6 for huc6, count in by_huc6.items() if count == 0]
-    if empty:
-        raise ValueError(f"no snow sites found in drainage areas: {', '.join(empty)}")
+    # A drainage area with no automated snow site is a fact, not a failure.
+    #
+    # This used to refuse outright, which was right while every area in scope
+    # had sites: at Utah-connected coverage an empty area could only mean the
+    # assignment had gone wrong. It is wrong at western coverage. Twenty-four
+    # of the 75 western basins have no SNOTEL station and every one of them
+    # explains itself -- the Sonoran and Mojave deserts, the Pacific coastal
+    # lowlands, the Central Valley floor, the Great Divide Closed Basin, and
+    # three basins that are in Mexico, where a United States network does not
+    # reach by definition.
+    #
+    # So the areas are published as unmonitored rather than rejected, and the
+    # guard moves to the failure it was really protecting against: an
+    # assignment that produced nothing at all, which is what a geometry
+    # mismatch or a changed code field actually looks like.
+    unmonitored = sorted(huc6 for huc6, count in by_huc6.items() if count == 0)
+    if not sites:
+        raise ValueError(
+            f"no snow sites fell inside any of the {len(by_huc6)} drainage areas; "
+            "the assignment geometry and the station catalog do not agree")
 
     return {
         "schema_version": 1,
@@ -149,7 +177,7 @@ def build_inventory(stations: list[dict], precise_units: list[dict],
         },
         "sources": {
             "stations": AWDB_STATIONS,
-            "watersheds": WBD_LAYER,
+            "watersheds": layer_for(get_scope(scope_name).level),
             "normal_period": (
                 "https://www.nrcs.usda.gov/resources/data-and-reports/"
                 "climatic-and-hydrologic-normals"
@@ -157,6 +185,11 @@ def build_inventory(stations: list[dict], precise_units: list[dict],
         },
         "site_count": len(sites),
         "by_huc6": by_huc6,
+        # Named rather than left to be inferred from a zero. A map drawing an
+        # area with no sites has to say which of "none here" and "none known"
+        # it means, and only the payload knows.
+        "unmonitored_areas": unmonitored,
+        "unmonitored_area_count": len(unmonitored),
         "assignment_review": assignment_review,
         "provider_huc_disagreements": provider_disagreements,
         "sites": sites,
@@ -205,7 +238,7 @@ def write_atomic(path: Path, payload: dict) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scope", default="utah-connected",
-                        choices=("utah-connected", "upper-colorado"))
+                        choices=tuple(sorted(SCOPES)))
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
