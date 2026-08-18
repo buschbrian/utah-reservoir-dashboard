@@ -1,3 +1,40 @@
+# What this site costs over the wire
+
+Two rules before any figure below is read:
+
+- **Gzip is what a reader actually pays.** GitHub Pages compresses the JSON,
+  so a raw byte count overstates the cost several times over. The local test
+  server used for the per-page measurements does *not* compress, so figures
+  taken from it are raw and marked as such.
+- **Re-measure rather than reason.** Every number here came from a real
+  request and each one moves with things that are easy to change by accident.
+
+## The payloads
+
+| file | raw | gzip |
+|---|---:|---:|
+| `snowpack.json` | 1,166 KB | **98.8 KB** |
+| `reservoirs.json` | 357 KB | 41.8 KB |
+| `reference.json` | 21 KB | 5.5 KB |
+
+`snowpack.json` was 1,913 KB raw and 216.6 KB gzipped until ADR-052 wrote the
+water-year calendar once instead of once per site: **54% off the wire**, with
+all 68,540 rows verified identical after the rebuild.
+
+## Paying twice for the same bytes
+
+Every runtime fetch used `cache: "no-store"`, which refuses the cache and so
+refuses the conditional request with it. The published site answers one
+happily:
+
+```
+ETag: W/"6a83a376-1de2c0"   →   If-None-Match: …   →   HTTP/1.1 304 Not Modified
+```
+
+ADR-051 switched to `no-cache`, which never serves a stored copy without
+asking and never pays for one it already has. A repeat visit inside a day
+costs a round trip instead of 228 KB on the snow page.
+
 # What the drainage boundaries cost over the wire
 
 Measured, not estimated. Every figure here comes from a real page load against

@@ -63,8 +63,14 @@ describe("public API field documentation", () => {
       merged(data.sites.map((site: Record<string, any>) => site.normal_timing.peak)));
     expectFields(SNOW_GROUPS, "snow-date", merged(data.sites.flatMap(
       (site: Record<string, any>) => [site.normal_timing.onset, site.normal_timing.meltout])));
-    expect(group(SNOW_GROUPS, "snow-site-series").fields.map((field) => field.key))
-      .toEqual(Object.keys(data.sites[0].series[0]));
+    /* The three columns are parallel, so the check that matters is that they
+     * stay the same length as one another -- a documented column that is
+     * shorter than its neighbours rebuilds into a shorter series, which
+     * draws a complete and plausible curve for the wrong days. */
+    for (const site of data.sites as Record<string, any>[]) {
+      expect(site.series_values.length).toBe(site.series_days.length);
+      expect(site.series_normals.length).toBe(site.series_days.length);
+    }
   });
 
   it("covers every current reference field", () => {

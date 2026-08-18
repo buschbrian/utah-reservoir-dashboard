@@ -62,6 +62,17 @@ of years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
 
+**Measure payload cost gzipped, never raw** (ADR-051, ADR-052). GitHub Pages
+compresses the JSON, so a raw byte count overstates what a reader pays by
+several times -- `snowpack.json` is 1,166 KB on disk and 99 KB on the wire.
+Runtime fetches use `cache: "no-cache"`, which is not "do not cache": it means
+never use a stored copy without asking, so the morning's rewrite can never be
+served stale and an unchanged file costs a 304 instead of the whole payload.
+The snow series publishes the water-year calendar once and each site indexes
+into it; `validateSnowpackPayload` rebuilds the rows, so nothing downstream
+knows. Never encode a missing day as a null value -- a null reading is a row
+that exists, and 13,910 of them do.
+
 **The payload carries the roster; the service carries the shapes**
 (ADR-047, ADR-048). `reference.json` publishes each area's code, name and
 states and no drainage geometry -- it was 1,001 KB and is 21 KB, and every

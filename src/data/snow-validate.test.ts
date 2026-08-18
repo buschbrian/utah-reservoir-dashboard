@@ -4,13 +4,14 @@ import { validateSnowpackPayload } from "./snow-validate";
 
 function validPayload(): Record<string, unknown> {
   return {
-    schema_version: 1,
+    schema_version: 2,
     generated_at: "2026-08-15T12:00:00Z",
     as_of: "2026-08-15",
     water_year: 2026,
     normal_period: { start_year: 1991, end_year: 2020 },
     units: "inches",
-    site_series_fields: ["date", "value_inches", "normal_median_inches"],
+    site_series_fields: ["series_days", "series_values", "series_normals"],
+    series_dates: ["2026-08-13", "2026-08-14"],
     source: "https://example.com/awdb",
     site_count: 1,
     late_site_count: 0,
@@ -44,7 +45,12 @@ function validPayload(): Record<string, unknown> {
         onset: { month: 10, day: 15 },
         meltout: { month: 6, day: 1 }
       },
-      series: [["2026-08-14", 0.0, 0.0]]
+      /* The second day of the shared calendar, and nothing on the first --
+       * the encoding's whole job is that this stays different from a site
+       * that reported null on both. */
+      series_days: [1],
+      series_values: [0.0],
+      series_normals: [0.0]
     }]
   };
 }
@@ -69,19 +75,52 @@ describe("snowpack payload validation", () => {
       .toThrow("Invalid snow site record at index 0 (Testsnow)");
   });
 
-  it("rejects a series row with the wrong column count", () => {
+  it("rejects columns of different lengths", () => {
+    /* Three parallel arrays that do not line up cannot be rebuilt into rows,
+     * and the wrong answer here is not an error -- it is a shorter series
+     * that draws a complete, plausible, wrong curve. */
     const payload = validPayload();
     const site = (payload.sites as Record<string, unknown>[])[0]!;
-    site.series = [["2026-08-14", 0.0]];
+    site.series_values = [0.0, 1.0];
+    expect(() => validateSnowpackPayload(payload))
+      .toThrow("Invalid snow site record at index 0 (Testsnow)");
+  });
+
+  it("rejects a day outside the shared calendar", () => {
+    const payload = validPayload();
+    const site = (payload.sites as Record<string, unknown>[])[0]!;
+    site.series_days = [99];
     expect(() => validateSnowpackPayload(payload))
       .toThrow("Invalid snow site record at index 0 (Testsnow)");
   });
 
   it("rejects renamed series columns before a chart reads the wrong one", () => {
     const payload = validPayload();
-    payload.site_series_fields = ["date", "value_inches", "median_inches"];
+    payload.site_series_fields = ["series_days", "series_values", "median"];
     expect(() => validateSnowpackPayload(payload))
       .toThrow("unexpected series columns");
+  });
+
+  /* The dates are written once and every site indexes into them, so their
+   * order is load-bearing in a way no single row's order ever was: dates out
+   * of order rebuild every site against the wrong days. */
+  it("rejects series dates that are not ascending", () => {
+    const payload = validPayload();
+    payload.series_dates = ["2026-08-14", "2026-08-13"];
+    expect(() => validateSnowpackPayload(payload))
+      .toThrow("ascending order");
+  });
+
+  it("rejects a payload with no shared calendar at all", () => {
+    const payload = validPayload();
+    delete payload.series_dates;
+    expect(() => validateSnowpackPayload(payload))
+      .toThrow("shared series dates");
+  });
+
+  it("rebuilds the rows every reader downstream expects", () => {
+    const payload = validateSnowpackPayload(validPayload());
+    expect(payload.sites[0]?.series).toEqual([["2026-08-14", 0.0, 0.0]]);
   });
 
   it("rejects a unit change before a label lies about it", () => {

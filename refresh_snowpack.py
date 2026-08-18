@@ -209,26 +209,42 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
     normalized.sort(key=lambda site: (site["huc6"], site["name"], site["station"]))
     huc_names = {site["huc6"]: site["huc6_name"] for site in inventory["sites"]}
     rollups = build_rollups(normalized, huc_names)
-    # The full water year is about 70,000 observations. Field names repeated
-    # on every one make the runtime file several times larger without adding
-    # information, so the published station series declares its columns once.
+    # The full water year is about 70,000 observations, and the date is the
+    # expensive column: every site keeps its own copy of the same water-year
+    # calendar, so "2025-10-01" is written two hundred times over. The dates
+    # are written once here and each site says which of them it has, as
+    # positions in that shared list.
+    #
+    # Positions rather than a start and a length, because seven sites have
+    # gaps in the middle of their record and a contiguous slice loses them
+    # silently. Positions rather than a full-length array with a hole marker,
+    # because a null already means something here -- one row has no reading
+    # and 13,910 have no normal, and "no row for this day" must stay a
+    # different fact from "a row that reads null".
+    #
+    # Measured on the current file: 1,913 KB to 1,166 KB raw, and 217 KB to
+    # 99 KB over the wire, with the rebuilt rows identical to these.
+    series_dates = sorted({
+        row["date"] for site in normalized for row in site["series"]})
+    date_index = {date: position for position, date in enumerate(series_dates)}
     compact_sites = []
     for site in normalized:
         compact = {key: value for key, value in site.items() if key != "series"}
-        compact["series"] = [
-            [row["date"], row["value_inches"], row["normal_median_inches"]]
-            for row in site["series"]
-        ]
+        compact["series_days"] = [date_index[row["date"]] for row in site["series"]]
+        compact["series_values"] = [row["value_inches"] for row in site["series"]]
+        compact["series_normals"] = [
+            row["normal_median_inches"] for row in site["series"]]
         compact_sites.append(compact)
     timestamp = generated_at or datetime.now(timezone.utc)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": timestamp.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "as_of": as_of.isoformat(),
         "water_year": water_year_start(as_of).year + 1,
         "normal_period": inventory["normal_period"],
         "units": "inches",
-        "site_series_fields": ["date", "value_inches", "normal_median_inches"],
+        "site_series_fields": ["series_days", "series_values", "series_normals"],
+        "series_dates": series_dates,
         "source": DATA_URL,
         "site_count": len(normalized),
         "late_site_count": sum(site["late"] for site in normalized),

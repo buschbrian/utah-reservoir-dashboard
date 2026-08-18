@@ -59,6 +59,8 @@ supersedes the old one — the history is the point.
 | [ADR-048](ADR-048-publish-the-roster-not-the-polygons.md) | Publish the drainage roster, not the drainage polygons | Accepted |
 | [ADR-049](ADR-049-stop-publishing-the-drainage-polygons.md) | Stop publishing the drainage polygons | Accepted |
 | [ADR-050](ADR-050-the-drawn-level-is-the-scopes-not-the-views.md) | The drawn level is the scope's, not the view's | Accepted |
+| [ADR-051](ADR-051-revalidate-do-not-refetch.md) | Revalidate, do not refetch | Accepted |
+| [ADR-052](ADR-052-write-the-snow-calendar-once.md) | Write the snow calendar once | Accepted |
 
 ## Relationship to the modernization plan
 

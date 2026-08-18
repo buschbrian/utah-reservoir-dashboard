@@ -20,14 +20,18 @@ describe("a runtime fetch with a deadline", () => {
     expect(response.ok).toBe(true);
   });
 
-  it("asks for a fresh copy, because the file is rewritten every morning", async () => {
+  /* The freshness promise, and the cheap way of keeping it. `no-cache` is
+   * not "do not cache" -- it is "never use a copy without asking first", so
+   * a payload rewritten this morning can never be served from this morning's
+   * cache, and one that has not changed costs a 304 instead of the file. */
+  it("revalidates every time, because the file is rewritten every morning", async () => {
     let init: RequestInit | undefined;
     globalThis.fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
       init = options;
       return new Response("{}", { status: 200 });
     }) as typeof globalThis.fetch;
     await fetchWithin("./reservoirs.json");
-    expect(init).toMatchObject({ cache: "no-store" });
+    expect(init).toMatchObject({ cache: "no-cache" });
   });
 
   it("throws on a status that is not OK, naming the status and the file", async () => {

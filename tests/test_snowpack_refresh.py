@@ -122,5 +122,20 @@ def test_payload_covers_inventory_and_uses_the_mountain_water_year():
     assert payload["site_count"] == 1
     assert payload["generated_at"] == "2026-03-01T12:00:00Z"
     assert payload["site_series_fields"] == [
-        "date", "value_inches", "normal_median_inches"]
-    assert payload["sites"][0]["series"] == [["2026-03-01", 6.0, 8.0]]
+        "series_days", "series_values", "series_normals"]
+    # The dates are written once for the whole file and each site names the
+    # ones it published, as positions in that list. Rebuilding this site's
+    # single row has to give back exactly the row it used to publish.
+    assert payload["series_dates"] == ["2026-03-01"]
+    site_out = payload["sites"][0]
+    assert site_out["series_days"] == [0]
+    assert site_out["series_values"] == [6.0]
+    assert site_out["series_normals"] == [8.0]
+    assert "series" not in site_out
+    rebuilt = [
+        [payload["series_dates"][day], value, normal]
+        for day, value, normal in zip(
+            site_out["series_days"], site_out["series_values"],
+            site_out["series_normals"])
+    ]
+    assert rebuilt == [["2026-03-01", 6.0, 8.0]]

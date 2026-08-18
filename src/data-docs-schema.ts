@@ -167,6 +167,7 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("normal_period", "object", "Standard climate comparison period."),
     f("units", "text", "Storage unit used by each site series."),
     f("site_series_fields", "array", "Meaning and order of values in each compact site-series row."),
+    f("series_dates", "array", "The water-year calendar the sites index into, ascending, written once."),
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),
     f("late_site_count", "sites", "Number of sites with late readings."),
@@ -204,7 +205,9 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("latest_date", "date", "Newest published site reading."),
     f("late", "true or false", "Whether the newest reading is late."),
     f("normal_timing", "object", "Usual snow onset, high point and melt-out dates."),
-    f("series", "array", "Compact daily rows ordered by site_series_fields.")
+    f("series_days", "array", "Positions in series_dates this site published."),
+    f("series_values", "array", "Measured snow water equivalent, in inches, one per entry in series_days."),
+    f("series_normals", "array", "Standard normal median, in inches, one per entry in series_days.")
   ]},
   { id: "snow-timing", title: "Normal timing", path: "sites[].normal_timing", fields: [
     f("peak", "object", "Usual high point: month, day and inches."),
@@ -219,11 +222,6 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
   { id: "snow-date", title: "Normal onset or melt-out date", path: "sites[].normal_timing.onset or meltout", fields: [
     f("month", "month number", "Usual month."),
     f("day", "day number", "Usual day.")
-  ]},
-  { id: "snow-site-series", title: "Compact site-series row", path: "sites[].series[]", fields: [
-    f("0", "date", "Date, named by site_series_fields[0]."),
-    f("1", "inches", "Measured snow water equivalent, named by site_series_fields[1]."),
-    f("2", "inches", "Standard normal median, named by site_series_fields[2].")
   ]}
 ];
 

@@ -35,7 +35,23 @@ export async function fetchWithin(
   let response: Response;
   try {
     response = await fetch(url, {
-      cache: "no-store",
+      /*
+       * Revalidate, do not refetch.
+       *
+       * `no-store` was here because the payload is rewritten every morning
+       * and the deploy is that commit (ADR-002), so a stale copy shows
+       * yesterday's numbers. It kept that promise by refusing the cache
+       * entirely -- which also refuses the conditional request, and pays for
+       * the whole file to be told nothing changed.
+       *
+       * `no-cache` keeps the same promise and stops paying for it: the
+       * browser must ask the server every time, and never serves a stale
+       * copy without asking. Measured against the published site, which
+       * answers `ETag: W/"..."` and `304 Not Modified` to a conditional
+       * request -- so a reader who has already seen today's numbers pays
+       * headers rather than 228 KB. See ADR-051.
+       */
+      cache: "no-cache",
       signal: AbortSignal.timeout(timeoutMs)
     });
   } catch (error) {
