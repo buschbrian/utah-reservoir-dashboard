@@ -57,9 +57,11 @@ before installing anything:
 - Do **not** physically move the current pages during Phase 0. Their URLs are
   the production contract. The Vite build instead copies them verbatim to
   `dist/` while `modern.html` is developed alongside them.
-- Runtime data uses `fetch(..., { cache: "no-store" })`. A cache key based on
-  `as_of` is circular because the client only knows `as_of` after fetching the
-  payload. The build copies data to `dist/data/` and never imports it into the
+- Runtime data uses `fetch(..., { cache: "no-cache" })` — revalidate, never
+  serve a stored copy unasked (ADR-051 moved this off `no-store`, which paid
+  for the whole payload on every visit). A cache key based on `as_of` is
+  circular because the client only knows `as_of` after fetching the payload.
+  The build copies data to `dist/data/` and never imports it into the
   application bundle.
 - **SDK assets stay on Esri's CDN for this deployment.** A local copy of the
   installed core, map, common, chart and Calcite asset trees is 57.9 MiB across
@@ -893,9 +895,12 @@ and a build failure silently freezes the dashboard.
 
 **Rule: data is fetched at runtime, never bundled.** Concretely:
 
-- The typed app fetches `./data/reservoirs.json` with `cache: "no-store"`.
-- The Pages build copies `reservoirs.json`, `capacities.json`, and
-  `huc6.geojson` into both `dist/` and `dist/data/`; it never imports them.
+- The typed app fetches `./data/reservoirs.json` with `cache: "no-cache"`
+  (ADR-051).
+- The Pages build copies `reservoirs.json` and `capacities.json` into both
+  `dist/` and `dist/data/`; it never imports them. `huc6.geojson` is no
+  longer copied at all (ADR-049) — it stays committed as the assignment
+  source and nothing in a browser fetches it.
 - The deploy workflow runs on direct pushes to `main` and after a successful
   refresh workflow, and verifies that the payload did not enter `dist/assets`.
 - Root file paths remain available for the production pages while the typed

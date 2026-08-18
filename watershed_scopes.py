@@ -209,11 +209,6 @@ def validate_huc_codes(codes, level: int = 6, region: str | None = None) -> list
     return sorted(values)
 
 
-def validate_huc6_codes(codes, region: str | None = None) -> list[str]:
-    """The six-digit case, kept so existing callers read unchanged."""
-    return validate_huc_codes(codes, 6, region)
-
-
 def load_scope_units(name: str, *, root: Path = ROOT) -> list[dict]:
     """Load the committed boundaries configured for one named scope."""
     from huc import load_units

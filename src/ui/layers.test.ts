@@ -1,6 +1,8 @@
 ﻿import { describe, expect, it } from "vitest";
 import type { Reservoir } from "../types";
 import { STORAGE_CLASSES } from "../viz/classes";
+import { SNOW_CLASSES } from "../viz/snow-classes";
+import { DROUGHT_CLASSES } from "../viz/drought-classes";
 import {
   DRAINAGE_LABEL_SIZE_PX,
   LABEL_FONT_FAMILY,
@@ -233,7 +235,7 @@ describe("the reservoir reference layer", () => {
    * A single simple renderer is what enforces that -- a unique-value or
    * size-variable renderer here would be the storage map's claim smuggled
    * onto a page about something else. */
-  it("carries one neutral symbol, never the storage class colours", () => {
+  it("carries one neutral symbol, never a class colour from any table", () => {
     const renderer = createReservoirReferenceLayer(reservoirs).layer.renderer as {
       type?: string;
       symbol?: { color?: { toHex(): string } };
@@ -241,7 +243,10 @@ describe("the reservoir reference layer", () => {
 
     expect(renderer.type).toBe("simple");
     const color = renderer.symbol?.color?.toHex();
-    for (const entry of STORAGE_CLASSES) {
+    /* All three tables, because this marker rides the snow and drought maps:
+     * a storage colour would smuggle the storage map's claim onto another
+     * page, and a snow or drought colour would read as a sixth class. */
+    for (const entry of [...STORAGE_CLASSES, ...SNOW_CLASSES, ...DROUGHT_CLASSES]) {
       expect(color).not.toBe(entry.color);
     }
   });

@@ -18,7 +18,6 @@ from watershed_scopes import (
     get_scope,
     huc_field,
     load_scope_units,
-    validate_huc6_codes,
     validate_huc_codes,
 )
 
@@ -92,14 +91,14 @@ def test_upper_colorado_scope_is_separate_from_the_published_scope():
 
 
 def test_huc_validation_preserves_codes_as_strings_and_rejects_wrong_regions():
-    assert validate_huc6_codes(["140100", "140200"], "14") == ["140100", "140200"]
+    assert validate_huc_codes(["140100", "140200"], 6, "14") == ["140100", "140200"]
 
     with pytest.raises(ValueError, match="6-digit strings"):
-        validate_huc6_codes([140100], "14")
+        validate_huc_codes([140100], 6, "14")
     with pytest.raises(ValueError, match="outside region 14"):
-        validate_huc6_codes(["150100"], "14")
+        validate_huc_codes(["150100"], 6, "14")
     with pytest.raises(ValueError, match="duplicate"):
-        validate_huc6_codes(["140100", "140100"], "14")
+        validate_huc_codes(["140100", "140100"], 6, "14")
 
 
 def test_validation_follows_the_level_rather_than_assuming_six():

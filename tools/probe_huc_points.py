@@ -1,5 +1,9 @@
 """Work out which point each reservoir should be assigned to a watershed by.
 
+Superseded rather than required: its answer is recorded in ADR-005 and the
+dam points it argued for are committed (tools/add_dam_points.py). Kept for
+re-running the measurement when a new provider point looks suspect.
+
 Phase 1.5 says a reservoir belongs to the six-digit hydrologic unit that
 contains its *dam or outlet* point, not the centre of its water polygon,
 because a large reservoir can span a boundary and the assignment is meant to
