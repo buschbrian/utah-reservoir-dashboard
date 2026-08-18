@@ -39,7 +39,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from huc import assign_huc, in_utah, load_units  # noqa: E402
 from admission import NAMED_RADIUS_KM, distance_km  # noqa: E402
-from watershed_scopes import load_scope_units  # noqa: E402
+from watershed_scopes import (  # noqa: E402
+    DEFAULT_SCOPE, SCOPES, load_scope_units,
+)
 
 # The same normalization build_capacity_table.py uses to match our names
 # against a second agency's. Without it "Causey" and "Causey Reservoir" read
@@ -153,8 +155,12 @@ def find_candidates(units=None):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--scope", choices=("utah-connected", "upper-colorado"),
-                        default="utah-connected")
+    # Every registered scope, not a list written down twice.
+    # `watershed_scopes.py` is the one place that decides which geographies
+    # exist; a tool with its own copy of that list stops offering the newest
+    # one the moment somebody adds it.
+    parser.add_argument("--scope", choices=tuple(sorted(SCOPES)),
+                        default=DEFAULT_SCOPE)
     args = parser.parse_args()
 
     candidates, info = find_candidates(load_scope_units(args.scope))

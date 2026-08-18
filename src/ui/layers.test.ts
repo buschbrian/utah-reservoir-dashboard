@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
-import type { DrainageArea } from "../data/boundaries";
+﻿import { describe, expect, it } from "vitest";
 import type { Reservoir } from "../types";
 import { STORAGE_CLASSES } from "../viz/classes";
+import { SNOW_CLASSES } from "../viz/snow-classes";
+import { DROUGHT_CLASSES } from "../viz/drought-classes";
 import {
   DRAINAGE_LABEL_SIZE_PX,
   LABEL_FONT_FAMILY,
@@ -9,24 +10,20 @@ import {
   RESERVOIR_DETAIL_SCALE,
   RESERVOIR_LABEL_SCALE
 } from "../viz/label-scales";
-import { cssPixelsToPoints } from "../viz/units";
+import { DRAINAGE_FILL, DRAINAGE_LINE } from "../data/boundaries";
+import { WATERSHED_NAME_FIELD } from "../arcgis/watershed-layers";
 import {
   DRAINAGE_LABEL_HALO_COLOR,
   DRAINAGE_LABEL_MIN_SCALE,
   DRAINAGE_LABEL_HALO_PX,
-  DRAINAGE_NAME_FIELD,
   NAME_FIELD,
   RESERVOIR_REFERENCE_LAYER_ID,
-  createDrainageLayer,
   createReservoirLayer,
   createReservoirReferenceLayer,
+  drainageLabelingInfo,
+  drainageRenderer,
   reservoirLabelingInfo
 } from "./layers";
-
-const square = (west: number, south: number): [number, number][] => [
-  [west, south], [west + 1, south], [west + 1, south + 1],
-  [west, south + 1], [west, south]
-];
 
 const reservoirNamed = (name: string): Reservoir => ({
   name,
@@ -65,62 +62,92 @@ describe("the reservoir layer", () => {
   });
 });
 
-describe("the drainage-area layer", () => {
-  it("builds one source feature and one background label per HUC6", () => {
-    const areas: DrainageArea[] = [{
-      huc6: "140100",
-      name: "Colorado Headwaters",
-      states: "CO,UT",
-      // Two disconnected polygons still belong to one drainage-area feature.
-      polygons: [[square(-110, 39)], [square(-108, 39)]]
-    }, {
-      huc6: "160202",
-      name: "Jordan",
-      states: "UT",
-      polygons: [[square(-112, 40)]]
-    }];
+describe("the drainage-area names", () => {
+  /* ADR-047. The names are a label class on the hosted layer now, so what
+   * this file can hold is what the class says -- the field it reads, the
+   * scale it appears at, and the appearance ADR-030 was right about. Where
+   * each name lands is the engine's answer, per frame, and not a fact a
+   * unit test can pin. */
+  const [labelClass] = drainageLabelingInfo(WATERSHED_NAME_FIELD) as {
+    labelExpressionInfo: { expression: string };
+    labelPlacement: string;
+    deconflictionStrategy: string;
+    minScale: number;
+    symbol: {
+      type: string;
+      color: string;
+      haloColor: string;
+      haloSize: string;
+      font: { family: string; size: string; weight: string };
+    };
+  }[];
 
-    const result = createDrainageLayer(areas);
-
-    expect(result.labels).toBe(areas.length);
-    expect(result.layer.source.length).toBe(areas.length);
-    expect(result.labelLayer.graphics.length).toBe(areas.length);
-    expect(result.layer.source.at(0)?.geometry?.type).toBe("polygon");
-    expect((result.layer.source.at(0)?.geometry as { rings?: unknown[] }).rings).toHaveLength(2);
-    expect(result.labelLayer.graphics.at(0)?.geometry?.type).toBe("point");
+  it("reads the name from the field it is told to", () => {
+    /* A parameter rather than a constant, because the name arrives as
+     * `area_name` from the payload and `name` from the hosted service --
+     * and an expression naming a field the layer does not have throws once
+     * per tile inside a worker while the map looks merely unlabelled. */
+    expect(labelClass?.labelExpressionInfo.expression)
+      .toBe(`$feature.${WATERSHED_NAME_FIELD}`);
+    const [hosted] = drainageLabelingInfo("name") as typeof labelClass[];
+    expect(hosted?.labelExpressionInfo.expression).toBe("$feature.name");
   });
 
-  it("uses one name symbol with a half-opacity halo at the regional map scale", () => {
-    const result = createDrainageLayer([{
-      huc6: "160202",
-      name: "Jordan",
-      states: "UT",
-      polygons: [[square(-112, 40)]]
-    }]);
-    const label = result.labelLayer.graphics.at(0);
-    const symbol = label?.symbol;
+  /* The guarantee that replaced fixed placement: a name that cannot fit is
+   * dropped rather than stacked on its neighbour. Without this the engine
+   * draws every name it is given, which is the failure ADR-047 exists to
+   * end -- and it would look identical at fourteen areas. */
+  it("drops a name it cannot place rather than piling it on another", () => {
+    expect(labelClass?.deconflictionStrategy).toBe("dynamic");
+  });
 
-    expect(result.layer.labelingInfo ?? []).toHaveLength(0);
-    expect(result.labelLayer.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
-    expect(result.labelLayer.graphics).toHaveLength(1);
-    expect(label?.attributes?.[DRAINAGE_NAME_FIELD]).toBe("Jordan");
-    expect(symbol?.type).toBe("text");
-    expect((symbol as { text?: string } | null | undefined)?.text).toBe("Jordan");
-    expect((symbol as { haloSize?: number } | null | undefined)?.haloSize)
-      .toBe(cssPixelsToPoints(DRAINAGE_LABEL_HALO_PX));
-    expect((symbol as { haloColor?: { toCss(alpha?: boolean): string } } | null | undefined)
-      ?.haloColor?.toCss(true).replaceAll(" ", "")).toBe(DRAINAGE_LABEL_HALO_COLOR);
+  it("appears at the regional map scale, with one class for every area", () => {
+    expect(drainageLabelingInfo(WATERSHED_NAME_FIELD)).toHaveLength(1);
+    expect(labelClass?.minScale).toBe(DRAINAGE_LABEL_MIN_SCALE);
+  });
+
+  /* ADR-030 was right about the halo and this is the half that carried
+   * over: a near-opaque halo covered more of the map than the text it was
+   * separating from the background. */
+  it("keeps the half-opacity halo at the width ADR-027 set", () => {
+    expect(labelClass?.symbol.haloColor).toBe(DRAINAGE_LABEL_HALO_COLOR);
+    expect(labelClass?.symbol.haloSize).toBe(`${DRAINAGE_LABEL_HALO_PX}px`);
+    expect(labelClass?.symbol.font.size).toBe(`${DRAINAGE_LABEL_SIZE_PX}px`);
+  });
+
+  /*
+   * Atkinson Hyperlegible Next, drawn for low-vision readability and added
+   * to the SDK's 2D label fonts in 5.1. One family, and the weight as a
+   * weight.
+   *
+   * This shipped as four families -- "Atkinson Hyperlegible Next Bold" and
+   * so on, which is how the SDK documents them -- and every label silently
+   * fell back to the default sans, because 2D labels are glyph atlases
+   * fetched by a slug built from the family *and* the weight: the name
+   * already ending in "Regular" asked the host for
+   * `atkinson-hyperlegible-next-regular-regular`, which does not exist. The
+   * browser suite now watches the font host for exactly that.
+   */
+  it("draws the drainage names in the same family at bold weight", () => {
+    expect(labelClass?.symbol.font.family).toBe(LABEL_FONT_FAMILY);
+    expect(labelClass?.symbol.font.weight).toBe(LABEL_FONT_WEIGHT_BOLD);
+  });
+
+  it("fills and outlines the areas from the one colour table", () => {
+    const renderer = drainageRenderer() as {
+      type: string; symbol: { color: string; outline: { color: string } };
+    };
+    expect(renderer.type).toBe("simple");
+    expect(renderer.symbol.color).toBe(DRAINAGE_FILL);
+    expect(renderer.symbol.outline.color).toBe(DRAINAGE_LINE);
   });
 });
 
 describe("reservoir names", () => {
-  /* The drainage names could not use the label engine -- they have to sit
-   * under the reservoirs and the label pass always paints above (ADR-030).
-   * Reservoir names want exactly what that pass gives, including the
-   * deconfliction a layer of text symbols cannot do, so the two label
-   * treatments are deliberately different mechanisms and this holds them
-   * apart: the drainage layer has no labelling info, the reservoir layer
-   * does. */
+  /* Both label treatments are the engine's now (ADR-047), which is why this
+   * no longer holds them apart by mechanism. What still separates them is
+   * the ladder: a reservoir is named closer in than the area containing it,
+   * so the two never compete for the same pixels at the same scale. */
   it("labels the reservoir layer through the SDK label engine", () => {
     const result = createReservoirLayer([reservoirNamed("Jordanelle")]);
 
@@ -170,30 +197,6 @@ describe("reservoir names", () => {
     expect(label?.symbol.font.weight).not.toBe(LABEL_FONT_WEIGHT_BOLD);
   });
 
-  /*
-   * Atkinson Hyperlegible Next, drawn for low-vision readability and added to
-   * the SDK's 2D label fonts in 5.1. One family, and the weight as a weight.
-   *
-   * This shipped as four families -- "Atkinson Hyperlegible Next Bold" and
-   * so on, which is how the SDK documents them -- and every label silently
-   * fell back to the default sans, because 2D labels are glyph atlases
-   * fetched by a slug built from the family *and* the weight: the name
-   * already ending in "Regular" asked the host for
-   * `atkinson-hyperlegible-next-regular-regular`, which does not exist. The
-   * browser suite now watches the font host for exactly that.
-   */
-  it("draws the drainage names in the same family at bold weight", () => {
-    const result = createDrainageLayer([{
-      huc6: "160202", name: "Jordan", states: "UT", polygons: [[square(-112, 40)]]
-    }]);
-    const font = (result.labelLayer.graphics.at(0)?.symbol as {
-      font?: { family?: string; weight?: string };
-    } | null | undefined)?.font;
-
-    expect(font?.family).toBe(LABEL_FONT_FAMILY);
-    expect(font?.weight).toBe(LABEL_FONT_WEIGHT_BOLD);
-  });
-
   /* The mistake this file exists to prevent repeating: a family name that
    * already carries its own weight. The SDK appends the weight to build the
    * glyph-atlas slug, so any family ending in a weight word asks for a font
@@ -232,7 +235,7 @@ describe("the reservoir reference layer", () => {
    * A single simple renderer is what enforces that -- a unique-value or
    * size-variable renderer here would be the storage map's claim smuggled
    * onto a page about something else. */
-  it("carries one neutral symbol, never the storage class colours", () => {
+  it("carries one neutral symbol, never a class colour from any table", () => {
     const renderer = createReservoirReferenceLayer(reservoirs).layer.renderer as {
       type?: string;
       symbol?: { color?: { toHex(): string } };
@@ -240,7 +243,10 @@ describe("the reservoir reference layer", () => {
 
     expect(renderer.type).toBe("simple");
     const color = renderer.symbol?.color?.toHex();
-    for (const entry of STORAGE_CLASSES) {
+    /* All three tables, because this marker rides the snow and drought maps:
+     * a storage colour would smuggle the storage map's claim onto another
+     * page, and a snow or drought colour would read as a sixth class. */
+    for (const entry of [...STORAGE_CLASSES, ...SNOW_CLASSES, ...DROUGHT_CLASSES]) {
       expect(color).not.toBe(entry.color);
     }
   });

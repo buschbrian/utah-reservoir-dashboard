@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from admission import (  # noqa: E402
     CONSERVATION_ALLOWANCE, NAMED_RADIUS_KM, NEAR_RADIUS_KM, admit, admit_all,
-    capacity_of, distance_km, find_dam, holds_more_than_the_dam, normalize_name,
+    capacity_of, could_hold, distance_km, find_dam, holds_more_than_the_dam,
+    normalize_name,
 )
 
 
@@ -139,6 +140,19 @@ class TestFindingTheDam:
     def test_says_nothing_rather_than_guessing_with_no_dams(self):
         assert find_dam((-111.0, 40.0), "Anywhere", []) is None
 
+    def test_a_matching_name_picks_among_structures_all_near_enough(self):
+        # Hyrum's gauge has Hyrum Dike at 0.93 km and Hyrum Dam at 1.06 km.
+        # Both are the same impoundment and hold the same water, and the dam
+        # is the structure this project means; nearest-wins would take the
+        # dike.
+        gauge = (-111.852, 41.617)
+        dike = dam("Hyrum Dike", -111.852, 41.617 + 0.00836, 18685, 30300)
+        hyrum = dam("Hyrum Dam", -111.852, 41.617 + 0.00953, 18685, 30300)
+        assert distance_km(gauge, (hyrum["lon"], hyrum["lat"])) < NEAR_RADIUS_KM
+        match = find_dam(gauge, "Hyrum Reservoir", [dike, hyrum])
+        assert match.dam is hyrum
+        assert match.confirmed_by == "name and position"
+
 
 class TestTheCapacityCheck:
     """Reject a match only when the reservoir holds more than the dam can."""
@@ -166,6 +180,33 @@ class TestTheCapacityCheck:
 
     def test_no_observed_storage_is_not_evidence_of_a_bad_match(self):
         assert holds_more_than_the_dam(MCPHEE, None) is False
+
+
+class TestTheLenientScreen:
+    """could_hold chooses between candidate structures.
+
+    Deliberately weaker than `holds_more_than_the_dam`, which accepts a match
+    once it is found. Using the strict ceiling to choose throws away the
+    right dam and settles for whatever is left.
+    """
+
+    def test_a_reservoir_run_a_little_over_its_maximum_pool_still_qualifies(self):
+        # Echo: 74,791 acre-feet seen against a 73,940 maximum pool. The
+        # strict ceiling refuses that -- correct for accepting a found match,
+        # wrong for deciding which structure to look at.
+        echo = dam("Echo", -111.44, 40.97, 65000, 73940)
+        assert holds_more_than_the_dam(echo, 74791) is True
+        assert could_hold(echo, 74791) is True
+
+    def test_a_structure_an_order_of_magnitude_too_small_is_screened_out(self):
+        pond = dam("Settling Pond", -111.0, 39.35, 360)
+        assert could_hold(pond, 4259) is False
+
+    def test_a_dam_with_no_figures_is_not_screened_on_size(self):
+        assert could_hold(dam("Nameless", 0, 0), 4259) is True
+
+    def test_no_observed_storage_screens_nothing(self):
+        assert could_hold(dam("Any", 0, 0, 100), None) is True
 
 
 class TestTheDenominator:
@@ -220,6 +261,21 @@ class TestWholeDecisions:
         assert "more water than the dam can contain" in decision.reason
         # The evidence survives the refusal, so the case can be reviewed.
         assert decision.evidence()["nid_dam_name"] == "Trout Lake"
+
+    def test_screens_out_a_structure_that_could_not_hold_the_water(self):
+        # Huntington North: a settling pond 0.29 km from the gauge holding
+        # 360 acre-feet, its own dam 13.49 km away holding 5,420, and 4,259
+        # observed. Position alone picks the pond, and the strict ceiling
+        # then refuses the reservoir itself. The screen lets the dam win.
+        gauge_lon, gauge_lat = -111.04, 39.35
+        pond = dam("Pacificorp Settling Pond", gauge_lon, gauge_lat + 0.00261, 360)
+        real = dam("Huntington North Dam", gauge_lon, gauge_lat + 0.12131, 5420)
+        decision = admit({"name": "Huntington North Reservoir",
+                          "lon": gauge_lon, "lat": gauge_lat,
+                          "observed_max_af": 4259}, [pond, real])
+        assert decision.admitted is True
+        assert decision.evidence()["nid_dam_name"] == "Huntington North Dam"
+        assert decision.evidence()["match_confirmed_by"] == "name and position"
 
     def test_keeps_the_order_it_was_given(self):
         candidates = [

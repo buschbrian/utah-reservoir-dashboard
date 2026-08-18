@@ -34,6 +34,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import admission  # noqa: E402
 from refresh_reservoirs import RESERVOIRS, load_previous, OUTPUT_PATH  # noqa: E402
 
 AGOL_SEARCH = "https://www.arcgis.com/sharing/rest/search"
@@ -52,6 +53,8 @@ FIELD_OPTIONS = {
     "nid": ("nidstorage", "nidstor"),
     "state": ("state", "statename", "stateabbr", "stateabbreviation"),
     "nidid": ("nidid", "federalid", "nididnumber"),
+    "lat": ("latitude", "lat", "ycoord", "y"),
+    "lon": ("longitude", "lon", "long", "xcoord", "x"),
 }
 
 
@@ -93,13 +96,9 @@ STATES = {
     "UTAH": ("UTAH", "ARIZONA", "WYOMING"),
 }
 
-NOISE = re.compile(r"\b(reservoir|lake|dam|and|powerplant|no|number)\b", re.I)
-
-
-def normalize(name: str) -> str:
-    name = NOISE.sub(" ", name or "")
-    return re.sub(r"[^a-z0-9]+", "", name.lower())
-
+# Name normalization lives in `admission.py` now. Two copies of the rule
+# for which words two agencies are likely to drop is how the two matchers
+# came to disagree in the first place.
 
 def get(url: str, params: dict | None = None, timeout: int = 60):
     try:
@@ -152,21 +151,47 @@ def find_nid_layer() -> str | None:
 
 
 def fetch_utah_dams(layer_url: str, where: str) -> list[dict]:
-    """Every Utah dam in the inventory, paged."""
+    """Every dam in scope, paged, carrying its position.
+
+    The geometry is asked for now. It used to be refused, which is the whole
+    reason this tool matched on name alone: it had no position to match on.
+    That was survivable while the query was one state and is not at eleven --
+    the inventory holds several "Mud Lake", and a name bucket picks between
+    them by storage.
+    """
     rows, offset = [], 0
     while True:
         page = get(f"{layer_url}/query", {
             "f": "json", "where": where, "outFields": "*",
-            "returnGeometry": "false", "resultOffset": offset,
-            "resultRecordCount": 1000,
+            "returnGeometry": "true", "outSR": 4326,
+            "resultOffset": offset, "resultRecordCount": 1000,
         })
         features = (page or {}).get("features") or []
-        rows.extend(f.get("attributes", {}) for f in features)
+        for feature in features:
+            row = dict(feature.get("attributes") or {})
+            geometry = feature.get("geometry") or {}
+            if geometry.get("x") is not None:
+                row["_lon"], row["_lat"] = geometry["x"], geometry["y"]
+            rows.append(row)
         if len(features) < 1000:
             break
         offset += 1000
-    print(f"\n=== {len(rows)} Utah dams in the inventory")
+    located = sum(1 for row in rows if row.get("_lon") is not None)
+    print()
+    print(f"=== {len(rows)} dams in the inventory, {located} with a position")
     return rows
+
+
+def pick_coord(dam: dict, resolved: dict, key: str):
+    """A position from the attributes, when the geometry did not come."""
+    field = resolved.get(key)
+    if not field:
+        return None
+    try:
+        return float(dam.get(field))
+    except (TypeError, ValueError):
+        return None
+
 
 
 def pick(value):
@@ -183,7 +208,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    layer_url, resolved, where, utah_value = find_nid_layer()
+    layer_url, resolved, where, _state_value = find_nid_layer()
     if not layer_url:
         print("ERROR: no dam inventory found with a usable schema", file=sys.stderr)
         return 1
@@ -194,33 +219,62 @@ def main() -> int:
         return 1
 
     name_field = resolved["name"]
-    by_norm: dict[str, list[dict]] = {}
-    for dam in dams:
-        by_norm.setdefault(normalize(dam.get(name_field)), []).append(dam)
-
-    # Observed record maxima, to catch a match that attached the wrong dam.
-    observed = {name: rec.get("record_max_af")
-                for name, rec in load_previous(OUTPUT_PATH).items()}
 
     def storage(dam, key):
         return pick(dam.get(resolved[key])) if resolved.get(key) else None
 
+    # Observed record maxima, to catch a match that attached the wrong dam.
+    observed = {name: rec.get("record_max_af")
+                for name, rec in load_previous(OUTPUT_PATH).items()}
+    # One matcher for the whole project. `admission.find_dam` confirms a dam
+    # two ways -- near enough that nothing else could be it, or further away
+    # and named the same -- and both radii are measured, against reservoirs
+    # whose dam is already confirmed by its inventory identifier. The
+    # bucket-by-name-and-take-the-biggest this replaces has no distance
+    # component at all, so at western scale it attaches the largest dam
+    # sharing a name rather than the one at the gauge.
+    located = [
+        {
+            "name": dam.get(name_field),
+            "lon": dam.get("_lon", pick_coord(dam, resolved, "lon")),
+            "lat": dam.get("_lat", pick_coord(dam, resolved, "lat")),
+            # admission.py's names, so its rules can read these directly
+            # rather than each caller re-deriving which column is which.
+            "normal_storage_af": storage(dam, "normal"),
+            "max_storage_af": storage(dam, "max"),
+            "nid_storage_af": storage(dam, "nid"),
+            "_row": dam,
+        }
+        for dam in dams
+    ]
+
+
+
+
     table, problems = {}, []
     print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'nid_af':>12} "
           f"{'record max':>12}  dam")
-    for name in RESERVOIRS:
-        candidates = by_norm.get(normalize(ALIASES.get(name, name)), [])
-        if not candidates:
-            problems.append(f"{name}: no dam matched by name")
+    for name, (_rise_id, lat, lon) in RESERVOIRS.items():
+        # The alias is what to match the name against, not a lookup key:
+        # position is the primary evidence now, and the alias only carries
+        # the far cases where the two agencies name different things.
+        #
+        # The screen is the observed record. A structure that could not hold
+        # the water this reservoir has been watched holding is not its dam,
+        # however close it stands -- Huntington North's gauge has a settling
+        # pond 0.29 km away and its own dam 13.49 km away. This is the same
+        # evidence the check below the match uses; applied before, it lets
+        # the right dam be found instead of only reporting the wrong one.
+        floor = observed.get(name)
+        match = admission.find_dam(
+            (lon, lat), ALIASES.get(name, name), located,
+            plausible=lambda dam, floor=floor: admission.could_hold(dam, floor))
+        if match is None:
+            problems.append(
+                f"{name}: no dam within {admission.NEAR_RADIUS_KM} km, and none "
+                f"named the same within {admission.NAMED_RADIUS_KM} km")
             continue
-        # Prefer the largest when a name repeats -- the stock ponds sharing a
-        # name with a major reservoir are never the monitored one.
-        # Prefer a Utah row when the name exists in several states, so an
-        # out-of-state namesake can't outrank the reservoir we actually track.
-        in_utah = [d for d in candidates
-                   if resolved.get("state") and d.get(resolved["state"]) == utah_value]
-        pool = in_utah or candidates
-        dam = max(pool, key=lambda d: storage(d, "normal") or storage(d, "nid") or 0)
+        dam = match.dam["_row"]
         normal, maximum, nid = (storage(dam, "normal"), storage(dam, "max"),
                                 storage(dam, "nid"))
         record_max = observed.get(name)
@@ -260,6 +314,13 @@ def main() -> int:
             "nid_storage_af": nid,
             "nid_id": dam.get(resolved["nidid"]) if resolved.get("nidid") else None,
             "nid_dam_name": dam.get(name_field),
+            # Written here now. The dam point was added by a second pass
+            # (tools/add_dam_points.py) because this tool refused the
+            # geometry and had none to write; it fetches the position to
+            # match on, so keeping it costs nothing and the table stops
+            # depending on a tool being remembered.
+            "dam_lon": round(match.dam["lon"], 5) if match.dam["lon"] is not None else None,
+            "dam_lat": round(match.dam["lat"], 5) if match.dam["lat"] is not None else None,
         }
 
     print(f"\n=== matched {len(table)}/{len(RESERVOIRS)} reservoirs")
@@ -279,6 +340,18 @@ def main() -> int:
                 "storage observed since 2015 and rejected if it came in lower.",
         "unmatched": problems,
         "capacities": table,
+        # The same block `tools/add_dam_points.py` used to add in a second
+        # pass. The coordinates are written beside each capacity above, so
+        # this describes where they came from and what they are for.
+        "dam_points": {
+            "source": layer_url,
+            "note": ("Dam coordinates, from the matched inventory row. Used as "
+                     "the watershed assignment point: the drainage area is "
+                     "where the stored water leaves, not where the middle of "
+                     "the lake is."),
+            "count": sum(1 for entry in table.values()
+                         if entry.get("dam_lon") is not None),
+        },
     }
 
     if args.dry_run:

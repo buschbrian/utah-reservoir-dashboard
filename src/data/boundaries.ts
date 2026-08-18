@@ -1,14 +1,16 @@
 /*
- * The two pieces of geographic context both production maps already draw:
- * the translucent mask over everything outside Utah, and the drainage-area
- * outlines.
+ * The geographic context the maps draw from this project's own files: the
+ * translucent mask over everything outside Utah, and the roster of drainage
+ * areas in the published scope.
  *
- * Both are fetched or built at runtime, never imported (ADR-002). Both
- * arrive in `reference.json`, which repackages the committed `huc6.geojson`
- * and `utah-boundary.geojson` unchanged (ADR-018) -- committed boundaries
- * rather than the live national service, so the outlines cannot disagree
- * with the drainage assignments already in `reservoirs.json`, and a service
- * outage cannot blank the map.
+ * Both are fetched at runtime, never imported (ADR-002), and both arrive in
+ * `reference.json`. The state outline is still the committed
+ * `utah-boundary.geojson` unchanged (ADR-018). The drainage areas are no
+ * longer geometry at all -- their outlines come from the hosted Watershed
+ * Boundary Dataset, and what travels here is which areas are in scope and
+ * what each is called, read out of the same committed file the pipeline
+ * assigns reservoirs with. That file went from 1,001 KB to 21 KB when the
+ * polygons left it.
  *
  * Failure here is deliberately soft. A missing or malformed boundary file
  * costs the reader context; it must not cost them the reservoirs, which are
@@ -49,13 +51,23 @@ const SURROUND_RING: readonly Point[] = [
 
 export type UtahBoundary = Ring[][];
 
+/**
+ * One drainage area in the published scope: which it is and what it is
+ * called. No geometry.
+ *
+ * The outlines come from the hosted Watershed Boundary Dataset now, quantized
+ * to the view (`arcgis/watershed-layers.ts`), so what this file carries is
+ * the roster rather than the shapes. The codes are read out of the same
+ * committed GeoJSON the pipeline assigns reservoirs with, which is what keeps
+ * a drawn outline from disagreeing with the area a reservoir was assigned to
+ * -- the guarantee ADR-018 was written for, kept without shipping a megabyte
+ * to keep it.
+ */
 export interface DrainageArea {
   huc6: string;
   name: string;
   /** State codes as the national boundary dataset publishes them. */
   states: string;
-  /** One polygon is one ring list; a multipolygon is several. */
-  polygons: Ring[][];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -123,12 +135,19 @@ const REFERENCE_URL = import.meta.env.DEV ? "./reference.json" : "./data/referen
  * it is how a map ends up confidently wrong. An unrecognised version reads
  * as no boundaries, which is a case both callers already handle.
  */
-export const REFERENCE_SCHEMA_VERSION = 1;
+export const REFERENCE_SCHEMA_VERSION = 2;
 
 export interface ReferenceGeography {
   /** The state outline, in the collection shape `parseUtahBoundary` reads. */
   state: unknown;
-  /** The published scope's boundaries, for `parseDrainageAreas`. */
+  /** The published scope's hydrologic level, which decides both the service
+   * layer the outlines come from and the attribute each code arrives in.
+   * Read from the payload rather than assumed: which geography this site
+   * draws is the export's answer to give (ADR-018), and the size of it is
+   * part of that answer. */
+  level: number;
+  /** The published scope's roster, for `parseDrainageUnits`. Codes and
+   * names; the outlines are the hosted layer's. */
   drainage: unknown;
 }
 
@@ -151,7 +170,8 @@ export function referenceGeography(value: unknown): ReferenceGeography | null {
   const scope = scopes && typeof published === "string" && isObject(scopes[published])
     ? scopes[published]
     : null;
-  return { state: geography.state, drainage: scope ? scope.boundaries : null };
+  const level = scope && typeof scope.level === "number" ? scope.level : 0;
+  return { state: geography.state, drainage: scope ? scope.units : null, level };
 }
 
 /* One request, not one per caller. The mask and the outlines are loaded from
@@ -172,11 +192,6 @@ export function loadReference(url = REFERENCE_URL): Promise<unknown> {
   return request;
 }
 
-/** Test seam: drop the shared request so the next load asks again. */
-export function forgetReference(): void {
-  inFlight.clear();
-}
-
 export async function loadUtahBoundary(url = REFERENCE_URL): Promise<UtahBoundary> {
   const boundary = parseUtahBoundary(referenceGeography(await loadReference(url))?.state);
   if (!boundary) throw new Error(`Malformed Utah boundary in ${url}`);
@@ -184,28 +199,69 @@ export async function loadUtahBoundary(url = REFERENCE_URL): Promise<UtahBoundar
 }
 
 /**
- * Reads the boundary collection, keeping every area it can understand and
- * dropping the ones it cannot. A single malformed feature must not cost the
- * reader the other thirteen outlines.
+ * Reads the scope's roster, keeping every area it can understand and dropping
+ * the ones it cannot. A single malformed entry must not cost the reader the
+ * other thirteen.
+ *
+ * This replaced `parseDrainageAreas`, which read the same list out of a
+ * GeoJSON collection and type-checked every coordinate pair on the main
+ * thread on the way past -- about 982 KB of walking, on every map page, for
+ * geometry the maps no longer draw from.
  */
-export function parseDrainageAreas(value: unknown): DrainageArea[] {
-  if (!isObject(value) || !Array.isArray(value.features)) return [];
+export function parseDrainageUnits(value: unknown, level: number): DrainageArea[] {
+  if (!Array.isArray(value) || !level) return [];
+  /* The attribute follows the level, the same rule `watershed_scopes.py`
+   * applies on the other side: a HUC-4 scope publishes `huc4`. Reading a
+   * fixed `huc6` would parse a level-4 payload as no areas at all, which is
+   * a blank map rather than an error. */
+  const field = `huc${level}`;
   const areas: DrainageArea[] = [];
-  for (const feature of value.features as unknown[]) {
-    if (!isObject(feature)) continue;
-    const properties = isObject(feature.properties) ? feature.properties : {};
-    const polygons = toPolygons(feature.geometry);
-    if (!polygons || typeof properties.huc6 !== "string") continue;
+  for (const entry of value as unknown[]) {
+    if (!isObject(entry)) continue;
+    const code = entry[field];
+    if (typeof code !== "string") continue;
     areas.push({
-      huc6: properties.huc6,
-      name: typeof properties.name === "string" ? properties.name : properties.huc6,
-      states: typeof properties.states === "string" ? properties.states : "",
-      polygons
+      huc6: code,
+      name: typeof entry.name === "string" && entry.name !== "" ? entry.name : code,
+      states: typeof entry.states === "string" ? entry.states : ""
     });
   }
   return areas;
 }
 
-export async function loadDrainageAreas(url = REFERENCE_URL): Promise<DrainageArea[]> {
-  return parseDrainageAreas(referenceGeography(await loadReference(url))?.drainage);
+/**
+ * The published scope: how big its areas are, and which they are.
+ *
+ * The level travels with the areas because every caller needs both and
+ * neither is derivable from the other. A caller that took the areas alone
+ * would have to assume a level to ask the hosted service for the right
+ * outlines, and assuming six is what this exists to stop.
+ */
+export interface DrainageScope {
+  level: number;
+  areas: DrainageArea[];
+}
+
+/**
+ * The level this site's figures are keyed at.
+ *
+ * Storage banked in an area, drought coverage, snow percent of normal and
+ * every reservoir's own `huc6` are all six-digit facts. Drawing a scope at
+ * another size would put shapes on the map that no figure describes, so
+ * `loadDrainageScope` says so out loud rather than drawing areas whose
+ * hover cards come back empty.
+ */
+export const JOINABLE_LEVEL = 6;
+
+export async function loadDrainageScope(url = REFERENCE_URL): Promise<DrainageScope> {
+  const geography = referenceGeography(await loadReference(url));
+  const level = geography?.level ?? 0;
+  const areas = parseDrainageUnits(geography?.drainage, level);
+  if (level && level !== JOINABLE_LEVEL) {
+    console.warn(
+      `The published scope is at hydrologic level ${level}, and every figure ` +
+      `on this site is keyed at ${JOINABLE_LEVEL}. The areas will draw and ` +
+      "their numbers will not join.");
+  }
+  return { level, areas };
 }

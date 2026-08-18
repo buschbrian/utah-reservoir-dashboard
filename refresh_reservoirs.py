@@ -80,7 +80,7 @@ MIN_BASELINE_YEARS = 10
 # Version of the reference export's shape, not of the numbers in it. It is
 # here so a reader that finds a payload it does not understand can say so
 # instead of quietly rendering half of it.
-EXPORT_SCHEMA_VERSION = 1
+EXPORT_SCHEMA_VERSION = 2
 RESERVOIR_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
@@ -227,7 +227,20 @@ RETRY_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s
 MAX_PAGES = 50  # ~100k daily rows; a stop so a bad meta block can't spin forever
 
 
-LOCAL_TZ = "America/Denver"  # every reservoir here is on Mountain Time
+#: The zone "today" is decided in.
+#:
+#: Not because every reservoir is on Mountain Time -- at western scope they
+#: run from Pacific to Central -- but because at the hour this pipeline
+#: actually runs, the choice cannot change a single figure. The refresh cron
+#: is 12:00 UTC, which is 04:00 Pacific through 06:00 Central: every western
+#: zone is on the same calendar date, hours from the nearest boundary, so
+#: `local_today()` returns the same day whichever of them is named.
+#:
+#: That is a property of the schedule rather than of the code, so
+#: tests/test_refresh.py asserts it instead of this comment being trusted. A
+#: manual run near local midnight is the case it does not cover, and the
+#: figure it would move is `days_stale` by one day.
+LOCAL_TZ = "America/Denver"
 
 
 def load_capacities() -> dict[str, dict]:
@@ -856,7 +869,21 @@ def _feature_collection(path: Path) -> dict:
 
 
 def build_watershed_sections() -> dict:
-    """Every named scope's boundaries, validated, plus which one is published.
+    """Every named scope's units, validated, plus which one is published.
+
+    Names and codes, not polygons. The geometry used to travel here -- 982 KB
+    of it, which was 98% of this file -- and every map page fetched the whole
+    thing and then walked it coordinate by coordinate on the main thread to
+    type-check it. The maps take their outlines from the hosted Watershed
+    Boundary Dataset now, quantized to whatever the reader is looking at, so
+    what this file still owes them is the roster: which areas are in scope,
+    what each is called, and which states it touches.
+
+    The committed GeoJSON does not go away. `source_file` still names it, the
+    pipeline still assigns every reservoir with it, and it stays reviewable in
+    the repository -- it simply stops being published, exactly as normals.json
+    already is. That is what keeps the outlines from disagreeing with the
+    assignments: the codes published here are read out of that same file.
 
     All of them, not just the published one: the scopes exist to be compared
     (docs/UPPER-COLORADO-PIPELINE.md), and a research scope that ships only
@@ -894,7 +921,14 @@ def build_watershed_sections() -> dict:
             "level": scope.level,
             "unit_count": len(codes),
             field: codes,
-            "boundaries": boundaries,
+            "units": [
+                {
+                    field: feature["properties"][field],
+                    "name": feature["properties"].get("name", ""),
+                    "states": feature["properties"].get("states", ""),
+                }
+                for feature in boundaries["features"]
+            ],
         }
     return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
 

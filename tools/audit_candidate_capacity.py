@@ -34,7 +34,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from admission import admit_all, positive  # noqa: E402
 from tools.audit_awdb_stations import find_candidates  # noqa: E402
-from watershed_scopes import load_scope_units  # noqa: E402
+from watershed_scopes import (  # noqa: E402
+    DEFAULT_SCOPE, SCOPES, load_scope_units,
+)
 
 AWDB_DATA = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
@@ -45,7 +47,22 @@ START_DATE = "2015-01-01"
 
 # Every state a dam in one of our drainage areas can be in. Nevada is here for
 # Hoover Dam; whether Lake Mead is published at all is a separate question.
-DAM_STATES = ["Colorado", "Wyoming", "Utah", "Arizona", "Idaho", "Nevada", "New Mexico"]
+#: Postal codes to the names the inventory files dams under.
+#:
+#: The states to fetch are the states the candidates are in, not a list
+#: written down here. The list that used to be here was the seven interior
+#: states, which was right for a Utah-connected scope and silently wrong for
+#: a western one: every Oregon, Washington and California candidate was
+#: refused as "no dam close enough to confirm" when the truth was that its
+#: dam had never been fetched. A refusal that means "not looked for" reads
+#: exactly like a refusal that means "looked for and not found".
+STATE_NAMES = {
+    "AZ": "Arizona", "CA": "California", "CO": "Colorado", "ID": "Idaho",
+    "KS": "Kansas", "MT": "Montana", "ND": "North Dakota", "NE": "Nebraska",
+    "NM": "New Mexico", "NV": "Nevada", "OK": "Oklahoma", "OR": "Oregon",
+    "SD": "South Dakota", "TX": "Texas", "UT": "Utah", "WA": "Washington",
+    "WY": "Wyoming",
+}
 
 FIELD_OPTIONS = {
     "name": ("damname", "name", "officialname", "damnameofficial", "dam"),
@@ -75,32 +92,48 @@ def get_json(url: str, params: dict):
         return None
 
 
+#: Stations per AWDB request.
+#:
+#: The triplets travel in the query string, so the request length grows with
+#: the roster. Asking for all 278 western candidates at once returns HTTP 400
+#: -- the same shape of failure as the 414 that the HUC-8 boundary fetch hit
+#: with 1,247 object ids. `refresh_snowpack.py` batches at 75 against the same
+#: service, so this does too rather than inventing a second number.
+BATCH_SIZE = 75
+
+
 def observed_maxima(candidates: list[dict]) -> dict:
     """The most water each candidate has been seen to hold since 2015."""
-    triplets = ",".join(c["station"] for c in candidates)
+    stations = [c["station"] for c in candidates]
     seen: dict[str, float] = {}
     for duration in ("DAILY", "MONTHLY"):
-        params = {"stationTriplets": triplets, "elements": "RESC",
-                  "duration": duration, "beginDate": START_DATE,
-                  "endDate": "2100-01-01"}
-        payload = None
-        for _attempt in range(3):
-            payload = get_json(AWDB_DATA, params)
-            if payload is not None:
-                break
-        if payload is None:
-            raise RuntimeError(f"AWDB {duration} query failed; partial data refused")
+        answered = 0
+        for start in range(0, len(stations), BATCH_SIZE):
+            batch = stations[start:start + BATCH_SIZE]
+            params = {"stationTriplets": ",".join(batch), "elements": "RESC",
+                      "duration": duration, "beginDate": START_DATE,
+                      "endDate": "2100-01-01"}
+            payload = None
+            for _attempt in range(3):
+                payload = get_json(AWDB_DATA, params)
+                if payload is not None:
+                    break
+            if payload is None:
+                raise RuntimeError(
+                    f"AWDB {duration} query failed for stations "
+                    f"{start}-{start + len(batch)}; partial data refused")
+            answered += len(payload)
+            for entry in payload:
+                for series in entry.get("data", []):
+                    values = [v["value"] for v in series.get("values", [])
+                              if v.get("value") is not None]
+                    if values:
+                        triplet = entry["stationTriplet"]
+                        seen[triplet] = max(seen.get(triplet, 0), max(values))
         # Asking for n stations and receiving fewer is a fact worth printing:
         # a silent shortfall reads as "these reservoirs have no data".
-        print(f"  {duration}: {len(payload)} of {len(candidates)} stations answered",
+        print(f"  {duration}: {answered} of {len(candidates)} stations answered",
               file=sys.stderr)
-        for entry in payload:
-            for series in entry.get("data", []):
-                values = [v["value"] for v in series.get("values", [])
-                          if v.get("value") is not None]
-                if values:
-                    triplet = entry["stationTriplet"]
-                    seen[triplet] = max(seen.get(triplet, 0), max(values))
     return seen
 
 
@@ -116,11 +149,26 @@ def dam_field_map(info: dict) -> dict:
     return resolved
 
 
-def find_dam_layer():
+def dam_states(candidates: list[dict]) -> list[str]:
+    """The states the candidates are actually in.
+
+    An unknown postal code is reported rather than dropped: a candidate whose
+    state cannot be mapped would otherwise be refused for the invisible
+    reason above.
+    """
+    codes = sorted({(candidate.get("state") or "").upper() for candidate in candidates})
+    unknown = [code for code in codes if code and code not in STATE_NAMES]
+    if unknown:
+        print(f"  no inventory state name for {', '.join(unknown)}; their dams "
+              "will not be fetched", file=sys.stderr)
+    return sorted({STATE_NAMES[code] for code in codes if code in STATE_NAMES})
+
+
+def find_dam_layer(states: list[str]):
     fields = dam_field_map(get_json(NID_LAYER, {"f": "json"}) or {})
     if not (fields.get("name") and fields.get("state")):
         return None, None, None, None
-    where = f"{fields['state']} IN ({','.join(repr(s) for s in DAM_STATES)})"
+    where = f"{fields['state']} IN ({','.join(repr(s) for s in states)})"
     count = get_json(f"{NID_LAYER}/query",
                      {"f": "json", "where": where, "returnCountOnly": "true"})
     if (count or {}).get("count", 0) <= 500:
@@ -167,8 +215,12 @@ def fetch_dams(layer_url: str, fields: dict, where: str) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="print the evidence as JSON")
-    parser.add_argument("--scope", choices=("utah-connected", "upper-colorado"),
-                        default="utah-connected")
+    # Every registered scope, not a list written down twice.
+    # `watershed_scopes.py` is the one place that decides which geographies
+    # exist; a tool with its own copy of that list stops offering the newest
+    # one the moment somebody adds it.
+    parser.add_argument("--scope", choices=tuple(sorted(SCOPES)),
+                        default=DEFAULT_SCOPE)
     args = parser.parse_args()
 
     # The same list audit_awdb_stations.py prints, so the two tools cannot
@@ -188,7 +240,10 @@ def main() -> int:
     for candidate in candidates:
         candidate["observed_max_af"] = seen.get(candidate["station"])
 
-    layer_url, fields, where, expected_dams = find_dam_layer()
+    states = dam_states(candidates)
+    print(f"  fetching dams for {len(states)} state(s): {', '.join(states)}",
+          file=sys.stderr)
+    layer_url, fields, where, expected_dams = find_dam_layer(states)
     if not layer_url:
         print("ERROR: no dam inventory found with a usable schema", file=sys.stderr)
         return 1

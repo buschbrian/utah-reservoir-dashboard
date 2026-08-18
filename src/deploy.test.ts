@@ -17,10 +17,14 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
+/* What the build publishes. `huc6.geojson` is deliberately absent: it is the
+ * reviewed source the pipeline assigns every reservoir with, and it stays
+ * committed, but no page has fetched it since ADR-047 moved the outlines to
+ * the hosted layer and ADR-048 stopped publishing it. */
 const RUNTIME_DATA = [
   "reservoirs.json", "snow_sites.json", "snowpack.json",
   "reference.json", "capacities.json",
-  "huc6.geojson", "utah-boundary.geojson"
+  "utah-boundary.geojson"
 ];
 
 describe("a data-only commit deploys on its own", () => {
@@ -215,7 +219,7 @@ describe("a data-only commit deploys on its own", () => {
       "maplibre/index.html", "retired-route.js",
       "data/reservoirs.json", "data/snow_sites.json",
       "data/snowpack.json", "data/reference.json",
-      "data/huc6.geojson", "data/utah-boundary.geojson"]) {
+      "data/utah-boundary.geojson"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }
     // The rule that makes a data-only deploy meaningful, checked in CI as
@@ -226,8 +230,9 @@ describe("a data-only commit deploys on its own", () => {
   it("publishes stable API aliases as copies outside the module graph", async () => {
     const config = await read("vite.config.ts");
     expect(config).toContain('resolve(outDir, "api")');
+    expect(config).toContain('resolve(outDir, "api", file)');
     for (const file of ["reservoirs.json", "snowpack.json", "reference.json"]) {
-      expect(config).toContain(`resolve(outDir, "api", file)`);
+      expect(config, `the API alias list must name ${file}`).toContain(`"${file}"`);
     }
     expect(config).toContain('data: resolve(root, "data.html")');
   });

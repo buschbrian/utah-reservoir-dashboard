@@ -23,6 +23,18 @@ each page is named for its own subject (ADR-045):
 The root page and its stable `modern.html` alias are the ArcGIS Maps SDK for
 JavaScript application. New interface work targets these primary surfaces.
 
+## How this project is made
+
+The judgment is human; most of the typing is not. All of the UI/UX design,
+the geographic decisions (which drainage areas are in scope, how reservoirs
+are assigned, what a map draws and at what level), and the visualization
+design (colour ramps, class bands, symbol composition, label placement,
+chart forms) are human-made. Most of the JavaScript/TypeScript and Python
+that implements them is written with agentic AI, and every change lands
+through human review, the test suites, and the decision records — the wiki's
+[Lessons Learned](../../wiki/Lessons-Learned) page records candidly how that
+division of labor has worked in practice.
+
 ## Use the dashboard
 
 The ArcGIS dashboard provides these map controls:
@@ -311,10 +323,10 @@ Phases 0, 1, and 1.5 are complete: the build and deploy pipeline, strict data
 types and runtime validation, tested rollups, drainage-area enrichment, and
 the typed application foundation are in place. The connected-site inventory
 now covers every published drainage area. Current U.S. Drought Monitor
-polygons are downloaded as verified GeoJSON. The independent snow pipeline
-publishes all 217 full-resolution-verified monitoring sites and their
-1991–2020 comparisons; displaying drought and snow remains separate interface
-work.
+polygons are downloaded as verified GeoJSON, and both interface views
+shipped: the snowpack page draws all 217 full-resolution-verified monitoring
+sites against their 1991–2020 comparisons, and the drought page reads the
+monitor's weekly map by drainage area beside the storage that drains it.
 
 Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
 the root and at its stable `modern.html` alias, with its ArcGIS Charts
@@ -329,6 +341,19 @@ table's CSV export writes exactly the rows and order on screen; and storage
 color uses five equal, colorblind-safe bands. The methods and public data API
 pages document where the numbers come from and how to reach them outside the
 dashboard.
+
+Phase 7 is complete: axe-core runs over every page at every tested width on
+every browser-suite run, every page ships a Content-Security-Policy written
+from a measured host list, and `tools/audit-transfer.mjs` reports what each
+page actually requests.
+
+Groundwork for covering the whole west is in place and deliberately
+invisible: the watershed scopes are a registry that carries its own
+hydrologic level, the western geographies (44 subregions, 75 basins, 571
+subbasins, scoped by where the water goes — ADR-053) are committed and
+reviewed but unpublished, the payloads shrank to make the scale affordable
+(ADR-048, ADR-051, ADR-052), and the pipeline's assignment, gates, and dam
+matching are measured ready for a roster ten times the size.
 
 Phase 3's ordered increments and gates are in
 [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md); the completed shell contract
@@ -355,6 +380,8 @@ measurements, and implementation history live in
 - [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md)
   — the owner, endpoint, copy policy, failure behavior, geometry precision,
   and next migration step for every current or planned data source.
+- [`docs/data-transfer.md`](docs/data-transfer.md) — what each page actually
+  fetches, measured; the file to update when a payload or layer changes cost.
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
   their status.
 - [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data

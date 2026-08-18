@@ -63,8 +63,14 @@ describe("public API field documentation", () => {
       merged(data.sites.map((site: Record<string, any>) => site.normal_timing.peak)));
     expectFields(SNOW_GROUPS, "snow-date", merged(data.sites.flatMap(
       (site: Record<string, any>) => [site.normal_timing.onset, site.normal_timing.meltout])));
-    expect(group(SNOW_GROUPS, "snow-site-series").fields.map((field) => field.key))
-      .toEqual(Object.keys(data.sites[0].series[0]));
+    /* The three columns are parallel, so the check that matters is that they
+     * stay the same length as one another -- a documented column that is
+     * shorter than its neighbours rebuilds into a shorter series, which
+     * draws a complete and plausible curve for the wrong days. */
+    for (const site of data.sites as Record<string, any>[]) {
+      expect(site.series_values.length).toBe(site.series_days.length);
+      expect(site.series_normals.length).toBe(site.series_days.length);
+    }
   });
 
   it("covers every current reference field", () => {
@@ -75,7 +81,6 @@ describe("public API field documentation", () => {
     const scope = scopes[0];
     if (!scope) throw new Error("reference data has no named drainage-area scope");
     const stateFeature = state.features[0];
-    const watershedFeature = scope.boundaries.features[0];
     expectFields(REFERENCE_GROUPS, "reference-header", data);
     expectFields(REFERENCE_GROUPS, "reference-capacity", catalog);
     expectFields(REFERENCE_GROUPS, "reference-capacity-entry", Object.values(catalog.capacities)[0] as Record<string, unknown>);
@@ -90,18 +95,11 @@ describe("public API field documentation", () => {
     // Each scope checked alone: a field missing from one scope must not be
     // hidden by another scope that still carries it.
     for (const entry of scopes) {
-      expectFields(REFERENCE_GROUPS, "reference-watershed-collection", entry.boundaries);
-    }
-    for (const geometry of scopes.map((entry) => entry.boundaries.geometry)
-      .filter(Boolean)) {
-      expectFields(REFERENCE_GROUPS, "reference-collection-geometry", geometry);
+      expectFields(REFERENCE_GROUPS, "reference-scope-unit", entry.units[0]);
     }
     expectFields(REFERENCE_GROUPS, "reference-geojson", stateFeature);
-    expectFields(REFERENCE_GROUPS, "reference-geojson", watershedFeature);
     expectFields(REFERENCE_GROUPS, "reference-geometry", stateFeature.geometry);
-    expectFields(REFERENCE_GROUPS, "reference-geometry", watershedFeature.geometry);
     expectFields(REFERENCE_GROUPS, "reference-state-properties", stateFeature.properties);
-    expectFields(REFERENCE_GROUPS, "reference-watershed-properties", watershedFeature.properties);
   });
 
   it("covers every current drought coverage field", () => {

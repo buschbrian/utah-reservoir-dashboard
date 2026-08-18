@@ -5,7 +5,8 @@ import {
   MASK_FILL,
   MASK_LINE,
   REFERENCE_SCHEMA_VERSION,
-  parseDrainageAreas,
+  JOINABLE_LEVEL,
+  parseDrainageUnits,
   parseUtahBoundary,
   referenceGeography,
   utahMaskRings
@@ -56,16 +57,25 @@ describe("the Utah mask", () => {
   });
 });
 
-describe("drainage-area boundaries", () => {
-  const areas = parseDrainageAreas(readDrainageGeoJson());
+/* Codes and names, not shapes. The outlines are the hosted layer's since
+ * ADR-047, and the 982 KB of geometry that used to travel in this file --
+ * and be type-checked coordinate by coordinate on the main thread on the
+ * way past -- went with them. */
+describe("the drainage-area roster", () => {
+  const roster = () => (readDrainageGeoJson() as {
+    features: { properties: Record<string, string> }[]
+  }).features.map((feature) => ({
+    huc6: feature.properties["huc6"] ?? "",
+    name: feature.properties["name"] ?? "",
+    states: feature.properties["states"] ?? ""
+  }));
+  const areas = parseDrainageUnits(roster(), 6);
 
   it("reads every committed area", () => {
-    const collection = readDrainageGeoJson() as { features: unknown[] };
-    expect(areas).toHaveLength(collection.features.length);
+    expect(areas).toHaveLength(roster().length);
     for (const area of areas) {
       expect(area.huc6).toMatch(/^\d{6}$/);
-      expect(area.polygons.length).toBeGreaterThan(0);
-      expect(area.polygons[0]?.[0]?.length).toBeGreaterThanOrEqual(4);
+      expect(area.name).not.toBe("");
     }
   });
 
@@ -77,55 +87,87 @@ describe("drainage-area boundaries", () => {
     expect([...assigned].filter((huc6) => !drawn.has(huc6))).toEqual([]);
   });
 
-  /* The reservoirs are the page; the outlines are context. A boundary file
-   * that arrives broken, half-written or replaced by an error document must
-   * cost the reader context and nothing else. */
+  /* The reservoirs are the page; the areas are context. A roster that
+   * arrives broken, half-written or replaced by an error document must cost
+   * the reader context and nothing else. */
   it.each([
-    ["not a collection", {}],
+    ["not a list", {}],
     ["a null payload", null],
     ["an error document", { error: { code: 500 } }],
-    ["features that are not objects", { features: [1, "two", null] }]
-  ])("reads %s as no boundaries rather than throwing", (_label, value) => {
-    expect(parseDrainageAreas(value)).toEqual([]);
+    ["entries that are not objects", [1, "two", null]]
+  ])("reads %s as no areas rather than throwing", (_label, value) => {
+    expect(parseDrainageUnits(value, 6)).toEqual([]);
   });
 
-  it("keeps the readable areas when one feature is malformed", () => {
-    const collection = readDrainageGeoJson() as { features: unknown[] };
-    const damaged = {
-      ...collection,
-      features: [{ type: "Feature", properties: { huc6: "160200" }, geometry: null },
-        ...collection.features]
-    };
-    expect(parseDrainageAreas(damaged)).toHaveLength(collection.features.length);
+  it("keeps the readable areas when one entry is malformed", () => {
+    expect(parseDrainageUnits([{ name: "No code here" }, ...roster()], 6))
+      .toHaveLength(roster().length);
   });
 
-  it("accepts a multipolygon area", () => {
-    const square = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]];
-    const parsed = parseDrainageAreas({
-      features: [{
-        properties: { huc6: "160203", name: "Split area", states: "UT" },
-        geometry: { type: "MultiPolygon", coordinates: [[square], [square]] }
-      }]
-    });
-    expect(parsed[0]?.polygons).toHaveLength(2);
-    expect(parsed[0]?.name).toBe("Split area");
+  /* A code with no name is still a drawable area. It falls back to the code
+   * rather than to an empty string, because a blank entry in the area
+   * chooser is a row a reader cannot pick and cannot report. */
+  /* The attribute follows the level, the same rule the pipeline applies
+   * writing it. Reading a fixed `huc6` would parse a HUC-4 scope as no areas
+   * at all -- a blank map rather than an error, which is the failure this
+   * project keeps finding and keeps writing tests against. */
+  it("reads the code from the field the level names", () => {
+    expect(parseDrainageUnits([{ huc4: "1401", name: "Upper Colorado" }], 4))
+      .toEqual([{ huc6: "1401", name: "Upper Colorado", states: "" }]);
+    // The same payload read at the wrong level is no areas, not a guess.
+    expect(parseDrainageUnits([{ huc4: "1401", name: "Upper Colorado" }], 6))
+      .toEqual([]);
+  });
+
+  /* Every figure on this site -- storage banked in an area, drought
+   * coverage, snow percent of normal, and each reservoir's own code -- is a
+   * six-digit fact. A scope published at another size would draw shapes no
+   * figure describes. */
+  it("keys the figures at the level the payload publishes", () => {
+    expect(JOINABLE_LEVEL).toBe(6);
+    expect(referenceGeography(readReferenceExport())?.level).toBe(JOINABLE_LEVEL);
+  });
+
+  it("names an area after its code when the name is missing", () => {
+    const parsed = parseDrainageUnits([{ huc6: "160203", states: "UT" }], 6);
+    expect(parsed[0]?.name).toBe("160203");
+    expect(parsed[0]?.states).toBe("UT");
   });
 });
 
 describe("the reference export", () => {
   const sections = referenceGeography(readReferenceExport());
 
-  it("hands the parsers the same geometry the standalone files hold", () => {
+  it("hands the parsers what the standalone files hold", () => {
     /* The export is a repackaging, not a second copy with a life of its
      * own. If these ever differ, two pages drawing from two files disagree
      * about where a drainage area is -- and the maps exist to be compared
-     * (ADR-007), so a difference would read as an engine difference. */
+     * (ADR-007), so a difference would read as an engine difference.
+     *
+     * The state outline is still the committed polygon unchanged. The
+     * drainage areas are a roster now, so what has to match is which areas
+     * exist and what each is called: the codes still come out of the same
+     * committed file the pipeline assigns reservoirs with, which is the
+     * guarantee ADR-018 was written for. */
     expect(sections?.state).toEqual(readUtahBoundaryGeoJson());
-    expect(sections?.drainage).toEqual(readDrainageGeoJson());
+    const committed = (readDrainageGeoJson() as {
+      features: { properties: Record<string, string> }[]
+    }).features.map((feature) => feature.properties["huc6"]);
+    expect(parseDrainageUnits(sections?.drainage, 6).map((area) => area.huc6))
+      .toEqual(committed);
+  });
+
+  /* The saving, asserted rather than described. This file is fetched by
+   * every map page on every load (`cache: "no-cache"`, so an unchanged file
+   * is a 304 but a changed one is paid whole), and it was 1,001 KB, of
+   * which 982 KB was geometry no page draws from any more. */
+  it("is small enough that every page can afford to fetch it whole", () => {
+    const bytes = JSON.stringify(readReferenceExport()).length;
+    expect(bytes).toBeLessThan(120_000);
   });
 
   it("draws the scope the export names, not one written down here", () => {
-    const published = parseDrainageAreas(sections?.drainage);
+    const published = parseDrainageUnits(sections?.drainage, 6);
     const assigned = new Set(readPayload().reservoirs
       .map((reservoir) => reservoir.huc6)
       .filter((huc6): huc6 is string => typeof huc6 === "string"));
@@ -142,7 +184,7 @@ describe("the reference export", () => {
      * wrong geography while looking like it worked. */
     const later = { ...(readReferenceExport() as object), schema_version: 99 };
     expect(referenceGeography(later)).toBeNull();
-    expect(REFERENCE_SCHEMA_VERSION).toBe(1);
+    expect(REFERENCE_SCHEMA_VERSION).toBe(2);
   });
 
   it.each([
@@ -158,7 +200,7 @@ describe("the reference export", () => {
     const parsed = referenceGeography(value);
     // Either no sections at all, or sections whose halves parse as empty --
     // both are the soft failure the callers already handle.
-    expect(parseDrainageAreas(parsed?.drainage)).toEqual([]);
+    expect(parseDrainageUnits(parsed?.drainage, 6)).toEqual([]);
     expect(parseUtahBoundary(parsed?.state)).toBeNull();
   });
 });

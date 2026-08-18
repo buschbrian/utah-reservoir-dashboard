@@ -71,10 +71,10 @@ jobs:
                       explore.html maplibre/index.html retired-route.js \
                       reservoirs.json capacities.json \
                       snow_sites.json snowpack.json \
-                      huc6.geojson utah-boundary.geojson reference.json \
+                      utah-boundary.geojson reference.json \
                       data/reservoirs.json data/capacities.json \
                       data/snow_sites.json data/snowpack.json \
-                      data/huc6.geojson data/utah-boundary.geojson \
+                      data/utah-boundary.geojson \
                       data/reference.json data/drought/usdm-current.geojson; do
             if [ ! -s "dist/$path" ]; then
               echo "::error title=Missing from dist::$path"

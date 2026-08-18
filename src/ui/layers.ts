@@ -17,7 +17,6 @@ import Polygon from "@arcgis/core/geometry/Polygon";
 import Point from "@arcgis/core/geometry/Point";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
-import type { UniqueValueInfoProperties } from "@arcgis/core/renderers/support/UniqueValueInfo";
 
 import {
   DRAINAGE_FILL,
@@ -25,10 +24,9 @@ import {
   MASK_FILL,
   MASK_LINE,
   utahMaskRings,
-  type DrainageArea,
   type UtahBoundary
 } from "../data/boundaries";
-import { drainageLabelPoint, type Ring } from "../data/huc";
+import type { Ring } from "../data/huc";
 import { DRAINAGE_AREA_FIELD } from "../state/filters";
 import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
@@ -52,11 +50,6 @@ export const OBJECT_ID_FIELD = "objectid";
 /** Which of the renderer's twelve symbols a reservoir draws with. */
 export const SYMBOL_KEY_FIELD = "symbol_key";
 
-/** One source feature and therefore at most one label for each drainage area. */
-export const DRAINAGE_OBJECT_ID_FIELD = "objectid";
-/* Deliberately not the reservoir layer's `name` field: pointer hit testing
- * treats that field as selectable reservoir identity. */
-export const DRAINAGE_NAME_FIELD = "area_name";
 export const DRAINAGE_LABEL_MIN_SCALE = 25_000_000;
 export const DRAINAGE_LABEL_HALO_PX = 2;
 export const DRAINAGE_LABEL_HALO_COLOR = "rgba(255,255,255,0.5)";
@@ -146,98 +139,49 @@ export function createMaskLayer(boundary?: UtahBoundary): GraphicsLayer {
   return layer;
 }
 
-export interface DrainageLayerResult {
-  layer: FeatureLayer;
-  /** Text symbols drawn below the reservoir layer. */
-  labelLayer: GraphicsLayer;
-  /** One background label symbol for each HUC6. */
-  labels: number;
+/**
+ * The drainage-area name, as the label engine draws it.
+ *
+ * The field is a parameter rather than this module's own constant, because
+ * the name arrives under a different attribute depending on where the
+ * geometry came from -- `area_name` from the payload, `name` from the hosted
+ * service. An arcade expression naming a field the layer does not have does
+ * not draw nothing quietly; it throws once per tile, in a worker, as
+ * `invalid-arcade-expression`, and the map looks merely unlabelled.
+ *
+ * The same size, weight, colour and halo the text symbols carry, so moving
+ * from one to the other is a change of *who places the words*, not of what
+ * they look like -- and the halo stays at ADR-027's two pixels and ADR-030's
+ * 50% opacity.
+ */
+export function drainageLabelingInfo(nameField: string): unknown[] {
+  return [{
+    labelExpressionInfo: { expression: `$feature.${nameField}` },
+    labelPlacement: "always-horizontal",
+    minScale: DRAINAGE_LABEL_MIN_SCALE,
+    maxScale: 0,
+    /* The engine's whole reason for being here: at fourteen names a fixed
+     * position was fine, and past that a name that cannot be placed has to
+     * drop rather than pile onto its neighbour. */
+    deconflictionStrategy: "dynamic",
+    symbol: {
+      type: "text",
+      color: "#263f52",
+      haloColor: DRAINAGE_LABEL_HALO_COLOR,
+      haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
+      font: {
+        family: LABEL_FONT_FAMILY,
+        size: `${DRAINAGE_LABEL_SIZE_PX}px`,
+        weight: LABEL_FONT_WEIGHT_BOLD
+      }
+    }
+  }];
 }
 
-export function createDrainageLayer(areas: readonly DrainageArea[]): DrainageLayerResult {
-  const labelGraphics: Graphic[] = [];
-  /* A multipolygon remains one feature. Building one graphic per polygon
-   * made a label repeat on every island or disconnected piece. One feature
-   * and one interior label point per HUC6 preserve every ring and keep one
-   * name per area. The text is a symbol in its own layer, not FeatureLayer
-   * labeling: a text-symbol layer can stay physically below reservoirs. */
-  const source = areas.map((area, index) => {
-    const geometry = new Polygon({
-      rings: area.polygons.flatMap((polygon) => mutableRings(polygon)),
-      spatialReference: WGS84
-    });
-    const labelPoint = drainageLabelPoint(area.polygons);
-    /* The outline still draws without its name, but not silently: the label
-     * count this feeds is a readiness signal, and a shape that defeats the
-     * interior-point search should say so where someone debugging the count
-     * will look. */
-    if (!labelPoint) {
-      console.warn(`No interior label point for drainage area ${area.name} (${area.huc6}); its name is not drawn.`);
-    }
-    if (labelPoint) {
-      labelGraphics.push(new Graphic({
-        geometry: new Point({ longitude: labelPoint[0], latitude: labelPoint[1],
-          spatialReference: WGS84 }),
-        attributes: { huc6: area.huc6, [DRAINAGE_NAME_FIELD]: area.name },
-        symbol: {
-          type: "text",
-          text: area.name,
-          color: "#263f52",
-          haloColor: DRAINAGE_LABEL_HALO_COLOR,
-          haloSize: `${DRAINAGE_LABEL_HALO_PX}px`,
-          /* The one bold tier on the map. Family and weight, not a
-           * "Bold" family: the SDK builds the glyph-atlas slug from both,
-           * so folding the weight into the name asks for a font that does
-           * not exist and falls back silently. */
-          font: {
-            family: LABEL_FONT_FAMILY,
-            size: `${DRAINAGE_LABEL_SIZE_PX}px`,
-            weight: LABEL_FONT_WEIGHT_BOLD
-          }
-        }
-      }));
-    }
-    return new Graphic({
-      geometry,
-      attributes: {
-        [DRAINAGE_OBJECT_ID_FIELD]: index + 1,
-        huc6: area.huc6,
-        [DRAINAGE_NAME_FIELD]: area.name
-      }
-    });
-  });
-
-  const layer = new FeatureLayer({
-    id: "drainage-areas",
-    listMode: "hide",
-    source,
-    fields: [
-      { name: DRAINAGE_OBJECT_ID_FIELD, type: "oid" },
-      { name: "huc6", type: "string" },
-      { name: DRAINAGE_NAME_FIELD, type: "string" }
-    ],
-    objectIdField: DRAINAGE_OBJECT_ID_FIELD,
-    geometryType: "polygon",
-    spatialReference: WGS84,
-    /* Declared rather than inferred, for the reason the reservoir layer
-     * learned the hard way: this renderer reads no field at all, so a layer
-     * view would materialize the object id alone and every hit on an
-     * outline would come back without the name it is meant to describe. */
-    outFields: ["*"],
-    popupEnabled: false,
-    renderer: {
-      type: "simple",
-      symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE)
-    } as never
-  });
-  const labelLayer = new GraphicsLayer({
-    id: "drainage-labels",
-    listMode: "hide",
-    minScale: DRAINAGE_LABEL_MIN_SCALE,
-    maxScale: 0
-  });
-  labelLayer.addMany(labelGraphics);
-  return { layer, labelLayer, labels: labelGraphics.length };
+/** The fill and outline the drainage areas are drawn with, wherever the
+ * geometry comes from. */
+export function drainageRenderer(): unknown {
+  return { type: "simple", symbol: areaSymbol(DRAINAGE_FILL, DRAINAGE_LINE) };
 }
 
 export interface ReservoirLayerResult {

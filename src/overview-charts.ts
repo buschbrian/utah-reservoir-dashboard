@@ -248,28 +248,6 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
   });
 }
 
-type SeriesModel = {
-  seriesLength: number;
-  getSeriesName(index: number): string | undefined;
-  setSeriesColor(color: [number, number, number, number], index: number): void;
-};
-
-/**
- * Waits for the split-by series the SDK builds from the field.
- *
- * `splitByField` is a plain setter and the work behind it is asynchronous
- * with nothing public to await, so this waits on the outcome instead: one
- * series per distinct class in the data, a count this file already knows.
- * Bounded, and it gives up rather than throwing -- a chart in the SDK's own
- * colours is worse than one in the class colours and better than no chart.
- */
-async function seriesSettled(model: SeriesModel, expected: number): Promise<void> {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (model.seriesLength >= expected) return;
-    await new Promise((resolve) => { setTimeout(resolve, 10); });
-  }
-}
-
 /**
  * What the four lines across the histogram mean.
  *

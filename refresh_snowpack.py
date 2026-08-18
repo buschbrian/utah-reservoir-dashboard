@@ -13,7 +13,7 @@ import os
 import tempfile
 import time
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -29,6 +29,16 @@ BATCH_SIZE = 75
 RETRIES = 3
 LATE_AFTER_DAYS = 2
 MIN_ROLLUP_SITES = 2
+
+#: The share of stations that may go quiet before the refresh refuses the day.
+#:
+#: Two percent, which is four stations of 217 and about thirty-four of the
+#: western network. Small enough that a real outage still fails loudly, large
+#: enough that ordinary winter silence does not throw away every other
+#: station's reading. The sites that did not answer are named in the log and
+#: counted in the payload, so a shrinking network is visible rather than
+#: quietly tolerated.
+MISSING_SITE_TOLERANCE = 0.02
 
 
 def water_year_start(day: date) -> date:
@@ -93,9 +103,31 @@ def fetch_all(session, station_ids: list[str], begin: date, end: date,
 
     missing = sorted(expected - set(received))
     if missing:
-        raise RuntimeError(
-            f"snow data response omitted {len(missing)} station(s): {', '.join(missing)}")
-    return [received[station] for station in station_ids]
+        # A few silent stations are weather, not a broken refresh.
+        #
+        # This used to refuse the whole day over one station. At 217 sites
+        # that was a defensible trade -- one quiet gauge is a real signal and
+        # a person would want to look. Across the western network it is
+        # roughly 1,725 sites on radios and solar panels in the mountains in
+        # winter, and "every one of them answered" is not a condition that
+        # holds daily. Refusing the day would mean publishing nothing all
+        # winter, which is a worse answer than publishing 1,720 sites and
+        # saying which are absent.
+        #
+        # The tolerance is a share rather than a count, so it means the same
+        # thing at any roster size, and it is small: past it, something is
+        # wrong with the service rather than with a few stations, and the
+        # old behaviour is the right one.
+        allowed = int(len(expected) * MISSING_SITE_TOLERANCE)
+        if len(missing) > allowed:
+            raise RuntimeError(
+                f"snow data response omitted {len(missing)} of {len(expected)} "
+                f"station(s), more than the {allowed} tolerated: "
+                f"{', '.join(missing[:10])}"
+                + (" ..." if len(missing) > 10 else ""))
+        print(f"  {len(missing)} station(s) did not answer and are left out of "
+              f"today's file: {', '.join(missing)}")
+    return [received[station] for station in station_ids if station in received]
 
 
 def _number(value):
@@ -204,34 +236,61 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         normalize_site(sites_by_station[record["stationTriplet"]], record, as_of)
         for record in records
     ]
-    if {site["station"] for site in normalized} != set(sites_by_station):
-        raise ValueError("normalized snow data does not cover the complete inventory")
+    drawn = {site["station"] for site in normalized}
+    if not drawn <= set(sites_by_station):
+        raise ValueError("snow data covers stations that are not in the inventory")
+    missing_sites = sorted(set(sites_by_station) - drawn)
+    if len(missing_sites) > int(len(sites_by_station) * MISSING_SITE_TOLERANCE):
+        raise ValueError(
+            f"normalized snow data is missing {len(missing_sites)} of "
+            f"{len(sites_by_station)} inventory stations")
     normalized.sort(key=lambda site: (site["huc6"], site["name"], site["station"]))
     huc_names = {site["huc6"]: site["huc6_name"] for site in inventory["sites"]}
     rollups = build_rollups(normalized, huc_names)
-    # The full water year is about 70,000 observations. Field names repeated
-    # on every one make the runtime file several times larger without adding
-    # information, so the published station series declares its columns once.
+    # The full water year is about 70,000 observations, and the date is the
+    # expensive column: every site keeps its own copy of the same water-year
+    # calendar, so "2025-10-01" is written two hundred times over. The dates
+    # are written once here and each site says which of them it has, as
+    # positions in that shared list.
+    #
+    # Positions rather than a start and a length, because seven sites have
+    # gaps in the middle of their record and a contiguous slice loses them
+    # silently. Positions rather than a full-length array with a hole marker,
+    # because a null already means something here -- one row has no reading
+    # and 13,910 have no normal, and "no row for this day" must stay a
+    # different fact from "a row that reads null".
+    #
+    # Measured on the current file: 1,913 KB to 1,166 KB raw, and 217 KB to
+    # 99 KB over the wire, with the rebuilt rows identical to these.
+    series_dates = sorted({
+        row["date"] for site in normalized for row in site["series"]})
+    date_index = {date: position for position, date in enumerate(series_dates)}
     compact_sites = []
     for site in normalized:
         compact = {key: value for key, value in site.items() if key != "series"}
-        compact["series"] = [
-            [row["date"], row["value_inches"], row["normal_median_inches"]]
-            for row in site["series"]
-        ]
+        compact["series_days"] = [date_index[row["date"]] for row in site["series"]]
+        compact["series_values"] = [row["value_inches"] for row in site["series"]]
+        compact["series_normals"] = [
+            row["normal_median_inches"] for row in site["series"]]
         compact_sites.append(compact)
     timestamp = generated_at or datetime.now(timezone.utc)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": timestamp.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "as_of": as_of.isoformat(),
         "water_year": water_year_start(as_of).year + 1,
         "normal_period": inventory["normal_period"],
         "units": "inches",
-        "site_series_fields": ["date", "value_inches", "normal_median_inches"],
+        "site_series_fields": ["series_days", "series_values", "series_normals"],
+        "series_dates": series_dates,
         "source": DATA_URL,
         "site_count": len(normalized),
         "late_site_count": sum(site["late"] for site in normalized),
+        # Inventory stations that published nothing at all today. A separate
+        # fact from `late_site_count`, which counts stations that answered
+        # with an old reading -- one is a station whose newest value is
+        # stale, the other is a station that is not in the file.
+        "missing_site_count": len(missing_sites),
         "rollups": rollups,
         "sites": compact_sites,
     }

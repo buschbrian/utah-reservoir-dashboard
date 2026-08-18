@@ -24,6 +24,7 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
+| `huc6.geojson` | The reviewed drainage-area polygons. Committed, read by the pipeline to assign reservoirs, never published: not inside `reference.json` and not copied into `dist/` (ADR-048, ADR-049). Nothing in a browser has fetched it since the outlines became the hosted layer's. |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules
@@ -60,6 +61,37 @@ not asked for without saying so, and a median never appears without the number
 of years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
+
+**Measure payload cost gzipped, never raw** (ADR-051, ADR-052). GitHub Pages
+compresses the JSON, so a raw byte count overstates what a reader pays by
+several times -- `snowpack.json` is 1,166 KB on disk and 99 KB on the wire.
+Runtime fetches use `cache: "no-cache"`, which is not "do not cache": it means
+never use a stored copy without asking, so the morning's rewrite can never be
+served stale and an unchanged file costs a 304 instead of the whole payload.
+The snow series publishes the water-year calendar once and each site indexes
+into it; `validateSnowpackPayload` rebuilds the rows, so nothing downstream
+knows. Never encode a missing day as a null value -- a null reading is a row
+that exists, and 13,910 of them do.
+
+**The payload carries the roster; the service carries the shapes**
+(ADR-047, ADR-048). `reference.json` publishes each area's code, name and
+states and no drainage geometry -- it was 1,001 KB and is 21 KB, and every
+map page fetches it whole on every load. Outlines come from the hosted
+Watershed Boundary Dataset, quantized to the view. A map that needs each area
+coloured by one of this project's own numbers does **not** need the shapes in
+hand: that is a unique-value renderer keyed on the code, which is what the
+snow map does. Never fetch geometry into the browser to colour something.
+`docs/data-transfer.md` holds the measurements and is the file to update when
+they change.
+
+**The maps draw the level the payload declares** (ADR-050). No client file
+names a hydrologic level; it arrives as `DrainageScope { level, areas }` and
+the code is read from the attribute that level names. `JOINABLE_LEVEL` in
+`src/data/boundaries.ts` is the level every figure on the site is keyed at,
+and a scope published at another size says so out loud rather than drawing
+areas whose hover cards come back empty. Level is deliberately *not* driven by
+view scale: a finer outline a reader can point at, with no figure behind it,
+is less information rather than more.
 
 **A watershed scope carries its own level.** `watershed_scopes.py` is the one
 place that decides which drainage areas exist and how big they are; the level

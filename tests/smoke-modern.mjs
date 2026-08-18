@@ -433,8 +433,23 @@ for (const viewport of VIEWPORTS) {
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
     check(ready.drainageLabels === expectedAreas,
       `${label}: configured ${ready.drainageLabels} drainage-area labels, expected ${expectedAreas}`);
-    check(ready.drainageLabelsUnderReservoirs === true,
-      `${label}: drainage-area labels are not below the reservoir symbols`);
+    /* ADR-047 replaced the position guarantee with a placement guarantee.
+     * The names are the label engine's now, so they draw in its pass above
+     * every layer and the ADR-030 field reports false -- and the check that
+     * matters is that something is still placing them, because a layer that
+     * quietly lost its `labelingInfo` looks exactly like a clean map. */
+    /* The size of the drawn areas, from the payload rather than from a
+     * constant in the client. A scope published at another level would draw
+     * shapes that no figure on the page describes, because every figure here
+     * is keyed six digits deep. */
+    check(ready.drainageLevel === 6,
+      `${label}: the drainage areas drew at hydrologic level ` +
+      `${ready.drainageLevel}, and every figure on this page is keyed at 6`);
+    check(ready.drainageLabelsDeconflicted === true,
+      `${label}: drainage-area names are not being placed by the label engine`);
+    check(ready.drainageLabelsUnderReservoirs === false,
+      `${label}: a drainage text-symbol layer came back alongside the ` +
+      "engine-placed names, which would draw every name twice");
 
     /* The renderer count above proves what the page built. This proves the
      * layer accepted it: a client-side feature layer whose source is
@@ -448,16 +463,21 @@ for (const viewport of VIEWPORTS) {
         ?.findLayerById("drainage-areas");
       const drainageLabels = document.querySelector("arcgis-map")?.map
         ?.findLayerById("drainage-labels");
-      const firstLabel = drainageLabels?.graphics?.at(0)?.symbol;
+      const labelClass = drainage?.labelingInfo?.at(0);
+      const map = document.querySelector("arcgis-map")?.map;
       return {
         type: layer?.type ?? null,
         count: layer ? await layer.queryFeatureCount() : 0,
         drainageType: drainage?.type ?? null,
         drainageCount: drainage ? await drainage.queryFeatureCount() : 0,
         drainageLabelClasses: drainage?.labelingInfo?.length ?? 0,
+        drainageLabelsVisible: drainage?.labelsVisible === true,
+        drainageDeconfliction: labelClass?.deconflictionStrategy ?? null,
         drainageLabelType: drainageLabels?.type ?? null,
-        drainageLabelCount: drainageLabels?.graphics?.length ?? 0,
-        drainageHaloAlpha: firstLabel?.haloColor?.a ?? null,
+        drainageUnderReservoirs: map && drainage && layer
+          ? map.layers.indexOf(drainage) < map.layers.indexOf(layer)
+          : false,
+        drainageHaloAlpha: labelClass?.symbol?.haloColor?.a ?? null,
         symbolUsesViewScale: JSON.stringify(layer?.renderer?.toJSON?.() ?? layer?.renderer ?? {})
           .includes("$view.scale")
       };
@@ -472,13 +492,32 @@ for (const viewport of VIEWPORTS) {
     check(layerFeatures.drainageCount === expectedAreas,
       `${label}: the drainage-area layer holds ${layerFeatures.drainageCount}, ` +
       `expected ${expectedAreas}`);
-    check(layerFeatures.drainageLabelClasses === 0,
-      `${label}: drainage-area text still uses the foreground label pass`);
-    check(layerFeatures.drainageLabelType === "graphics",
-      `${label}: the background label layer is "${layerFeatures.drainageLabelType}", expected graphics`);
-    check(layerFeatures.drainageLabelCount === expectedAreas,
-      `${label}: the label layer holds ${layerFeatures.drainageLabelCount} symbols, ` +
-      `expected ${expectedAreas}`);
+    /* ADR-047. The names are one label class on the drainage layer itself,
+     * so the count is fixed at one however many areas are in scope -- which
+     * is the whole point, and what fourteen fixed text symbols could not
+     * say about a hundred and eighty-one. */
+    check(layerFeatures.drainageLabelClasses === 1,
+      `${label}: the drainage layer carries ${layerFeatures.drainageLabelClasses} ` +
+      "label classes, expected exactly one");
+    check(layerFeatures.drainageLabelsVisible,
+      `${label}: the drainage layer has labels configured but switched off`);
+    /* The guarantee itself. Without this the engine draws every name it is
+     * given, which at western scale is the failure ADR-047 exists to end --
+     * and it would look identical at fourteen. */
+    check(layerFeatures.drainageDeconfliction === "dynamic",
+      `${label}: drainage names use "${layerFeatures.drainageDeconfliction}" ` +
+      "placement, expected dynamic deconfliction");
+    check(layerFeatures.drainageLabelType === null,
+      `${label}: a drainage text-symbol layer is still on the map ` +
+      `("${layerFeatures.drainageLabelType}"), so every name draws twice`);
+    /* ADR-030's intent, kept. The label pass resolves conflicts between
+     * layers in operational order, so a reservoir's own name outranks a
+     * drainage name where the two compete for the same pixels. */
+    check(layerFeatures.drainageUnderReservoirs,
+      `${label}: the drainage layer rose above the reservoirs, which hands ` +
+      "drainage names priority over reservoir names in the label pass");
+    /* ADR-030 was right about this half and it carries over unchanged: a
+     * near-opaque halo covered more of the map than the text it separated. */
     check(layerFeatures.drainageHaloAlpha === 0.5,
       `${label}: drainage-area label halo opacity is ${layerFeatures.drainageHaloAlpha}, expected 0.5`);
     check(layerFeatures.symbolUsesViewScale === false,
@@ -545,8 +584,8 @@ for (const viewport of VIEWPORTS) {
         drawn: window.__dashboardReady.drawn,
         geography: window.__dashboardReady.geography,
         selectionOnTop: window.__dashboardReady.selectionOnTop,
-        drainageLabelsUnderReservoirs:
-          window.__dashboardReady.drainageLabelsUnderReservoirs,
+        drainageLabelsDeconflicted:
+          window.__dashboardReady.drainageLabelsDeconflicted,
         search: window.location.search
       };
     }, controls);
@@ -558,8 +597,8 @@ for (const viewport of VIEWPORTS) {
      * below each layer that replaced it, and no counted field could tell. */
     check(wider.selectionOnTop,
       `${label}: the selection ring fell beneath the reservoirs after a scope change`);
-    check(wider.drainageLabelsUnderReservoirs,
-      `${label}: drainage-area labels rose above reservoirs after a scope change`);
+    check(wider.drainageLabelsDeconflicted,
+      `${label}: the drainage names stopped being placed after a scope change`);
     check(wider.drawn > expectedReservoirs,
       `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
       `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);
@@ -739,6 +778,16 @@ for (const viewport of VIEWPORTS) {
         .then((text) => text.includes(pointerName)),
       `${label}: map pointer selection did not open ${pointerName}`);
     }
+
+    /* The drainage area under the pointer when no reservoir is. This card
+     * went silently dark once already: the resolver read `area_name`, a
+     * field the hosted features never carry (they answer with `name`), so
+     * every drainage hover resolved to nothing while the reservoir hover
+     * above kept passing. Driven through the shared helper so the
+     * attributes come from the layer's own service fields, the same way
+     * the snow and drought maps are checked. */
+    await checkViewMapHover(tab, check, label, "map-host", "map-hover",
+      "drainage-areas", "reservoir");
 
     /* Which period "normal" means.
      *
@@ -1665,11 +1714,40 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
  * the pointer and stays inside the map it belongs to.
  */
 async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, expected) {
-  await tab.evaluate(({ hostId, layerId }) => {
+  await tab.evaluate(async ({ hostId, cardId, layerId }) => {
     const element = document.querySelector("#" + hostId + " arcgis-map");
+    /* Put the card back to "nothing hovered" first.
+     *
+     * The wait below is for the card to become visible, and a card left
+     * open by the previous hover is already visible -- so without this the
+     * wait returns at once and the assertion reads the last hover's text.
+     * It passed for as long as every resolve settled within a microtask,
+     * and stopped passing the moment one of these layers had to ask a
+     * server for the attributes to hover over. */
+    const previous = document.querySelector("#" + cardId);
+    if (previous) previous.hidden = true;
     const layer = element.view.map.findLayerById(layerId);
+    /* Three kinds of layer answer this differently. A client-side feature
+     * layer holds its features in `source`, a graphics layer in `graphics`,
+     * and a hosted layer's features are on a server, so the attributes have
+     * to be asked for. The hosted case is detected by capability rather
+     * than by absence: once a hosted layer has loaded, `source` is the
+     * SDK's internal source object -- truthy, and not a collection -- so
+     * "is there a collection with features in it" is the only test that
+     * answers the same before and after load. `queryFeatures` answers from
+     * the layer rather than from a view, so it settles here where the
+     * render loop does not run. */
     const source = layer.type === "feature" ? layer.source : layer.graphics;
-    const graphic = { attributes: source.at(0).attributes, layer };
+    const first = typeof source?.at === "function" ? source.at(0) : null;
+    const attributes = first
+      ? first.attributes
+      : (await layer.queryFeatures({
+          where: layer.definitionExpression || "1=1",
+          outFields: ["*"],
+          num: 1,
+          returnGeometry: false
+        })).features[0]?.attributes;
+    const graphic = { attributes, layer };
     element.hitTest = async (_point, options) => {
       const included = options?.include;
       window.__viewMapHitIncluded = Array.isArray(included)
@@ -1679,7 +1757,7 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
     };
     element.dispatchEvent(new CustomEvent("arcgisViewPointerMove",
       { detail: { x: 220, y: 140 } }));
-  }, { hostId, layerId });
+  }, { hostId, cardId, layerId });
   await tab.waitForFunction(
     (cardId) => document.querySelector("#" + cardId)?.hidden === false,
     cardId, { timeout: 10000 });
@@ -1946,6 +2024,11 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map drew ${mapState.ready?.mapClassesDrawn} drought classes`);
     check(mapState.ready?.mapOutlines === mapState.ready?.units,
       `${label}: ${mapState.ready?.mapOutlines} outlines for ${mapState.ready?.units} areas`);
+    check(mapState.ready?.mapAreaLabels === mapState.ready?.units,
+      `${label}: ${mapState.ready?.mapAreaLabels} names for ` +
+      `${mapState.ready?.units} drainage areas`);
+    check(mapState.ready?.mapAreaLabelsDeconflicted === true,
+      `${label}: the drainage names are not being placed by the label engine`);
     check(mapState.ready?.mapReservoirs > 0,
       `${label}: the drought map placed ${mapState.ready?.mapReservoirs} reservoirs`);
     /* The key now lives on the map rather than above it, so it is attached
@@ -2003,11 +2086,14 @@ for (const viewport of VIEWPORTS) {
       /* Terrain shade sits above the classes and below the outlines: it
        * varies the classes' lightness with the ground without darkening this
        * project's own reference geometry. See `arcgis/hillshade.ts`. */
-      /* The drainage names sit above the outlines they belong to and below
-       * the reservoirs, so a name is never painted over by the classes and
-       * never covers a reservoir. */
+      /* The boundary is cased: a wide bright pass under a narrow dark one,
+       * so the outline reads on the palest class and on the darkest. They
+       * are two layers over one service because a casing has to be down
+       * before any core is drawn, and one layer cannot order that across
+       * features -- a neighbour's casing would paint over a shared edge.
+       * The names ride the core layer's label pass (ADR-047). */
       [...boundaryLayers, "usdm-classes", "terrain-shade",
-        "drainage-outlines", "drainage-names", "reservoir-reference"]);
+        "drainage-outline-casing", "drainage-outlines", "reservoir-reference"]);
     /* The label ladder: at the opening view the states and the drainage areas
      * are named and the reservoirs are not, which is the whole point of the
      * thresholds -- the drainage areas are this map's subject and the
@@ -2029,7 +2115,7 @@ for (const viewport of VIEWPORTS) {
       };
       return {
         scale: Math.round(view.scale),
-        areaNames: view.map.findLayerById("drainage-names")?.graphics.length ?? 0,
+        areaNames: at("drainage-outlines"),
         states: at("reference-states"),
         counties: at("reference-counties"),
         reservoirs: at("reservoir-reference")
@@ -2040,9 +2126,15 @@ for (const viewport of VIEWPORTS) {
     /* What this map does name at its opening view is the drainage areas,
      * which is what every figure below it is keyed to. Without them a reader
      * matches an outline to a table row by position. */
-    check(ladder.areaNames === state.ready?.units,
-      `${label}: ${ladder.areaNames} of ${state.ready?.units} drainage areas ` +
-      "carry their name");
+    check(ladder.areaNames?.labelsOn === true,
+      `${label}: the drainage areas are not named at 1:${ladder.scale}, which ` +
+      "leaves a reader matching an outline to a table row by position");
+    /* A name inside another name's shape is never larger than it, and a
+     * drainage area sits inside a state. */
+    check(ladder.states === null
+      || ladder.states.size > ladder.areaNames?.size,
+    `${label}: state names (${ladder.states?.size}) are not larger than ` +
+      `drainage-area names (${ladder.areaNames?.size})`);
     check(ladder.counties === null || ladder.counties.layerHidden === true,
       `${label}: county outlines are already drawn at 1:${ladder.scale}`);
     check(ladder.states === null || ladder.states.labelsOn === true,

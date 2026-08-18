@@ -1,5 +1,9 @@
 """Discover a Utah-published reservoir capacity dataset (acre-feet).
 
+Superseded rather than required: the findings below are captured in ADR-003,
+which chose the National Inventory of Dams. Kept for the day a Utah-published
+capacity table appears and the survey needs re-running.
+
 RISE has no capacity figure (see tools/probe_rise.py for the proof), so a
 true "percent full" needs a second source. This enumerates the ArcGIS orgs
 that publish Utah water data and dumps the schema and sample rows of every

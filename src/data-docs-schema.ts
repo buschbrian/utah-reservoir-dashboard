@@ -167,9 +167,11 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("normal_period", "object", "Standard climate comparison period."),
     f("units", "text", "Storage unit used by each site series."),
     f("site_series_fields", "array", "Meaning and order of values in each compact site-series row."),
+    f("series_dates", "array", "The water-year calendar the sites index into, ascending, written once."),
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),
     f("late_site_count", "sites", "Number of sites with late readings."),
+    f("missing_site_count", "sites", "Number of inventory sites that published nothing today and are absent from this file. Files written before this field was recorded omit it.", true),
     f("rollups", "array", "Daily drainage-area summaries."),
     f("sites", "array", "Site details and daily series.")
   ]},
@@ -204,7 +206,9 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("latest_date", "date", "Newest published site reading."),
     f("late", "true or false", "Whether the newest reading is late."),
     f("normal_timing", "object", "Usual snow onset, high point and melt-out dates."),
-    f("series", "array", "Compact daily rows ordered by site_series_fields.")
+    f("series_days", "array", "Positions in series_dates this site published."),
+    f("series_values", "array", "Measured snow water equivalent, in inches, one per entry in series_days."),
+    f("series_normals", "array", "Standard normal median, in inches, one per entry in series_days.")
   ]},
   { id: "snow-timing", title: "Normal timing", path: "sites[].normal_timing", fields: [
     f("peak", "object", "Usual high point: month, day and inches."),
@@ -219,11 +223,6 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
   { id: "snow-date", title: "Normal onset or melt-out date", path: "sites[].normal_timing.onset or meltout", fields: [
     f("month", "month number", "Usual month."),
     f("day", "day number", "Usual day.")
-  ]},
-  { id: "snow-site-series", title: "Compact site-series row", path: "sites[].series[]", fields: [
-    f("0", "date", "Date, named by site_series_fields[0]."),
-    f("1", "inches", "Measured snow water equivalent, named by site_series_fields[1]."),
-    f("2", "inches", "Standard normal median, named by site_series_fields[2].")
   ]}
 ];
 
@@ -327,47 +326,33 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("scopes", "object", "Named scope entries.")
   ]},
   { id: "reference-scope", title: "Named scope", path: "geography.watersheds.scopes.<scope>", fields: [
-    f("boundaries", "GeoJSON collection", "Generalized drainage-area polygons."),
     f("description", "text", "Scope inclusion rule."),
     f("huc6", "array", "Six-digit drainage-area codes."),
     f("name", "identifier", "Stable scope name."),
     f("source_file", "file name", "Reviewed boundary source file."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
-    f("unit_count", "drainage areas", "Number of units in the scope.")
+    f("unit_count", "drainage areas", "Number of units in the scope."),
+    f("units", "array", "Drainage areas in the scope, by code and name.")
   ]},
-  { id: "reference-geojson-collection", title: "GeoJSON collection", path: "all boundary collections", fields: [
+  { id: "reference-scope-unit", title: "Drainage area", path: "geography.watersheds.scopes.<scope>.units[]", fields: [
+    f("huc6", "identifier", "Six-digit drainage-area code."),
+    f("name", "text", "Drainage-area name."),
+    f("states", "text", "States touched by the drainage area.")
+  ]},
+  { id: "reference-geojson-collection", title: "GeoJSON collection", path: "the state boundary collection", fields: [
     f("type", "text", "GeoJSON collection type."),
     f("features", "array", "Boundary features.")
   ]},
-  { id: "reference-watershed-collection", title: "Drainage-area GeoJSON collection", path: "named scope boundaries", fields: [
-    f("type", "text", "GeoJSON collection type."),
-    f("features", "array", "Drainage-area boundary features."),
-    f("filter", "text", "Hydrologic-region selection rule used to build the collection."),
-    f("geometry", "object", "Coordinate system, precision and maximum offset used for this collection.", true),
-    f("scope", "identifier", "Named drainage-area scope. Collections retrieved before this field was recorded omit it.", true),
-    f("source", "text", "Boundary publisher and source."),
-    f("unit_count", "drainage areas", "Number of features in the collection.")
-  ]},
-  { id: "reference-collection-geometry", title: "Collection geometry settings", path: "named scope boundaries.geometry", fields: [
-    f("coordinate_decimal_places", "decimal places", "Number of coordinate decimal places requested from the source."),
-    f("coordinate_system", "text", "Coordinate system used by the collection."),
-    f("max_allowable_offset_degrees", "decimal degrees", "Largest coordinate offset allowed when the source simplifies the polygons.")
-  ]},
-  { id: "reference-geojson", title: "GeoJSON feature", path: "all boundary features", fields: [
+  { id: "reference-geojson", title: "GeoJSON feature", path: "state boundary features", fields: [
     f("type", "text", "GeoJSON object type."),
-    f("properties", "object", "Feature name and, for drainage areas, code and states."),
+    f("properties", "object", "Feature name."),
     f("geometry", "object", "Polygon or multipolygon type and coordinate arrays.")
   ]},
-  { id: "reference-geometry", title: "GeoJSON geometry", path: "all boundary feature geometry", fields: [
+  { id: "reference-geometry", title: "GeoJSON geometry", path: "state boundary feature geometry", fields: [
     f("type", "text", "Polygon or multipolygon type."),
     f("coordinates", "decimal degrees", "Nested longitude and latitude coordinate arrays.")
   ]},
   { id: "reference-state-properties", title: "State feature properties", path: "geography.state.features[].properties", fields: [
     f("name", "text", "State name.")
   ]},
-  { id: "reference-watershed-properties", title: "Drainage-area feature properties", path: "named scope boundaries[].properties", fields: [
-    f("huc6", "identifier", "Six-digit drainage-area code."),
-    f("name", "text", "Six-digit drainage-area name."),
-    f("states", "text", "States touched by the drainage area.")
-  ]}
 ];

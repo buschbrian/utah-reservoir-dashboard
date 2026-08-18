@@ -14,9 +14,14 @@ import type FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import type GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import { resolveBasemap } from "../arcgis/basemaps";
+import {
+  createWatershedLayer,
+  watershedCodeField,
+  WATERSHED_NAME_FIELD
+} from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
-import type { DrainageArea, UtahBoundary } from "../data/boundaries";
+import type { DrainageScope, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
@@ -28,14 +33,13 @@ import {
   eventPoint,
   wireMapHover,
   type HighlightView,
-  type HoverResolution,
-  type ScreenPoint
+  type HoverResolution
 } from "./map-hover";
 
 import {
-  DRAINAGE_NAME_FIELD,
-  createDrainageLayer,
   createHighlightLayer,
+  drainageLabelingInfo,
+  drainageRenderer,
   createMaskLayer,
   createReservoirLayer,
   showHighlight,
@@ -63,6 +67,8 @@ export interface MapStatus {
   drainageLabels: number;
   /** True while drainage-area text is below the reservoir symbols. */
   drainageLabelsUnderReservoirs: boolean;
+  drainageLabelsDeconflicted: boolean;
+  drainageLevel: number;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -90,7 +96,7 @@ export interface MapController {
     reservoirs: readonly Reservoir[],
     percentOf?: (reservoir: Reservoir) => NullableNumber
   ): void;
-  drawDrainageAreas(areas: readonly DrainageArea[]): void;
+  drawDrainageAreas(scope: DrainageScope): void;
   /**
    * Greys the reservoirs a `where` clause excludes, and leaves them on the
    * map. Pass null to clear. Set on the layer rather than on the layer view:
@@ -405,6 +411,10 @@ export async function loadMap(
   }
   let drainageLayer: FeatureLayer | null = null;
   let drainageLabelLayer: GraphicsLayer | null = null;
+  /* The attribute the hosted features carry their code in. Named by the
+   * scope's own level when the areas draw (ADR-050); null until then, and
+   * until then there is nothing drawn to hover over. */
+  let drainageCodeField: string | null = null;
   let reservoirLayer: FeatureLayer | null = null;
   let reservoirLayerView: HighlightView | null = null;
   let pendingFilter: string | null = null;
@@ -446,13 +456,14 @@ export async function loadMap(
        * number a reader wants from an area, and it is the same arithmetic
        * the drought view joins storage by. */
       for (const result of results) {
-        const name = result.graphic?.attributes?.[DRAINAGE_NAME_FIELD];
-        const huc6 = result.graphic?.attributes?.["huc6"];
-        if (typeof name !== "string" || typeof huc6 !== "string") continue;
+        if (!drainageCodeField) break;
+        const name = result.graphic?.attributes?.[WATERSHED_NAME_FIELD];
+        const code = result.graphic?.attributes?.[drainageCodeField];
+        if (typeof name !== "string" || typeof code !== "string") continue;
         return {
           content: {
             heading: name,
-            lines: drainageAreaLines(areaStorage.get(huc6))
+            lines: drainageAreaLines(areaStorage.get(code))
           }
           /* No `graphic`: the emphasis is the reservoir layer view's named
            * highlight, and lighting up a whole drainage polygon under the
@@ -500,6 +511,8 @@ export async function loadMap(
     drainageAreas: 0,
     drainageLabels: 0,
     drainageLabelsUnderReservoirs: false,
+    drainageLabelsDeconflicted: false,
+    drainageLevel: 0,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     reservoirLabels: false,
@@ -591,14 +604,27 @@ export async function loadMap(
 
   /* One fact, one formula, every reader. Both draw paths can reorder the
    * label and reservoir layers, so both go through here; computing it twice
-   * is how the status field and the readiness field learn to disagree. */
+   * is how the status field and the readiness field learn to disagree.
+   *
+   * Two facts now, because the guarantee changed rather than moved. The
+   * first still asks the question ADR-030 asked -- is there drainage text
+   * the map placed itself, below the reservoirs -- and answers no, because
+   * the names come from the label engine. The second is the guarantee that
+   * replaced it. Neither is derivable from the other: text symbols under
+   * the reservoirs and engine placement are both ways of having names, and
+   * a map with no names at all reports false to both. */
   function syncDrainageLabelOrder() {
     status.drainageLabelsUnderReservoirs = drainageLabelLayer !== null
       && reservoirLayer !== null
       && map.layers.indexOf(drainageLabelLayer) < map.layers.indexOf(reservoirLayer);
+    status.drainageLabelsDeconflicted = drainageLayer !== null
+      && drainageLabelLayer === null
+      && (drainageLayer as { labelsVisible?: boolean }).labelsVisible === true;
     if (window.__dashboardReady) {
       window.__dashboardReady.drainageLabelsUnderReservoirs =
         status.drainageLabelsUnderReservoirs;
+      window.__dashboardReady.drainageLabelsDeconflicted =
+        status.drainageLabelsDeconflicted;
     }
   }
 
@@ -650,25 +676,38 @@ export async function loadMap(
       if (!reservoirLayer) return;
       updateReservoirPercents(reservoirLayer, drawn, percentOf);
     },
-    drawDrainageAreas(areas) {
+    drawDrainageAreas({ level, areas }) {
       if (drainageLayer) map.remove(drainageLayer);
       if (drainageLabelLayer) map.remove(drainageLabelLayer);
-      const result = createDrainageLayer(areas);
-      drainageLayer = result.layer;
-      drainageLabelLayer = result.labelLayer;
-      /* Under the reservoirs and over the basemap: outlines and text are
-       * context. Text symbols obey this operational layer order; a
-       * FeatureLayer label pass can paint the same words above the points.
+      drainageLabelLayer = null;
+      /*
+       * Outlines and names from the hosted service, both placed by the label
+       * engine. See `arcgis/watershed-layers.ts` for the transfer figures and
+       * the new record for why this stops obeying ADR-030's layer order.
        *
-       * Counted from the mask rather than from zero. The basemap's own
-       * reference layers are sunk to the bottom of this stack, so the
-       * literal 1 and 2 these used to be would now insert the drainage
-       * outlines underneath the mask that is supposed to sit below them. */
+       * The short of it: ADR-030 put the names in a text-symbol layer below
+       * the reservoirs so a name could never cover a point, and recorded that
+       * "a later denser geography would need a measured decluttering rule".
+       * That geography is the reason this exists. Text symbols have no
+       * deconfliction, so past a couple of dozen areas the names stop
+       * covering reservoirs and start covering each other, which is worse.
+       *
+       * Counted from the mask rather than from zero: the basemap's own
+       * reference layers are sunk to the bottom of this stack (ADR-042).
+       */
+      drainageLayer = createWatershedLayer({
+        level,
+        codes: areas.map((area) => area.huc6),
+        renderer: drainageRenderer(),
+        labelingInfo: drainageLabelingInfo(WATERSHED_NAME_FIELD),
+        labelsVisible: true
+      });
+      drainageCodeField = watershedCodeField(level);
       const base = map.layers.indexOf(maskLayer) + 1;
       map.add(drainageLayer, base);
-      map.add(drainageLabelLayer, base + 1);
+      status.drainageLevel = level;
       status.drainageAreas = areas.length;
-      status.drainageLabels = result.labels;
+      status.drainageLabels = areas.length;
       syncDrainageLabelOrder();
     }
   };

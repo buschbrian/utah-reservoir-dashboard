@@ -20,11 +20,53 @@ function hasNullableNumber(value: unknown): value is number | null {
   return value === null || hasNumber(value);
 }
 
-function isSeriesRow(value: unknown): value is SnowSeriesRow {
-  return Array.isArray(value) && value.length === 3 &&
-    typeof value[0] === "string" &&
-    hasNullableNumber(value[1]) &&
-    hasNullableNumber(value[2]);
+/**
+ * Rebuilds a site's rows from the three parallel columns the payload carries.
+ *
+ * The dates live once at the top of the file and each site names the ones it
+ * has by position, so this is where a site's `[date, value, normal]` rows
+ * come back. Every reader downstream sees exactly what it saw before the
+ * columns were split apart -- the saving is on the wire, not in the model.
+ *
+ * A row is rebuilt only for a day the site actually published. That is the
+ * distinction the encoding exists to keep: a null reading is a row, and a
+ * day with no row is not the same fact.
+ */
+function rebuildSeries(
+  value: Record<string, unknown>, dates: readonly string[]
+): SnowSeriesRow[] | null {
+  const days = value["series_days"];
+  const values = value["series_values"];
+  const normals = value["series_normals"];
+  if (!Array.isArray(days) || !Array.isArray(values) || !Array.isArray(normals)) {
+    return null;
+  }
+  if (days.length !== values.length || days.length !== normals.length) return null;
+  const rows: SnowSeriesRow[] = [];
+  let previousDay = -1;
+  for (let index = 0; index < days.length; index += 1) {
+    const day = days[index];
+    /* A position outside the shared calendar is a payload this cannot read,
+     * not a row to skip: skipping would publish a shorter series than the
+     * site reported and every percentage drawn from it would be quietly
+     * wrong. */
+    if (!Number.isInteger(day) || (day as number) < 0 || (day as number) >= dates.length) {
+      return null;
+    }
+    /* Strictly ascending, for the same reason: positions out of order or
+     * repeated would rebuild a series that jumps backward in time or says
+     * one day twice, and whatever reads the last row for "latest" would be
+     * quietly wrong rather than loudly refused. */
+    if ((day as number) <= previousDay) return null;
+    previousDay = day as number;
+    const date = dates[day as number];
+    if (date === undefined) return null;
+    if (!hasNullableNumber(values[index]) || !hasNullableNumber(normals[index])) {
+      return null;
+    }
+    rows.push([date, values[index] as number | null, normals[index] as number | null]);
+  }
+  return rows.length > 0 ? rows : null;
 }
 
 function isTimingPoint(value: unknown): value is SnowNormalTimingPoint | null {
@@ -56,9 +98,7 @@ function isSnowSite(value: unknown): value is SnowSite {
     (value.provider_huc6 === null || typeof value.provider_huc6 === "string") &&
     typeof value.latest_date === "string" &&
     typeof value.late === "boolean" &&
-    isNormalTiming(value.normal_timing) &&
-    Array.isArray(value.series) && value.series.length > 0 &&
-    value.series.every(isSeriesRow);
+    isNormalTiming(value.normal_timing);
 }
 
 function isRollupDay(value: unknown): value is SnowRollupDay {
@@ -100,11 +140,36 @@ export function validateSnowpackPayload(value: unknown): SnowpackPayload {
   }
   const fields = value.site_series_fields;
   if (!Array.isArray(fields) || fields.length !== 3 ||
-      fields[0] !== "date" || fields[1] !== "value_inches" ||
-      fields[2] !== "normal_median_inches") {
+      fields[0] !== "series_days" || fields[1] !== "series_values" ||
+      fields[2] !== "series_normals") {
     throw new Error("snowpack.json declares unexpected series columns");
   }
-  const badSite = value.sites.findIndex((record) => !isSnowSite(record));
+  /* The water-year calendar, written once. Checked rather than assumed: a
+   * payload whose dates are missing or out of order would rebuild every
+   * site's series against the wrong days, which draws a complete and
+   * plausible curve for the wrong dates. */
+  const dates = value.series_dates;
+  if (!Array.isArray(dates) || dates.length === 0 ||
+      !dates.every((date) => typeof date === "string")) {
+    throw new Error("snowpack.json is missing its shared series dates");
+  }
+  const ordered = dates as string[];
+  for (let index = 1; index < ordered.length; index += 1) {
+    if ((ordered[index] as string) <= (ordered[index - 1] as string)) {
+      throw new Error("snowpack.json series dates are not in ascending order");
+    }
+  }
+  /* Rebuilt before the site check, so a site whose columns do not line up
+   * fails as an invalid site record rather than reaching a reader as a site
+   * with no series at all. */
+  for (const record of value.sites) {
+    if (!isObject(record)) continue;
+    const rows = rebuildSeries(record, ordered);
+    if (rows) record["series"] = rows;
+  }
+  const badSite = value.sites.findIndex(
+    (record) => !isSnowSite(record) ||
+      !Array.isArray((record as unknown as Record<string, unknown>)["series"]));
   if (badSite >= 0) {
     const candidate = value.sites[badSite];
     const name = isObject(candidate) && typeof candidate.name === "string"

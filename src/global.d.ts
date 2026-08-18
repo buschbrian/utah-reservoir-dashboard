@@ -27,10 +27,22 @@ interface DashboardReady {
   masked: boolean;
   boundaryPoints: number;
   drainageAreas: number;
-  /** Drainage-area background text symbols, one per area. */
+  /** Drainage-area names configured, one per area. */
   drainageLabels: number;
-  /** True while drainage-area text is below the reservoir symbols. */
+  /** True while drainage-area text this map placed itself is below the
+   * reservoir symbols. False once the label engine places the names, which
+   * draws them in its own pass above every layer -- see ADR-047. */
   drainageLabelsUnderReservoirs: boolean;
+  /** True while the drainage names are placed by the label engine, which
+   * drops a name it cannot fit rather than stacking it on its neighbour.
+   * The guarantee that replaced fixed placement at western scale. */
+  drainageLabelsDeconflicted: boolean;
+  /** How big the drawn drainage areas are, as the length of their code.
+   * Read from the published scope rather than assumed, so a scope change
+   * that quietly drew the wrong size has somewhere to show up. One surface
+   * reports it because all three read the same payload; a second field would
+   * be a second assertion about one fact. */
+  drainageLevel: number;
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;
@@ -139,10 +151,13 @@ interface Window {
     /** Areas plotted on the storage-against-drought chart. Fewer than `rows`
      * when an area in view has no reservoir reading to compare against. */
     scatterPoints?: number;
-    /** Drainage areas carrying their name on the map. Not `mapOutlines`:
-     * a shape that defeats the interior-point search is outlined and
-     * unnamed, and one field cannot report both. */
+    /** Drainage areas carrying their name on the map. Every area in scope
+     * since ADR-047 -- which of them fit is the label engine's answer, per
+     * frame, and not a fact a readiness field can hold. */
     mapAreaLabels?: number;
+    /** True while those names are placed by the label engine rather than at
+     * fixed points (ADR-047). */
+    mapAreaLabelsDeconflicted?: boolean;
     /** Rows in the ranked comparison: areas that have a reservoir reading. */
     gapRows?: number;
     /** Areas counted by the severity distribution: every published area. */

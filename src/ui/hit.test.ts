@@ -51,6 +51,18 @@ describe("reservoir hit selection", () => {
 
     expect(hit?.reservoir.name).toBe("Deer Creek");
   });
+
+  /* The drainage areas are hosted features since ADR-048 and carry a `name`
+   * of their own. A basin that happens to share a reservoir's name must not
+   * answer as that reservoir -- the layer says what the name means. */
+  it("does not take a drainage area's name for a reservoir", () => {
+    const hit = reservoirFromHits(reservoirs, [{
+      layer: { id: "drainage-areas" },
+      graphic: { attributes: { name: "Deer Creek", huc6: "160201" } }
+    }]);
+
+    expect(hit).toBeNull();
+  });
 });
 
 describe("which layer a hit came from", () => {

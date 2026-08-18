@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readPayload } from "./payload-fixture";
 import { ALL_RESERVOIRS } from "../state/filters";
-import { DEFAULT_SORT, tableRows } from "../state/table";
+import { tableRows } from "../state/table";
 import { headlinePercent } from "../viz/symbols";
 import {
   OVERVIEW_COLUMNS,

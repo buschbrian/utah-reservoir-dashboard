@@ -26,14 +26,17 @@
  */
 import ArcGISMap from "@arcgis/core/Map";
 import Graphic from "@arcgis/core/Graphic";
-import Point from "@arcgis/core/geometry/Point";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { ReferenceLayers } from "../arcgis/reference-layers";
 import { createHillshadeLayer } from "../arcgis/hillshade";
-import type { DrainageArea } from "../data/boundaries";
-import { drainageLabelPoint } from "../data/huc";
+import {
+  createWatershedLayer,
+  watershedCodeField,
+  WATERSHED_NAME_FIELD
+} from "../arcgis/watershed-layers";
+import type { DrainageScope } from "../data/boundaries";
 import type { StorageContext } from "../drought-model";
 import type { UsdmPolygons } from "../data/usdm-load";
 import type { DroughtUnit } from "../types";
@@ -64,7 +67,7 @@ import {
 
 const CLASS_LAYER_ID = "usdm-classes";
 const OUTLINE_LAYER_ID = "drainage-outlines";
-const AREA_LABEL_LAYER_ID = "drainage-names";
+const OUTLINE_CASING_LAYER_ID = "drainage-outline-casing";
 
 /* Symbols are property objects rather than constructed classes, the same
  * convention `ui/layers.ts` records: the SDK autocasts them, and anything
@@ -83,9 +86,13 @@ export interface DroughtMapStatus {
   classesDrawn: number;
   /** Drainage-area outlines drawn over the polygons. */
   outlines: number;
-  /** Drainage areas carrying their name. One per area with an interior
-   * point, which is every area unless a shape defeats the search. */
+  /** Drainage areas carrying their name, which is every area in scope --
+   * the label engine decides per frame which of them fit. */
   areaLabels: number;
+  /** True while those names are placed by the label engine rather than at
+   * fixed points, so a name that cannot fit is dropped instead of being
+   * drawn over its neighbour (ADR-047). */
+  areaLabelsDeconflicted: boolean;
   /** Reservoirs drawn for reference, 0 when that payload could not be read. */
   reservoirs: number;
   /** True while those reference reservoirs are carrying their names. */
@@ -110,7 +117,7 @@ export interface DroughtMapContext {
 export async function createDroughtMap(
   element: ViewMapElement,
   card: HTMLElement,
-  areas: readonly DrainageArea[],
+  scope: DrainageScope,
   usdm: UsdmPolygons,
   reservoirs: readonly ReservoirReference[],
   context: DroughtMapContext,
@@ -155,76 +162,60 @@ export async function createDroughtMap(
    * monitor's own palette, and a coloured boundary would read as a sixth
    * class (ADR-032).
    */
-  const outlineLayer = new GraphicsLayer({ id: OUTLINE_LAYER_ID });
-  const boundaryRings = (area: DrainageArea): number[][][] =>
-    area.polygons.flat().map((ring) => ring.map((point) => [...point]));
-  for (const area of areas) {
-    outlineLayer.add(new Graphic({
-      geometry: new Polygon({ rings: boundaryRings(area) }),
-      attributes: { huc6: area.huc6, name: area.name },
-      symbol: {
-        type: "simple-fill",
-        color: [0, 0, 0, 0],
-        outline: { color: "rgba(255,255,255,0.85)", width: 3.4 }
-      } as FillSymbol
-    }));
-  }
-  for (const area of areas) {
-    /* The core in its own pass, so every casing is already down before any
-     * core is drawn -- otherwise one area's casing paints over its
-     * neighbour's core along a shared edge. */
-    outlineLayer.add(new Graphic({
-      geometry: new Polygon({ rings: boundaryRings(area) }),
-      attributes: { huc6: area.huc6, name: area.name },
-      symbol: {
-        type: "simple-fill",
-        color: [0, 0, 0, 0],
-        outline: { color: "rgba(23,32,38,0.95)", width: 1.3 }
-      } as FillSymbol
-    }));
-  }
-
+  const { level, areas } = scope;
+  const codes = areas.map((area) => area.huc6);
+  /* The attribute the hosted features carry their code in, named by the
+   * scope's own level (ADR-050) -- never a literal "huc6". */
+  const codeField = watershedCodeField(level);
+  const boundarySymbol = (color: string, width: number): FillSymbol => ({
+    type: "simple-fill",
+    color: [0, 0, 0, 0],
+    outline: { color, width }
+  });
   /*
-   * The drainage areas' own names.
+   * The casing and the core are two layers over one service, not two symbol
+   * layers in one.
    *
-   * This map's whole subject is what the monitor says about each of these
-   * fourteen areas, and every figure below it is keyed to one of them by
-   * name -- so the map has to say which shape is which. It carried no names
-   * at all, which left a reader matching an outline to a table row by
-   * position.
+   * A cased line only works if every casing is already down before any core
+   * is drawn. Within a single layer that ordering is not ours to choose, so
+   * one area's casing paints over its neighbour's core along the edge they
+   * share -- which is the artifact the graphics version was written in two
+   * passes to avoid, and it does not stop being an artifact because the
+   * geometry now arrives over the network.
    *
-   * Text symbols in a layer of their own rather than feature labelling. The
-   * outlines are graphics, and a text symbol sits exactly where this puts it,
-   * above the classes and the terrain and below the reservoirs. The name goes
-   * at each area's interior point -- `drainageLabelPoint` finds one inside
-   * the shape rather than at the average of its vertices, which for a
-   * horseshoe-shaped basin is outside it.
-   *
-   * Cased like the boundaries and for the same reason: a dark name with a
-   * bright halo reads on the pale classes because the letters are dark, and
-   * on the dark classes because the halo is bright.
+   * The price is that the same features are fetched twice. It is quantized
+   * to the view both times, so it is a doubling of tens of kilobytes rather
+   * than of the 982 KB file this replaces; `docs/data-transfer.md` carries
+   * the measurement.
    */
-  const labelLayer = new GraphicsLayer({ id: AREA_LABEL_LAYER_ID });
-  let areaLabels = 0;
-  for (const area of areas) {
-    const point = drainageLabelPoint(area.polygons);
-    if (!point) {
-      console.warn(`No interior label point for ${area.name}; its name is not drawn.`);
-      continue;
-    }
-    areaLabels += 1;
-    labelLayer.add(new Graphic({
-      /* `drainageLabelPoint` answers a [longitude, latitude] tuple, not an
-       * SDK geometry -- passing it straight in is silently rejected by the
-       * accessor and the name never draws. The storage map wraps it the same
-       * way. */
-      geometry: new Point({
-        longitude: point[0], latitude: point[1], spatialReference: { wkid: 4326 }
-      }),
-      attributes: { huc6: area.huc6, name: area.name },
+  const casingLayer = createWatershedLayer({
+    id: OUTLINE_CASING_LAYER_ID,
+    level,
+    codes,
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.85)", 3.4) }
+  });
+  /*
+   * The core carries the names as well as the dark line.
+   *
+   * ADR-047: fixed text symbols do not deconflict, and this map's inventory
+   * grows with the scope like every other. Cased like the boundary and for
+   * the same reason -- dark letters read on the pale classes, the bright
+   * halo reads on the dark ones -- so this keeps its own heavier halo rather
+   * than the storage map's, because it is written over the monitor's palette
+   * and not over terrain.
+   */
+  const outlineLayer = createWatershedLayer({
+    id: OUTLINE_LAYER_ID,
+    level,
+    codes,
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.95)", 1.3) },
+    labelsVisible: true,
+    labelingInfo: [{
+      labelExpressionInfo: { expression: `$feature.${WATERSHED_NAME_FIELD}` },
+      labelPlacement: "always-horizontal",
+      deconflictionStrategy: "dynamic",
       symbol: {
         type: "text",
-        text: area.name,
         color: "rgba(23,32,38,0.98)",
         haloColor: "rgba(255,255,255,0.92)",
         haloSize: "2.4px",
@@ -234,8 +225,8 @@ export async function createDroughtMap(
           weight: LABEL_FONT_WEIGHT_BOLD
         }
       }
-    } as unknown as ConstructorParameters<typeof Graphic>[0]));
-  }
+    }]
+  });
 
   const reference = createReservoirReferenceLayer(reservoirs);
   const reservoirByName = new Map(
@@ -252,7 +243,8 @@ export async function createDroughtMap(
      * core, so the graphic count is twice the number of drainage areas and
      * would answer a different question from the one this field asks. */
     outlines: areas.length,
-    areaLabels,
+    areaLabels: areas.length,
+    areaLabelsDeconflicted: true,
     reservoirs: reference.drawn,
     reservoirLabels: reference.labelled,
     stateBoundaries: boundaries.states !== null,
@@ -301,8 +293,8 @@ export async function createDroughtMap(
       ...(boundaries.counties ? [boundaries.counties] : []),
       droughtLayer,
       hillshade,
+      casingLayer,
       outlineLayer,
-      labelLayer,
       reference.layer
     ]
   });
@@ -357,7 +349,7 @@ export async function createDroughtMap(
         }
 
         if (layerId === OUTLINE_LAYER_ID) {
-          const huc6 = String(attributes["huc6"]);
+          const huc6 = String(attributes[codeField]);
           const unit = unitByHuc6.get(huc6);
           if (!unit) continue;
           return {
