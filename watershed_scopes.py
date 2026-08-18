@@ -201,9 +201,11 @@ def load_scope_units(name: str, *, root: Path = ROOT) -> list[dict]:
         raise FileNotFoundError(
             f"watershed scope {name!r} has not been generated: {path}")
     units = load_units(path)
-    field = huc_field(scope.level)
+    # `huc.load_units` normalizes whatever the collection calls its code --
+    # `huc4`, `huc6`, `huc8` -- into one key, so the level decides what the
+    # codes must look like rather than where to find them.
     codes = validate_huc_codes(
-        (unit[field] for unit in units), scope.level, scope.region)
+        (unit["huc6"] for unit in units), scope.level, scope.region)
     if scope.expected_count is not None and len(codes) != scope.expected_count:
         raise ValueError(
             f"expected {scope.expected_count} units for {name}, received {len(codes)}")
