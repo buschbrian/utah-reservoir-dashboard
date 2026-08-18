@@ -30,7 +30,6 @@ import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 import type { ReferenceLayers } from "../arcgis/reference-layers";
-import { createHillshadeLayer } from "../arcgis/hillshade";
 import {
   createWatershedLayer,
   watershedCodeField,
@@ -202,7 +201,7 @@ export async function createDroughtMap(
     id: OUTLINE_CASING_LAYER_ID,
     level,
     codes,
-    renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.62)", 2.6) }
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.34)", 1.6) }
   });
   /*
    * The core carries the names as well as the dark line.
@@ -215,7 +214,7 @@ export async function createDroughtMap(
     id: OUTLINE_LAYER_ID,
     level,
     codes,
-    renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.68)", 0.9) },
+    renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.44)", 0.7) },
     labelsVisible: true,
     labelingInfo: [{
       labelExpressionInfo: { expression: `$feature.${WATERSHED_NAME_FIELD}` },
@@ -294,34 +293,39 @@ export async function createDroughtMap(
    * their reservoirs, because those are what the figures on the page describe.
    */
   /*
-   * Terrain under the classes, not over them (ADR-054, superseding ADR-043).
+   * No terrain on this map, and the borrowed boundaries sit above the classes
+   * rather than below them (ADR-061).
    *
-   * It was above them for two versions, on the argument that shading from
-   * above varies a class's lightness and leaves the monitor's hue untouched.
-   * The argument holds and the result did not: a glaze over the subject puts
-   * terrain and drought in the same pixels, so the relief has to be strong
-   * enough to read through a class before it says anything, and by then it is
-   * competing with the thing it was added to support.
+   * ADR-054 put the hillshade underneath on the argument that the classes are
+   * drawn at 0.45 alpha, so a reader is already seeing through them to
+   * something and it may as well be the ground that makes the water. The
+   * argument still holds and the picture did not: relief plus five saturated
+   * classes plus two cased boundary sets is more ink than the single question
+   * this map asks, and the classes are the measurement. The flattest
+   * available background is the right background for a choropleth.
    *
-   * Underneath, it is simply the ground. The classes are drawn at 0.45 alpha,
-   * so a reader was already seeing through them -- to the flattest possible
-   * background. This is the same view with something beneath it that says
-   * where the mountains that make the water are.
+   * The boundaries move above the data because of what the data *is*, not
+   * because this page is special. Drought classes are a continuous surface:
+   * they tile the region with no gaps, so a line drawn over them always has
+   * fill on both sides and reads as a partition of the subject. Reference
+   * geometry over continuous data divides; it cannot hide.
    *
-   * At the very bottom, below the borrowed state and county lines as well:
-   * those are outlines over a transparent fill, and a shade above them would
-   * tint the lines themselves for no gain. `arcgis/hillshade.ts` carries why
-   * the blend operator is `normal` here and could not be `soft-light`.
+   * Discrete data is the case ADR-042 was written from. A reservoir is a
+   * point, and a boundary drawn across a point does not partition it -- it
+   * occludes it, which is how a grey state line came to run through Flaming
+   * Gorge. The storage and snow maps keep their reference layers sunk for
+   * that reason and not by accident.
+   *
+   * So: continuous underneath, reference over. Discrete, investigate before
+   * raising anything above it.
    */
-  const hillshade = createHillshadeLayer();
   const map = new ArcGISMap({
     layers: [
-      hillshade,
-      ...(boundaries.states ? [boundaries.states] : []),
-      ...(boundaries.counties ? [boundaries.counties] : []),
       droughtLayer,
       casingLayer,
       outlineLayer,
+      ...(boundaries.states ? [boundaries.states] : []),
+      ...(boundaries.counties ? [boundaries.counties] : []),
       reference.layer
     ]
   });

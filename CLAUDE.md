@@ -116,20 +116,28 @@ assignment including theme swaps and the gallery, and `basemapReferenceSunk`
 reports it. A caller inserting at a fixed index must count from a layer it owns,
 not from zero.
 
-**Terrain is the ground, at the bottom of the stack** (ADR-054, superseding
-ADR-043). It was above the drought classes for two versions, so that it varied
-their lightness and left the monitor's hues alone. The range between invisible
-and intrusive turned out to be empty: a shade over the subject has to be
-strong enough to read through a class before it says anything, and by then it
-is competing with it. The classes are drawn at 0.45 alpha, so a reader was
-always seeing through them — to a flat background. Now there is terrain there.
-**The blend operator is not a free choice from below.** `soft-light` and
-`overlay` pivot around mid-grey, so their effect scales with `b · (1 − b)` of
-the backdrop; against the `canvas/light-gray` theme canvas that is a swing of
-about 1% at 0.3 opacity, which is no effect at all. `normal` is the operator,
-and `HILLSHADE_BLEND_MODE` in `src/arcgis/hillshade.ts` carries the
-arithmetic. The Basemap Styles hillshades need an API key (ADR-004 refuses
-one); `World_Hillshade` is public and already inside the content policy.
+**What may sit over the subject depends on whether the subject is continuous
+or discrete** (ADR-061, superseding ADR-054 and narrowing ADR-042's claimed
+scope). Drought classes tile the region with no gaps, so a line over them
+always has fill on both sides: it partitions the surface and cannot hide it.
+State and county outlines therefore draw *above* the drought classes. A
+reservoir is a point, and a boundary across a point occludes rather than
+partitions — which is the Flaming Gorge failure ADR-042 was written from, so
+the storage and snow maps keep their reference layers sunk. Investigate before
+raising anything over discrete data; the test is whether the mark can be
+hidden, not whether it is vector.
+
+**The drought map draws no terrain.** The flattest available background is the
+right one for a choropleth, and relief plus five saturated classes plus two
+cased boundary sets was more ink than the map's one question. **The blend
+operator is still not a free choice** if a hillshade is ever used again:
+`soft-light` and `overlay` pivot around mid-grey, so their effect scales with
+`b · (1 − b)` of the backdrop; against the `canvas/light-gray` theme canvas
+that is a swing of about 1% at 0.3 opacity, which is no effect at all.
+`normal` is the operator, and `HILLSHADE_BLEND_MODE` in
+`src/arcgis/hillshade.ts` carries the arithmetic. The Basemap Styles
+hillshades need an API key (ADR-004 refuses one); `World_Hillshade` is public
+and already inside the content policy.
 
 **A week-over-week drought change needs two files and uses one.** The current
 coverage file carries the week before it, which is about a kilobyte and is all
