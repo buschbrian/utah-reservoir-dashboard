@@ -306,6 +306,52 @@ def test_carry_forward_preserves_values_and_marks_the_failure():
     assert "boom" in carried["fetch_error"]
 
 
+# --- withdrawal for age (ADR-056) ----------------------------------------
+
+def test_a_record_inside_the_window_is_published_and_one_past_it_is_not():
+    """The boundary is exclusive: exactly WITHDRAW_AFTER_DAYS still counts."""
+    window = R.WITHDRAW_AFTER_DAYS
+    records = [
+        {"name": "Fresh", "days_stale": 0},
+        {"name": "Late", "days_stale": window - 1},
+        {"name": "On the line", "days_stale": window},
+        {"name": "A season behind", "days_stale": window + 1},
+    ]
+    published, withdrawn = R.partition_by_age(records)
+    assert [r["name"] for r in published] == ["Fresh", "Late", "On the line"]
+    assert [r["name"] for r in withdrawn] == ["A season behind"]
+
+
+def test_withdrawal_sorts_the_worst_first():
+    records = [{"name": "A", "days_stale": 70}, {"name": "B", "days_stale": 400},
+               {"name": "C", "days_stale": 90}]
+    _, withdrawn = R.partition_by_age(records)
+    assert [r["name"] for r in withdrawn] == ["B", "C", "A"]
+
+
+def test_a_reservoir_that_never_fetched_is_published_not_withdrawn():
+    """A missing age is a different fault with a different remedy.
+
+    Withdrawing on a null would hide a configuration error behind the
+    mechanism built for a quiet feed, and `fetch_ok` already reports it.
+    """
+    published, withdrawn = R.partition_by_age([{"name": "Never", "days_stale": None}])
+    assert [r["name"] for r in published] == ["Never"]
+    assert withdrawn == []
+
+
+def test_the_withdrawal_notice_carries_no_measurement():
+    """The whole point is that this figure is not published."""
+    record = R.summarize("Gone", 993, 40.0, -111.0,
+                         synthetic_series(stale_days=200), TODAY)
+    notice = R.withdrawal_notice(record)
+    assert notice["name"] == "Gone"
+    assert notice["days_stale"] == 200
+    for key in ("current_storage_af", "pct_of_record_max", "monthly",
+                "record_max_af", "baselines"):
+        assert key not in notice, key
+
+
 # --- previous-output loading ---------------------------------------------
 
 def test_load_previous_accepts_both_file_shapes_and_survives_garbage(tmp_path):
@@ -390,8 +436,27 @@ def test_committed_reservoirs_json_is_well_formed():
     payload = json.loads((Path(__file__).resolve().parent.parent / "reservoirs.json").read_text())
     assert isinstance(payload, dict), "expected the envelope shape"
     records = payload["reservoirs"]
-    assert len(records) == payload["reservoir_count"] == len(R.ALL_RESERVOIR_NAMES)
+    assert len(records) == payload["reservoir_count"]
     assert payload["stale_count"] == sum(1 for r in records if r["is_stale"])
+
+    # The roster is conserved: withdrawing a reservoir for old data takes it
+    # out of `reservoirs` and puts it in `withdrawn`, and never loses it
+    # (ADR-056). Asserting the union rather than the published count is what
+    # keeps a silent drop -- a name that falls out of both -- from passing.
+    withdrawn = payload.get("withdrawn", [])
+    assert len(withdrawn) == payload.get("withdrawn_count", 0)
+    published_names = {r["name"] for r in records}
+    withdrawn_names = {entry["name"] for entry in withdrawn}
+    assert published_names.isdisjoint(withdrawn_names), (
+        "a reservoir is both published and withdrawn")
+    assert published_names | withdrawn_names == set(R.ALL_RESERVOIR_NAMES)
+
+    for entry in withdrawn:
+        assert entry["days_stale"] > payload["withdraw_after_days"], entry["name"]
+        # A withdrawn reservoir must not carry the figure it was withdrawn
+        # for. Publishing it in a quieter shape is still publishing it.
+        assert "current_storage_af" not in entry, entry["name"]
+        assert "monthly" not in entry, entry["name"]
 
     for record in records:
         for key in ("name", "as_of", "days_stale", "is_stale", "fetch_ok",

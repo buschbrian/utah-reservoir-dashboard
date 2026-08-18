@@ -54,20 +54,31 @@
   ],
   "source_counts": {
     "rise": 29,
-    "awdb": 40
+    "awdb": 39
   },
-  "reservoir_count": 69,
-  "stale_count": 12,
-  "capacity_count": 69,
+  "reservoir_count": 68,
+  "stale_count": 11,
+  "capacity_count": 68,
+  "withdraw_after_days": 60,
+  "withdrawn_count": 1,
+  "withdrawn": [
+    {
+      "name": "Elkhead Reservoir",
+      "as_of": "2026-05-31",
+      "days_stale": 79,
+      "source_label": "USDA NRCS AWDB",
+      "reason": "no reading inside the publication window"
+    }
+  ],
   "watersheds": {
     "source": "USGS Watershed Boundary Dataset",
     "level": 6,
     "boundaries": "huc6.geojson",
     "assignment_rule": "the dam or outlet point, not the middle of the water",
     "unit_count": 14,
-    "assigned": 69,
+    "assigned": 68,
     "unassigned": 0,
-    "assigned_by_dam": 44,
+    "assigned_by_dam": 43,
     "in_utah": 50,
     "intersects_utah": 52
   },
@@ -6990,193 +7001,6 @@
         40.30006
       ],
       "huc_assignment_source": "published_point"
-    },
-    {
-      "name": "Elkhead Reservoir",
-      "rise_item_id": null,
-      "source_key": "awdb",
-      "source_label": "USDA NRCS AWDB",
-      "source_url": "https://wcc.sc.egov.usda.gov/awdbWebService/",
-      "source_station_id": "09246300:CO:BOR",
-      "data_frequency": "monthly",
-      "stale_after_days": 45,
-      "lat": 40.5583,
-      "lon": -107.3873,
-      "as_of": "2026-05-31",
-      "days_stale": 79,
-      "is_stale": true,
-      "fetch_ok": true,
-      "current_storage_af": 24866.0,
-      "record_max_af": 25363.0,
-      "record_min_af": 14278.0,
-      "pct_of_record_max": 98.0,
-      "capacity_af": 24778.0,
-      "capacity_basis": "normal_storage",
-      "pct_of_capacity": 100.4,
-      "seasonal_percentile": 45.5,
-      "seasonal_normal_af": 24939.0,
-      "pct_of_seasonal_normal": 99.7,
-      "seasonal_sample_years": 11,
-      "baselines": {
-        "recent": {
-          "normal_af": 24939.0,
-          "pct_of_normal": 99.7,
-          "sample_years": 11,
-          "covers_full_period": true,
-          "first_obs": "2015-01-31"
-        },
-        "climate": {
-          "normal_af": 24847.5,
-          "pct_of_normal": 100.1,
-          "sample_years": 16,
-          "covers_full_period": false,
-          "first_obs": "1991-03-31"
-        },
-        "default": "climate"
-      },
-      "change_7d_af": null,
-      "change_7d_pct": null,
-      "change_30d_af": 22.0,
-      "change_30d_pct": 0.1,
-      "change_365d_af": 589.0,
-      "change_365d_pct": 2.4,
-      "peak_this_year_af": 24866.0,
-      "peak_this_year_date": "2026-05-31",
-      "pct_of_peak_this_year": 100.0,
-      "monthly": [
-        {
-          "month": "2025-06",
-          "mean_af": 24413.0,
-          "min_af": 24413.0,
-          "max_af": 24413.0,
-          "end_af": 24413.0,
-          "days": 1,
-          "normal_af": 24699.0,
-          "climate_normal_af": 24406.0
-        },
-        {
-          "month": "2025-07",
-          "mean_af": 23190.0,
-          "min_af": 23190.0,
-          "max_af": 23190.0,
-          "end_af": 23190.0,
-          "days": 1,
-          "normal_af": 24155.0,
-          "climate_normal_af": 23311.0
-        },
-        {
-          "month": "2025-08",
-          "mean_af": 17843.0,
-          "min_af": 17843.0,
-          "max_af": 17843.0,
-          "end_af": 17843.0,
-          "days": 1,
-          "normal_af": 21812.0,
-          "climate_normal_af": 21198.0
-        },
-        {
-          "month": "2025-09",
-          "mean_af": 16586.0,
-          "min_af": 16586.0,
-          "max_af": 16586.0,
-          "end_af": 16586.0,
-          "days": 1,
-          "normal_af": 17780.0,
-          "climate_normal_af": 18483.0
-        },
-        {
-          "month": "2025-10",
-          "mean_af": 16421.0,
-          "min_af": 16421.0,
-          "max_af": 16421.0,
-          "end_af": 16421.0,
-          "days": 1,
-          "normal_af": 17467.5,
-          "climate_normal_af": 18190.0
-        },
-        {
-          "month": "2025-11",
-          "mean_af": 16184.0,
-          "min_af": 16184.0,
-          "max_af": 16184.0,
-          "end_af": 16184.0,
-          "days": 1,
-          "normal_af": 18027.0,
-          "climate_normal_af": 18533.0
-        },
-        {
-          "month": "2025-12",
-          "mean_af": 16151.0,
-          "min_af": 16151.0,
-          "max_af": 16151.0,
-          "end_af": 16151.0,
-          "days": 1,
-          "normal_af": 18082.5,
-          "climate_normal_af": 18684.0
-        },
-        {
-          "month": "2026-01",
-          "mean_af": 16223.0,
-          "min_af": 16223.0,
-          "max_af": 16223.0,
-          "end_af": 16223.0,
-          "days": 1,
-          "normal_af": 18156.0,
-          "climate_normal_af": 19122.0
-        },
-        {
-          "month": "2026-02",
-          "mean_af": 16526.0,
-          "min_af": 16526.0,
-          "max_af": 16526.0,
-          "end_af": 16526.0,
-          "days": 1,
-          "normal_af": 18358.0,
-          "climate_normal_af": 19553.5
-        },
-        {
-          "month": "2026-03",
-          "mean_af": 19234.0,
-          "min_af": 19234.0,
-          "max_af": 19234.0,
-          "end_af": 19234.0,
-          "days": 1,
-          "normal_af": 17916.0,
-          "climate_normal_af": 20442.0
-        },
-        {
-          "month": "2026-04",
-          "mean_af": 24844.0,
-          "min_af": 24844.0,
-          "max_af": 24844.0,
-          "end_af": 24844.0,
-          "days": 1,
-          "normal_af": 24255.0,
-          "climate_normal_af": 24456.0
-        },
-        {
-          "month": "2026-05",
-          "mean_af": 24866.0,
-          "min_af": 24866.0,
-          "max_af": 24866.0,
-          "end_af": 24866.0,
-          "days": 1,
-          "normal_af": 24939.0,
-          "climate_normal_af": 24847.5
-        }
-      ],
-      "first_obs": "2015-01-31",
-      "n_obs": 137,
-      "years_of_record": 11.3,
-      "in_utah": false,
-      "intersects_utah": false,
-      "huc6": "140500",
-      "huc6_name": "White-Yampa",
-      "huc_assignment_point": [
-        -107.38363,
-        40.5578
-      ],
-      "huc_assignment_source": "nid_dam_point"
     },
     {
       "name": "Minersville",

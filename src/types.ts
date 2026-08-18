@@ -295,5 +295,33 @@ export interface ReservoirPayload {
   reservoir_count: number;
   stale_count: number;
   capacity_count: number;
+  /**
+   * How old a reading may be and still be published at all (ADR-056).
+   *
+   * Optional because a payload written before ADR-056 has no withdrawal
+   * record. The pipeline always writes all three now, so absent means old,
+   * not broken -- the validator draws the same line.
+   */
+  withdraw_after_days?: number;
+  withdrawn_count?: number;
+  /** Reservoirs this run declined to publish, and why. Never charted. */
+  withdrawn?: WithdrawnReservoir[];
   reservoirs: Reservoir[];
+}
+
+/**
+ * A reservoir held back from the payload for being too far out of date.
+ *
+ * Deliberately not a `Reservoir`: it carries no storage, no percent full and
+ * no baseline, because the whole reason it is here is that its last figure
+ * describes a different season from the one every other record describes.
+ * It exists so a shorter roster is legible as a decision rather than as an
+ * unexplained gap.
+ */
+export interface WithdrawnReservoir {
+  name: string;
+  as_of: string;
+  days_stale: number;
+  source_label: string;
+  reason: string;
 }

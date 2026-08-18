@@ -211,7 +211,7 @@ jobs:
           {
             printf '%s\n\n' "The refresh found **$STALE_COUNT** reservoir(s) later than their expected source cadence."
             printf '%s\n\n' "$STALE_TABLE"
-            printf '%s\n\n' "A reservoir lands here when its newest reading exceeds its cadence threshold (2 days for daily data; 45 days for month-end data), or when the refresh cannot reach its source. Its last known value is still published and drawn on the map, marked stale — it is not presented as current."
+            printf '%s\n\n' "A reservoir lands here when its newest reading exceeds its cadence threshold (2 days for daily data; 45 days for month-end data), or when the refresh cannot reach its source. Its last known value is still published and drawn on the map, marked stale — it is not presented as current. Past 60 days it stops being published at all and moves to the withdrawn-feed issue (ADR-056)."
             printf '%s\n\n' "This issue is maintained automatically: it updates on every refresh and closes itself once every feed is reporting again."
             printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
           } > issue-body.md
@@ -236,4 +236,49 @@ jobs:
             echo "Closed issue #$EXISTING"
           else
             echo "All feeds fresh, no open issue."
+          fi
+
+      # Withdrawal gets its own issue rather than a section in the one above,
+      # because it is a different fact with a different remedy. Stale is
+      # "watch this"; withdrawn is "this reservoir left the map, and someone
+      # has to decide whether the feed is coming back or the reservoir needs
+      # re-sourcing". Same self-healing shape, so it also closes itself.
+      - name: Open or update the withdrawn-feed issue
+        if: steps.refresh.outputs.withdrawn_count != '0' && steps.refresh.outputs.withdrawn_count != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WITHDRAWN_COUNT: ${{ steps.refresh.outputs.withdrawn_count }}
+          WITHDRAWN_NAMES: ${{ steps.refresh.outputs.withdrawn_names }}
+          WITHDRAWN_TABLE: ${{ steps.refresh.outputs.withdrawn_table }}
+        run: |
+          TITLE="Reservoirs withdrawn for out-of-season data ($WITHDRAWN_NAMES)"
+          {
+            printf '%s\n\n' "The refresh withdrew **$WITHDRAWN_COUNT** reservoir(s) from the published payload. They are **not on the map, not in the list, and not in any total.**"
+            printf '%s\n\n' "$WITHDRAWN_TABLE"
+            printf '%s\n\n' "A reservoir lands here when its newest reading is more than 60 days old. Being late and being from another season are different faults, and the second one is not fixed by a label: a spring reading standing in an August column is an accurate measurement of spring, and the regional storage total sums current storage with no freshness filter, so a carried-forward figure would be added into a total presented as now. See ADR-056."
+            printf '%s\n\n' "**What to decide:** whether the source is coming back, or whether the reservoir needs re-sourcing or retiring from the roster. Nothing is deleted — a withdrawn reservoir returns on its own the morning its source resumes, because the roster it is read from is committed and this judgement is made fresh on every run."
+            printf '%s\n\n' "This issue is maintained automatically: it updates on every refresh and closes itself once every reservoir is inside the publication window again."
+            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+          } > withdrawn-body.md
+          gh label create withdrawn-feed --color b91c1c \
+            --description 'A reservoir is too far out of date to publish beside the others' 2>/dev/null || true
+          EXISTING=$(gh issue list --state open --label withdrawn-feed --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file withdrawn-body.md
+            echo "Updated issue #$EXISTING"
+          else
+            gh issue create --title "$TITLE" --body-file withdrawn-body.md --label withdrawn-feed
+          fi
+
+      - name: Close the withdrawn-feed issue once every reservoir is back in range
+        if: steps.refresh.outputs.withdrawn_count == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --state open --label withdrawn-feed --limit 1 --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Every reservoir is inside the publication window again as of $(date -u '+%Y-%m-%d'), and all are published. Closing automatically."
+            echo "Closed issue #$EXISTING"
+          else
+            echo "Nothing withdrawn, no open issue."
           fi

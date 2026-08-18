@@ -29,6 +29,7 @@ from huc import (  # noqa: E402
 
 BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
+CONNECTED = ROOT / "connected_reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 
@@ -86,7 +87,23 @@ def units() -> list[dict]:
 
 @pytest.fixture(scope="module")
 def reservoirs() -> list[dict]:
-    return json.loads(RESERVOIRS.read_text())["reservoirs"]
+    """Every reservoir on the roster, published or not.
+
+    Where a reservoir sits is geography, and geography does not depend on
+    whether its feed reported this week. A reservoir withdrawn for old data
+    (ADR-056) leaves `reservoirs` and keeps its coordinates in the committed
+    roster, so the assignment tests below go on checking it -- otherwise a
+    quiet feed would quietly retire an assertion, which is the failure mode
+    this whole file exists to prevent.
+    """
+    records = json.loads(RESERVOIRS.read_text())["reservoirs"]
+    published = {record["name"] for record in records}
+    roster = json.loads(CONNECTED.read_text()).get("reservoirs", {})
+    for name, entry in roster.items():
+        if name not in published and entry.get("lat") and entry.get("lon"):
+            records.append({"name": name, "lat": entry["lat"], "lon": entry["lon"],
+                            "huc6": entry.get("huc6")})
+    return records
 
 
 def test_boundary_file_holds_exactly_the_units_that_touch_utah(units):

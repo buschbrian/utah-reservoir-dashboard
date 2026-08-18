@@ -64,6 +64,7 @@ supersedes the old one — the history is the point.
 | [ADR-053](ADR-053-scope-the-west-by-drainage-not-longitude.md) | Scope the west by where the water goes, not by longitude | Accepted |
 | [ADR-054](ADR-054-make-the-terrain-the-ground-under-the-drought-classes.md) | Make the terrain the ground under the drought classes | Accepted |
 | [ADR-055](ADR-055-measure-area-geodesically-and-keep-the-sampler-spherical.md) | Measure area geodesically, and keep the sampler spherical | Accepted |
+| [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md) | Withdraw a reading that belongs to another season | Accepted |
 
 ## Relationship to the modernization plan
 

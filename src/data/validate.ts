@@ -205,5 +205,34 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
   if (!hasNumber(value.stale_count) || !hasNumber(value.capacity_count)) {
     throw new Error("reservoirs.json is missing summary counts");
   }
+  /* Optional, like the comparison metadata above it and for the same reason:
+   * a payload written before ADR-056 has no withdrawal record and is not
+   * malformed, it is old. Requiring the fields would refuse a file this
+   * project itself published. Present, they are checked strictly -- a
+   * withdrawal that arrives half-described is a bug in the pipeline, and the
+   * point of withdrawing is undone if anything downstream can still chart
+   * the figure. */
+  if (value.withdrawn !== undefined || value.withdrawn_count !== undefined ||
+      value.withdraw_after_days !== undefined) {
+    if (!hasNumber(value.withdraw_after_days) || !hasNumber(value.withdrawn_count) ||
+        !Array.isArray(value.withdrawn)) {
+      throw new Error("reservoirs.json has an incomplete withdrawal record");
+    }
+    if (value.withdrawn.length !== value.withdrawn_count) {
+      throw new Error("withdrawn_count does not match the withdrawn array");
+    }
+    for (const entry of value.withdrawn) {
+      if (!isObject(entry) || typeof entry.name !== "string" ||
+          typeof entry.as_of !== "string" || !hasNumber(entry.days_stale)) {
+        throw new Error("a withdrawn entry is missing its name, date or age");
+      }
+      if ("current_storage_af" in entry) {
+        throw new Error("a withdrawn entry carries a storage figure");
+      }
+      if (entry.days_stale <= value.withdraw_after_days) {
+        throw new Error("a withdrawn entry is inside the publication window");
+      }
+    }
+  }
   return value as unknown as ReservoirPayload;
 }

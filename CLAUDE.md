@@ -144,6 +144,21 @@ land minus a share of reservoir capacity is not a quantity. Such a difference
 may rank rows and may set the length of a line; it may not be printed as a
 number or given a baseline.
 
+**Late and out-of-season are different faults** (ADR-056). `carry_forward`
+keeps publishing a quiet feed's last value because a point vanishing with no
+explanation is worse — true for days, false for months. Past
+`WITHDRAW_AFTER_DAYS` (60) a record is withdrawn from the payload entirely,
+because `statewideRollup` sums `current_storage_af` with no freshness filter,
+so a spring figure is not just shown out of season, it is *added into a total
+presented as now*. A withdrawal is always stated (`withdrawn`,
+`withdrawn_count`, `withdraw_after_days`) and a withdrawal notice must never
+carry a measurement — the validator rejects one holding
+`current_storage_af`. Nothing is deleted: the roster is committed and the
+judgement is remade every run. **A drainage area may therefore be empty**;
+`storageAgainstDrought` already omits it rather than drawing it at zero.
+Tests about *where* a reservoir is must read the roster, never
+`reservoirs.json`, or a quiet feed silently retires an assertion.
+
 **`cos(lat)` is the sphere's exact area element, not a rough projection**
 (ADR-055). The drought engine measures equal area already, so "move it to
 Albers" is not an accuracy fix — measured, the area model is worth 0.004

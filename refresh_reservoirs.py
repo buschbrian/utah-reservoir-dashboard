@@ -60,6 +60,32 @@ EXPORT_PATH = Path(__file__).parent / "reference.json"
 STALE_AFTER_DAYS = 2
 AWDB_MONTHLY_STALE_AFTER_DAYS = 45
 
+# A reservoir whose newest observation is older than this many days is
+# withdrawn from the payload entirely rather than published as stale.
+#
+# Being late and being from another season are different faults, and the
+# second one is not fixed by a label. `carry_forward` keeps publishing the
+# last known value because a point vanishing from the map with no explanation
+# is worse than a point that says it is a few days behind -- that is right,
+# and it stays right, for a gap measured in days.
+#
+# It stops being right somewhere before two months. A May reading standing in
+# an August column is not a late measurement of August, it is an accurate
+# measurement of spring, and the difference between those is most of the melt.
+# Storage here is strongly seasonal: it is the same reason the seasonal
+# normal compares a date against the same date in prior years instead of
+# against an annual mean. Worse, `statewideRollup` sums `current_storage_af`
+# across the scope with no freshness filter, so a carried-forward spring
+# figure is not merely displayed out of season, it is added into a regional
+# total presented as now.
+#
+# 60 days rather than a strict calendar two months because the threshold has
+# to clear a month-end feed that has missed one publication: such a feed can
+# legitimately reach about 45 days (AWDB_MONTHLY_STALE_AFTER_DAYS) before
+# anything is wrong, and 60 leaves it room without letting a whole season
+# through. ADR-056.
+WITHDRAW_AFTER_DAYS = 60
+
 # Which baseline the site opens on.
 #
 # "climate" is the 1991-2020 standard, and it is the default because the
@@ -754,6 +780,49 @@ def carry_forward(previous: dict, today: pd.Timestamp, reason: str) -> dict:
     return record
 
 
+def partition_by_age(records: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Split the run's records into what is published and what is withdrawn.
+
+    A record older than WITHDRAW_AFTER_DAYS is not published. It is not
+    deleted either: it comes back on its own the morning its source resumes,
+    because the roster it is fetched from is committed and this decision is
+    made fresh on every run from the age of the data alone.
+
+    A record with no `as_of` at all -- a reservoir that has never fetched
+    successfully -- is published rather than withdrawn. That is a different
+    fault with a different remedy, it is already visible through `fetch_ok`,
+    and withdrawing on a missing field would hide a configuration error
+    behind the mechanism built for a quiet feed.
+    """
+    published, withdrawn = [], []
+    for record in records:
+        days = record.get("days_stale")
+        if days is not None and days > WITHDRAW_AFTER_DAYS:
+            withdrawn.append(record)
+        else:
+            published.append(record)
+    withdrawn.sort(key=lambda r: -(r.get("days_stale") or 0))
+    return published, withdrawn
+
+
+def withdrawal_notice(record: dict) -> dict:
+    """What the payload says about a reservoir it is not publishing.
+
+    Deliberately not a reservoir record: no storage, no percent full, no
+    baseline. Publishing the figure in a quieter shape would be publishing
+    the figure. This is the name, when it was last real, and how long ago
+    that was -- enough for a reader to know the roster changed and why, and
+    not enough for anything to chart it.
+    """
+    return {
+        "name": record.get("name"),
+        "as_of": record.get("as_of"),
+        "days_stale": record.get("days_stale"),
+        "source_label": record.get("source_label"),
+        "reason": "no reading inside the publication window",
+    }
+
+
 def dam_points() -> dict[str, tuple[float, float]]:
     """Dam coordinates by reservoir name, from capacities.json.
 
@@ -989,7 +1058,8 @@ def _write_output(path: str, key: str, value: str) -> None:
             fh.write(f"{key}={value}\n")
 
 
-def emit_ci_signals(records: list[dict]) -> None:
+def emit_ci_signals(records: list[dict],
+                    withdrawn: list[dict] | None = None) -> None:
     """Surface stale/failed reservoirs to the log, the job summary and the workflow.
 
     Three audiences, three formats:
@@ -1015,13 +1085,25 @@ def emit_ci_signals(records: list[dict]) -> None:
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         lines = [f"### Reservoir refresh: {len(records)} reservoirs\n"]
+        if withdrawn:
+            lines.append(
+                f"**{len(withdrawn)} withdrawn** -- older than "
+                f"{WITHDRAW_AFTER_DAYS} days, so not published at all:\n")
+            lines.extend(_problem_table(withdrawn))
+            lines.append("")
         if problems:
             lines.append(f"**{len(problems)} stale or failed:**\n")
             lines.extend(_problem_table(problems))
-        else:
+        elif not withdrawn:
             lines.append("All reservoirs fresh. :white_check_mark:")
         with open(summary_path, "a") as fh:
             fh.write("\n".join(lines) + "\n")
+
+    for r in withdrawn or ():
+        print(f"::error title=Withdrawn reservoir::{r['name']} last updated "
+              f"{r['as_of']} ({r.get('days_stale')} days ago) -- past the "
+              f"{WITHDRAW_AFTER_DAYS}-day publication window, so it is not in "
+              "this morning's payload")
 
     output_path = os.environ.get("GITHUB_OUTPUT")
     if output_path:
@@ -1030,6 +1112,11 @@ def emit_ci_signals(records: list[dict]) -> None:
                       ", ".join(r["name"] for r in problems))
         _write_output(output_path, "stale_table",
                       "\n".join(_problem_table(problems)) if problems else "")
+        _write_output(output_path, "withdrawn_count", str(len(withdrawn or ())))
+        _write_output(output_path, "withdrawn_names",
+                      ", ".join(r["name"] for r in withdrawn or ()))
+        _write_output(output_path, "withdrawn_table",
+                      "\n".join(_problem_table(withdrawn)) if withdrawn else "")
 
 
 def main() -> int:
@@ -1168,6 +1255,8 @@ def main() -> int:
             record["data_frequency"] = "daily"
             record["stale_after_days"] = STALE_AFTER_DAYS
 
+    records, withdrawn = partition_by_age(records)
+
     watersheds = attach_watersheds(records)
 
     # Physical size is the primary browse order in every surface.
@@ -1236,6 +1325,14 @@ def main() -> int:
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
         "capacity_count": sum(1 for r in records if r.get("capacity_af")),
+        # What this run declined to publish, and the line it was judged
+        # against. A withdrawn reservoir leaves `reservoirs` entirely, so
+        # without these fields the roster would just be quietly shorter and
+        # a reader comparing two mornings could not tell a withdrawal from a
+        # reservoir that had never been here (ADR-056).
+        "withdraw_after_days": WITHDRAW_AFTER_DAYS,
+        "withdrawn_count": len(withdrawn),
+        "withdrawn": [withdrawal_notice(r) for r in withdrawn],
         # Drainage areas are described in the envelope so a reader can tell
         # a run that assigned nothing (a missing boundary file) from one
         # where nothing needed assigning.
@@ -1264,7 +1361,7 @@ def main() -> int:
         print(f"  {flag} {r['name']:<18} as_of={r['as_of']} "
               f"({r.get('days_stale')}d) n={r.get('n_obs')}")
 
-    emit_ci_signals(records)
+    emit_ci_signals(records, withdrawn)
 
     if args.dry_run:
         print("\nPayload comparison metadata:")
