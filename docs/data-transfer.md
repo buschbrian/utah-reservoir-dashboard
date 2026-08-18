@@ -110,9 +110,12 @@ quantized geometry it asks for is finer. The cost follows what is on screen.
 It also means every figure in this table moves with a map's opening extent --
 re-measure rather than reason.
 
-## What still ships that nobody fetches
+## What no longer ships at all
 
-`huc6.geojson` is still copied into `dist/` twice, at 652 KB each, because it
-is a documented direct download and was one before any of this. No page
-requests it. That is deploy weight rather than reader weight, and it is a
-separate decision from this one.
+`huc6.geojson` was copied into `dist/` twice, at 652 KB each, on the belief
+that it was a documented direct download. It was not documented anywhere a
+reader can see -- `data.html` has never named it -- and no page has requested
+it since the outlines became the hosted layer's. ADR-049 stopped publishing
+it: `dist/` went from 38 MB to 37 MB, and because nothing fetched either copy,
+no figure above moves. The file stays committed and stays the pipeline's
+assignment source.

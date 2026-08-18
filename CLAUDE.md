@@ -24,7 +24,7 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
-| `huc6.geojson` | The reviewed drainage-area polygons. Committed, read by the pipeline to assign reservoirs, and still a documented direct download -- but no longer inside `reference.json` and no longer drawn from by any page (ADR-048). |
+| `huc6.geojson` | The reviewed drainage-area polygons. Committed, read by the pipeline to assign reservoirs, never published: not inside `reference.json` and not copied into `dist/` (ADR-048, ADR-049). Nothing in a browser has fetched it since the outlines became the hosted layer's. |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules

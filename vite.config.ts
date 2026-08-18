@@ -25,14 +25,21 @@ function preserveRuntimeDataAndRedirects(): Plugin {
       // stop querying the USGS service on every load -- a page that draws
       // its own committed boundaries cannot disagree with the assignments in
       // reservoirs.json, and cannot go blank when that service is down.
-      // `reference.json` is the capacity table and every boundary in one
+      // `reference.json` is the capacity table and the geography in one
       // versioned payload (ADR-018), and it is what the typed stack fetches.
-      // The files it is built from stay published beside it as reviewed data
-      // sources and documented direct-download contracts.
+      //
+      // `huc6.geojson` is not here and that is deliberate (ADR-048). It is
+      // still the reviewed source the pipeline assigns every reservoir with,
+      // and it is still committed -- but no page has fetched it since the
+      // outlines became the hosted layer's, and publishing it put 1.3 MB in
+      // every deploy, twice, for nobody. It is reviewable in the repository
+      // like `normals.json`, which is the same arrangement for the same
+      // reason. `utah-boundary.geojson` stays: the mask is still drawn from
+      // the reviewed polygon, republished inside `reference.json`.
       for (const file of [
         "reservoirs.json", "snow_sites.json", "snowpack.json",
         "reference.json", "capacities.json",
-        "huc6.geojson", "utah-boundary.geojson"
+        "utah-boundary.geojson"
       ]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));
