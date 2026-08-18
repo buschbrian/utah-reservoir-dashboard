@@ -55,7 +55,7 @@ NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
 # The owner service names states in full ("Utah", not "UT"). Two-letter codes
 # return zero rows rather than an error, which is the kind of empty answer
 # that looks like a scope decision.
-NID_STATE_WHERE = "STATE IN ('Utah', 'Arizona', 'Wyoming')"
+NID_STATE_WHERE = "STATE IN ('Utah', 'Arizona', 'Wyoming', 'Nevada')"
 
 # Field names are still resolved rather than hard-coded. Against one pinned
 # service this is no longer a compatibility shim for hosted copies that spell
@@ -96,6 +96,7 @@ def usable(resolved: dict) -> bool:
 # named for neither. Each entry is a human decision a reviewer can check.
 ALIASES = {
     "Lake Powell": "Glen Canyon",        # Glen Canyon Dam impounds Lake Powell
+    "Lake Mead": "Hoover",               # Hoover Dam impounds Lake Mead
     "Willard Bay": "Arthur V Watkins",   # Arthur V. Watkins Dam
     "Strawberry": "Soldier Creek",       # Soldier Creek Dam
     "Rockport": "Wanship",               # Wanship Dam
@@ -255,6 +256,27 @@ def main() -> int:
 
 
     table, problems = {}, []
+
+    # A failed match must not delete a reviewed entry. Lake Mead's was
+    # confirmed by hand (ADR-062): Hoover Dam stands 42 km from the
+    # published point, outside both match radii, so no automatic pass can
+    # re-derive it. Kept and said out loud rather than silently rewritten
+    # away -- the same rule that moved build_normal_baselines.py --only
+    # from rewriting the file to merging into it.
+    committed = {}
+    if CAPACITY_PATH.exists():
+        committed = (json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
+                     .get("capacities") or {})
+
+    def keep_or_report(name: str, why: str) -> None:
+        kept = committed.get(name)
+        if kept is not None:
+            table[name] = kept
+            problems.append(f"{name}: {why}; kept the committed entry "
+                            f"({kept.get('nid_dam_name')})")
+        else:
+            problems.append(f"{name}: {why}")
+
     print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'nid_af':>12} "
           f"{'record max':>12}  dam")
     for name, (_rise_id, lat, lon) in RESERVOIRS.items():
@@ -273,8 +295,9 @@ def main() -> int:
             (lon, lat), ALIASES.get(name, name), located,
             plausible=lambda dam, floor=floor: admission.could_hold(dam, floor))
         if match is None:
-            problems.append(
-                f"{name}: no dam within {admission.NEAR_RADIUS_KM} km, and none "
+            keep_or_report(
+                name,
+                f"no dam within {admission.NEAR_RADIUS_KM} km, and none "
                 f"named the same within {admission.NAMED_RADIUS_KM} km")
             continue
         dam = match.dam["_row"]
@@ -297,14 +320,15 @@ def main() -> int:
         basis = ("normal_storage" if normal else
                  "max_storage" if maximum else "nid_storage")
         if denominator is None:
-            problems.append(f"{name}: no usable storage figure in the inventory")
+            keep_or_report(name, "no usable storage figure in the inventory")
             continue
         # The load-bearing check: we have observed this reservoir since 2015,
         # so a capacity below what we have already seen in it means the match
         # is wrong -- not that it overflowed for a decade.
         if record_max and denominator < record_max * 0.9:
-            problems.append(
-                f"{name}: capacity {denominator:,.0f} af is below the observed "
+            keep_or_report(
+                name,
+                f"capacity {denominator:,.0f} af is below the observed "
                 f"record max {record_max:,.0f} af -- probably the wrong dam "
                 f"({dam.get(name_field)})")
             continue

@@ -196,6 +196,29 @@ def build_inventory(stations: list[dict], precise_units: list[dict],
     }
 
 
+def refuse_newly_unmonitored(payload: dict, committed: dict | None) -> None:
+    """An area that had sites must not quietly come back empty.
+
+    Deserts and Mexican basins never had a site, and publishing them as
+    unmonitored is a fact. An area the committed inventory shows *with*
+    sites arriving empty is a different event: one corrupted unit geometry
+    or a renamed code field empties exactly one area while the all-empty
+    guard above stays quiet, and the snow map would show a monitored basin
+    as having no sites. That transition is refused, not published. A first
+    build of a new scope has no committed answer and nothing to hold it to.
+    """
+    if not committed or committed.get("scope") != payload.get("scope"):
+        return
+    before = committed.get("by_huc6") or {}
+    newly_empty = sorted(huc6 for huc6 in payload.get("unmonitored_areas", [])
+                         if before.get(huc6, 0) > 0)
+    if newly_empty:
+        raise ValueError(
+            "drainage areas with committed snow sites came back empty: "
+            + ", ".join(newly_empty)
+            + "; refusing to publish them as unmonitored")
+
+
 def validate_inventory(payload: dict) -> None:
     sites = payload.get("sites")
     if not isinstance(sites, list) or not sites:
@@ -249,6 +272,9 @@ def main() -> int:
     generalized_units = load_scope_units(args.scope)
     payload = build_inventory(
         stations, precise_units, generalized_units, scope_name=args.scope)
+    committed = (json.loads(args.output.read_text(encoding="utf-8"))
+                 if args.output.exists() else None)
+    refuse_newly_unmonitored(payload, committed)
     validate_inventory(payload)
 
     print(f"{payload['site_count']} active automated snow sites verified")

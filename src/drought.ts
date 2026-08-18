@@ -31,6 +31,7 @@ import {
   daysOld,
   DRYNESS_CLASS,
   isLateRelease,
+  isMeasured,
   byStorageGap,
   orderUnits,
   regionWorst,
@@ -267,11 +268,16 @@ function renderDrought(
       const reading = document.createElement("p");
       reading.className = "drought-row-reading";
       const rowWorst = worstClass(unit);
-      reading.textContent = rowWorst
-        ? `${formatPercent(unit.percent_of_area_at_least.d0)} of the land is in a ` +
-          `drought class or abnormally dry. Worst class: ${rowWorst.label} ` +
-          `(${rowWorst.code}), covering ${formatPercent(unit.percent_of_area[rowWorst.key])}.`
-        : "No land in this area is in a drought class this week.";
+      /* Three sentences for three facts: some drought, none measured as in
+       * drought, and not measured at all -- the last is never the second
+       * (ADR-059). */
+      reading.textContent = !isMeasured(unit)
+        ? "The drought monitor does not measure land in this area."
+        : rowWorst
+          ? `${formatPercent(unit.percent_of_area_at_least.d0)} of the land is in a ` +
+            `drought class or abnormally dry. Worst class: ${rowWorst.label} ` +
+            `(${rowWorst.code}), covering ${formatPercent(unit.percent_of_area[rowWorst.key])}.`
+          : "No land in this area is in a drought class this week.";
 
       const links = document.createElement("p");
       links.className = "drought-row-links";
@@ -295,6 +301,15 @@ function renderDrought(
       name.scope = "row";
       name.textContent = unit.huc6_name;
       row.append(name);
+      if (!isMeasured(unit)) {
+        /* One spanning sentence, never a row of zeros: zeros here would
+         * read as "no drought" about land the monitor cannot see. */
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.textContent = "The drought monitor does not measure land in this area.";
+        row.append(cell);
+        return row;
+      }
       const values = [
         unit.percent_of_area.none, unit.percent_of_area.d0,
         unit.percent_of_area.d1, unit.percent_of_area.d2,

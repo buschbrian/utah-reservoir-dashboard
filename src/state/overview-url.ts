@@ -29,6 +29,7 @@
  * and both are only testable if the functions take a string and return one.
  */
 
+import { HUC_CODE } from "../data/huc";
 import type { ReservoirGeography, LakePowellChoice } from "../data/rollup";
 import type { ChartMeasure, ChartRank, OverviewCadence, OverviewSort } from "../overview-model";
 import { STORAGE_CLASSES } from "../viz/classes";
@@ -158,7 +159,9 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
       state.state = /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : "all";
     }
     else if (key === OVERVIEW_PARAMS.subregion) {
-      state.subregion = /^[0-9]{4}$/.test(value) ? value : "all";
+      /* The shared code shape, at the subregion's width: the level is the
+       * digit count, and HUC_CODE is the one pattern for the shape. */
+      state.subregion = HUC_CODE.test(value) && value.length === 4 ? value : "all";
     }
     else if (key === OVERVIEW_PARAMS.county) {
       /* Exactly five digits, or nothing. A FIPS code is fixed-width and

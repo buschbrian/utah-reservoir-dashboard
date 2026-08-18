@@ -13,7 +13,8 @@ import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
 import {
-  isLakePowell, isLate, statewideRollup, type ReservoirGeography
+  isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
+  type ReservoirGeography
 } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import {
@@ -104,11 +105,9 @@ function renderRows(tbody: HTMLTableSectionElement, reservoirs: readonly Reservo
 
 function updateKpis(reservoirs: readonly Reservoir[]): void {
   /* The rows handed in are already the scope the reader chose, so this must
-   * not apply a second Lake Powell filter on top of it -- "include" here
-   * means "do not filter again", which is what makes the toggle work. */
-  const rollup = statewideRollup(reservoirs, {
-    geography: "connected", lakePowell: "include", lakeMead: "include"
-  });
+   * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
+   * means "do not filter again", which is what makes the toggles work. */
+  const rollup = statewideRollup(reservoirs, WIDEST_SCOPE);
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const values: Record<string, string> = {
@@ -143,10 +142,8 @@ async function renderOverview(
   // change shape when Lake Powell is toggled.
   const countyChoices = countyOptions(allReservoirs);
   const stateChoices = stateOptions(allReservoirs);
-  const watershedChoices = watershedOptions(
-    overviewScope(allReservoirs, {
-      geography: "connected", lakePowell: "include", lakeMead: "include"
-    }));
+  const widestScope = overviewScope(allReservoirs, WIDEST_SCOPE);
+  const watershedChoices = watershedOptions(widestScope);
   content.innerHTML = `
     <!-- Two rows, and each row is one kind of thing: what this section is
          and how to undo it, then the controls themselves. They used to share
@@ -301,6 +298,11 @@ async function renderOverview(
    * code the roster does not carry is labelled by its code rather than lost. */
   const subregionNames = new Map<string, string>(
     subregions.map((entry) => [entry.huc4, entry.name]));
+  /* Built from the widest scope like the drainage-area list, and for the
+   * same reason -- and so the full list exists before the link's choice is
+   * restored, or a shared ?huc4= would be discarded against an empty
+   * control. */
+  const subregionChoices = subregionOptions(widestScope, subregionNames);
 
   /* Repopulating a `<select>` has to preserve the reader's choice when it is
    * still on offer. Rebuilding blind resets the control on every keystroke,
@@ -342,6 +344,10 @@ async function renderOverview(
     option.textContent = choice.label;
     state?.append(option);
   }
+  /* The subregion list starts at its widest; the first update() narrows it
+   * to the chosen state. It must exist before the URL restore below, so a
+   * link's subregion has an option to land on. */
+  if (subregion) fillOptions(subregion, subregionChoices, "All subregions");
 
   const tbody = document.querySelector<HTMLTableSectionElement>("#reservoir-rows");
   const search = document.querySelector<HTMLInputElement>("#reservoir-search");
@@ -408,9 +414,7 @@ async function renderOverview(
   const renderClassStrip = (visible: readonly Reservoir[]): void => {
     const host = document.querySelector<HTMLElement>("[data-classes]");
     if (!host) return;
-    const rollup = statewideRollup(visible, {
-      geography: "connected", lakePowell: "include", lakeMead: "include"
-    });
+    const rollup = statewideRollup(visible, WIDEST_SCOPE);
     const total = rollup.classes.reduce((sum, entry) => sum + entry.count, 0);
     host.replaceChildren(...rollup.classes.map((entry, index) => {
       const button = document.createElement("button");
@@ -513,9 +517,13 @@ async function renderOverview(
     renderRows(tbody, exportRows);
     const chosenClass = storageClassFilter === null
       ? "" : ` · ${STORAGE_CLASSES[storageClassFilter]?.label ?? ""}`;
+    /* Both dominant reservoirs are named, whatever their state: a scope
+     * that includes 28 million acre-feet without saying so is the silent
+     * total ADR-011 and ADR-062 exist to prevent. */
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +
       `${geography.value === "connected" ? "All connected" : "Utah waterbodies"} · Lake Powell ` +
-      `${lakePowell.checked ? "included" : "excluded"}${chosenClass}`;
+      `${lakePowell.checked ? "included" : "excluded"} · Lake Mead ` +
+      `${lakeMead.checked ? "included" : "excluded"}${chosenClass}`;
     for (const host of chartHosts) host.setAttribute("aria-busy", "true");
     const still = (): boolean => currentRevision === revision;
     const measure = chartMeasure.value as ChartMeasure;
@@ -597,11 +605,12 @@ async function renderOverview(
       reservoirs: scoped.length,
       visible: visible.length,
       charts: chartHosts.length,
-      lakePowellExcluded: !visible.some((reservoir) => reservoir.rise_item_id === 509)
+      lakePowellExcluded: !visible.some(isLakePowell),
+      lakeMeadExcluded: !visible.some(isLakeMead)
     };
   };
-  for (const control of [search, watershed, county, cadence, sort, lakePowell, geography,
-    chartLimit, chartMeasure, chartRank]) {
+  for (const control of [search, state, subregion, watershed, county, cadence, sort,
+    lakePowell, lakeMead, geography, chartLimit, chartMeasure, chartRank]) {
     const event = control instanceof HTMLSelectElement
       || (control instanceof HTMLInputElement && control.type === "checkbox")
       ? "change"
@@ -648,11 +657,12 @@ async function renderOverview(
   county.value = countyChoices.some((choice) => choice.code === wanted.county)
     ? wanted.county : "all";
   /* State first, then subregion: the update below repopulates the subregion
-   * list from the chosen state, and a value set before that list exists would
-   * be discarded by the very narrowing it is meant to survive. */
+   * list from the chosen state, and a selection that survives that narrowing
+   * is kept while one that does not falls back to "all". */
   state.value = stateChoices.some((choice) => choice.code === wanted.state)
     ? wanted.state : "all";
-  subregion.value = wanted.subregion;
+  subregion.value = subregionChoices.some((choice) => choice.code === wanted.subregion)
+    ? wanted.subregion : "all";
   cadence.value = wanted.reporting;
   geography.value = wanted.geography;
   lakePowell.checked = wanted.lakePowell === "include";

@@ -426,20 +426,45 @@ class TestUnmeasuredLand:
                               land_fixture(elsewhere))
 
         assert result["measured"]["percent_of_area"] == 0.0
-        assert result["percent_of_area_at_least"]["d0"] == 0.0
+        # No share blocks at all: zeros here would publish "not measured"
+        # as "no drought", and a "none" of 100 is the same lie made total.
+        assert "percent_of_area" not in result
+        assert "percent_of_area_at_least" not in result
+        # And no share means nothing to difference: the history skips it.
+        payload = build_payload(
+            drought_fixture([(3, polygon(square(0, 0, 1, 1)))]),
+            boundaries_fixture(unit), 0.005, land_fixture(elsewhere))
+        assert history_entry(payload)["units"] == []
 
     def test_the_mask_is_read_as_one_union(self):
         """Adjacent states must not cancel each other out.
 
-        The even-odd rule works on the union directly, but only because the
-        parts do not overlap -- two polygons sharing an interior would make a
-        point inside both cross an even number of edges and read as outside.
+        The states are simplified one feature at a time, so their shared
+        border overlaps by slivers in the committed mask. Under pooled
+        even-odd parity a point inside two states crosses an even number of
+        edges and reads as outside the country; each state answering alone
+        means an overlap can only add land, never remove it.
         """
         segments = land_mask_segments(land_fixture(
             polygon(square(0, 0, 1, 1)), polygon(square(1, 0, 2, 1))))
         assert segments is not None
-        assert len(segments) == 8
+        assert [len(part) for part in segments] == [4, 4]
         assert land_mask_segments(None) is None
+
+    def test_overlapping_states_still_read_as_land(self):
+        """The sliver case itself, at the smallest scale that shows it.
+
+        Two states overlapping on [0.9, 1.1]: every cell of a unit spanning
+        both is on land, so the whole unit is measured. Pooled parity read
+        the overlap as a hole in the country and dropped its cells from the
+        denominators.
+        """
+        unit = polygon(square(0, 0, 2, 1))
+        land = land_fixture(
+            polygon(square(0, 0, 1.1, 1)), polygon(square(0.9, 0, 2, 1)))
+        result = self.covered([(2, polygon(square(0, 0, 2, 1)))], unit, land)
+        assert "measured" not in result
+        assert result["percent_of_area"]["d2"] == pytest.approx(100.0, abs=0.5)
 
     def test_the_history_does_not_carry_the_measured_share(self):
         """A border does not move from week to week.

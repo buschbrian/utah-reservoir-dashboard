@@ -4,6 +4,7 @@ import {
   isLate,
   reservoirInScope,
   statewideRollup,
+  WIDEST_SCOPE,
   type LakePowellChoice,
   type ReservoirInclusion,
   type ReservoirGeography
@@ -465,13 +466,11 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
     groups.set(label, [...(groups.get(label) ?? []), reservoir]);
   }
   return [...groups].map(([label, group], index) => {
-    /* The group is already scoped by the caller; opening both dominant-
-     * reservoir controls here only means "do not filter them out a second
-     * time", not "add them back". Missing `lakeMead` dropped Lake Mead's
-     * storage out of its own drainage area's total (ADR-062). */
-    const rollup = statewideRollup(group, {
-      geography: "connected", lakePowell: "include", lakeMead: "include"
-    });
+    /* The group is already scoped by the caller; WIDEST_SCOPE only means
+     * "do not filter them out a second time", not "add them back". A
+     * hand-written option object here once dropped Lake Mead's storage out
+     * of its own drainage area's total (ADR-062). */
+    const rollup = statewideRollup(group, WIDEST_SCOPE);
     const percent = Number((rollup.percentFull ?? 0).toFixed(1));
     return {
       id: index + 1,

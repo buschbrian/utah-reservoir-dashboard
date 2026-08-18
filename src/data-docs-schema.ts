@@ -283,8 +283,12 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
   { id: "drought-unit", title: "Drainage-area record", path: "units[]", fields: [
     f("huc6", "identifier", "Six-digit drainage-area code."),
     f("huc6_name", "text", "Six-digit drainage-area name."),
-    f("percent_of_area", "object", "Share of the area's land in exactly each class."),
-    f("percent_of_area_at_least", "object", "Share of the area's land in each class or worse.")
+    f("percent_of_area", "object",
+      "Share of the measured land in exactly each class. " +
+      "Absent when the drought monitor measures none of the area.", true),
+    f("percent_of_area_at_least", "object",
+      "Share of the measured land in each class or worse. " +
+      "Absent when the drought monitor measures none of the area.", true)
   ]},
   { id: "drought-shares", title: "Share in exactly each class",
     path: "units[].percent_of_area", fields: [

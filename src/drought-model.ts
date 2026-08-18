@@ -24,11 +24,23 @@ export function isLateRelease(releaseDate: string, today: Date): boolean {
   return daysOld(releaseDate, today) > LATE_AFTER_DAYS;
 }
 
+/**
+ * Whether the monitor measured any of this area (ADR-059). A unit without
+ * its share blocks has no figures at all, which is not the same fact as
+ * being clear -- callers that would read "unknown" as "no drought" must
+ * check this first.
+ */
+export function isMeasured(unit: DroughtUnit): unit is DroughtUnit &
+    Required<Pick<DroughtUnit, "percent_of_area" | "percent_of_area_at_least">> {
+  return unit.percent_of_area !== undefined
+    && unit.percent_of_area_at_least !== undefined;
+}
+
 /** The worst class with any land in it, or null when the area is clear. */
 export function worstClass(unit: DroughtUnit): DroughtClass | null {
   for (let index = DROUGHT_CLASSES.length - 1; index >= 0; index -= 1) {
     const entry = DROUGHT_CLASSES[index]!;
-    if (unit.percent_of_area[entry.key] > 0) return entry;
+    if ((unit.percent_of_area?.[entry.key] ?? 0) > 0) return entry;
   }
   return null;
 }
@@ -43,7 +55,7 @@ export function bySeverity(units: readonly DroughtUnit[]): DroughtUnit[] {
   return [...units].sort((a, b) => {
     for (const key of keys) {
       const difference =
-        b.percent_of_area_at_least[key] - a.percent_of_area_at_least[key];
+        shareAtOrWorse(b, key) - shareAtOrWorse(a, key);
       if (difference !== 0) return difference;
     }
     return a.huc6_name.localeCompare(b.huc6_name);
@@ -54,7 +66,7 @@ export function bySeverity(units: readonly DroughtUnit[]): DroughtUnit[] {
 export function areasAtOrWorse(
   units: readonly DroughtUnit[], key: DroughtClass["key"]
 ): number {
-  return units.filter((unit) => unit.percent_of_area_at_least[key] > 0).length;
+  return units.filter((unit) => shareAtOrWorse(unit, key) > 0).length;
 }
 
 export function regionWorst(units: readonly DroughtUnit[]): DroughtClass | null {
@@ -111,16 +123,20 @@ export interface CoverageSegment {
 }
 
 export function coverageSegments(unit: DroughtUnit): CoverageSegment[] {
+  // Nothing measured, nothing to draw: an unmeasured area must not render
+  // as a full-width "No drought" bar (ADR-059).
+  const shares = unit.percent_of_area;
+  if (!shares) return [];
   const segments: CoverageSegment[] = [{
     label: "No drought",
     color: null,
-    percent: unit.percent_of_area.none
+    percent: shares.none
   }];
   for (const entry of DROUGHT_CLASSES) {
     segments.push({
       label: `${entry.label} (${entry.code})`,
       color: entry.color,
-      percent: unit.percent_of_area[entry.key]
+      percent: shares[entry.key]
     });
   }
   return segments.filter((segment) => segment.percent > 0);
@@ -148,7 +164,10 @@ export function isDroughtSort(value: string): value is DroughtSort {
  * a second time in the client is how the two would drift.
  */
 export function shareAtOrWorse(unit: DroughtUnit, key: DroughtClass["key"]): number {
-  return unit.percent_of_area_at_least[key];
+  /* Zero for an unmeasured area, which is right for ranking and filtering
+   * -- an unknown share cannot outrank a known one -- and wrong anywhere a
+   * zero would be printed as a finding; those callers check `isMeasured`. */
+  return unit.percent_of_area_at_least?.[key] ?? 0;
 }
 
 /**
@@ -233,6 +252,10 @@ export function storageAgainstDrought(
 ): StorageAgainstDrought[] {
   const points: StorageAgainstDrought[] = [];
   for (const unit of units) {
+    /* An unmeasured area is left out like an area with no reservoir
+     * reading, and for the same reason: a point at zero dryness would state
+     * "no drought" about land the monitor never saw (ADR-059). */
+    if (!isMeasured(unit)) continue;
     const context = storage?.get(unit.huc6);
     if (!context || context.percent === null) continue;
     points.push({
@@ -282,6 +305,10 @@ export function worstClassCounts(
     }))
   ];
   for (const unit of units) {
+    /* Not counted anywhere rather than counted as clear: an unmeasured
+     * area in the "no drought" bucket is the exact misreading ADR-059
+     * removes. */
+    if (!isMeasured(unit)) continue;
     const worst = worstClass(unit);
     const bucket = worst === null
       ? counts[0]

@@ -47,10 +47,22 @@ export interface StatewideRollupOptions {
  * Keyed on the RISE item id, which is the stable provider identity (ADR-003),
  * with the name as a fallback for a payload that predates the id.
  */
-const DOMINANT_RESERVOIRS = [
-  { key: "lakePowell", riseItemId: 509, name: "lake powell" },
-  { key: "lakeMead", riseItemId: 6124, name: "lake mead" }
-] as const;
+const LAKE_POWELL = { key: "lakePowell", riseItemId: 509, name: "lake powell" } as const;
+const LAKE_MEAD = { key: "lakeMead", riseItemId: 6124, name: "lake mead" } as const;
+const DOMINANT_RESERVOIRS = [LAKE_POWELL, LAKE_MEAD] as const;
+
+/**
+ * The scope with every control open: all connected reservoirs and no
+ * dominant reservoir filtered out. For callers whose rows are already the
+ * scope the reader chose, where "include" means "do not filter again" and
+ * never "add them back". `Required` is the point: admitting the next
+ * dominant reservoir makes this line refuse to compile until it is named
+ * here, instead of every call site silently reverting to excluding it
+ * (ADR-062).
+ */
+export const WIDEST_SCOPE: Required<StatewideRollupOptions> = {
+  geography: "connected", lakePowell: "include", lakeMead: "include"
+};
 
 function matches(reservoir: Reservoir, entry: (typeof DOMINANT_RESERVOIRS)[number]): boolean {
   return reservoir.rise_item_id === entry.riseItemId
@@ -59,12 +71,12 @@ function matches(reservoir: Reservoir, entry: (typeof DOMINANT_RESERVOIRS)[numbe
 
 /** RISE item 509 is Lake Powell's stable provider identity (ADR-003). */
 export function isLakePowell(reservoir: Reservoir): boolean {
-  return matches(reservoir, DOMINANT_RESERVOIRS[0]);
+  return matches(reservoir, LAKE_POWELL);
 }
 
 /** RISE item 6124 is Lake Mead's, reached through catalog record 4370. */
 export function isLakeMead(reservoir: Reservoir): boolean {
-  return matches(reservoir, DOMINANT_RESERVOIRS[1]);
+  return matches(reservoir, LAKE_MEAD);
 }
 
 export function reservoirInScope(

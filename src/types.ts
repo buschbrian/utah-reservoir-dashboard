@@ -279,9 +279,16 @@ export interface DroughtMeasuredExtent {
 export interface DroughtUnit {
   huc6: string;
   huc6_name: string;
-  /** Shares of the land the monitor measures, not of the whole area. */
-  percent_of_area: DroughtShares;
-  percent_of_area_at_least: DroughtAtLeast;
+  /**
+   * Shares of the land the monitor measures, not of the whole area.
+   *
+   * Absent -- together with the cumulative block -- only when the monitor
+   * measures none of the area (ADR-059): no denominator means no share at
+   * all, never zeros, and `measured.percent_of_area` is 0 to say why. The
+   * validator holds the two blocks and that condition together.
+   */
+  percent_of_area?: DroughtShares;
+  percent_of_area_at_least?: DroughtAtLeast;
   measured?: DroughtMeasuredExtent;
 }
 

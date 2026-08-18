@@ -94,6 +94,8 @@ interface Window {
     visible: number;
     charts: number;
     lakePowellExcluded: boolean;
+    /** Lake Mead's own control, reported beside Powell's (ADR-062). */
+    lakeMeadExcluded: boolean;
     /* The weekly digest, added once its two extra fetches have settled one
      * way or the other. Optional because the charts publish this signal
      * before the digest has run, and a reader gets the charts either way.

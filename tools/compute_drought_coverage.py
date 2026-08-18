@@ -133,7 +133,7 @@ def unit_coverage(
     unit_segments: np.ndarray,
     drought_segments: dict[int, np.ndarray],
     step: float,
-    land_segments: np.ndarray | None = None,
+    land_segments: list[np.ndarray] | None = None,
 ) -> tuple[dict[str, float], float]:
     """Raw percent of one drainage area's *measured* land in each class.
 
@@ -174,8 +174,13 @@ def unit_coverage(
         row_lons = lons[in_unit]
         # Cells the monitor does not reach are dropped before any class is
         # counted, so they cannot land in "none" and be read as no drought.
+        # Each state answers alone: parity over pooled edges would read a
+        # point inside two states' overlap sliver as outside the country.
         if land_segments is not None:
-            on_land = inside_row(row_crossings(land_segments, lat), row_lons)
+            on_land = np.zeros(row_lons.shape, dtype=bool)
+            for state_segments in land_segments:
+                on_land |= inside_row(
+                    row_crossings(state_segments, lat), row_lons)
             row_lons = row_lons[on_land]
             if row_lons.size == 0:
                 continue
@@ -203,19 +208,23 @@ def unit_coverage(
     )
 
 
-def land_mask_segments(land: dict | None) -> np.ndarray | None:
-    """Every state outline in the mask, as one segment array.
+def land_mask_segments(land: dict | None) -> list[np.ndarray] | None:
+    """Every state outline in the mask, one segment array per feature.
 
-    One array rather than one per state, because the even-odd rule works on
-    the union directly: a point inside any state crosses an odd number of
-    edges in total, and the states do not overlap.
+    Per feature rather than pooled, because the states are simplified one
+    feature at a time and their shared borders overlap by slivers -- the
+    committed mask holds cell centres inside two states at once. Even-odd
+    parity over pooled edges reads such a point as *outside* the country;
+    each state answering alone, OR-ed into a union, means an overlap can
+    only ever add land. The same worst-wins reasoning already guards the
+    drought classes' simplified edges.
     """
     if land is None:
         return None
     parts = [segments_of(feature["geometry"]) for feature in land["features"]]
     if not parts:
         raise ValueError("the land mask carries no geometry")
-    return np.concatenate(parts)
+    return parts
 
 
 def build_payload(drought: dict, boundaries: dict, step: float,
@@ -236,6 +245,20 @@ def build_payload(drought: dict, boundaries: dict, step: float,
                           key=lambda item: item["properties"]["huc6"]):
         raw, measured = unit_coverage(
             segments_of(feature["geometry"]), drought_segments, step, land_segments)
+        if measured == 0.0:
+            # No measured land means no denominator, so no share at all
+            # (ADR-059) -- a "none" of 100 here would publish "not measured"
+            # as "no drought". The measured block alone says why.
+            units.append({
+                "huc6": feature["properties"]["huc6"],
+                "huc6_name": feature["properties"]["name"],
+                "measured": {
+                    "percent_of_area": 0.0,
+                    "basis": "land the drought monitor maps; "
+                             "it stops at the border",
+                },
+            })
+            continue
         # A class the map does not carry this week covers nothing.
         exclusive = {key: raw.get(key, 0.0) for key in LEVELS}
         # One class per sampled point, so this cannot exceed 100; the max
@@ -317,6 +340,8 @@ def history_entry(payload: dict) -> dict:
             {"huc6": unit["huc6"],
              "percent_of_area_at_least": dict(unit["percent_of_area_at_least"])}
             for unit in payload["units"]
+            # An unmeasured area has no share to compare between weeks.
+            if "percent_of_area_at_least" in unit
         ],
     }
 
@@ -445,6 +470,10 @@ def main() -> int:
         history_changed = write_atomic(args.history, history)
 
     for unit in payload["units"]:
+        if "percent_of_area" not in unit:
+            print(f"{unit['huc6']} {unit['huc6_name']}: no measured land, "
+                  "no share published")
+            continue
         worst = next((key for key in reversed(LEVELS)
                       if unit["percent_of_area"][key] > 0), "none")
         print(f"{unit['huc6']} {unit['huc6_name']}: "

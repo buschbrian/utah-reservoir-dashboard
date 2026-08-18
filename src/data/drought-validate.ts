@@ -58,12 +58,21 @@ function isMeasuredExtent(value: unknown): boolean {
 }
 
 function isDroughtUnit(value: unknown): value is DroughtUnit {
-  return isObject(value) &&
-    typeof value.huc6 === "string" && HUC_CODE.test(value.huc6) &&
-    typeof value.huc6_name === "string" && value.huc6_name.length > 0 &&
-    isShares(value.percent_of_area) &&
-    isAtLeast(value.percent_of_area_at_least) &&
-    (value.measured === undefined || isMeasuredExtent(value.measured));
+  if (!isObject(value) ||
+      typeof value.huc6 !== "string" || !HUC_CODE.test(value.huc6) ||
+      typeof value.huc6_name !== "string" || value.huc6_name.length === 0 ||
+      (value.measured !== undefined && !isMeasuredExtent(value.measured))) {
+    return false;
+  }
+  /* No share at all is legal, and legal only, for an area with no measured
+   * land (ADR-059): both blocks absent together, with the measured block
+   * saying why. Anything in between -- one block without the other, or
+   * zeros published for an unmeasured area -- is a file disagreeing with
+   * itself. */
+  if (value.percent_of_area === undefined && value.percent_of_area_at_least === undefined) {
+    return isObject(value.measured) && value.measured.percent_of_area === 0;
+  }
+  return isShares(value.percent_of_area) && isAtLeast(value.percent_of_area_at_least);
 }
 
 /**
