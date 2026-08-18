@@ -144,6 +144,18 @@ land minus a share of reservoir capacity is not a quantity. Such a difference
 may rank rows and may set the length of a line; it may not be printed as a
 number or given a baseline.
 
+**`cos(lat)` is the sphere's exact area element, not a rough projection**
+(ADR-055). The drought engine measures equal area already, so "move it to
+Albers" is not an accuracy fix — measured, the area model is worth 0.004
+points and the sampling is worth 0.069, against a rounding boundary of 0.05.
+Albers and geodesic agree on these polygons to 0.1 ppm. **Geodesic is the
+measure of record for any area this project states**, and it lives in
+`tests/test_area_model.py` as an oracle: `geographiclib` is in
+`requirements-test.txt` and must never reach `requirements-pipeline.txt`,
+which stays at numpy, pandas and requests. If the published precision ever
+tightens past 0.1 of a point, reach for a finer step first and exact clipping
+second — never for a projection.
+
 **Retired routes preserve bookmarks, not runtimes** (ADR-031). Keep
 `legacy/`, `maplibre/`, and `explore.html` as small accessible redirects. Do
 not restore their SDKs, chart libraries, or copies of application logic.

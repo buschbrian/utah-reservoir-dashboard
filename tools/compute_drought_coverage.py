@@ -17,12 +17,27 @@ its west -- the same even-odd rule as the repository's ray-casting point
 tests, so holes and multiple parts need no special cases. Each point is
 weighted by the cosine of its latitude, because a degree of longitude narrows
 toward the pole and an unweighted count would overstate the north of every
-unit. The result is deterministic for a given pair of input files: no
-timestamps, so an unchanged week writes an unchanged file.
+unit. That weight is not an approximation of an equal-area projection: it is
+the exact area element of a sphere, so this already measures equal area and
+the only open question was ever which figure of the earth it assumes. The
+result is deterministic for a given pair of input files: no timestamps, so an
+unchanged week writes an unchanged file.
 
-At the default 0.01-degree step (about 1.1 km) the sampling error is far
-below the 0.1-point precision published here; the unit tests hold the engine
-to known shapes and the committed output to its own arithmetic.
+Two error terms, both measured against the committed inputs (ADR-055), in the
+percentage points this file publishes, against a rounding boundary of 0.05:
+
+    area model, sphere against the WGS84 ellipsoid      0.004
+    sampling, the 0.01-degree step against convergence  0.069
+    control: dropping the latitude weight entirely      0.286
+
+So the sampling dominates, the area model cannot move a published figure, and
+an equal-area projection -- which is what Albers would supply -- would change
+nothing a reader could see. The first thing to reach for if the published
+precision ever tightens past 0.1 is a finer step, not a projection.
+
+`tests/test_area_model.py` holds both terms against a geodesic oracle;
+`tests/test_drought_coverage.py` holds the engine to known shapes and the
+committed output to its own arithmetic.
 """
 
 from __future__ import annotations

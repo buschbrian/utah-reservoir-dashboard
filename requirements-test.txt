@@ -1,2 +1,7 @@
 -r requirements-pipeline.txt
 pytest>=8,<10
+# The geodesic area oracle for tests/test_area_model.py (ADR-055). Pure
+# Python, no dependencies of its own, and deliberately NOT in
+# requirements-pipeline.txt: the daily refresh keeps its three dependencies,
+# and this is the slower exact reference the fast path is checked against.
+geographiclib==2.*
