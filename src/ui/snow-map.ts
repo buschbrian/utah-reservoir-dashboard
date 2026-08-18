@@ -24,7 +24,7 @@ import Point from "@arcgis/core/geometry/Point";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
-import type { DrainageArea } from "../data/boundaries";
+import type { DrainageArea, DrainageScope } from "../data/boundaries";
 import { createWatershedLayer } from "../arcgis/watershed-layers";
 import type { MapDayValues } from "../snow-model";
 import type { SnowSite } from "../types";
@@ -151,7 +151,7 @@ function siteSymbol(percent: number | null): MarkerSymbol {
 export async function createSnowMap(
   element: ViewMapElement,
   card: HTMLElement,
-  areas: readonly DrainageArea[],
+  scope: DrainageScope,
   sites: readonly SnowSite[],
   firstDay: { values: MapDayValues; day: string } | null
 ): Promise<SnowMapController> {
@@ -170,10 +170,11 @@ export async function createSnowMap(
    * It also makes the day slider cheaper than it was: a new day is a new
    * renderer, and the features are already in the browser.
    */
+  const { level, areas } = scope;
   const siteLayer = new GraphicsLayer({ id: SITE_LAYER_ID });
   const basinLayer = createWatershedLayer({
     id: BASIN_LAYER_ID,
-    level: 6,
+    level,
     codes: areas.map((area) => area.huc6),
     renderer: basinRenderer(areas, null, null)
   });

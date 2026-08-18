@@ -140,6 +140,12 @@ export const REFERENCE_SCHEMA_VERSION = 2;
 export interface ReferenceGeography {
   /** The state outline, in the collection shape `parseUtahBoundary` reads. */
   state: unknown;
+  /** The published scope's hydrologic level, which decides both the service
+   * layer the outlines come from and the attribute each code arrives in.
+   * Read from the payload rather than assumed: which geography this site
+   * draws is the export's answer to give (ADR-018), and the size of it is
+   * part of that answer. */
+  level: number;
   /** The published scope's roster, for `parseDrainageUnits`. Codes and
    * names; the outlines are the hosted layer's. */
   drainage: unknown;
@@ -164,7 +170,8 @@ export function referenceGeography(value: unknown): ReferenceGeography | null {
   const scope = scopes && typeof published === "string" && isObject(scopes[published])
     ? scopes[published]
     : null;
-  return { state: geography.state, drainage: scope ? scope.units : null };
+  const level = scope && typeof scope.level === "number" ? scope.level : 0;
+  return { state: geography.state, drainage: scope ? scope.units : null, level };
 }
 
 /* One request, not one per caller. The mask and the outlines are loaded from
@@ -206,20 +213,60 @@ export async function loadUtahBoundary(url = REFERENCE_URL): Promise<UtahBoundar
  * thread on the way past -- about 982 KB of walking, on every map page, for
  * geometry the maps no longer draw from.
  */
-export function parseDrainageUnits(value: unknown): DrainageArea[] {
-  if (!Array.isArray(value)) return [];
+export function parseDrainageUnits(value: unknown, level: number): DrainageArea[] {
+  if (!Array.isArray(value) || !level) return [];
+  /* The attribute follows the level, the same rule `watershed_scopes.py`
+   * applies on the other side: a HUC-4 scope publishes `huc4`. Reading a
+   * fixed `huc6` would parse a level-4 payload as no areas at all, which is
+   * a blank map rather than an error. */
+  const field = `huc${level}`;
   const areas: DrainageArea[] = [];
   for (const entry of value as unknown[]) {
-    if (!isObject(entry) || typeof entry.huc6 !== "string") continue;
+    if (!isObject(entry)) continue;
+    const code = entry[field];
+    if (typeof code !== "string") continue;
     areas.push({
-      huc6: entry.huc6,
-      name: typeof entry.name === "string" && entry.name !== "" ? entry.name : entry.huc6,
+      huc6: code,
+      name: typeof entry.name === "string" && entry.name !== "" ? entry.name : code,
       states: typeof entry.states === "string" ? entry.states : ""
     });
   }
   return areas;
 }
 
-export async function loadDrainageAreas(url = REFERENCE_URL): Promise<DrainageArea[]> {
-  return parseDrainageUnits(referenceGeography(await loadReference(url))?.drainage);
+/**
+ * The published scope: how big its areas are, and which they are.
+ *
+ * The level travels with the areas because every caller needs both and
+ * neither is derivable from the other. A caller that took the areas alone
+ * would have to assume a level to ask the hosted service for the right
+ * outlines, and assuming six is what this exists to stop.
+ */
+export interface DrainageScope {
+  level: number;
+  areas: DrainageArea[];
+}
+
+/**
+ * The level this site's figures are keyed at.
+ *
+ * Storage banked in an area, drought coverage, snow percent of normal and
+ * every reservoir's own `huc6` are all six-digit facts. Drawing a scope at
+ * another size would put shapes on the map that no figure describes, so
+ * `loadDrainageScope` says so out loud rather than drawing areas whose
+ * hover cards come back empty.
+ */
+export const JOINABLE_LEVEL = 6;
+
+export async function loadDrainageScope(url = REFERENCE_URL): Promise<DrainageScope> {
+  const geography = referenceGeography(await loadReference(url));
+  const level = geography?.level ?? 0;
+  const areas = parseDrainageUnits(geography?.drainage, level);
+  if (level && level !== JOINABLE_LEVEL) {
+    console.warn(
+      `The published scope is at hydrologic level ${level}, and every figure ` +
+      `on this site is keyed at ${JOINABLE_LEVEL}. The areas will draw and ` +
+      "their numbers will not join.");
+  }
+  return { level, areas };
 }

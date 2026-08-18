@@ -17,7 +17,7 @@ import { resolveBasemap } from "../arcgis/basemaps";
 import { createWatershedLayer, WATERSHED_NAME_FIELD } from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
-import type { DrainageArea, UtahBoundary } from "../data/boundaries";
+import type { DrainageScope, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
@@ -66,6 +66,7 @@ export interface MapStatus {
   /** True while drainage-area text is below the reservoir symbols. */
   drainageLabelsUnderReservoirs: boolean;
   drainageLabelsDeconflicted: boolean;
+  drainageLevel: number;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -93,7 +94,7 @@ export interface MapController {
     reservoirs: readonly Reservoir[],
     percentOf?: (reservoir: Reservoir) => NullableNumber
   ): void;
-  drawDrainageAreas(areas: readonly DrainageArea[]): void;
+  drawDrainageAreas(scope: DrainageScope): void;
   /**
    * Greys the reservoirs a `where` clause excludes, and leaves them on the
    * map. Pass null to clear. Set on the layer rather than on the layer view:
@@ -504,6 +505,7 @@ export async function loadMap(
     drainageLabels: 0,
     drainageLabelsUnderReservoirs: false,
     drainageLabelsDeconflicted: false,
+    drainageLevel: 0,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     reservoirLabels: false,
@@ -667,7 +669,7 @@ export async function loadMap(
       if (!reservoirLayer) return;
       updateReservoirPercents(reservoirLayer, drawn, percentOf);
     },
-    drawDrainageAreas(areas) {
+    drawDrainageAreas({ level, areas }) {
       if (drainageLayer) map.remove(drainageLayer);
       if (drainageLabelLayer) map.remove(drainageLabelLayer);
       drainageLabelLayer = null;
@@ -687,7 +689,7 @@ export async function loadMap(
        * reference layers are sunk to the bottom of this stack (ADR-042).
        */
       drainageLayer = createWatershedLayer({
-        level: 6,
+        level,
         codes: areas.map((area) => area.huc6),
         renderer: drainageRenderer(),
         labelingInfo: drainageLabelingInfo(WATERSHED_NAME_FIELD),
@@ -695,6 +697,7 @@ export async function loadMap(
       });
       const base = map.layers.indexOf(maskLayer) + 1;
       map.add(drainageLayer, base);
+      status.drainageLevel = level;
       status.drainageAreas = areas.length;
       status.drainageLabels = areas.length;
       syncDrainageLabelOrder();

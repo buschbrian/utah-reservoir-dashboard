@@ -21,7 +21,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-slider";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageAreas } from "./data/boundaries";
+import { loadDrainageScope } from "./data/boundaries";
 import { loadSnowpack } from "./data/snow-load";
 import {
   basinChoices,
@@ -675,8 +675,8 @@ function renderSnow(payload: SnowpackPayload): void {
   void (async () => {
     try {
       installAnonymousAuthPolicy();
-      const areas = await loadDrainageAreas();
-      if (areas.length === 0) throw new Error("no drainage boundaries");
+      const scope = await loadDrainageScope();
+      if (scope.areas.length === 0) throw new Error("no drainage boundaries");
       /* Framed, controlled and constrained exactly like the storage map,
        * with the hover card already beside it in the host. */
       const { element: mapElement, card } = createViewMap(mapHost, {
@@ -686,7 +686,7 @@ function renderSnow(payload: SnowpackPayload): void {
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
-      map = await createSnowMap(mapElement, card, areas, payload.sites, firstDay);
+      map = await createSnowMap(mapElement, card, scope, payload.sites, firstDay);
       map.setArea(currentArea);
       /* After the map claims the host, never before: see the note beside the
        * key's construction. */

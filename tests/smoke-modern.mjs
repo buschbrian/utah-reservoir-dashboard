@@ -438,6 +438,13 @@ for (const viewport of VIEWPORTS) {
      * every layer and the ADR-030 field reports false -- and the check that
      * matters is that something is still placing them, because a layer that
      * quietly lost its `labelingInfo` looks exactly like a clean map. */
+    /* The size of the drawn areas, from the payload rather than from a
+     * constant in the client. A scope published at another level would draw
+     * shapes that no figure on the page describes, because every figure here
+     * is keyed six digits deep. */
+    check(ready.drainageLevel === 6,
+      `${label}: the drainage areas drew at hydrologic level ` +
+      `${ready.drainageLevel}, and every figure on this page is keyed at 6`);
     check(ready.drainageLabelsDeconflicted === true,
       `${label}: drainage-area names are not being placed by the label engine`);
     check(ready.drainageLabelsUnderReservoirs === false,

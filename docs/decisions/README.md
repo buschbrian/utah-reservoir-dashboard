@@ -58,6 +58,7 @@ supersedes the old one — the history is the point.
 | [ADR-047](ADR-047-let-the-label-engine-place-drainage-names.md) | Let the label engine place the drainage-area names | Accepted |
 | [ADR-048](ADR-048-publish-the-roster-not-the-polygons.md) | Publish the drainage roster, not the drainage polygons | Accepted |
 | [ADR-049](ADR-049-stop-publishing-the-drainage-polygons.md) | Stop publishing the drainage polygons | Accepted |
+| [ADR-050](ADR-050-the-drawn-level-is-the-scopes-not-the-views.md) | The drawn level is the scope's, not the view's | Accepted |
 
 ## Relationship to the modernization plan
 

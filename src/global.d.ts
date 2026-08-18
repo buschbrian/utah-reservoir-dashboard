@@ -37,6 +37,12 @@ interface DashboardReady {
    * drops a name it cannot fit rather than stacking it on its neighbour.
    * The guarantee that replaced fixed placement at western scale. */
   drainageLabelsDeconflicted: boolean;
+  /** How big the drawn drainage areas are, as the length of their code.
+   * Read from the published scope rather than assumed, so a scope change
+   * that quietly drew the wrong size has somewhere to show up. One surface
+   * reports it because all three read the same payload; a second field would
+   * be a second assertion about one fact. */
+  drainageLevel: number;
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;

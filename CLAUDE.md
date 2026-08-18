@@ -73,6 +73,15 @@ snow map does. Never fetch geometry into the browser to colour something.
 `docs/data-transfer.md` holds the measurements and is the file to update when
 they change.
 
+**The maps draw the level the payload declares** (ADR-050). No client file
+names a hydrologic level; it arrives as `DrainageScope { level, areas }` and
+the code is read from the attribute that level names. `JOINABLE_LEVEL` in
+`src/data/boundaries.ts` is the level every figure on the site is keyed at,
+and a scope published at another size says so out loud rather than drawing
+areas whose hover cards come back empty. Level is deliberately *not* driven by
+view scale: a finer outline a reader can point at, with no figure behind it,
+is less information rather than more.
+
 **A watershed scope carries its own level.** `watershed_scopes.py` is the one
 place that decides which drainage areas exist and how big they are; the level
 picks the WBD service layer and the attribute the code arrives in. Codes are

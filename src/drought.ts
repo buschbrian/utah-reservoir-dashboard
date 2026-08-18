@@ -21,7 +21,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadReferenceBoundaries } from "./arcgis/reference-layers";
 
-import { loadDrainageAreas } from "./data/boundaries";
+import { loadDrainageScope } from "./data/boundaries";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadReservoirs } from "./data/load";
 import { loadUsdmPolygons } from "./data/usdm-load";
@@ -457,9 +457,9 @@ function renderDrought(
        * -- they come from hosted services and resolve to null rather than
        * throwing, so a slow or missing state layer costs outlines and never
        * the map. */
-      const [areas, usdm, boundaries] = await Promise.all(
-        [loadDrainageAreas(), loadUsdmPolygons(), loadReferenceBoundaries()]);
-      if (areas.length === 0) throw new Error("no drainage boundaries");
+      const [scope, usdm, boundaries] = await Promise.all(
+        [loadDrainageScope(), loadUsdmPolygons(), loadReferenceBoundaries()]);
+      if (scope.areas.length === 0) throw new Error("no drainage boundaries");
       if (usdm.mapDate !== payload.map_date) {
         /* Two committed files describing two different weeks is a pipeline
          * fault the reader must not have to notice on their own. */
@@ -473,7 +473,7 @@ function renderDrought(
         cardId: "drought-map-hover"
       });
       const mapStatus = await createDroughtMap(
-        mapElement, card, areas, usdm, reservoirs,
+        mapElement, card, scope, usdm, reservoirs,
         { units: payload.units, storage: storage ?? new Map() }, boundaries);
       // After the component has claimed the host, never before.
       mapHost.append(legend);

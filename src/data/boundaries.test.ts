@@ -5,6 +5,7 @@ import {
   MASK_FILL,
   MASK_LINE,
   REFERENCE_SCHEMA_VERSION,
+  JOINABLE_LEVEL,
   parseDrainageUnits,
   parseUtahBoundary,
   referenceGeography,
@@ -68,7 +69,7 @@ describe("the drainage-area roster", () => {
     name: feature.properties["name"] ?? "",
     states: feature.properties["states"] ?? ""
   }));
-  const areas = parseDrainageUnits(roster());
+  const areas = parseDrainageUnits(roster(), 6);
 
   it("reads every committed area", () => {
     expect(areas).toHaveLength(roster().length);
@@ -95,19 +96,40 @@ describe("the drainage-area roster", () => {
     ["an error document", { error: { code: 500 } }],
     ["entries that are not objects", [1, "two", null]]
   ])("reads %s as no areas rather than throwing", (_label, value) => {
-    expect(parseDrainageUnits(value)).toEqual([]);
+    expect(parseDrainageUnits(value, 6)).toEqual([]);
   });
 
   it("keeps the readable areas when one entry is malformed", () => {
-    expect(parseDrainageUnits([{ name: "No code here" }, ...roster()]))
+    expect(parseDrainageUnits([{ name: "No code here" }, ...roster()], 6))
       .toHaveLength(roster().length);
   });
 
   /* A code with no name is still a drawable area. It falls back to the code
    * rather than to an empty string, because a blank entry in the area
    * chooser is a row a reader cannot pick and cannot report. */
+  /* The attribute follows the level, the same rule the pipeline applies
+   * writing it. Reading a fixed `huc6` would parse a HUC-4 scope as no areas
+   * at all -- a blank map rather than an error, which is the failure this
+   * project keeps finding and keeps writing tests against. */
+  it("reads the code from the field the level names", () => {
+    expect(parseDrainageUnits([{ huc4: "1401", name: "Upper Colorado" }], 4))
+      .toEqual([{ huc6: "1401", name: "Upper Colorado", states: "" }]);
+    // The same payload read at the wrong level is no areas, not a guess.
+    expect(parseDrainageUnits([{ huc4: "1401", name: "Upper Colorado" }], 6))
+      .toEqual([]);
+  });
+
+  /* Every figure on this site -- storage banked in an area, drought
+   * coverage, snow percent of normal, and each reservoir's own code -- is a
+   * six-digit fact. A scope published at another size would draw shapes no
+   * figure describes. */
+  it("keys the figures at the level the payload publishes", () => {
+    expect(JOINABLE_LEVEL).toBe(6);
+    expect(referenceGeography(readReferenceExport())?.level).toBe(JOINABLE_LEVEL);
+  });
+
   it("names an area after its code when the name is missing", () => {
-    const parsed = parseDrainageUnits([{ huc6: "160203", states: "UT" }]);
+    const parsed = parseDrainageUnits([{ huc6: "160203", states: "UT" }], 6);
     expect(parsed[0]?.name).toBe("160203");
     expect(parsed[0]?.states).toBe("UT");
   });
@@ -131,7 +153,7 @@ describe("the reference export", () => {
     const committed = (readDrainageGeoJson() as {
       features: { properties: Record<string, string> }[]
     }).features.map((feature) => feature.properties["huc6"]);
-    expect(parseDrainageUnits(sections?.drainage).map((area) => area.huc6))
+    expect(parseDrainageUnits(sections?.drainage, 6).map((area) => area.huc6))
       .toEqual(committed);
   });
 
@@ -145,7 +167,7 @@ describe("the reference export", () => {
   });
 
   it("draws the scope the export names, not one written down here", () => {
-    const published = parseDrainageUnits(sections?.drainage);
+    const published = parseDrainageUnits(sections?.drainage, 6);
     const assigned = new Set(readPayload().reservoirs
       .map((reservoir) => reservoir.huc6)
       .filter((huc6): huc6 is string => typeof huc6 === "string"));
@@ -178,7 +200,7 @@ describe("the reference export", () => {
     const parsed = referenceGeography(value);
     // Either no sections at all, or sections whose halves parse as empty --
     // both are the soft failure the callers already handle.
-    expect(parseDrainageUnits(parsed?.drainage)).toEqual([]);
+    expect(parseDrainageUnits(parsed?.drainage, 6)).toEqual([]);
     expect(parseUtahBoundary(parsed?.state)).toBeNull();
   });
 });

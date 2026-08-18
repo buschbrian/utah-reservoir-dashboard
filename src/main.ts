@@ -2,7 +2,7 @@ import "@esri/calcite-components/main.css";
 import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageAreas, loadUtahBoundary } from "./data/boundaries";
+import { loadDrainageScope, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { downloadCsv } from "./data/download";
 import {
@@ -204,7 +204,7 @@ function updateSummary(): void {
  * malformed file leaves the reservoirs exactly where they are. */
 async function loadContext(map: MapController): Promise<void> {
   try {
-    map.drawDrainageAreas(await loadDrainageAreas());
+    map.drawDrainageAreas(await loadDrainageScope());
   } catch (error) {
     console.warn("Drainage-area boundaries are unavailable:", error);
   }
@@ -771,6 +771,7 @@ if (!supportsDashboard(browserCapabilities())) {
     drainageLabels: map.status.drainageLabels,
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,
     drainageLabelsDeconflicted: map.status.drainageLabelsDeconflicted,
+    drainageLevel: map.status.drainageLevel,
     /* The chosen area, which is not `drainageAreas` -- that one counts the
      * boundaries the map drew. One fact per field. */
     areaFilter: filterStatus.drainageArea,

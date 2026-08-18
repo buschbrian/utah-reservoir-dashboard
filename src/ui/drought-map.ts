@@ -35,7 +35,7 @@ import {
   createWatershedLayer,
   WATERSHED_NAME_FIELD
 } from "../arcgis/watershed-layers";
-import type { DrainageArea } from "../data/boundaries";
+import type { DrainageScope } from "../data/boundaries";
 import type { StorageContext } from "../drought-model";
 import type { UsdmPolygons } from "../data/usdm-load";
 import type { DroughtUnit } from "../types";
@@ -116,7 +116,7 @@ export interface DroughtMapContext {
 export async function createDroughtMap(
   element: ViewMapElement,
   card: HTMLElement,
-  areas: readonly DrainageArea[],
+  scope: DrainageScope,
   usdm: UsdmPolygons,
   reservoirs: readonly ReservoirReference[],
   context: DroughtMapContext,
@@ -161,6 +161,7 @@ export async function createDroughtMap(
    * monitor's own palette, and a coloured boundary would read as a sixth
    * class (ADR-032).
    */
+  const { level, areas } = scope;
   const codes = areas.map((area) => area.huc6);
   const boundarySymbol = (color: string, width: number): FillSymbol => ({
     type: "simple-fill",
@@ -185,7 +186,7 @@ export async function createDroughtMap(
    */
   const casingLayer = createWatershedLayer({
     id: OUTLINE_CASING_LAYER_ID,
-    level: 6,
+    level,
     codes,
     renderer: { type: "simple", symbol: boundarySymbol("rgba(255,255,255,0.85)", 3.4) }
   });
@@ -201,7 +202,7 @@ export async function createDroughtMap(
    */
   const outlineLayer = createWatershedLayer({
     id: OUTLINE_LAYER_ID,
-    level: 6,
+    level,
     codes,
     renderer: { type: "simple", symbol: boundarySymbol("rgba(23,32,38,0.95)", 1.3) },
     labelsVisible: true,
