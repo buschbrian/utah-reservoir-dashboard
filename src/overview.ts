@@ -8,6 +8,14 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { loadReservoirs } from "./data/load";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadSnowpack } from "./data/snow-load";
+import {
+  loadOpeningRosters,
+  openingSelectionFromSearch,
+  resolveOpeningScope,
+  withinOpeningArea,
+  type OpeningRosters,
+  type OpeningScope
+} from "./data/opening-scope";
 import { weeklySummary } from "./weekly-model";
 import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
@@ -40,6 +48,7 @@ import {
   largestReservoirRecords,
   monthlyTrend,
   normalComparison,
+  openingScopeSummary,
   overviewScope,
   percentFullValues,
   countyOptions,
@@ -136,7 +145,8 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
 
 async function renderOverview(
   allReservoirs: Reservoir[], generatedAt: string,
-  subregions: readonly { huc4: string; name: string }[]
+  subregions: readonly { huc4: string; name: string }[],
+  openingScope: OpeningScope, openingRosters: OpeningRosters
 ): Promise<void> {
   const content = document.querySelector<HTMLElement>("#overview-content");
   if (!content) return;
@@ -163,6 +173,14 @@ async function renderOverview(
       </div>
       <div class="weekly-sections"></div>
     </section>
+    <!-- What a shared link's ?state= and ?area= narrowed this page to when
+         it opened (slice S3d, docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
+         Read once from the address bar the page loaded with -- the filter
+         bar's own controls are what the reader adjusts from there, and
+         #filter-status already reports what they currently hold. Hidden
+         rather than empty when the reader asked for nothing, so this never
+         announces a blank status line. -->
+    <p id="opening-scope-summary" class="opening-scope-summary" role="status" hidden></p>
     <section class="dashboard-filterbar" aria-labelledby="filter-heading">
       <!-- Lake Powell rides with the heading rather than in the row of
            selects below it. It is not the same kind of question they are:
@@ -282,6 +300,35 @@ async function renderOverview(
    * distribution and the filter are one thing, so a reader cannot be
    * looking at a spread that does not match what is below it. */
   let storageClassFilter: number | null = null;
+
+  /* The reader's opening `?area=`, applied as a prefix match
+   * (`withinOpeningArea`) rather than through the subregion and
+   * drainage-area selects below, at every one of the three widths --  not
+   * only the region width those selects have no axis for at all.
+   *
+   * The selects' own option lists are built from which drainage areas this
+   * payload's *reservoirs* happen to occupy, not from the reference export's
+   * roster of areas that exist -- so a code the export can name is not
+   * guaranteed to be one of those options, and seeding `subregion.value` or
+   * `watershed.value` from it would silently do nothing on the mornings it
+   * is not. Filtering here instead means the sentence above never claims a
+   * narrowing that the table and charts below it do not also show: this is
+   * what actually narrows `scoped`, applied before `byState` is derived from
+   * it, so the subregion and drainage-area options below narrow to match for
+   * free, the same way they already narrow to the chosen state.
+   *
+   * No control offers this choice yet -- S4 adds one -- so "Reset view" is
+   * the only way to clear it until then. Held the same way
+   * `storageClassFilter` is: state without a control, read every time
+   * `update` runs. */
+  let openingArea: string | null = openingScope.selection.area;
+
+  const openingSummary = document.querySelector<HTMLElement>("#opening-scope-summary");
+  if (openingSummary) {
+    const summary = openingScopeSummary(openingScope.selection, openingRosters);
+    openingSummary.textContent = summary;
+    openingSummary.hidden = summary === "";
+  }
 
   const watershed = document.querySelector<HTMLSelectElement>("#watershed-filter");
   for (const choice of watershedChoices) {
@@ -476,11 +523,16 @@ async function renderOverview(
   let revision = 0;
   const update = async (): Promise<void> => {
     const currentRevision = ++revision;
+    /* The opening scope's `?area=` narrows before the geographic controls
+     * compute their own options below, the same "coarsest first" order state
+     * already narrows subregion and subregion narrows drainage area --
+     * `byState` and everything built from it inherit this for free rather
+     * than needing their own copy of the rule. */
     const scoped = overviewScope(allReservoirs, {
       geography: geography.value as ReservoirGeography,
       lakePowell: lakePowell.checked ? "include" : "exclude",
       lakeMead: lakeMead.checked ? "include" : "exclude"
-    });
+    }).filter((reservoir) => withinOpeningArea(reservoir.huc6, openingArea));
     /* Each geographic control is repopulated from what the ones above it
      * leave, so a reader who picks Wyoming is not then offered a subregion
      * Wyoming has none of. A selection that survives the narrowing is kept;
@@ -651,6 +703,7 @@ async function renderOverview(
     chartMeasure.value = "percent";
     chartRank.value = "capacity";
     storageClassFilter = null;
+    openingArea = null;
     void update();
     search.focus();
   });
@@ -676,6 +729,19 @@ async function renderOverview(
     ? wanted.state : "all";
   subregion.value = subregionChoices.some((choice) => choice.code === wanted.subregion)
     ? wanted.subregion : "all";
+  /* A subregion-width `?area=` link (four digits) has no parameter of its
+   * own on this page -- `?huc4=` is the canonical one -- so this reflects it
+   * into the visible control when an explicit `?huc4=` did not already claim
+   * one and this payload's own reservoirs happen to offer that subregion as
+   * a choice. Cosmetic, not load-bearing: `openingArea` above is what
+   * actually narrows the table and charts, at every width, whether or not
+   * the code the reference export can name happens to be one of this
+   * select's reservoir-derived options. */
+  if (subregion.value === "all" && openingScope.selection.area !== null
+      && openingScope.selection.area.length === 4
+      && subregionChoices.some((choice) => choice.code === openingScope.selection.area)) {
+    subregion.value = openingScope.selection.area;
+  }
   cadence.value = wanted.reporting;
   geography.value = wanted.geography;
   lakePowell.checked = wanted.lakePowell === "include";
@@ -779,10 +845,34 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
   } as NonNullable<typeof window.__overviewReady>;
 }
 
+const EMPTY_OPENING_ROSTERS: OpeningRosters = { regions: [], subregions: [], areas: [] };
+
 try {
-  const payload = await loadReservoirs();
+  const openingSelection = openingSelectionFromSearch(window.location.search);
+  /* The reference export is a second fetch this page otherwise has no reason
+   * to make, so it is skipped entirely when the address bar asks for nothing
+   * -- an ordinary visit to overview.html pays for it exactly as often as it
+   * needs the answer. Requested alongside the reservoir payload rather than
+   * after it: the two are independent, and every chart below has to wait for
+   * the opening scope to resolve before the first one is built (never built
+   * against everything and then rebuilt once a filter arrives), so the two
+   * fetches racing rather than queuing is what keeps that wait to one round
+   * trip rather than two. A failed roster fetch is not fatal to the page:
+   * `resolveOpeningScope` against an empty roster drops a dead `area` to
+   * `null` and leaves `state` exactly as asked (it never resets), so a
+   * reader loses only the area half of the opening scope, not the page. */
+  const [payload, openingRosters] = await Promise.all([
+    loadReservoirs(),
+    openingSelection.state !== "all" || openingSelection.area !== null
+      ? loadOpeningRosters().catch((error: unknown) => {
+        console.warn("The opening scope's drainage-area roster did not load:", error);
+        return EMPTY_OPENING_ROSTERS;
+      })
+      : Promise.resolve(EMPTY_OPENING_ROSTERS)
+  ]);
+  const openingScope = resolveOpeningScope(openingSelection, openingRosters);
   await renderOverview(payload.reservoirs, payload.generated_at,
-    payload.watersheds?.subregions ?? []);
+    payload.watersheds?.subregions ?? [], openingScope, openingRosters);
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");
