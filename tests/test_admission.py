@@ -20,8 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from admission import (  # noqa: E402
-    CONSERVATION_ALLOWANCE, NAMED_RADIUS_KM, NEAR_RADIUS_KM, admit, admit_all,
+    NAMED_RADIUS_KM, NEAR_RADIUS_KM, SURCHARGE_ALLOWANCE, admit, admit_all,
     capacity_of, could_hold, distance_km, find_dam, holds_more_than_the_dam,
+    largest_published_pool,
     normalize_name,
 )
 
@@ -166,17 +167,41 @@ class TestTheCapacityCheck:
         # Trout Lake: 4,180 acre-feet seen against a 3,200 maximum pool.
         assert holds_more_than_the_dam(TROUT_LAKE, 4180) is True
 
-    def test_a_small_allowance_applies_where_no_maximum_pool_is_published(self):
+    def test_the_allowance_applies_where_no_maximum_pool_is_published(self):
         # Stagecoach: 36,474 seen, 36,439 at the conservation pool, no maximum
         # pool, and a headline figure that repeats the conservation pool.
         assert holds_more_than_the_dam(STAGECOACH, 36474) is False
         # The allowance is small enough to still catch a real mismatch.
-        assert holds_more_than_the_dam(STAGECOACH, 36439 * (1 + CONSERVATION_ALLOWANCE) + 1)
+        assert holds_more_than_the_dam(STAGECOACH, 36439 * (1 + SURCHARGE_ALLOWANCE) + 1)
 
-    def test_a_published_maximum_pool_is_a_real_ceiling_and_gets_no_allowance(self):
-        # Trout Lake stays refused: 4,180 seen against a 3,200 maximum pool is
-        # 30% over, which no operating allowance explains.
-        assert holds_more_than_the_dam(TROUT_LAKE, 3200 * (1 + CONSERVATION_ALLOWANCE))
+    def test_the_ceiling_is_the_largest_figure_the_record_holds(self):
+        """Not the maximum pool alone, which is not always the largest
+        (ADR-065). Deadwood Dam publishes a maximum pool of 153,992 and a
+        headline figure of 191,600, and the reservoir has held 157,590 --
+        inside its own record's larger number and refused by the smaller."""
+        deadwood = dam("Deadwood Dam", -115.63, 44.29, None, 153992, 191600)
+
+        assert largest_published_pool(deadwood) == 191600
+        assert holds_more_than_the_dam(deadwood, 157590) is False
+
+    def test_a_reservoir_surcharged_above_every_pool_is_kept(self):
+        """A few percent over is an operating condition, not a wrong dam.
+        American Falls has held 1,688,737 against 1,671,300 -- 1% over, at a
+        dam 0.15 km away whose name agrees."""
+        american_falls = dam("American Falls Dam", -112.87, 42.78, 1671300, None, 1671300)
+
+        assert holds_more_than_the_dam(american_falls, 1688737) is False
+
+    def test_a_reservoir_several_times_over_is_still_a_wrong_dam(self):
+        """What the rule is for, and the size the signal really has. Lake
+        Havasu matched a 6,300 acre-foot dam called Gene Wash while its water
+        sits behind Parker Dam."""
+        gene_wash = dam("Gene Wash", -114.31, 34.29, None, 6300, 6300)
+
+        assert holds_more_than_the_dam(gene_wash, 613000) is True
+        # Trout Lake stays refused too: 4,180 seen against 3,200 is 31% over,
+        # which no operating allowance explains.
+        assert holds_more_than_the_dam(TROUT_LAKE, 4180) is True
 
     def test_no_observed_storage_is_not_evidence_of_a_bad_match(self):
         assert holds_more_than_the_dam(MCPHEE, None) is False
@@ -185,17 +210,21 @@ class TestTheCapacityCheck:
 class TestTheLenientScreen:
     """could_hold chooses between candidate structures.
 
-    Deliberately weaker than `holds_more_than_the_dam`, which accepts a match
-    once it is found. Using the strict ceiling to choose throws away the
-    right dam and settles for whatever is left.
+    It used to be deliberately weaker than `holds_more_than_the_dam`. Since
+    ADR-065 they ask one question of one set of figures, and this is that
+    question's complement -- which is the right way round: a screen stricter
+    than the acceptance test can throw away a dam that would have been
+    accepted, and that is how Trial Lake ended up matched to Washington Lake
+    Dam.
     """
 
-    def test_a_reservoir_run_a_little_over_its_maximum_pool_still_qualifies(self):
-        # Echo: 74,791 acre-feet seen against a 73,940 maximum pool. The
-        # strict ceiling refuses that -- correct for accepting a found match,
-        # wrong for deciding which structure to look at.
+    def test_a_reservoir_run_a_little_over_its_maximum_pool_qualifies_either_way(self):
+        # Echo: 74,791 acre-feet seen against a 73,940 maximum pool, 1.2%
+        # over. The reviewed capacity table accepts it, and the strict test
+        # used to disagree with the reviewed table -- which was the defect,
+        # not the screen being lenient.
         echo = dam("Echo", -111.44, 40.97, 65000, 73940)
-        assert holds_more_than_the_dam(echo, 74791) is True
+        assert holds_more_than_the_dam(echo, 74791) is False
         assert could_hold(echo, 74791) is True
 
     def test_a_structure_an_order_of_magnitude_too_small_is_screened_out(self):
