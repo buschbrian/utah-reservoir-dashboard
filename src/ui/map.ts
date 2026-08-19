@@ -24,7 +24,7 @@ import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
 import type { DrainageScope, UtahBoundary } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
-import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, regionExtent, selectionTarget } from "../viz/extent";
+import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, navigableExtent, regionExtent, selectionTarget } from "../viz/extent";
 import { storageByArea } from "../drought-model";
 import { elementById } from "./dom";
 import { drainageAreaLines, storageReservoirLines } from "./hover-content";
@@ -345,7 +345,7 @@ export async function loadMap(
     minZoom: MAP_MIN_ZOOM,
     // Deep enough to read an individual dam.
     maxZoom: MAP_MAX_ZOOM,
-    geometry: { type: "extent", ...regionExtent() }
+    geometry: { type: "extent", ...navigableExtent() }
   };
   element.setAttribute("aria-label", "Interactive map of western reservoirs and drainage areas");
   element.map = map;

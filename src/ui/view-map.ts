@@ -23,7 +23,7 @@ import "@arcgis/map-components/components/arcgis-scale-bar";
 import "@arcgis/map-components/components/arcgis-zoom";
 
 import type ArcGISMap from "@arcgis/core/Map";
-import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, drainageExtent, regionExtent } from "../viz/extent";
+import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, drainageExtent, navigableExtent } from "../viz/extent";
 import { createHoverCard, type HoverMapElement } from "./map-hover";
 
 export interface ViewMapElement extends HoverMapElement {
@@ -73,9 +73,10 @@ export function createViewMap(
     snapToZoom: false,
     minZoom: MAP_MIN_ZOOM,
     maxZoom: MAP_MAX_ZOOM,
-    /* The storage map's own bounds, unchanged: where a map opens depends on
-     * the box, but where a reader is allowed to go should not. */
-    geometry: { type: "extent", ...regionExtent() }
+    /* Everything the maps draw, not the box this card opens on: where a map
+     * opens depends on its subject, and where a reader is allowed to go is
+     * one answer shared by all three. */
+    geometry: { type: "extent", ...navigableExtent() }
   };
   /* Two clusters, split by what the control does, because these cards do
    * not have the storage map's height. All six controls in one top-right
