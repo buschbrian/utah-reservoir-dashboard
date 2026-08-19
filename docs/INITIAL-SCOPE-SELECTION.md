@@ -449,6 +449,58 @@ Each step leaves the site working and testable.
    and the fallback when a stored state empties a page.
 9. **Then the splash.**
 
+## Build slices, and what may run beside what
+
+The nine steps above are an order. This is how they divide into work that can
+run at the same time, which is a different question — two steps that are
+independent in logic can still collide in a file.
+
+**The conflict map is the whole point.** Three files are contended and each is
+contended for a different reason:
+
+- `src/ui/page-header.ts` — the rename edits it, and so does cross-page
+  parameter propagation. Those two can never run together.
+- `reference.json`, `watershed_scopes.py`, `tests/test_watershed_scopes.py`,
+  `src/data/boundaries.ts` — the published bounding boxes need all four, and
+  all four are currently carrying the schema-v3 and roster-key work in the
+  owner's own tree. That slice waits for that work to land.
+- `src/state/url.ts` — under a byte-for-byte parity contract with
+  `shared/reservoir-viz.js`. Only one thing may touch it at a time, and
+  whatever does must keep `url.test.ts` green.
+
+| Slice | Step | Files | Runs beside |
+|---|---|---|---|
+| A — Rename | 1 | `page-header.ts`, `map.ts` (label only), `deploy.test.ts`, the HTML entry points | B, C |
+| B — Prefix-safe drainage filter | 2, 7 | `filters.ts`, `layers.ts`, their tests, possibly `url.ts` | A, C |
+| C — State axis in the model layer | part of 4 | new state-vocabulary module, `snow-model.ts`, `overview-model.ts`, their tests, one stale CLAUDE.md sentence | A, B |
+| D — Published bounding boxes | 3 | `watershed_scopes.py`, `reference.json`, `boundaries.ts`, `extent.ts`, their tests | nothing — waits on schema v3 |
+| E — Cross-page propagation | 5 | `page-header.ts`, `smoke-modern.mjs`, the page entry files | after A |
+| F — Page wiring for `?state=` | rest of 4 | `main.ts`, `snow.ts`, `drought.ts`, `overview.ts` | after B, C, E |
+| G — The state control | 6 | new control beside `level-control.ts`, plus its hosts | after F |
+| H — Persistence | 8 | the URL modules, a storage helper | after G |
+| I — The splash | 9 | new component, the entry points | after H |
+
+A, B and C are the parallel front. Their file sets are disjoint from each
+other and from the schema-v3 work in flight, which is what makes them safe to
+run at once in one working tree.
+
+D is held rather than merely ordered. It is not blocked by design — it is
+blocked by four files being edited elsewhere, and the right move is to wait
+rather than to fork the export format twice.
+
+E through I are a chain. Each needs the one before it to exist, and none of
+them can be usefully started early: a control with no parameter behind it, or
+a splash with no persistence behind it, is a screenshot rather than a feature.
+
+**A note on slicing this way at all.** A, B and C are each shaped so that
+their acceptance is a unit test rather than a look at the page. The rename is
+proved by `deploy.test.ts`, the filter by `filters.test.ts` holding the
+predicate and the clause against each other, the state axis by model
+functions over fixtures. Nothing in the parallel front needs a browser, which
+is why three of them can run without a shared render loop to fight over —
+and, per the known-quirks section of CLAUDE.md, the ArcGIS canvas renders
+blank in headless Chromium anyway.
+
 ## Tests this needs
 
 - `filters.test.ts` — predicate and clause agree at 2, 4 and 6 digits.
