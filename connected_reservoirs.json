@@ -5,7 +5,8 @@
   "reviewed": "2026-08-14",
   "selection": "Capacity-admissible storage stations in the three published HUC-6 drainage areas that previously had no tracked reservoir",
   "reservoirs": {
-    "Dillon Reservoir": {
+    "09009020:CO:BOR": {
+      "name": "Dillon Reservoir",
       "station_triplet": "09009020:CO:BOR",
       "lat": 39.62123,
       "lon": -106.06198,
@@ -26,7 +27,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Green Mountain Reservoir": {
+    "09009030:CO:BOR": {
+      "name": "Green Mountain Reservoir",
       "station_triplet": "09009030:CO:BOR",
       "lat": 39.87658,
       "lon": -106.33026,
@@ -47,7 +49,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Homestake Reservoir": {
+    "09009040:CO:BOR": {
+      "name": "Homestake Reservoir",
       "station_triplet": "09009040:CO:BOR",
       "lat": 39.36848,
       "lon": -106.46311,
@@ -68,7 +71,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Lake Granby": {
+    "09009060:CO:BOR": {
+      "name": "Lake Granby",
       "station_triplet": "09009060:CO:BOR",
       "lat": 40.18333,
       "lon": -105.86667,
@@ -89,7 +93,8 @@
         "match_confirmed_by": "name and position"
       }
     },
-    "Ruedi Reservoir": {
+    "09009110:CO:BOR": {
+      "name": "Ruedi Reservoir",
       "station_triplet": "09009110:CO:BOR",
       "lat": 39.36317,
       "lon": -106.81664,
@@ -110,7 +115,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Shadow Mountain Reservoir": {
+    "09014500:CO:BOR": {
+      "name": "Shadow Mountain Reservoir",
       "station_triplet": "09014500:CO:BOR",
       "lat": 40.2103,
       "lon": -105.8414,
@@ -131,7 +137,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Vega Reservoir": {
+    "09009140:CO:BOR": {
+      "name": "Vega Reservoir",
       "station_triplet": "09009140:CO:BOR",
       "lat": 39.22498,
       "lon": -107.81173,
@@ -152,7 +159,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Williams Fork Reservoir": {
+    "09009150:CO:BOR": {
+      "name": "Williams Fork Reservoir",
       "station_triplet": "09009150:CO:BOR",
       "lat": 40.03475,
       "lon": -106.20574,
@@ -173,7 +181,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Willow Creek Reservoir": {
+    "09009160:CO:BOR": {
+      "name": "Willow Creek Reservoir",
       "station_triplet": "09009160:CO:BOR",
       "lat": 40.14759,
       "lon": -105.94263,
@@ -194,7 +203,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Wolford Mountain Reservoir": {
+    "09041395:CO:BOR": {
+      "name": "Wolford Mountain Reservoir",
       "station_triplet": "09041395:CO:BOR",
       "lat": 40.11276,
       "lon": -106.41503,
@@ -215,7 +225,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Elkhead Reservoir": {
+    "09246300:CO:BOR": {
+      "name": "Elkhead Reservoir",
       "station_triplet": "09246300:CO:BOR",
       "lat": 40.5583,
       "lon": -107.3873,
@@ -236,7 +247,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "High Savery Reservoir": {
+    "09255450:WY:BOR": {
+      "name": "High Savery Reservoir",
       "station_triplet": "09255450:WY:BOR",
       "lat": 41.2751,
       "lon": -107.29974,
@@ -257,7 +269,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Stagecoach Reservoir nr Oak Creek": {
+    "09237495:CO:BOR": {
+      "name": "Stagecoach Reservoir nr Oak Creek",
       "station_triplet": "09237495:CO:BOR",
       "lat": 40.28503,
       "lon": -106.834,
@@ -278,7 +291,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Yamcolo Reservoir": {
+    "YAMRESCO:CO:BOR": {
+      "name": "Yamcolo Reservoir",
       "station_triplet": "YAMRESCO:CO:BOR",
       "lat": 40.05347,
       "lon": -107.04744,
@@ -299,7 +313,8 @@
         "match_confirmed_by": "position"
       }
     },
-    "Narraguinnep Reservoir": {
+    "09009350:CO:BOR": {
+      "name": "Narraguinnep Reservoir",
       "station_triplet": "09009350:CO:BOR",
       "lat": 37.49015,
       "lon": -108.62943,
@@ -320,5 +335,6 @@
         "match_confirmed_by": "position"
       }
     }
-  }
+  },
+  "keyed_by": "station_triplet"
 }

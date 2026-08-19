@@ -96,8 +96,8 @@ fixture may name a boundary file directly, because which file holds which
 geography has moved once and will move again when the roster expands west.
 **61 drawn areas hold no reservoir**, which is a state ADR-056 already allowed
 for. **Each map draws what it can say something about**: the drought engine
-measures all 75 so the drought map draws 75, the snow network reports in 14 so
-`measuredScope` narrows the snow map to 14, and the storage map draws all 75
+measures all 75 so the drought map draws 75, the snow network reports in 51 so
+`measuredScope` narrows the snow map to 51, and the storage map draws all 75
 as context around its subject. The two committed files must agree area for
 area -- fetched at different generalizations they did not, and two drought
 figures moved by a rounding step with no weather behind them.

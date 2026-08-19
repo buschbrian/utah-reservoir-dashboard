@@ -135,7 +135,7 @@ const REFERENCE_URL = import.meta.env.DEV ? "./reference.json" : "./data/referen
  * it is how a map ends up confidently wrong. An unrecognised version reads
  * as no boundaries, which is a case both callers already handle.
  */
-export const REFERENCE_SCHEMA_VERSION = 2;
+export const REFERENCE_SCHEMA_VERSION = 3;
 
 export interface ReferenceGeography {
   /** The state outline, in the collection shape `parseUtahBoundary` reads. */

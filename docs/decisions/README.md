@@ -74,6 +74,7 @@ supersedes the old one — the history is the point.
 | [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md) | Draw the whole west, and open on the areas that hold reservoirs | Accepted |
 | [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md) | Offer two hydrologic levels, and let the reader choose | Accepted |
 | [ADR-065](ADR-065-the-ceiling-is-the-largest-figure-the-record-holds.md) | The ceiling is the largest figure the record holds, plus a surcharge | Accepted |
+| [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md) | A reservoir is keyed by its station, not by its name | Accepted |
 
 ## Relationship to the modernization plan
 

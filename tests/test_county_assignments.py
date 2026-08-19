@@ -16,6 +16,19 @@ ROOT = Path(__file__).resolve().parent.parent
 COUNTIES = json.loads((ROOT / "counties.json").read_text(encoding="utf-8"))
 
 
+def county_of(name):
+    """One reservoir's assignment, found by the name a reader calls it.
+
+    The file is keyed by station id since ADR-066, because two reservoirs may
+    share a name and they are in two different counties. These tests are about
+    named reservoirs, so they look the station up rather than assume it.
+    """
+    matches = [entry for entry in COUNTIES["counties"].values()
+               if entry["name"] == name]
+    assert len(matches) == 1, f"{name} matches {len(matches)} assignments"
+    return matches[0]
+
+
 def test_every_published_reservoir_has_a_county():
     """The roster and the assignment have to agree, or the filter lies.
 
@@ -66,7 +79,7 @@ def test_lake_powell_is_in_utah_not_at_its_dam():
     Glen Canyon Dam is in Coconino County, Arizona. The lake a reader asks
     about is in San Juan County, Utah.
     """
-    powell = COUNTIES["counties"]["Lake Powell"]
+    powell = county_of("Lake Powell")
     assert powell["state"] == "UT"
     assert powell["county_name"] == "San Juan County"
 
@@ -75,17 +88,21 @@ def test_the_source_is_the_detailed_layer():
     """The generalized boundaries put Lost Lake outside Wasatch County."""
     assert "USA_Census_Counties" in COUNTIES["source_layer"]
     assert "Generalized" not in COUNTIES["source_layer"]
-    assert COUNTIES["counties"]["Lost Lake"]["county_name"] == "Wasatch County"
+    assert county_of("Lost Lake")["county_name"] == "Wasatch County"
 
 
 class TestAttachCounties:
     def records(self):
-        return [{"name": "Lake Powell"}, {"name": "Not on the roster"}]
+        # A record carries the station it was fetched with, and that is what
+        # the assignment is looked up by since ADR-066 -- not the name, which
+        # two reservoirs may share.
+        return [{"name": "Lake Powell", "source_station_id": "509"},
+                {"name": "Not on the roster", "source_station_id": "no-such-station"}]
 
     def test_it_attaches_the_committed_assignment(self):
         records = self.records()
         summary = refresh_reservoirs.attach_counties(records)
-        assert records[0]["county_fips"] == COUNTIES["counties"]["Lake Powell"]["county_fips"]
+        assert records[0]["county_fips"] == county_of("Lake Powell")["county_fips"]
         assert summary["assigned"] == 1
         assert summary["unassigned"] == 1
 

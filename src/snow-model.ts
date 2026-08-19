@@ -121,6 +121,67 @@ export function payloadAtLevel(
   return { ...payload, sites, rollups };
 }
 
+/**
+ * The payload narrowed to one state's sites, with every drainage-area figure
+ * rebuilt from those sites -- never by averaging the published basin means
+ * (the same rule `payloadAtLevel` follows for a coarser grouping, and
+ * ADR-064's rule for the level control, extended here to a state filter).
+ *
+ * Unlike `payloadAtLevel`, the areas themselves do not change shape: a state
+ * filter narrows which sites count inside each already-published area, it
+ * does not merge several areas into one. So each area keeps its own
+ * published `minimum_reporting_sites` rather than borrowing the highest
+ * floor on the payload -- there is no new, coarser area whose old floor
+ * would be too strict for it.
+ *
+ * An area with no sites left in this state is dropped from `rollups`
+ * entirely, not published with an empty series: there is nothing to recompute
+ * a mean from, which is a different fact from every day of that mean falling
+ * below the reporting floor. An area that keeps some sites but fewer than its
+ * floor stays in `rollups` -- its `series` is exactly what `seriesOverSites`
+ * already produces below the floor, `mean_percent_of_normal_median: null` on
+ * every day, which is how this payload has always said "not measured" rather
+ * than printing a zero (ADR-059).
+ *
+ * `"all"` returns the payload unchanged, the same sentinel `reservoirInState`
+ * reads in `overview-model.ts`.
+ */
+export function payloadForState(
+  payload: SnowpackPayload, state: string
+): SnowpackPayload {
+  if (state === "all") return payload;
+  const sites = payload.sites.filter((site) => site.state === state);
+  const floors = new Map(
+    payload.rollups.map((rollup) => [rollup.huc6, rollup.minimum_reporting_sites]));
+  const names = new Map(
+    payload.rollups.map((rollup) => [rollup.huc6, rollup.huc6_name]));
+  const grouped = new Map<string, SnowSite[]>();
+  for (const site of sites) {
+    const bucket = grouped.get(site.huc6);
+    if (bucket) bucket.push(site);
+    else grouped.set(site.huc6, [site]);
+  }
+  const rollups: SnowRollup[] = [...grouped.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([code, members]) => {
+      const floor = floors.get(code) ?? 2;
+      return {
+        huc6: code,
+        huc6_name: names.get(code) ?? code,
+        site_count: members.length,
+        minimum_reporting_sites: floor,
+        series: seriesOverSites(members, floor)
+      };
+    });
+  return {
+    ...payload,
+    sites,
+    rollups,
+    site_count: sites.length,
+    late_site_count: sites.filter((site) => site.late).length
+  };
+}
+
 /** One mean per date over a set of sites: the rule `build_rollups` uses in
  * `refresh_snowpack.py`, and the one `regionCurve` already reimplements for
  * the whole region. A test holds all three together. */
@@ -151,9 +212,9 @@ function seriesOverSites(
 /**
  * The drawn scope narrowed to the areas this payload measures.
  *
- * The maps draw 75 basins across the west and the snow network reports in 14
- * of them, because the coverage moved and the snow inventory did not
- * (ADR-063). Drawing the other 61 here would put an outline on the one map
+ * The maps draw 75 basins across the west and the snow network reports in 51
+ * of them (`a598850 Take the snow network west`; 637 sites across 11
+ * states). Drawing the other 24 here would put an outline on the one map
  * whose subject *is* the drainage areas with nothing behind it: no percent of
  * normal, no site, and a hover card that comes back empty -- which ADR-050
  * already judges to be less information rather than more.

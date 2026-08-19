@@ -90,10 +90,18 @@ def test_the_climate_period_matches_the_period_the_snow_payload_uses():
 # The lookup
 # --------------------------------------------------------------------------
 
+#: The station the fixtures below are about. Indexed by it and not by the
+#: name, since ADR-066: a climate normal is a denominator, and two reservoirs
+#: sharing a name must not share one.
+TEST_STATION = "1"
+
+
 def normals_table(available: bool = True, years: int = 30,
-                  full: bool = True, name: str = "Test") -> dict:
+                  full: bool = True, name: str = "Test",
+                  station: str = TEST_STATION) -> dict:
     record = {
         "name": name,
+        "source_station_id": station,
         "available": available,
         "covers_full_period": full,
         "first_obs": "1991-01-02",
@@ -102,7 +110,8 @@ def normals_table(available: bool = True, years: int = 30,
         "month": {"median_af": [None] + [2100.0] * 12, "years": [0] + [years] * 12},
     }
     return {"period": {"start_year": 1991, "end_year": 2020},
-            "built": "2026-08-16", "window_days": 7, "by_name": {name: record}}
+            "built": "2026-08-16", "window_days": 7,
+            "by_station": {station: record}}
 
 
 # --------------------------------------------------------------------------
@@ -189,7 +198,7 @@ def test_a_station_that_fails_does_not_fail_the_run():
 
 def test_the_lookup_reads_the_day_the_reading_was_taken():
     found = R.climate_baseline(
-        normals_table(), "Test", pd.Timestamp("2026-08-16"), 1000.0)
+        normals_table(), TEST_STATION, pd.Timestamp("2026-08-16"), 1000.0)
     assert found["normal_af"] == 2000.0
     assert found["pct_of_normal"] == 50.0
     assert found["sample_years"] == 30
@@ -198,12 +207,16 @@ def test_the_lookup_reads_the_day_the_reading_was_taken():
 @pytest.mark.parametrize("table,reason", [
     ({}, "no normals file at all"),
     (normals_table(available=False), "the reservoir has no usable record"),
-    (normals_table(name="Somewhere else"), "the reservoir is not in the table"),
+    (normals_table(station="another-station"), "the reservoir is not in the table"),
+    (normals_table(name="Somewhere else", station="another-station"),
+     "a reservoir sharing this one's name is not this one"),
 ])
 def test_the_lookup_answers_nothing_rather_than_something_else(table, reason):
-    """It must never fall back to the other baseline behind the reader's back."""
+    """It must never fall back to the other baseline behind the reader's back,
+    and since ADR-066 it must not answer for a reservoir that merely shares a
+    name -- the two Lost Creeks' records differ by a factor of twenty."""
     assert R.climate_baseline(
-        table, "Test", pd.Timestamp("2026-08-16"), 1000.0) is None, reason
+        table, TEST_STATION, pd.Timestamp("2026-08-16"), 1000.0) is None, reason
 
 
 # --------------------------------------------------------------------------

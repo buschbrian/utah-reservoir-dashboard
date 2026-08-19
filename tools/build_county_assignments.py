@@ -46,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from refresh_reservoirs import (  # noqa: E402
-    ALL_RESERVOIR_NAMES, AWDB_RESERVOIRS, RESERVOIRS,
+    ALL_RESERVOIR_IDS, AWDB_RESERVOIRS, RESERVOIRS,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -127,22 +127,25 @@ def main() -> int:
     args = parser.parse_args()
     missing_config: list[str] = []
 
-    # `ALL_RESERVOIR_NAMES` is the roster the refresh itself works from -- the
+    # `ALL_RESERVOIR_IDS` is the roster the refresh itself works from -- the
     # Reclamation table plus every AWDB station, which already includes the
-    # reviewed connected sites. Both tables put lat at 1 and lon at 2; taken
-    # by name rather than by unpacking, because the two tuples are different
-    # lengths and only their first three fields line up.
-    roster: dict[str, tuple[float, float]] = {}
-    for name in ALL_RESERVOIR_NAMES:
-        row = RESERVOIRS.get(name) or AWDB_RESERVOIRS.get(name)
+    # reviewed connected sites. Both tables are keyed by the station and put
+    # the name at 0, lat at 1 and lon at 2; indexed rather than unpacked,
+    # because the two tuples are different lengths and only their first three
+    # fields line up.
+    roster: dict[str, tuple[str, float, float]] = {}
+    for station in ALL_RESERVOIR_IDS:
+        row = RESERVOIRS.get(station) or AWDB_RESERVOIRS.get(station)
         if row is None:
-            missing_config.append(name)
+            missing_config.append(station)
             continue
-        roster[name] = (row[2], row[1])
+        # Both tables are (name, lat, lon, ...) since ADR-066, so the first
+        # three fields line up and the rest differ in length.
+        roster[station] = (row[0], row[2], row[1])
 
     assignments, missing = {}, []
     print(f"{'reservoir':<34} county")
-    for name, (lon, lat) in sorted(roster.items()):
+    for station, (name, lon, lat) in sorted(roster.items(), key=lambda item: item[1][0]):
         if lon is None or lat is None:
             missing.append(f"{name}: no configured point")
             continue
@@ -150,7 +153,9 @@ def main() -> int:
         if found is None:
             missing.append(f"{name}: no county contains ({lon}, {lat})")
             continue
-        assignments[name] = found
+        # Keyed by the station and carrying the name, so a reader of the file
+        # can still see which reservoir a row is about.
+        assignments[station] = {"name": name, **found}
         print(f"{name:<34} {found['county_name']}, {found['state']}")
         # The service is somebody else's, and 68 queries in a burst is rude.
         time.sleep(0.1)

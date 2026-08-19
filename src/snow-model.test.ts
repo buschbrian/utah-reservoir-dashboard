@@ -13,6 +13,7 @@ import {
   payloadAtLevel,
   newestHeadline,
   percentOfNormal,
+  payloadForState,
   observedPeak,
   regionCurve,
   regionDepthCurve,
@@ -114,7 +115,7 @@ describe("the payload regrouped into subregions", () => {
 
 describe("the scope the map draws", () => {
   /* The drawn scope, read the way the page reads it. 75 basins since the
-   * coverage moved west; the snow network reports in 14 of them. */
+   * coverage moved west; the snow network reports in 51 of them. */
   const drawn = (): DrainageScope => ({
     level: 6,
     areas: parseDrainageUnits(

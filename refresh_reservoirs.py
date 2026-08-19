@@ -107,7 +107,14 @@ MIN_BASELINE_YEARS = 10
 # Version of the reference export's shape, not of the numbers in it. It is
 # here so a reader that finds a payload it does not understand can say so
 # instead of quietly rendering half of it.
-EXPORT_SCHEMA_VERSION = 2
+#
+# 3 since ADR-066: `capacity_catalog.capacities` is keyed by the station id
+# every reservoir record already publishes as `source_station_id`, and was
+# keyed by the reservoir's name. That is a break, and it is versioned rather
+# than slipped in -- a name cannot key a roster that holds two Lost Creeks,
+# and a consumer indexing by name should be told rather than left to find a
+# key it knows has quietly become a different reservoir's.
+EXPORT_SCHEMA_VERSION = 3
 RESERVOIR_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
@@ -125,19 +132,27 @@ RESERVOIR_SCHEMA_VERSION = 1
 # happily requesting a dead id and gets an empty series back forever. Worth
 # adding a weekly job that re-walks location -> catalogRecord -> catalogItem
 # for stateId=UT and diffs the discovered ids against this dict.
+#
+# RISE catalog item id -> (name, latitude, longitude). Keyed by the id and not
+# by the name, because a name is not an identity: the west holds a Lost Creek
+# in Utah and another in Oregon, 946 km apart, and a name-keyed roster cannot
+# hold both -- the second silently becomes the first, with its capacity, its
+# climate normal and its link (ADR-066). The id is what the payload already
+# publishes as `source_station_id`, and ADR-003 already calls it the stable
+# provider identity.
 RESERVOIRS = {
-    "Deer Creek": (290, 40.43511, -111.50035),
-    "Jordanelle": (468, 40.60689, -111.41655),
-    "Strawberry": (779, 40.16882, -111.1311),
-    "Rockport": (706, 40.77498, -111.39859),
-    "Echo": (314, 40.9574, -111.4179),
-    "East Canyon": (310, 40.91017, -111.59293),
-    "Pineview": (652, 41.26543, -111.80998),
-    "Willard Bay": (866, 41.37738, -112.08339),
-    "Scofield": (727, 39.77656, -111.05074),
-    "Starvation": (764, 40.19324, -110.44722),
-    "Flaming Gorge": (337, 40.97789, -109.57304),
-    "Lake Powell": (509, 37.05778, -111.30332),
+    "290": ("Deer Creek", 40.43511, -111.50035),
+    "468": ("Jordanelle", 40.60689, -111.41655),
+    "779": ("Strawberry", 40.16882, -111.1311),
+    "706": ("Rockport", 40.77498, -111.39859),
+    "314": ("Echo", 40.9574, -111.4179),
+    "310": ("East Canyon", 40.91017, -111.59293),
+    "652": ("Pineview", 41.26543, -111.80998),
+    "866": ("Willard Bay", 41.37738, -112.08339),
+    "727": ("Scofield", 39.77656, -111.05074),
+    "764": ("Starvation", 40.19324, -110.44722),
+    "337": ("Flaming Gorge", 40.97789, -109.57304),
+    "509": ("Lake Powell", 37.05778, -111.30332),
     # RISE item 6124, reached by walking location 3514 -> catalog record 4370
     # (Lower Colorado Hydrologic Database) -> its four water-operations items.
     # The `locationId` query filter is ignored by the API and returns an
@@ -149,30 +164,30 @@ RESERVOIRS = {
     # Hoover Dam, which is what RISE publishes for the *storage* location, and
     # it is the one point on this lake that cannot be used: the dam is the
     # basin outlet, so it sits exactly on the 150100 divide (ADR-062).
-    "Lake Mead": (6124, 36.0467, -114.2733),
-    "Causey": (219, 41.29828, -111.58591),
-    "Currant Creek": (278, 40.33841, -111.05821),
-    "Huntington North": (432, 39.38458, -111.09082),
-    "Hyrum": (439, 41.62117, -111.86099),
-    "Joes Valley": (463, 39.2901, -111.27888),
-    "Lost Creek": (544, 41.18887, -111.39628),
-    "Meeks Cabin": (574, 41.01664, -110.58344),
-    "Moon Lake": (587, 40.57445, -110.50665),
-    "Newton": (623, 41.8998, -111.97562),
-    "Red Fleet": (685, 40.57832, -109.42853),
-    "Stateline": (769, 40.98291, -110.39038),
-    "Steinaker": (774, 40.51456, -109.53275),
-    "Trial Lake": (4516, 40.6799, -110.956839),
-    "Upper Stillwater": (826, 40.56565, -110.70044),
-    "Washington Lake": (4530, 40.6765, -110.964),
-    "Lost Lake": (4523, 40.6741, -110.9413),
+    "6124": ("Lake Mead", 36.0467, -114.2733),
+    "219": ("Causey", 41.29828, -111.58591),
+    "278": ("Currant Creek", 40.33841, -111.05821),
+    "432": ("Huntington North", 39.38458, -111.09082),
+    "439": ("Hyrum", 41.62117, -111.86099),
+    "463": ("Joes Valley", 39.2901, -111.27888),
+    "544": ("Lost Creek", 41.18887, -111.39628),
+    "574": ("Meeks Cabin", 41.01664, -110.58344),
+    "587": ("Moon Lake", 40.57445, -110.50665),
+    "623": ("Newton", 41.8998, -111.97562),
+    "685": ("Red Fleet", 40.57832, -109.42853),
+    "769": ("Stateline", 40.98291, -110.39038),
+    "774": ("Steinaker", 40.51456, -109.53275),
+    "4516": ("Trial Lake", 40.6799, -110.956839),
+    "826": ("Upper Stillwater", 40.56565, -110.70044),
+    "4530": ("Washington Lake", 40.6765, -110.964),
+    "4523": ("Lost Lake", 40.6741, -110.9413),
     # Wyoming, on the Green above Flaming Gorge. Admitted under the
     # intersect-Utah rule (ADR-009): its dam sits in 140401 Upper Green,
     # one of the fifteen drainage areas that touch the state. It is the
     # only one of Reclamation's five Upper Colorado candidates that
     # qualifies -- the other four drain through basins that never enter
     # Utah. See tools/audit_connected_reservoirs.py.
-    "Fontenelle": (347, 42.05781, -110.09665),
+    "347": ("Fontenelle", 42.05781, -110.09665),
 }
 
 # Additional reservoirs in the Utah Division of Water Resources' statewide
@@ -180,33 +195,35 @@ RESERVOIRS = {
 # reservoir storage volume in acre-feet. Only Utah Lake and Smith and
 # Morehouse currently publish a current daily series; the other stations are
 # derived monthly values and are deliberately labeled/aged as monthly data.
-# name -> (station triplet, lat, lon, capacity af, cadence)
+# Station triplet -> (name, lat, lon, capacity af, cadence). Keyed by the
+# triplet for the reason the RISE roster is keyed by its item id: a name is a
+# label, not an identity (ADR-066).
 BASE_AWDB_RESERVOIRS = {
-    "Bear Lake": ("10055500:ID:BOR", 42.11667, -111.30000, 1302000.0, "monthly"),
-    "Big Sand Wash": ("09UTBSWR:UT:BOR", 40.30006, -110.22139, 25700.0, "monthly"),
-    "Cleveland": ("09UTCLEV:UT:BOR", 39.57758, -111.23896, 5400.0, "monthly"),
-    "Grantsville": ("10UTGTVL:UT:BOR", 40.54185, -112.50567, 3300.0, "monthly"),
-    "Gunlock": ("09UTGUNL:UT:BOR", 37.25136, -113.77556, 10400.0, "monthly"),
-    "Gunnison": ("10216200:UT:BOR", 39.20635, -111.71103, 20300.0, "monthly"),
-    "Jackson Flat": ("09UTJACK:UT:BOR", 37.00576, -112.51995, 4083.0, "monthly"),
-    "Ken's Lake": ("09UTKENS:UT:BOR", 38.48126, -109.42845, 2300.0, "monthly"),
-    "Lower Enterprise": ("10UTENTL:UT:BOR", 37.52601, -113.85091, 2600.0, "monthly"),
-    "Miller Flat": ("09UTMILF:UT:BOR", 39.54028, -111.24222, 5200.0, "monthly"),
-    "Millsite": ("09UTMILL:UT:BOR", 39.09558, -111.18794, 18061.0, "monthly"),
-    "Minersville": ("10238500:UT:BOR", 38.21747, -112.83550, 23300.0, "monthly"),
-    "Otter Creek": ("10188000:UT:BOR", 38.17082, -112.02436, 52500.0, "monthly"),
-    "Panguitch": ("10UTPANG:UT:BOR", 37.72436, -112.62790, 22300.0, "monthly"),
-    "Piute": ("10191000:UT:BOR", 38.32387, -112.19131, 71800.0, "monthly"),
-    "Porcupine": ("10105200:UT:BOR", 41.51828, -111.74624, 11300.0, "monthly"),
-    "Quail Creek": ("09UTQUAI:UT:BOR", 37.18022, -113.38098, 40000.0, "monthly"),
-    "Sand Hollow": ("09UTSAND:UT:BOR", 37.11417, -113.37472, 50000.0, "monthly"),
-    "Settlement Canyon": ("10UT03JJ:UT:BOR", 40.51086, -112.29504, 1000.0, "monthly"),
-    "Smith and Morehouse": ("10128000:UT:BOR", 40.76202, -111.10338, 8100.0, "daily"),
-    "Upper Enterprise": ("10UTENTU:UT:BOR", 37.51939, -113.86197, 10000.0, "monthly"),
-    "Utah Lake": ("10166500:UT:BOR", 40.35867, -111.89339, 870900.0, "daily"),
-    "Woodruff Creek": ("10UTWOOD:UT:BOR", 41.46666, -111.31838, 4000.0, "monthly"),
-    "Woodruff Narrows": ("10020200:WY:BOR", 41.50273, -111.01602, 57300.0, "monthly"),
-    "Yuba": ("10218500:UT:BOR", 39.37218, -112.03327, 236000.0, "monthly"),
+    "10055500:ID:BOR": ("Bear Lake", 42.11667, -111.30000, 1302000.0, "monthly"),
+    "09UTBSWR:UT:BOR": ("Big Sand Wash", 40.30006, -110.22139, 25700.0, "monthly"),
+    "09UTCLEV:UT:BOR": ("Cleveland", 39.57758, -111.23896, 5400.0, "monthly"),
+    "10UTGTVL:UT:BOR": ("Grantsville", 40.54185, -112.50567, 3300.0, "monthly"),
+    "09UTGUNL:UT:BOR": ("Gunlock", 37.25136, -113.77556, 10400.0, "monthly"),
+    "10216200:UT:BOR": ("Gunnison", 39.20635, -111.71103, 20300.0, "monthly"),
+    "09UTJACK:UT:BOR": ("Jackson Flat", 37.00576, -112.51995, 4083.0, "monthly"),
+    "09UTKENS:UT:BOR": ("Ken's Lake", 38.48126, -109.42845, 2300.0, "monthly"),
+    "10UTENTL:UT:BOR": ("Lower Enterprise", 37.52601, -113.85091, 2600.0, "monthly"),
+    "09UTMILF:UT:BOR": ("Miller Flat", 39.54028, -111.24222, 5200.0, "monthly"),
+    "09UTMILL:UT:BOR": ("Millsite", 39.09558, -111.18794, 18061.0, "monthly"),
+    "10238500:UT:BOR": ("Minersville", 38.21747, -112.83550, 23300.0, "monthly"),
+    "10188000:UT:BOR": ("Otter Creek", 38.17082, -112.02436, 52500.0, "monthly"),
+    "10UTPANG:UT:BOR": ("Panguitch", 37.72436, -112.62790, 22300.0, "monthly"),
+    "10191000:UT:BOR": ("Piute", 38.32387, -112.19131, 71800.0, "monthly"),
+    "10105200:UT:BOR": ("Porcupine", 41.51828, -111.74624, 11300.0, "monthly"),
+    "09UTQUAI:UT:BOR": ("Quail Creek", 37.18022, -113.38098, 40000.0, "monthly"),
+    "09UTSAND:UT:BOR": ("Sand Hollow", 37.11417, -113.37472, 50000.0, "monthly"),
+    "10UT03JJ:UT:BOR": ("Settlement Canyon", 40.51086, -112.29504, 1000.0, "monthly"),
+    "10128000:UT:BOR": ("Smith and Morehouse", 40.76202, -111.10338, 8100.0, "daily"),
+    "10UTENTU:UT:BOR": ("Upper Enterprise", 37.51939, -113.86197, 10000.0, "monthly"),
+    "10166500:UT:BOR": ("Utah Lake", 40.35867, -111.89339, 870900.0, "daily"),
+    "10UTWOOD:UT:BOR": ("Woodruff Creek", 41.46666, -111.31838, 4000.0, "monthly"),
+    "10020200:WY:BOR": ("Woodruff Narrows", 41.50273, -111.01602, 57300.0, "monthly"),
+    "10218500:UT:BOR": ("Yuba", 39.37218, -112.03327, 236000.0, "monthly"),
 }
 
 
@@ -226,11 +243,20 @@ def load_connected_reservoirs(path: Path = CONNECTED_RESERVOIRS_PATH) -> dict[st
         "capacity_af", "capacity_basis", "nid_id", "nid_dam_name",
         "dam_lon", "dam_lat", "match_distance_km", "match_confirmed_by",
     }
-    for name, row in rows.items():
-        if not isinstance(name, str) or not name or not isinstance(row, dict):
+    for station, row in rows.items():
+        if not isinstance(station, str) or not station or not isinstance(row, dict):
             raise ValueError(f"invalid reservoir entry in {path.name}")
-        station = row.get("station_triplet")
-        if not isinstance(station, str) or station.count(":") != 2:
+        name = row.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"{station}: a reservoir needs a name to be called by")
+        # Keyed by the station and carrying the name, since ADR-066. The key
+        # has to agree with the field, or the roster is indexed by one station
+        # and fetched from another.
+        if row.get("station_triplet") != station:
+            raise ValueError(
+                f"{station}: keyed by one station and configured for "
+                f"{row.get('station_triplet')!r}")
+        if station.count(":") != 2:
             raise ValueError(f"{name}: invalid station triplet")
         if row.get("cadence") not in {"daily", "monthly"}:
             raise ValueError(f"{name}: cadence must be daily or monthly")
@@ -250,15 +276,29 @@ CONNECTED_RESERVOIRS = load_connected_reservoirs()
 AWDB_RESERVOIRS = {
     **BASE_AWDB_RESERVOIRS,
     **{
-        name: (
-            row["station_triplet"], row["lat"], row["lon"],
+        station: (
+            row["name"], row["lat"], row["lon"],
             row["capacity"]["capacity_af"], row["cadence"],
         )
-        for name, row in CONNECTED_RESERVOIRS.items()
+        for station, row in CONNECTED_RESERVOIRS.items()
     },
 }
 
-ALL_RESERVOIR_NAMES = set(RESERVOIRS) | set(AWDB_RESERVOIRS)
+#: Every station this project fetches, by the identity it fetches it with.
+#:
+#: `ALL_RESERVOIR_NAMES` was this set of names until ADR-066. The names are
+#: still what a reader sees and what `--only` accepts; they are simply no
+#: longer what the roster is keyed by, because two reservoirs may share one.
+ALL_RESERVOIR_IDS = set(RESERVOIRS) | set(AWDB_RESERVOIRS)
+
+#: What each station is called, by that same identity. One place builds it, so
+#: a label and its station cannot come apart.
+RESERVOIR_NAMES = {
+    **{station: entry[0] for station, entry in RESERVOIRS.items()},
+    **{station: entry[0] for station, entry in AWDB_RESERVOIRS.items()},
+}
+
+ALL_RESERVOIR_NAMES = set(RESERVOIR_NAMES.values())
 
 
 RETRY_ATTEMPTS = 3
@@ -283,7 +323,11 @@ LOCAL_TZ = "America/Denver"
 
 
 def load_capacities() -> dict[str, dict]:
-    """Committed National Inventory of Dams capacity records by reservoir.
+    """Committed National Inventory of Dams capacity records by station id.
+
+    By station and not by name since ADR-066: a capacity is a denominator, and
+    handing one reservoir's denominator to another because they share a name
+    is a wrong percentage that nothing fails on.
 
     The original Reclamation table is built by tools/build_capacity_table.py.
     Reviewed connected-site evidence lives beside its station configuration
@@ -299,7 +343,7 @@ def load_capacities() -> dict[str, dict]:
               "its percent-full values will be omitted")
     return {
         **capacities,
-        **{name: row["capacity"] for name, row in CONNECTED_RESERVOIRS.items()},
+        **{station: row["capacity"] for station, row in CONNECTED_RESERVOIRS.items()},
     }
 
 
@@ -505,11 +549,17 @@ def load_normals() -> dict:
         "period": payload.get("period", {}),
         "window_days": payload.get("window_days"),
         "built": payload.get("built"),
-        "by_name": {r["name"]: r for r in payload.get("reservoirs", [])},
+        # By station id, not by name (ADR-066). A climate normal is a
+        # denominator like a capacity, and two reservoirs sharing a name must
+        # not share one: the west holds two Lost Creeks whose records differ
+        # by a factor of twenty.
+        "by_station": {str(r["source_station_id"]): r
+                       for r in payload.get("reservoirs", [])
+                       if r.get("source_station_id")},
     }
 
 
-def climate_baseline(normals: dict, name: str, ref_date: pd.Timestamp,
+def climate_baseline(normals: dict, station_id: str | None, ref_date: pd.Timestamp,
                      current: float) -> dict | None:
     """One reservoir's 1991-2020 normal for today, read out of the committed table.
 
@@ -524,7 +574,7 @@ def climate_baseline(normals: dict, name: str, ref_date: pd.Timestamp,
     reader's back, because a comparison silently swapping its own denominator
     is the failure this whole change exists to fix.
     """
-    record = (normals.get("by_name") or {}).get(name)
+    record = (normals.get("by_station") or {}).get(str(station_id))
     if not record or not record.get("available"):
         return None
     table = record.get("day_of_year") or {}
@@ -666,8 +716,9 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
     # the rest of the drought?" wants the recent one. The site lets the reader
     # ask either, and neither can be mistaken for the other because both name
     # their period and their sample size.
-    climate = climate_baseline(normals or {}, name, last_date, current)
-    climate_record = ((normals or {}).get("by_name") or {}).get(name) or {}
+    station = source_station_id or (str(item_id) if item_id is not None else None)
+    climate = climate_baseline(normals or {}, station, last_date, current)
+    climate_record = ((normals or {}).get("by_station") or {}).get(str(station)) or {}
     climate_month_medians = ((climate_record.get("month") or {}).get("median_af")
                              if climate_record.get("available") else None)
     baselines = {
@@ -715,7 +766,7 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         "source_key": source_key,
         "source_label": source_label,
         "source_url": source_url,
-        "source_station_id": source_station_id or (str(item_id) if item_id is not None else None),
+        "source_station_id": station,
         "data_frequency": data_frequency,
         "stale_after_days": stale_after_days,
         "lat": lat,
@@ -837,7 +888,7 @@ def withdrawal_notice(record: dict) -> dict:
 
 
 def dam_points() -> dict[str, tuple[float, float]]:
-    """Dam coordinates by reservoir name, from capacities.json.
+    """Dam coordinates by station id, from capacities.json.
 
     Written by tools/add_dam_points.py, queried from the National Inventory
     of Dams by the NID id the capacity already came from. These are the
@@ -846,10 +897,10 @@ def dam_points() -> dict[str, tuple[float, float]]:
     middle of the lake is not that place.
     """
     points = {}
-    for name, entry in load_capacities().items():
+    for station, entry in load_capacities().items():
         lon, lat = entry.get("dam_lon"), entry.get("dam_lat")
         if lon is not None and lat is not None:
-            points[name] = (lon, lat)
+            points[station] = (lon, lat)
     return points
 
 
@@ -886,7 +937,9 @@ def attach_counties(records: list[dict]) -> dict:
 
     unassigned = []
     for record in records:
-        found = counties.get(record["name"])
+        # By station id since ADR-066: a county is a fact about one reservoir,
+        # and two sharing a name are in two counties.
+        found = counties.get(str(record.get("source_station_id")))
         if not found:
             unassigned.append(record["name"])
             continue
@@ -955,7 +1008,7 @@ def attach_watersheds(records: list[dict]) -> dict:
         # the 53 reservoirs in the original measurement, switching to dam
         # points moved no assignment -- so this is a provenance improvement,
         # not a correction, and a reader can tell the two apart.
-        dam = dams.get(record["name"])
+        dam = dams.get(str(record.get("source_station_id")))
         record.update(huc.describe(
             lat, lon, units, name=record["name"],
             assignment_point=dam,
@@ -1000,6 +1053,10 @@ def load_capacity_catalog() -> dict:
     """
     catalog = json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
     catalog["capacities"] = load_capacities()
+    # Said out loud in the file rather than left for a reader to infer from a
+    # key that looks like a name for 30 of them and a triplet for the rest
+    # (ADR-066).
+    catalog["keyed_by"] = "source_station_id"
     catalog["connected_reservoirs"] = CONNECTED_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
@@ -1147,7 +1204,12 @@ def build_export_sections() -> dict:
 
 
 def load_previous(path: Path) -> dict[str, dict]:
-    """Index the last published output by reservoir name (tolerates both shapes)."""
+    """Index the last published output by station id (tolerates both shapes).
+
+    By station since ADR-066. This is what `carry_forward` reads when a feed
+    goes quiet, so a name index would republish one reservoir's last reading
+    under another reservoir's name on the morning a same-named station failed.
+    """
     if not path.exists():
         return {}
     try:
@@ -1155,7 +1217,8 @@ def load_previous(path: Path) -> dict[str, dict]:
     except ValueError:
         return {}
     records = payload if isinstance(payload, list) else payload.get("reservoirs", [])
-    return {r["name"]: r for r in records if isinstance(r, dict) and "name" in r}
+    return {str(r["source_station_id"]): r for r in records
+            if isinstance(r, dict) and r.get("source_station_id")}
 
 
 def _problem_table(problems: list[dict]) -> list[str]:
@@ -1255,9 +1318,9 @@ def main() -> int:
     capacities = load_capacities()
     normals = load_normals()
     if normals:
-        available = sum(1 for r in normals["by_name"].values() if r.get("available"))
+        available = sum(1 for r in normals["by_station"].values() if r.get("available"))
         period = normals["period"]
-        print(f"Climate normals available: {available} of {len(normals['by_name'])} "
+        print(f"Climate normals available: {available} of {len(normals['by_station'])} "
               f"reservoirs, {period.get('start_year')} through {period.get('end_year')} "
               f"(built {normals.get('built')})")
     print(f"NID capacity records available: {len(capacities)} "
@@ -1266,16 +1329,26 @@ def main() -> int:
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
     if args.only:
+        # Named, because a person types a name and not a station triplet. The
+        # roster is keyed by station since ADR-066, so a name is resolved to
+        # the stations that carry it -- plural on purpose: asking for "Lost
+        # Creek" where two exist probes both rather than silently picking one.
         wanted = set(args.only)
-        rise_targets = {k: v for k, v in RESERVOIRS.items() if k in wanted}
-        awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in wanted}
-        missing = wanted - set(rise_targets) - set(awdb_targets)
+        chosen = {station for station, name in RESERVOIR_NAMES.items()
+                  if name in wanted} | (wanted & set(RESERVOIR_NAMES))
+        rise_targets = {k: v for k, v in RESERVOIRS.items() if k in chosen}
+        awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in chosen}
+        found = {RESERVOIR_NAMES.get(station, station)
+                 for station in set(rise_targets) | set(awdb_targets)}
+        missing = wanted - found - set(rise_targets) - set(awdb_targets)
         if missing:
             print(f"ERROR: unknown reservoir(s): {', '.join(sorted(missing))}", file=sys.stderr)
             return 2
 
     records = []
-    for name, (item_id, lat, lon) in rise_targets.items():
+    for station_id, (name, lat, lon) in rise_targets.items():
+        # The key is the identity and the value carries the label (ADR-066).
+        item_id = int(station_id)
         try:
             df = fetch_rise_series(item_id, START_DATE, end)
         # Broad on purpose: the old handler only caught RequestException, so a
@@ -1284,42 +1357,42 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             reason = f"fetch failed after {RETRY_ATTEMPTS} attempts: {type(exc).__name__}: {exc}"
             print(f"WARNING: {name} (item {item_id}) -- {reason}")
-            if name in previous:
-                records.append(carry_forward(previous[name], today, reason))
+            if station_id in previous:
+                records.append(carry_forward(previous[station_id], today, reason))
             continue
 
         if df.empty:
             reason = "RISE returned no usable rows for the requested range"
             print(f"WARNING: {name} (item {item_id}) -- {reason}")
-            if name in previous:
-                records.append(carry_forward(previous[name], today, reason))
+            if station_id in previous:
+                records.append(carry_forward(previous[station_id], today, reason))
             continue
 
         records.append(summarize(name, item_id, lat, lon, df, today,
-                                 capacities.get(name), normals=normals))
+                                 capacities.get(station_id), normals=normals))
         time.sleep(0.5)  # be polite to RISE's server
 
-    for name, (station_triplet, lat, lon, capacity_af, cadence) in awdb_targets.items():
+    for station_triplet, (name, lat, lon, capacity_af, cadence) in awdb_targets.items():
         try:
             df = fetch_awdb_series(station_triplet, cadence, START_DATE, end)
         except Exception as exc:  # noqa: BLE001
             reason = (f"AWDB fetch failed after {RETRY_ATTEMPTS} attempts: "
                       f"{type(exc).__name__}: {exc}")
             print(f"WARNING: {name} ({station_triplet}) -- {reason}")
-            if name in previous:
-                records.append(carry_forward(previous[name], today, reason))
+            if station_triplet in previous:
+                records.append(carry_forward(previous[station_triplet], today, reason))
             continue
 
         if df.empty:
             reason = f"AWDB returned no usable {cadence} RESC rows"
             print(f"WARNING: {name} ({station_triplet}) -- {reason}")
-            if name in previous:
-                records.append(carry_forward(previous[name], today, reason))
+            if station_triplet in previous:
+                records.append(carry_forward(previous[station_triplet], today, reason))
             continue
 
         stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
                        if cadence == "monthly" else STALE_AFTER_DAYS)
-        capacity = (CONNECTED_RESERVOIRS.get(name) or {}).get("capacity") or {
+        capacity = (CONNECTED_RESERVOIRS.get(station_triplet) or {}).get("capacity") or {
             "capacity_af": capacity_af,
             "capacity_basis": "awdb_reservoir_metadata",
         }
@@ -1342,21 +1415,25 @@ def main() -> int:
     # A source-specific refresh is useful for the slower, independently
     # scheduled feeds. Preserve the other source instead of turning a partial
     # refresh into a partial dashboard.
-    selected_names = set(rise_targets) | set(awdb_targets)
+    selected_stations = set(rise_targets) | set(awdb_targets)
     if args.source != "all":
-        records.extend(record for name, record in previous.items()
-                       if name not in selected_names)
+        records.extend(record for station, record in previous.items()
+                       if station not in selected_stations)
 
     if not records:
         print("ERROR: no reservoir data at all -- refusing to overwrite reservoirs.json",
               file=sys.stderr)
         return 1
 
-    attempted = [r for r in records if r.get("name") in selected_names]
+    # By station id, which is what `rise_targets` and `awdb_targets` are keyed
+    # by since ADR-066. Matching on the name here counted nothing at all and
+    # refused every run -- the guard doing its job against itself.
+    attempted = [r for r in records
+                 if str(r.get("source_station_id")) in selected_stations]
     fresh = [r for r in attempted if r.get("fetch_ok")]
-    if len(fresh) < len(selected_names) / 2:
-        print(f"ERROR: only {len(fresh)}/{len(selected_names)} reservoirs refreshed successfully "
-              "-- refusing to overwrite reservoirs.json", file=sys.stderr)
+    if len(fresh) < len(selected_stations) / 2:
+        print(f"ERROR: only {len(fresh)}/{len(selected_stations)} reservoirs refreshed "
+              "successfully -- refusing to overwrite reservoirs.json", file=sys.stderr)
         return 1
 
     # Older committed RISE records predate mixed-source provenance. A

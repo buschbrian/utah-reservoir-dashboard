@@ -43,14 +43,14 @@ interface PageLink {
  *
  * These are longer than the bar's button text on purpose. The navigation
  * clips rather than scrolls, so "Snowpack" is all that fits beside the other
- * buttons; "Utah Snowpack" is what a tab, a bookmark or a shared link needs,
- * where there is no bar around it to supply the context.
+ * buttons; "Western Snowpack" is what a tab, a bookmark or a shared link
+ * needs, where there is no bar around it to supply the context.
  */
 const PAGE_SUBJECTS: Record<PageId, string> = {
-  map: "Utah Reservoir Storage",
-  overview: "Utah Storage Charts",
-  snow: "Utah Snowpack",
-  drought: "Utah Drought",
+  map: "Western Reservoir Storage",
+  overview: "Western Storage Charts",
+  snow: "Western Snowpack",
+  drought: "Western Drought",
   methods: "Methods and Sources",
   data: "Public Data API"
 };
@@ -104,13 +104,16 @@ const PAGES: readonly PageLink[] = [
  * The site's name.
  *
  * It was "Utah Reservoir Dashboard", which was accurate when reservoirs were
- * all there was. The site now carries mountain snow and the weekly drought
- * map beside the storage, and two of its five surfaces are not about
- * reservoirs at all, so the old name described a third of it.
+ * all there was, then "Utah Water Dashboard" once mountain snow and the
+ * weekly drought map joined the storage. The site has since expanded west
+ * (ADR-053, ADR-063): it publishes drought coverage for 75 drainage areas
+ * across regions 14-18 and snow for 637 sites across 51 areas in 11 states,
+ * while only the reservoir roster stays Utah-connected. "Utah" now describes
+ * a fraction of it.
  */
-export const SITE_NAME = "Utah Water Dashboard";
+export const SITE_NAME = "Western Water Dashboard";
 /** The same name where the bar is too narrow for the whole of it. */
-export const SITE_NAME_SHORT = "Utah Water";
+export const SITE_NAME_SHORT = "Western Water";
 
 /** What a page calls itself in a browser tab, a bookmark or a shared link. */
 export function pageTitle(current: PageId): string {
@@ -128,10 +131,10 @@ export function pageTitle(current: PageId): string {
  *
  * The heading names the page and not the site, which is the way round it
  * should always have been: every page's `h1` was "Utah Reservoir Dashboard",
- * so a reader moving between five surfaces was told the same thing five
- * times and never which one they were on. The site name stays above it as
- * ordinary text, because the site is the context and the page is the
- * subject.
+ * the name this site once carried, so a reader moving between five surfaces
+ * was told the same thing five times and never which one they were on. The
+ * site name stays above it as ordinary text, because the site is the context
+ * and the page is the subject.
  *
  * ADR-016 requires the official SDK name in the navigation, and this is it.
  */

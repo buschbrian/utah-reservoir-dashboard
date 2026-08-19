@@ -224,14 +224,17 @@ def test_committed_capacity_table_covers_every_reservoir():
     assert "National Inventory of Dams" in payload["source"]
 
     published = R.load_previous(R.OUTPUT_PATH)
-    for name, entry in caps.items():
+    for station, entry in caps.items():
+        name = entry.get("name", station)
         assert entry["capacity_af"] > 0
         assert entry["capacity_basis"] in {"normal_storage", "max_storage", "nid_storage"}
         assert entry["nid_id"], f"{name} has no NID id to trace back to"
         # The check that catches a mis-matched dam: we have watched these
         # reservoirs since 2015, so a capacity below the storage we have
-        # actually seen in one means the wrong row got attached.
-        observed = (published.get(name) or {}).get("record_max_af")
+        # actually seen in one means the wrong row got attached. Looked up by
+        # station since ADR-066, so a name shared with another reservoir
+        # cannot bring that one's record max to this one's capacity.
+        observed = (published.get(station) or {}).get("record_max_af")
         if observed:
             assert entry["capacity_af"] >= observed * 0.9, (
                 f"{name}: capacity {entry['capacity_af']:,.0f} af is below the "
@@ -243,14 +246,20 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     assert len(R.CONNECTED_RESERVOIRS) == 15
     assert len(R.AWDB_RESERVOIRS) == 40
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
-    for name, (triplet, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
+    for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
         assert triplet.count(":") == 2
         assert 36 <= lat <= 43 and -115 <= lon <= -105
         assert capacity > 0
         assert cadence in {"daily", "monthly"}
 
-    for name, row in R.CONNECTED_RESERVOIRS.items():
+    # Keyed by station, and every station is its own row: a name-keyed roster
+    # silently collapsed two reservoirs sharing one (ADR-066).
+    assert len(R.RESERVOIR_NAMES) == len(R.ALL_RESERVOIR_IDS)
+
+    for station, row in R.CONNECTED_RESERVOIRS.items():
+        name = row["name"]
+        assert row["station_triplet"] == station
         evidence = row["capacity"]
         assert evidence["nid_id"], f"{name} has no dam inventory identifier"
         assert evidence["nid_dam_name"], f"{name} has no matched dam name"
@@ -264,11 +273,11 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
 def test_connected_inventory_fills_exactly_the_previously_empty_areas():
     by_huc = {}
     units = R.huc.load_units()
-    for name, row in R.CONNECTED_RESERVOIRS.items():
+    for row in R.CONNECTED_RESERVOIRS.values():
         by_huc[row["huc6"]] = by_huc.get(row["huc6"], 0) + 1
         capacity = row["capacity"]
         assigned = R.huc.assign_huc((capacity["dam_lon"], capacity["dam_lat"]), units)
-        assert assigned and assigned["huc6"] == row["huc6"], name
+        assert assigned and assigned["huc6"] == row["huc6"], row["name"]
     assert by_huc == {"140100": 10, "140500": 4, "140802": 1}
 
 
@@ -355,17 +364,40 @@ def test_the_withdrawal_notice_carries_no_measurement():
 # --- previous-output loading ---------------------------------------------
 
 def test_load_previous_accepts_both_file_shapes_and_survives_garbage(tmp_path):
+    """Indexed by station id since ADR-066. This is what `carry_forward`
+    reads, so a name index would republish one reservoir's last reading under
+    another reservoir's name the morning a same-named station failed."""
     array_file = tmp_path / "array.json"
-    array_file.write_text(json.dumps([{"name": "A", "as_of": "2026-01-01"}]))
+    array_file.write_text(json.dumps(
+        [{"name": "A", "source_station_id": "1", "as_of": "2026-01-01"}]))
     envelope_file = tmp_path / "envelope.json"
-    envelope_file.write_text(json.dumps({"reservoirs": [{"name": "B", "as_of": "2026-01-01"}]}))
+    envelope_file.write_text(json.dumps({"reservoirs": [
+        {"name": "B", "source_station_id": "2:UT:BOR", "as_of": "2026-01-01"}]}))
     broken_file = tmp_path / "broken.json"
     broken_file.write_text("{not json")
 
-    assert set(R.load_previous(array_file)) == {"A"}
-    assert set(R.load_previous(envelope_file)) == {"B"}
+    assert set(R.load_previous(array_file)) == {"1"}
+    assert set(R.load_previous(envelope_file)) == {"2:UT:BOR"}
     assert R.load_previous(broken_file) == {}
     assert R.load_previous(tmp_path / "missing.json") == {}
+
+
+def test_two_reservoirs_sharing_a_name_keep_their_own_last_reading(tmp_path):
+    """The failure a name index cannot even represent: both records survive,
+    and each carries its own storage rather than the last one written."""
+    payload = tmp_path / "both.json"
+    payload.write_text(json.dumps({"reservoirs": [
+        {"name": "Lost Creek", "source_station_id": "544",
+         "current_storage_af": 22510.0},
+        {"name": "Lost Creek", "source_station_id": "14335040:OR:BOR",
+         "current_storage_af": 465000.0},
+    ]}))
+
+    previous = R.load_previous(payload)
+
+    assert set(previous) == {"544", "14335040:OR:BOR"}
+    assert previous["544"]["current_storage_af"] == 22510.0
+    assert previous["14335040:OR:BOR"]["current_storage_af"] == 465000.0
 
 
 # --- pagination -----------------------------------------------------------
@@ -484,8 +516,14 @@ def test_committed_reservoirs_json_is_well_formed():
 def test_one_export_contains_capacity_and_every_visualization_geography():
     sections = R.build_export_sections()
 
-    assert sections["schema_version"] == 2
-    assert sections["capacity_catalog"]["capacities"]["Deer Creek"]["nid_id"] == "UT10117"
+    # 3 since ADR-066 rekeyed the capacity catalog by station id. A break,
+    # and versioned rather than slipped in.
+    assert sections["schema_version"] == 3
+    # Keyed by the station the capacity belongs to, not the name it is called
+    # by (ADR-066). Deer Creek is RISE item 290.
+    assert sections["capacity_catalog"]["capacities"]["290"]["nid_id"] == "UT10117"
+    assert sections["capacity_catalog"]["capacities"]["290"]["name"] == "Deer Creek"
+    assert sections["capacity_catalog"]["keyed_by"] == "source_station_id"
     geography = sections["geography"]
     assert geography["state"]["features"][0]["properties"]["name"] == "Utah"
     watersheds = geography["watersheds"]
@@ -585,8 +623,12 @@ def test_the_export_carries_no_polygons_but_the_state_outline():
 # --- watershed enrichment -------------------------------------------------
 
 def test_every_record_gets_a_watershed_and_the_summary_agrees():
-    records = [{"name": "Deer Creek", "lat": 40.43511, "lon": -111.50035},
-               {"name": "Bear Lake", "lat": 42.11667, "lon": -111.30000}]
+    # Each record carries the station it was fetched with, which is what the
+    # reviewed dam point is looked up by (ADR-066).
+    records = [{"name": "Deer Creek", "source_station_id": "290",
+                "lat": 40.43511, "lon": -111.50035},
+               {"name": "Bear Lake", "source_station_id": "10055500:ID:BOR",
+                "lat": 42.11667, "lon": -111.30000}]
     summary = R.attach_watersheds(records)
     # Deer Creek has a dam in the National Inventory of Dams and Bear Lake
     # does not, so exactly one of the two is assigned by its dam -- and each
