@@ -108,6 +108,55 @@ export const MAP_BOUNDS: readonly [readonly [number, number], readonly [number, 
   expandBounds(HUC6_BOUNDS, 2);
 
 /**
+ * The box of every drainage area the maps draw -- all 75, not the fourteen
+ * the roster was admitted from.
+ *
+ * `HUC6_BOUNDS` above answers "where should the map open"; this answers
+ * "where may a reader go". ADR-063 made one constant do both, which was
+ * true while the two questions had one answer and stopped being true the
+ * moment a reader could choose a place. Eight of the eleven states this site
+ * covers -- Arizona, California, Idaho, Montana, New Mexico, Nevada, Oregon
+ * and Washington -- lie partly outside the roster's box, so a chooser built
+ * against it would have answered "showing Oregon" over a view the SDK had
+ * quietly dragged back toward Utah.
+ *
+ * Measured from the boxes the drawn scope publishes, and asserted against
+ * them in `extent.test.ts` the same way `HUC6_BOUNDS` is asserted against
+ * the roster scope's. A constant rather than a computation for the same
+ * reason: the navigation constraint is needed when the view is constructed,
+ * before any file has been fetched, and a constraint that arrives late is a
+ * map that can be panned away in the meantime.
+ */
+export const DRAWN_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
+  [[-124.903, 29.838], [-105.626, 52.881]];
+
+/** The smallest box containing both. */
+function unionBoxes(
+  left: readonly [readonly [number, number], readonly [number, number]],
+  right: readonly [readonly [number, number], readonly [number, number]]
+): [[number, number], [number, number]] {
+  return [
+    [Math.min(left[0][0], right[0][0]), Math.min(left[0][1], right[0][1])],
+    [Math.max(left[1][0], right[1][0]), Math.max(left[1][1], right[1][1])]
+  ];
+}
+
+/**
+ * Where a reader may go: everything drawn, with room to bring an edge area
+ * to the middle of the canvas, and never less than the region the maps
+ * already allowed.
+ *
+ * The union with `MAP_BOUNDS` is not decoration. The drawn areas stop at
+ * -105.6 and the old region reached -100.6, so the drawn box alone would
+ * have *narrowed* the east edge -- and where a reader may go is a contract
+ * with the saved links the retired routes still translate (ADR-044).
+ * Widening that contract keeps every old link valid; narrowing it would
+ * strand the ones east of the divide. So this can only ever grow.
+ */
+export const NAVIGABLE_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
+  unionBoxes(expandBounds(DRAWN_BOUNDS, 1.1), MAP_BOUNDS);
+
+/**
  * How far out any of the maps will go.
  *
  * Measured rather than chosen. In Web Mercator a zoom level is about
@@ -173,8 +222,19 @@ export function extentFromBox(
   return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
 }
 
+/** Where the storage map opens: the roster's box, one zoom level out. */
 export function regionExtent(): Extent {
   return extentFromBox(MAP_BOUNDS);
+}
+
+/**
+ * The navigation constraint, which is a different question from where a map
+ * opens and now has a different answer. Every map uses this for
+ * `constraints.geometry` so what a reader can pan to is identical on all
+ * three, and each still opens on its own subject.
+ */
+export function navigableExtent(): Extent {
+  return extentFromBox(NAVIGABLE_BOUNDS);
 }
 
 /**
@@ -203,8 +263,12 @@ function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
+/** Whether a point is somewhere the maps will navigate to. The navigable
+ * region, not the opening box: a reservoir the map opens away from is still
+ * a reservoir a reader may select, and that distinction starts mattering the
+ * morning the roster moves west. */
 export function withinRegion(lon: number, lat: number): boolean {
-  const [[xmin, ymin], [xmax, ymax]] = MAP_BOUNDS;
+  const [[xmin, ymin], [xmax, ymax]] = NAVIGABLE_BOUNDS;
   return lon >= xmin && lon <= xmax && lat >= ymin && lat <= ymax;
 }
 
@@ -231,7 +295,7 @@ export function selectionTarget(
   reservoir: { lon: number; lat: number },
   currentZoom?: number
 ): SelectionTarget {
-  const [[xmin, ymin], [xmax, ymax]] = MAP_BOUNDS;
+  const [[xmin, ymin], [xmax, ymax]] = NAVIGABLE_BOUNDS;
   const zoom = Number.isFinite(currentZoom) && (currentZoom as number) > SELECTION_ZOOM
     ? (currentZoom as number)
     : SELECTION_ZOOM;

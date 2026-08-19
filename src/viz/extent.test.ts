@@ -21,7 +21,10 @@ import {
   unionOfAreaBoxes,
   withinRegion
   ,extentFromBox,
-  drainageExtent
+  drainageExtent,
+  DRAWN_BOUNDS,
+  NAVIGABLE_BOUNDS,
+  navigableExtent
 } from "./extent";
 
 const legacy = loadLegacyApi();
@@ -261,7 +264,7 @@ describe("where selecting a reservoir goes", () => {
   it("never leaves the region, even for a reservoir outside it", () => {
     const target = selectionTarget({ lon: -170, lat: 5 });
     expect(withinRegion(...target.center)).toBe(true);
-    expect(target.center).toEqual([MAP_BOUNDS[0]?.[0], MAP_BOUNDS[0]?.[1]]);
+    expect(target.center).toEqual([NAVIGABLE_BOUNDS[0]?.[0], NAVIGABLE_BOUNDS[0]?.[1]]);
   });
 
   it("never zooms out from where the reader already is", () => {
@@ -301,5 +304,72 @@ describe("a box as an extent", () => {
   it("is what the two fixed extents are built from, so they cannot drift", () => {
     expect(regionExtent()).toEqual(extentFromBox(MAP_BOUNDS));
     expect(drainageExtent()).toEqual(extentFromBox(HUC6_BOUNDS));
+  });
+});
+
+/* Where a reader may go is a different question from where a map opens, and
+ * since ADR-063 gave them different answers it needs its own measurement.
+ * `DRAWN_BOUNDS` is held against the boxes the drawn scope publishes, the
+ * same way `HUC6_BOUNDS` is held against the roster scope's file. */
+describe("the region a reader may navigate", () => {
+  const reference = JSON.parse(
+    readFileSync(new URL("../../reference.json", import.meta.url), "utf8")
+  ) as {
+    geography: { watersheds: {
+      drawn_scopes: Record<string, string>;
+      scopes: Record<string, { units: { bbox?: number[] }[] }>;
+    } };
+  };
+  const watersheds = reference.geography.watersheds;
+  const drawn = watersheds.scopes[watersheds.drawn_scopes["6"] as string];
+
+  it("contains every box the drawn scope publishes", () => {
+    expect(drawn).toBeDefined();
+    let seen = 0;
+    for (const unit of drawn?.units ?? []) {
+      const bbox = unit.bbox;
+      if (!bbox) continue;
+      seen += 1;
+      expect(DRAWN_BOUNDS[0][0]).toBeLessThanOrEqual(bbox[0] as number);
+      expect(DRAWN_BOUNDS[0][1]).toBeLessThanOrEqual(bbox[1] as number);
+      expect(DRAWN_BOUNDS[1][0]).toBeGreaterThanOrEqual(bbox[2] as number);
+      expect(DRAWN_BOUNDS[1][1]).toBeGreaterThanOrEqual(bbox[3] as number);
+    }
+    // Not vacuous: the scope publishes boxes and this walked them.
+    expect(seen).toBeGreaterThan(60);
+  });
+
+  it("is wider than the box the storage map opens on", () => {
+    // The whole point of the split. If these were equal the constant would
+    // have collapsed back into one answer for two questions.
+    expect(DRAWN_BOUNDS[1][0] - DRAWN_BOUNDS[0][0])
+      .toBeGreaterThan(HUC6_BOUNDS[1][0] - HUC6_BOUNDS[0][0]);
+  });
+
+  it("never narrows the region the maps already allowed", () => {
+    /* Where a reader may go is a contract with the saved links the retired
+     * routes translate (ADR-044). It may grow; it may not shrink, or a link
+     * that used to resolve stops resolving. */
+    expect(NAVIGABLE_BOUNDS[0][0]).toBeLessThanOrEqual(MAP_BOUNDS[0][0]);
+    expect(NAVIGABLE_BOUNDS[0][1]).toBeLessThanOrEqual(MAP_BOUNDS[0][1]);
+    expect(NAVIGABLE_BOUNDS[1][0]).toBeGreaterThanOrEqual(MAP_BOUNDS[1][0]);
+    expect(NAVIGABLE_BOUNDS[1][1]).toBeGreaterThanOrEqual(MAP_BOUNDS[1][1]);
+  });
+
+  it("contains everything drawn, so no drawn area is unreachable", () => {
+    expect(NAVIGABLE_BOUNDS[0][0]).toBeLessThanOrEqual(DRAWN_BOUNDS[0][0]);
+    expect(NAVIGABLE_BOUNDS[0][1]).toBeLessThanOrEqual(DRAWN_BOUNDS[0][1]);
+    expect(NAVIGABLE_BOUNDS[1][0]).toBeGreaterThanOrEqual(DRAWN_BOUNDS[1][0]);
+    expect(NAVIGABLE_BOUNDS[1][1]).toBeGreaterThanOrEqual(DRAWN_BOUNDS[1][1]);
+  });
+
+  it("still refuses somewhere a reader should never end up", () => {
+    expect(withinRegion(0, 0)).toBe(false);
+    expect(withinRegion(-160, 20)).toBe(false);
+    expect(withinRegion(-70, 42)).toBe(false);
+  });
+
+  it("describes the same box as an extent", () => {
+    expect(navigableExtent()).toEqual(extentFromBox(NAVIGABLE_BOUNDS));
   });
 });
