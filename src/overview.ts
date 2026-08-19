@@ -845,24 +845,31 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
   } as NonNullable<typeof window.__overviewReady>;
 }
 
+const EMPTY_OPENING_ROSTERS: OpeningRosters = { regions: [], subregions: [], areas: [] };
+
 try {
-  const payload = await loadReservoirs();
   const openingSelection = openingSelectionFromSearch(window.location.search);
-  /* The reference export is a second fetch this page otherwise has no
-   * reason to make, so it is skipped entirely when the address bar asks for
-   * nothing -- an ordinary visit to overview.html pays for it exactly as
-   * often as it needs the answer. A failed fetch is not fatal to the page:
+  /* The reference export is a second fetch this page otherwise has no reason
+   * to make, so it is skipped entirely when the address bar asks for nothing
+   * -- an ordinary visit to overview.html pays for it exactly as often as it
+   * needs the answer. Requested alongside the reservoir payload rather than
+   * after it: the two are independent, and every chart below has to wait for
+   * the opening scope to resolve before the first one is built (never built
+   * against everything and then rebuilt once a filter arrives), so the two
+   * fetches racing rather than queuing is what keeps that wait to one round
+   * trip rather than two. A failed roster fetch is not fatal to the page:
    * `resolveOpeningScope` against an empty roster drops a dead `area` to
    * `null` and leaves `state` exactly as asked (it never resets), so a
    * reader loses only the area half of the opening scope, not the page. */
-  let openingRosters: OpeningRosters = { regions: [], subregions: [], areas: [] };
-  if (openingSelection.state !== "all" || openingSelection.area !== null) {
-    try {
-      openingRosters = await loadOpeningRosters();
-    } catch (error) {
-      console.warn("The opening scope's drainage-area roster did not load:", error);
-    }
-  }
+  const [payload, openingRosters] = await Promise.all([
+    loadReservoirs(),
+    openingSelection.state !== "all" || openingSelection.area !== null
+      ? loadOpeningRosters().catch((error: unknown) => {
+        console.warn("The opening scope's drainage-area roster did not load:", error);
+        return EMPTY_OPENING_ROSTERS;
+      })
+      : Promise.resolve(EMPTY_OPENING_ROSTERS)
+  ]);
   const openingScope = resolveOpeningScope(openingSelection, openingRosters);
   await renderOverview(payload.reservoirs, payload.generated_at,
     payload.watersheds?.subregions ?? [], openingScope, openingRosters);
