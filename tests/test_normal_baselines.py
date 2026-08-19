@@ -351,15 +351,19 @@ def test_the_committed_normals_file_matches_the_builder_that_writes_it():
 
 @pytest.mark.skipif(not (ROOT / "normals.json").exists(),
                     reason="normals.json has not been built in this checkout")
-def test_the_committed_normals_cover_every_reservoir_the_site_publishes():
+def test_the_committed_normals_cover_every_reservoir_on_the_roster():
     """Covered means named, not necessarily available. A reservoir the builder
     could not reach must appear with its reason, so a silent omission and a
-    known gap cannot look the same."""
+    known gap cannot look the same.
+
+    Against the roster rather than `reservoirs.json`, and by station id
+    rather than name (ADR-066): a reservoir withdrawn for a quiet feed
+    (ADR-056) leaves the payload and keeps its thirty-year normal, and a
+    test reading the payload would let that assertion retire with it."""
     normals = json.loads((ROOT / "normals.json").read_text(encoding="utf-8"))
-    published = json.loads((ROOT / "reservoirs.json").read_text(encoding="utf-8"))
-    named = {r["name"] for r in normals["reservoirs"]}
-    for reservoir in published["reservoirs"]:
-        assert reservoir["name"] in named, reservoir["name"]
+    named = {str(r["source_station_id"]) for r in normals["reservoirs"]}
+    for station in R.ALL_RESERVOIR_IDS:
+        assert str(station) in named, R.RESERVOIR_NAMES[station]
     for record in normals["reservoirs"]:
         if not record["available"]:
             assert record["reason"], record["name"]
@@ -373,10 +377,14 @@ def test_the_climate_normals_hold_the_water():
     just a majority of the names."""
     normals = json.loads((ROOT / "normals.json").read_text(encoding="utf-8"))
     published = json.loads((ROOT / "reservoirs.json").read_text(encoding="utf-8"))
-    available = {r["name"] for r in normals["reservoirs"] if r["available"]}
-    capacity = {r["name"]: (r.get("capacity_af") or 0)
+    # By station id (ADR-066): a name-keyed capacity dict would keep only
+    # the last of two reservoirs sharing a name.
+    available = {str(r["source_station_id"])
+                 for r in normals["reservoirs"] if r["available"]}
+    capacity = {str(r["source_station_id"]): (r.get("capacity_af") or 0)
                 for r in published["reservoirs"]}
     total = sum(capacity.values())
-    covered = sum(size for name, size in capacity.items() if name in available)
+    covered = sum(size for station, size in capacity.items()
+                  if station in available)
     assert total > 0
     assert covered / total > 0.95

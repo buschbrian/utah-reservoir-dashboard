@@ -231,33 +231,33 @@ def test_in_utah_describes_the_reservoir_and_not_its_outlet(units):
                   if r["name"] == "Lake Powell")
     glen_canyon_dam = (-111.483, 36.937)
     fields = describe(powell["lat"], powell["lon"], units,
-                      name="Lake Powell",
+                      station="509",  # Lake Powell's RISE item (ADR-066)
                       assignment_point=glen_canyon_dam, source="nid_dam_point")
     assert fields["in_utah"] is True
     assert fields["huc_assignment_point"] == [-111.483, 36.937]
     assert fields["huc_assignment_source"] == "nid_dam_point"
     # And the dam point still lands in the same drainage area as the lake.
     assert fields["huc6"] == describe(
-        powell["lat"], powell["lon"], units, name="Lake Powell")["huc6"]
+        powell["lat"], powell["lon"], units, station="509")["huc6"]
 
 
-@pytest.mark.parametrize("name,lat,lon,expected", [
-    ("Bear Lake", 42.11667, -111.30000, True),
-    ("Meeks Cabin", 41.01664, -110.58344, True),
-    ("Woodruff Narrows", 41.50273, -111.01602, False),
-    ("Fontenelle", 42.05781, -110.09665, False),
+@pytest.mark.parametrize("name,station,lat,lon,expected", [
+    ("Bear Lake", "10055500:ID:BOR", 42.11667, -111.30000, True),
+    ("Meeks Cabin", "574", 41.01664, -110.58344, True),
+    ("Woodruff Narrows", "10020200:WY:BOR", 41.50273, -111.01602, False),
+    ("Fontenelle", "347", 42.05781, -110.09665, False),
 ])
 def test_cross_border_waterbody_review_is_separate_from_point_location(
-        units, name, lat, lon, expected):
-    fields = describe(lat, lon, units, name=name)
-    assert fields["in_utah"] is False
-    assert fields["intersects_utah"] is expected
+        units, name, station, lat, lon, expected):
+    fields = describe(lat, lon, units, station=station)
+    assert fields["in_utah"] is False, name
+    assert fields["intersects_utah"] is expected, name
 
 
 def test_an_unassigned_point_reports_no_source(units):
     """A point outside every unit gets no basin and no provenance for one.
     Naming the source anyway would claim an assignment that did not happen."""
-    fields = describe(35.0, -95.0, units, name="Nowhere")  # Oklahoma
+    fields = describe(35.0, -95.0, units, station="unreviewed")  # Oklahoma
     assert fields["huc6"] is None
     assert fields["huc6_name"] is None
     assert fields["huc_assignment_source"] is None
@@ -285,11 +285,15 @@ class TestStateMembership:
     `state` is where the point is, `waterbody_states` is where the water is,
     and `connected_states` is what the water drains. They differ, and the
     differences are the reason the generalization exists.
+
+    Lookups take the station id the roster is keyed by (ADR-066), so the
+    reservoirs appear here as their stations: a RISE item id or an AWDB
+    station triplet, with the name in a comment for the reader.
     """
 
     def test_a_reviewed_waterbody_names_every_state_it_touches(self):
-        assert waterbody_states("Bear Lake", "ID") == ["ID", "UT"]
-        assert waterbody_states("Meeks Cabin", "WY") == ["UT", "WY"]
+        assert waterbody_states("10055500:ID:BOR", "ID") == ["ID", "UT"]  # Bear Lake
+        assert waterbody_states("574", "WY") == ["UT", "WY"]  # Meeks Cabin
 
     def test_an_unreviewed_waterbody_is_where_its_point_is(self):
         """A default, not a finding.
@@ -298,7 +302,7 @@ class TestStateMembership:
         review them. The answer must be the honest default rather than an
         empty list, which would drop them out of every state filter.
         """
-        assert waterbody_states("Deer Creek", "UT") == ["UT"]
+        assert waterbody_states("290", "UT") == ["UT"]  # Deer Creek
 
     def test_lake_powell_reaches_arizona(self):
         """The gap generalising the question exposed.
@@ -309,17 +313,18 @@ class TestStateMembership:
         project's own committed points are the evidence: the dam is in
         Coconino County and the waterbody point in San Juan County.
         """
-        assert waterbody_states("Lake Powell", "UT") == ["AZ", "UT"]
+        assert waterbody_states("509", "UT") == ["AZ", "UT"]  # Lake Powell
 
     def test_a_point_in_no_state_invents_none(self):
-        assert waterbody_states("Nowhere", None) == []
-        assert waterbody_states("Bear Lake", None) == ["ID", "UT"]
+        assert waterbody_states("unreviewed", None) == []
+        assert waterbody_states("10055500:ID:BOR", None) == ["ID", "UT"]  # Bear Lake
 
     def test_the_utah_predicate_still_reads_the_generalized_table(self):
         """ADR-013's answer must not change when its table grows."""
-        assert waterbody_intersects_utah("Bear Lake", (-111.3, 42.11667))
-        assert waterbody_intersects_utah("Deer Creek", (-111.50035, 40.43511))
-        assert not waterbody_intersects_utah("Dillon Reservoir", (-106.06621, 39.62071))
+        # Bear Lake, Deer Creek, Dillon Reservoir.
+        assert waterbody_intersects_utah("10055500:ID:BOR", (-111.3, 42.11667))
+        assert waterbody_intersects_utah("290", (-111.50035, 40.43511))
+        assert not waterbody_intersects_utah("09009020:CO:BOR", (-106.06621, 39.62071))
 
     def test_connected_states_come_from_the_drainage_area(self):
         """Where the water comes from, not where the reservoir is.
@@ -329,10 +334,10 @@ class TestStateMembership:
         this list and not the one above it.
         """
         units = load_units()
-        powell = describe(37.05778, -111.30332, units, name="Lake Powell")
-        hyrum = describe(41.62401, -111.87321, units, name="Hyrum")
+        powell = describe(37.05778, -111.30332, units, station="509")
+        hyrum = describe(41.62401, -111.87321, units, station="439")
 
         assert powell["connected_states"] == ["AZ", "UT"]
         assert hyrum["connected_states"] == ["ID", "UT"]
         # Hyrum's own water never leaves Utah, which is the distinction.
-        assert waterbody_states("Hyrum", "UT") == ["UT"]
+        assert waterbody_states("439", "UT") == ["UT"]
