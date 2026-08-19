@@ -314,6 +314,41 @@ export function watershedOptions(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/**
+ * The two geographic controls that narrow each other, built together.
+ *
+ * State holds subregion holds drainage area, so each list is what the
+ * controls above it leave -- and the caller passes the roster to narrow,
+ * which is deliberately the *widest* scope rather than the reader's chosen
+ * one. These controls answer "where can a reader go", a question about which
+ * reservoirs this payload carries. The geography select and the two
+ * dominant-reservoir switches answer ADR-011's other dimension, what is in
+ * the total, and a control that followed them would change shape under
+ * them: with Lake Powell excluded, which ADR-062 makes the default, the
+ * drainage-area list lost four of the roster's areas including Powell's own.
+ *
+ * Both lists come from one function because the narrowing order is one rule.
+ * Split across two call sites it was possible to give them different
+ * sources, which is exactly what happened.
+ */
+export function geographicChoices(
+  roster: readonly Reservoir[],
+  chosen: { state: string; subregion: string },
+  names: ReadonlyMap<string, string>
+): { subregions: FilterOption[]; drainageAreas: FilterOption[] } {
+  const byState = roster.filter((item) => reservoirInState(item, chosen.state));
+  /* Read from `byState`, not from the subregion list just built: a subregion
+   * the reader still holds after a state change is kept by the control, and
+   * one that did not survive falls back to "all" -- which the caller's
+   * `fillOptions` decides, after this runs. */
+  const bySubregion = byState.filter((item) =>
+    chosen.subregion === "all" || subregionOf(item) === chosen.subregion);
+  return {
+    subregions: subregionOptions(byState, names),
+    drainageAreas: watershedOptions(bySubregion)
+  };
+}
+
 /** The subregion names a payload publishes, for `watershedOptions` to label
  * the coarser grouping with. Empty for a payload written before they were
  * published, which labels by code rather than failing. */

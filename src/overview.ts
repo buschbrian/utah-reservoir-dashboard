@@ -45,6 +45,7 @@ import {
   filterAndSort,
   filterOverview,
   distributionStats,
+  geographicChoices,
   largestReservoirRecords,
   monthlyTrend,
   normalComparison,
@@ -52,9 +53,7 @@ import {
   overviewScope,
   percentFullValues,
   countyOptions,
-  reservoirInState,
   stateOptions,
-  subregionOf,
   subregionOptions,
   type FilterOption,
   watershedOptions,
@@ -150,8 +149,11 @@ async function renderOverview(
 ): Promise<void> {
   const content = document.querySelector<HTMLElement>("#overview-content");
   if (!content) return;
-  // Built from the widest scope so the list of drainage areas does not
-  // change shape when Lake Powell is toggled.
+  /* Built from the widest scope so the list of drainage areas does not
+   * change shape when Lake Powell is toggled. `widestScope` is also what
+   * `update()` rebuilds the subregion and drainage-area options from, for
+   * the same reason -- a control that answers "where can a reader go" must
+   * not follow ADR-011's other dimension, which is what is in the total. */
   const countyChoices = countyOptions(allReservoirs);
   const stateChoices = stateOptions(allReservoirs);
   const widestScope = overviewScope(allReservoirs, WIDEST_SCOPE);
@@ -526,23 +528,38 @@ async function renderOverview(
     /* The opening scope's `?area=` narrows before the geographic controls
      * compute their own options below, the same "coarsest first" order state
      * already narrows subregion and subregion narrows drainage area --
-     * `byState` and everything built from it inherit this for free rather
-     * than needing their own copy of the rule. */
+     * everything built from `inOpeningArea` inherits this for free rather
+     * than needing its own copy of the rule. */
+    const inOpeningArea = (reservoir: Reservoir): boolean =>
+      withinOpeningArea(reservoir.huc6, openingArea);
     const scoped = overviewScope(allReservoirs, {
       geography: geography.value as ReservoirGeography,
       lakePowell: lakePowell.checked ? "include" : "exclude",
       lakeMead: lakeMead.checked ? "include" : "exclude"
-    }).filter((reservoir) => withinOpeningArea(reservoir.huc6, openingArea));
+    }).filter(inOpeningArea);
     /* Each geographic control is repopulated from what the ones above it
      * leave, so a reader who picks Wyoming is not then offered a subregion
      * Wyoming has none of. A selection that survives the narrowing is kept;
      * one that does not falls back to "all" rather than filtering to nothing
-     * silently. */
-    const byState = scoped.filter((item) => reservoirInState(item, state.value));
-    fillOptions(subregion, subregionOptions(byState, subregionNames), "All subregions");
-    const bySubregion = byState.filter((item) =>
-      subregion.value === "all" || subregionOf(item) === subregion.value);
-    fillOptions(watershed, watershedOptions(bySubregion), "All drainage areas");
+     * silently.
+     *
+     * The set these are built from is the widest scope narrowed by the
+     * link's `?area=` and nothing else -- deliberately *not* `scoped`. The
+     * geographic controls answer "where can a reader go", which is a
+     * question about this payload's roster; the geography select and the two
+     * dominant-reservoir switches answer "what is in the total", which is
+     * ADR-011's other dimension entirely. Built from `scoped` they shrank
+     * with it: at the default load, with both dominant reservoirs excluded
+     * as ADR-062 requires, four of the roster's drainage areas were missing
+     * from the control -- including Lake Powell's own, so the list changed
+     * shape under the very switch it is supposed to be steady beneath.
+     * `stateChoices` and `countyChoices` are built once from the whole
+     * roster for the same reason; these two are rebuilt only because the
+     * controls above them narrow them. */
+    const choices = geographicChoices(widestScope.filter(inOpeningArea),
+      { state: state.value, subregion: subregion.value }, subregionNames);
+    fillOptions(subregion, choices.subregions, "All subregions");
+    fillOptions(watershed, choices.drainageAreas, "All drainage areas");
 
     const matching = filterOverview(scoped, {
       query: search.value,
