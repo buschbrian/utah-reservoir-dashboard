@@ -16,9 +16,18 @@ Two rules before any figure below is read:
 | `snowpack.json` | 3,607 KB | **322 KB** |
 | `reservoirs.json` | 360 KB | 43.1 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
-| `reference.json` | 36.9 KB | 8.8 KB |
+| `reference.json` | 30.1 KB | 6.5 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
+
+Re-measured 2026-08-19, after ADR-067 dropped `geography.state`: `reference.json`
+went from 36.9 KB raw / 8.8 KB gzipped to **30.1 KB / 6.5 KB**, confirming
+what the retirement brief projected before the change was made. The removed
+field was the whole committed `utah-boundary.geojson` -- 6.8 KB raw of the
+file -- republished so the browser could paint a mask that no longer exists
+now that the site draws 75 basins across 11 states rather than one. The
+polygon itself is unaffected: it stays committed and reviewed for Python's
+`in_utah` and `intersects_utah` classification, which is what still reads it.
 
 Measured 2026-08-19, after S1 of
 [`OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`](OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md)
@@ -186,8 +195,10 @@ to try, and it needs a person's eye on a real browser to accept.
 
 ## The payload, after the polygons left it
 
-ADR-048. `reference.json` publishes the roster -- code, name and states per
-area -- and the state outline, and no drainage geometry at all.
+ADR-048. `reference.json` published the roster -- code, name and states per
+area -- and the state outline, and no drainage geometry at all. (ADR-067
+later dropped the state outline too; see "The payloads" above for the
+current figure.)
 
 | | bytes |
 |---|---:|

@@ -125,11 +125,11 @@ root.innerHTML = `
           Read the source at
           <a href="https://www.usgs.gov/national-hydrography/watershed-boundary-dataset"
             target="_blank" rel="noreferrer">the Watershed Boundary Dataset</a>.</dd>
-        <dt>State outline</dt>
-        <dd>The Utah Geospatial Resource Center's maintained Utah State Boundary. It draws
-          the shaded area on the map and decides which reservoirs count as reaching Utah.
-          Read the source at
-          <a href="https://gis.utah.gov/" target="_blank" rel="noreferrer">gis.utah.gov</a>.</dd>
+        <dt>State outlines</dt>
+        <dd>State boundaries drawn on the maps come from Esri's Living Atlas service,
+          built from U.S. Census Bureau boundaries. Read the source at
+          <a href="https://livingatlas.arcgis.com/" target="_blank"
+            rel="noreferrer">livingatlas.arcgis.com</a>.</dd>
       </dl>
     </section>
 
@@ -336,11 +336,12 @@ root.innerHTML = `
           rel="noreferrer">The National Drought Mitigation Center</a>, with the
           U.S. Department of Agriculture and the National Oceanic and Atmospheric
           Administration, for the U.S. Drought Monitor.</li>
-        <li><a href="https://gis.utah.gov/" target="_blank" rel="noreferrer">Utah
-          Geospatial Resource Center</a>, for the maintained state boundary.</li>
+        <li><a href="https://www.census.gov/" target="_blank" rel="noreferrer">U.S.
+          Census Bureau</a>, for the state boundaries, published through Esri's Living
+          Atlas.</li>
         <li><a href="https://developers.arcgis.com/javascript/" target="_blank"
           rel="noreferrer">Esri</a>, for the ArcGIS Maps SDK for JavaScript, the Calcite
-          design system and the basemap services.</li>
+          design system, the basemap services and the Living Atlas.</li>
         <li><a href="https://pandas.pydata.org/" target="_blank"
           rel="noreferrer">pandas</a> and <a href="https://numpy.org/" target="_blank"
           rel="noreferrer">NumPy</a>, for the work that turns the published

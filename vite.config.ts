@@ -38,12 +38,13 @@ function preserveRuntimeDataAndRedirects(): Plugin {
       // since the outlines became the hosted layer's, and publishing one put
       // megabytes in every deploy, twice, for nobody. It is reviewable in the repository
       // like `normals.json`, which is the same arrangement for the same
-      // reason. `utah-boundary.geojson` stays: the mask is still drawn from
-      // the reviewed polygon, republished inside `reference.json`.
+      // reason. The Utah state boundary joined them under ADR-067: no map
+      // draws a mask from it any more, so the reviewed polygon stays
+      // committed for Python's point-in-state classification and stops
+      // being copied here.
       for (const file of [
         "reservoirs.json", "snow_sites.json", "snowpack.json",
-        "reference.json", "capacities.json",
-        "utah-boundary.geojson"
+        "reference.json", "capacities.json"
       ]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));

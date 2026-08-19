@@ -2,7 +2,7 @@ import "@esri/calcite-components/main.css";
 import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageScope, loadOfferedLevels, loadUtahBoundary } from "./data/boundaries";
+import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { downloadCsv } from "./data/download";
 import {
@@ -647,11 +647,7 @@ if (!supportsDashboard(browserCapabilities())) {
    * looking at the loading state can already read what the map will mean. */
   document.querySelectorAll<HTMLElement>("[data-legend]").forEach(renderLegend);
 
-  const boundary = loadUtahBoundary().catch((error: unknown) => {
-    console.warn("The authoritative Utah boundary is unavailable; using the fallback mask:", error);
-    return null;
-  });
-  const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection, boundary)]);
+  const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection)]);
   if (reservoirs) {
     published = reservoirs;
 
@@ -839,8 +835,12 @@ if (!supportsDashboard(browserCapabilities())) {
     basemap: map.status.basemap,
     basemapDegraded: map.status.basemapDegraded,
     basemapReferenceSunk: map.status.basemapReferenceSunk,
-    masked: map.status.masked,
-    boundaryPoints: map.status.boundaryPoints,
+    /* Not read from `map.status`: ADR-067 retired the mask itself, so there
+     * is no live layer left for the map controller to report on. The field
+     * stays rather than being deleted (see its declaration in global.d.ts)
+     * and is now permanently the retired value. */
+    masked: false,
+    boundaryPoints: 0,
     drainageAreas: map.status.drainageAreas,
     drainageLabels: map.status.drainageLabels,
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,

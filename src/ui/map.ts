@@ -21,7 +21,7 @@ import {
 } from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
-import type { DrainageScope, UtahBoundary } from "../data/boundaries";
+import type { DrainageScope } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, navigableExtent, regionExtent, selectionTarget } from "../viz/extent";
@@ -40,7 +40,6 @@ import {
   createHighlightLayer,
   drainageLabelingInfo,
   drainageRenderer,
-  createMaskLayer,
   createReservoirLayer,
   showHighlight,
   updateReservoirPercents
@@ -60,8 +59,6 @@ export interface MapStatus {
   /** Basemap reference layers moved below this project's own layers. */
   basemapReferenceSunk: number;
 
-  masked: boolean;
-  boundaryPoints: number;
   drainageAreas: number;
   /** Drainage-area background text symbols, one per HUC6. */
   drainageLabels: number;
@@ -282,11 +279,9 @@ function wirePointerSelection(
 }
 
 export async function loadMap(
-  selection: SelectionStore,
-  boundary: Promise<UtahBoundary | null> = Promise.resolve(null)
+  selection: SelectionStore
 ): Promise<MapController> {
-  const [resolution, utahBoundary] = await Promise.all(
-    [resolveBasemap(effectiveThemeNow()), boundary]);
+  const resolution = await resolveBasemap(effectiveThemeNow());
 
   /* The SDK's `basemap` property is typed as basemap *properties*, and an
    * already-constructed Basemap does not satisfy that shape under
@@ -303,9 +298,7 @@ export async function loadMap(
   if (resolution.resource) {
     (map as { basemap: unknown }).basemap = resolution.resource;
   }
-  const maskLayer = createMaskLayer(utahBoundary ?? undefined);
   const highlightLayer = createHighlightLayer();
-  map.add(maskLayer);
   /* The basemap's boundaries and place names belong under this project's
    * data, not over it. See `arcgis/basemap-reference.ts` -- this is the line
    * that stops a borrowed grey state line drawing through Flaming Gorge. */
@@ -434,8 +427,8 @@ export async function loadMap(
     card: elementById<HTMLElement>("map-hover"),
     /* Both layers, reservoirs first, so a reservoir standing on a boundary
      * answers as a reservoir. Limited to these two: without an include, a
-     * hit test also answers with the mask and the basemap, and the reader
-     * would get a card for pointing at Nevada. */
+     * hit test also answers with the basemap, and the reader would get a
+     * card for pointing at open ground. */
     include: () => (reservoirLayer
       ? (drainageLayer ? [reservoirLayer, drainageLayer] : [reservoirLayer])
       : null),
@@ -505,9 +498,6 @@ export async function loadMap(
      * data. Its own field because a map that quietly stopped moving them
      * looks identical until someone sees a line through a reservoir. */
     basemapReferenceSunk: referenceSunk,
-    masked: map.layers.includes(maskLayer),
-    boundaryPoints: (utahBoundary ?? []).reduce((sum, polygon) =>
-      sum + (polygon[0]?.length ?? 0), 0),
     drainageAreas: 0,
     drainageLabels: 0,
     drainageLabelsUnderReservoirs: false,
@@ -692,8 +682,15 @@ export async function loadMap(
        * deconfliction, so past a couple of dozen areas the names stop
        * covering reservoirs and start covering each other, which is worse.
        *
-       * Counted from the mask rather than from zero: the basemap's own
-       * reference layers are sunk to the bottom of this stack (ADR-042).
+       * Counted from `referenceSunk` rather than from zero: the basemap's
+       * own reference layers are sunk to the bottom of this stack
+       * (ADR-042), and this module owned a mask layer to count from until
+       * ADR-067 retired it. `referenceSunk` is the same fact by a more
+       * direct route -- it is kept current by `followBasemapReference`'s
+       * own callback below, including across a later basemap swap -- and it
+       * does not depend on a reservoir or highlight layer that may not be
+       * on the map yet: `loadContext` runs even when the reservoirs failed
+       * to load.
        */
       drainageLayer = createWatershedLayer({
         level,
@@ -703,8 +700,7 @@ export async function loadMap(
         labelsVisible: true
       });
       drainageCodeField = watershedCodeField(level);
-      const base = map.layers.indexOf(maskLayer) + 1;
-      map.add(drainageLayer, base);
+      map.add(drainageLayer, referenceSunk);
       status.drainageLevel = level;
       status.drainageAreas = areas.length;
       status.drainageLabels = areas.length;

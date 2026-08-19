@@ -517,16 +517,19 @@ def test_committed_reservoirs_json_is_well_formed():
 def test_one_export_contains_capacity_and_every_visualization_geography():
     sections = R.build_export_sections()
 
-    # 3 since ADR-066 rekeyed the capacity catalog by station id. A break,
-    # and versioned rather than slipped in.
-    assert sections["schema_version"] == 3
+    # 4 since ADR-067 dropped the state outline. 3 rekeyed the capacity
+    # catalog by station id (ADR-066). Both are breaks, versioned rather
+    # than slipped in.
+    assert sections["schema_version"] == 4
     # Keyed by the station the capacity belongs to, not the name it is called
     # by (ADR-066). Deer Creek is RISE item 290.
     assert sections["capacity_catalog"]["capacities"]["290"]["nid_id"] == "UT10117"
     assert sections["capacity_catalog"]["capacities"]["290"]["name"] == "Deer Creek"
     assert sections["capacity_catalog"]["keyed_by"] == "source_station_id"
     geography = sections["geography"]
-    assert geography["state"]["features"][0]["properties"]["name"] == "Utah"
+    # No state outline here (ADR-067): no map draws a mask from it any more,
+    # so `geography` is watersheds and nothing else.
+    assert set(geography) == {"watersheds"}
     watersheds = geography["watersheds"]
     assert watersheds["default_scope"] == "west-huc6"
     assert watersheds["roster_scope"] == "utah-connected"
@@ -562,14 +565,16 @@ def test_the_export_publishes_the_committed_roster_unchanged():
     polygons leaving the payload because the codes still come out of the
     same file the pipeline assigns reservoirs with.
 
-    The state outline is still republished whole. It is 19 KB, both maps
-    mask with it, and no hosted service publishes the reviewed UGRC polygon.
+    The state outline used to be republished whole for the same reason: it
+    was 19 KB, both maps masked with it, and no hosted service published the
+    reviewed UGRC polygon. ADR-067 retired the mask -- a dashboard drawing 75
+    basins across 11 states has no single state to grey the rest of the map
+    around -- so `utah-boundary.geojson` stays committed and reviewed for
+    Python's own `in_utah` and `intersects_utah` classification and stops
+    travelling in this export.
     """
     geography = R.build_export_sections()["geography"]
     root = Path(__file__).resolve().parent.parent
-
-    assert geography["state"] == json.loads(
-        (root / "utah-boundary.geojson").read_text())
 
     def roster(path):
         # Reuses `huc.units_from_collection` and `huc.outer_bbox` rather than

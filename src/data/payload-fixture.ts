@@ -87,11 +87,6 @@ export function readRosterDrainageGeoJson(): unknown {
   return readScopeGeoJson(namedScope("roster_scope"));
 }
 
-export function readUtahBoundaryGeoJson(): unknown {
-  const source = readFileSync(new URL("../../utah-boundary.geojson", import.meta.url), "utf8");
-  return JSON.parse(source) as unknown;
-}
-
 /** The committed reference export, as the pages receive it (ADR-018). */
 export function readReferenceExport(): unknown {
   const source = readFileSync(new URL("../../reference.json", import.meta.url), "utf8");

@@ -17,10 +17,6 @@ export interface LegacyClassCount {
   count: number;
 }
 
-type LegacyPoint = readonly [number, number];
-type LegacyRing = readonly LegacyPoint[];
-type LegacyBoundary = readonly (readonly LegacyRing[])[];
-
 export interface LegacySummary {
   count: number;
   storage_af: number;
@@ -81,12 +77,8 @@ export interface LegacyApi {
     factor: number
   ): [[number, number], [number, number]];
   HUC6_WHERE: string;
-  MASK_FILL: string;
-  MASK_LINE: string;
   HUC_FILL: string;
   HUC_LINE: string;
-  UTAH_RING: LegacyRing;
-  utahMaskRings(boundary?: LegacyBoundary): LegacyRing[];
   utahReservoirs<T>(reservoirs: readonly T[], excludeLakePowell: boolean): T[];
   headlinePct(reservoir: unknown): number | null;
   /** Percent full for one month, recomputed from that month's mean storage. */

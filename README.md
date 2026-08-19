@@ -173,10 +173,18 @@ The measured scope and current candidate baseline are recorded in
   reservoir roster was admitted from stay committed in
   [`huc6.geojson`](huc6.geojson) and are what the storage map opens on
   ([ADR-063](docs/decisions/ADR-063-draw-the-west-and-open-on-the-roster.md)).
-- The state outline comes from the Utah Geospatial Resource Center's
+- The Utah state boundary comes from the Utah Geospatial Resource Center's
   maintained Utah State Boundary and is committed in
-  [`utah-boundary.geojson`](utah-boundary.geojson). It drives both the map
-  mask and point-in-state classification; see [ADR-014](docs/decisions/ADR-014-use-the-ugrc-utah-state-boundary.md).
+  [`utah-boundary.geojson`](utah-boundary.geojson). It no longer draws a map
+  mask -- no map has one since a dashboard drawing 75 basins across 11 states
+  has no single state to grey the rest of the map around -- but it still
+  drives Python's `in_utah` and `intersects_utah` classification; see
+  [ADR-014](docs/decisions/ADR-014-use-the-ugrc-utah-state-boundary.md)
+  (superseded) and [ADR-067](docs/decisions/ADR-067-retire-the-state-mask.md).
+  The storage and snow maps draw no state outline at all now. The drought
+  map is the one place a reader still sees one, and it comes from Esri's
+  Living Atlas (`src/arcgis/reference-layers.ts`), which it has since
+  ADR-034 -- unrelated to and unchanged by this retirement.
 
 Every reservoir record includes the provider, station or item identifier,
 data frequency, data date, capacity source, and drainage-area assignment point.
@@ -316,7 +324,7 @@ committed to `main`.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
 `dist/` after direct pushes to `main` and after successful scheduled refreshes.
-Vite copies the reservoir, snow, reference, and boundary files and the three
+Vite copies the reservoir, snow, and reference files and the three
 compatibility redirects into the artifact. The workflow checks
 that every public URL exists and that the data payload did not leak into a
 JavaScript bundle.
