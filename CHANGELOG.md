@@ -98,6 +98,14 @@ and is not listed here.
 
 ### Fixed
 
+- **The histogram had two legends, and the numbers were in the wrong one.**
+  The key naming its four lines had been moved under the chart, and the
+  chart's own key was left where it was -- inside the plot, on the right,
+  holding the values. One key now, under the horizontal axis, carrying both
+  the names and the values: the mean, the middle value and one standard
+  deviation. The values follow the filters, and the bars get back the width
+  the old key was taking.
+
 - **`--only` no longer destroys the file it is meant to add to.** Building one
   reservoir's climate normal wrote that reservoir as the whole of
   `normals.json`, discarding the other sixty-eight and the thirty-year job

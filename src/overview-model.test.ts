@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
 import {
   countyOptions,
+  distributionKeyLines,
+  distributionStats,
   reservoirInState,
   stateOptions,
   subregionOf,
@@ -15,6 +17,70 @@ import {
 
 const base = readPayload().reservoirs[0]!;
 const reservoir = (overrides: Partial<typeof base>): typeof base => ({ ...base, ...overrides });
+
+describe("the histogram's own statistics", () => {
+  const points = (values: number[]) => values.map((value, index) => ({
+    id: index + 1, label: `R${index}`, value, group: "area"
+  }));
+
+  it("computes the mean, the middle value and the sample spread", () => {
+    /* Hand-checked: mean 30, sorted 10 20 30 40 50 so the middle is 30, and
+     * the sample variance is 1000/4 = 250. */
+    expect(distributionStats(points([10, 20, 30, 40, 50]))).toEqual({
+      mean: 30, median: 30, standardDeviation: Math.sqrt(250)
+    });
+  });
+
+  it("averages the two middle values when the count is even", () => {
+    expect(distributionStats(points([10, 20, 30, 40]))?.median).toBe(25);
+  });
+
+  it("divides the spread by one less than the count, as the chart does", () => {
+    /* Not a preference: the SDK's own overlay is the sample standard
+     * deviation, verified against a rendered chart of 51 reservoirs where
+     * its legend printed 23.58 and the population figure is 23.34. A key
+     * that printed the population number would label a line the chart drew
+     * somewhere else. */
+    const stats = distributionStats(points([2, 4, 4, 4, 5, 5, 7, 9]));
+    expect(stats?.mean).toBe(5);
+    // Population would be 2; the sample figure is sqrt(32/7).
+    expect(stats?.standardDeviation).toBeCloseTo(Math.sqrt(32 / 7), 10);
+  });
+
+  it("has no answer for fewer than two values", () => {
+    expect(distributionStats(points([42]))).toBeNull();
+    expect(distributionStats([])).toBeNull();
+  });
+
+  it("labels the key with the values, and without them when there are none", () => {
+    const stats = { mean: 41.05, median: 38.8, standardDeviation: 23.58 };
+    expect(distributionKeyLines(stats).map((entry) => entry.label)).toEqual([
+      /* 41.0, not 41.1: `toFixed` is what every percentage on this site is
+       * printed with, and 41.05 is held just below the half in binary. The
+       * key rounds the way the rest of the page rounds. */
+      "Mean 41.0%",
+      "Middle value 38.8%",
+      /* Points, not percent: a distance between two percentages is not a
+       * share of anything. */
+      "One standard deviation 23.6 points",
+      "Fitted normal curve"
+    ]);
+    expect(distributionKeyLines(null).map((entry) => entry.label)).toEqual([
+      "Mean", "Middle value", "One standard deviation", "Fitted normal curve"
+    ]);
+  });
+
+  it("is the only legend the histogram has", () => {
+    /* The four lines the chart draws, and four entries to name them. The
+     * SDK's own rail is off (`legendVisibility`), so anything this key does
+     * not name is unexplained on the page. Each line carries the key its
+     * colour is looked up by, so a label and its ink cannot come apart. */
+    const lines = distributionKeyLines();
+    expect(lines).toHaveLength(4);
+    expect(lines.map((line) => line.key)).toEqual([
+      "mean", "median", "deviation", "curve"]);
+  });
+});
 
 describe("modern overview model", () => {
   it("uses the same Utah-intersection scope as the modern map", () => {

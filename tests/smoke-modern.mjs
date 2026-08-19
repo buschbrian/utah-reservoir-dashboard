@@ -1396,6 +1396,37 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       && chartSettings.copy.includes("Largest reservoirs"),
     `${label}: chart setting scope is not explained`);
 
+    /* One legend on the histogram, under the x-axis, carrying the numbers.
+     * The SDK draws its own rail inside the plot on the right, and with this
+     * key added underneath and the rail left on, the card had two legends --
+     * the names in both and the values in only the one a reader reaches
+     * last. */
+    const histogramKey = await tab.evaluate(() => {
+      const node = document.querySelector("#distribution-chart arcgis-chart");
+      return {
+        sdkLegend: node?.model?.config?.legend?.visible ?? null,
+        lines: [...document.querySelectorAll("#distribution-key li")]
+          .map((item) => item.textContent.trim()),
+        swatches: document.querySelectorAll("#distribution-key .overlay-key-line").length,
+        keys: document.querySelectorAll(".overview-card .overlay-key").length
+      };
+    });
+    check(histogramKey.sdkLegend === false,
+      `${label}: the histogram still draws the SDK's own legend beside the key`);
+    check(histogramKey.keys === 1,
+      `${label}: ${histogramKey.keys} overlay keys are on the page, expected one`);
+    check(histogramKey.lines.length === 4 && histogramKey.swatches === 4,
+      `${label}: the histogram key names ${histogramKey.lines.length} of its four lines`);
+    /* The values, not just the names: they are what the SDK's rail carried
+     * and what moving the key would otherwise have dropped. Matched by shape
+     * rather than by number, so the morning refresh cannot turn this red. */
+    check(/^Mean \d+\.\d%$/.test(histogramKey.lines[0] ?? ""),
+      `${label}: the key's mean reads "${histogramKey.lines[0]}"`);
+    check(/^Middle value \d+\.\d%$/.test(histogramKey.lines[1] ?? ""),
+      `${label}: the key's middle value reads "${histogramKey.lines[1]}"`);
+    check(/^One standard deviation \d+\.\d points$/.test(histogramKey.lines[2] ?? ""),
+      `${label}: the key's standard deviation reads "${histogramKey.lines[2]}"`);
+
     const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
       sort: chart.model?.getSortOrder(),
       order: [...(chart.model?.orderByList ?? [])],

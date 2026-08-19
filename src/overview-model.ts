@@ -10,6 +10,7 @@ import {
   type ReservoirGeography
 } from "./data/rollup";
 import { STALE_COLOR, storageClass } from "./viz/classes";
+import { formatPercent } from "./viz/format";
 
 export type OverviewSort = "name" | "capacity" | "storage" | "percent" | "updated";
 export type OverviewCadence = "all" | "daily" | "monthly" | "late";
@@ -445,6 +446,105 @@ export function percentFullValues(reservoirs: readonly Reservoir[]): ValuePoint[
       value: Number(entry.percent.toFixed(1)),
       group: entry.reservoir.huc6_name ?? "Not assigned"
     }));
+}
+
+/**
+ * The three statistics the histogram draws lines for.
+ *
+ * Computed here so the key under the chart can print them. The chart draws
+ * the lines from its own arithmetic over the same values, so these have to
+ * agree with it exactly or the page states one number and marks another.
+ *
+ * The standard deviation is the **sample** one, dividing by n - 1. That is
+ * not a preference: it is what the SDK's own overlay uses, verified against a
+ * rendered chart -- 51 reservoirs, mean 41.05, median 38.8, and the legend
+ * printing 23.58 where the population figure is 23.34. The difference is a
+ * quarter of a point, which is small enough to look like rounding and large
+ * enough to be wrong.
+ *
+ * Null for fewer than two values, where a sample standard deviation has no
+ * denominator. The chart refuses to draw below three (`renderArcgis-
+ * DistributionChart`), so a caller with a key and no chart has nothing to
+ * label anyway.
+ */
+export interface DistributionStats {
+  mean: number;
+  median: number;
+  standardDeviation: number;
+}
+
+export function distributionStats(
+  values: readonly ValuePoint[]
+): DistributionStats | null {
+  const numbers = values.map((point) => point.value)
+    .filter((value) => Number.isFinite(value));
+  if (numbers.length < 2) return null;
+  const mean = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const middle = sorted.length / 2;
+  /* An even count has no single middle value, so the two either side are
+   * averaged -- which is what "the middle value" means for an even sample and
+   * what the chart's own median line sits at. */
+  const median = sorted.length % 2 === 1
+    ? sorted[(sorted.length - 1) / 2]!
+    : (sorted[middle - 1]! + sorted[middle]!) / 2;
+  const variance = numbers.reduce(
+    (sum, value) => sum + (value - mean) ** 2, 0) / (numbers.length - 1);
+  return { mean, median, standardDeviation: Math.sqrt(variance) };
+}
+
+/**
+ * The histogram's legend: what each line means and where it sits.
+ *
+ * Here rather than beside the chart because it is text and arithmetic, and
+ * the chart module cannot be imported without the SDK and its stylesheets --
+ * which is how this key went untested while it was the only thing on the page
+ * naming four otherwise unexplained lines.
+ *
+ * `key` is what the chart module attaches a colour to, so the label and the
+ * colour cannot come apart: one list, one order, and a line that gains a
+ * label without a colour fails to compile.
+ */
+export type OverlayKeyStyle = "solid" | "dashed" | "dotted";
+
+export interface OverlayKeyLine {
+  key: "mean" | "median" | "deviation" | "curve";
+  label: string;
+  style: OverlayKeyStyle;
+}
+
+
+export function distributionKeyLines(
+  stats: DistributionStats | null = null
+): OverlayKeyLine[] {
+  return [
+    {
+      key: "mean",
+      label: stats ? `Mean ${formatPercent(stats.mean)}` : "Mean",
+      style: "solid"
+    },
+    {
+      key: "median",
+      label: stats
+        ? `Middle value ${formatPercent(stats.median)}`
+        : "Middle value",
+      style: "dashed"
+    },
+    {
+      key: "deviation",
+      /* Points, not percent: this is a distance between two percentages, and
+       * writing it as 23.6% invites a reader to take it for a share of
+       * something (ADR-046's rule, one scale down). */
+      /* One decimal like every percentage here, but no percent sign: the
+       * site's own formatter would add one. The SDK's rail printed two
+       * decimals, which is below what the reading is worth. */
+      label: stats
+        ? `One standard deviation ${stats.standardDeviation.toFixed(1)} points`
+        : "One standard deviation",
+      style: "dotted"
+    },
+    { key: "curve", label: "Fitted normal curve", style: "solid" }
+  ];
 }
 
 /** One reservoir's storage against what is normal for the date. */

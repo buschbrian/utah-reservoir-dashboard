@@ -36,6 +36,7 @@ import {
 import {
   filterAndSort,
   filterOverview,
+  distributionStats,
   largestReservoirRecords,
   monthlyTrend,
   normalComparison,
@@ -51,6 +52,7 @@ import {
   watershedRecords,
   type ChartMeasure,
   type ChartRank,
+  type DistributionStats,
   type OverviewCadence,
   type OverviewSort
 } from "./overview-model";
@@ -363,12 +365,15 @@ async function renderOverview(
   const trendHost = document.querySelector<HTMLElement>("#trend-chart");
   const normalHost = document.querySelector<HTMLElement>("#normal-chart");
   const distributionHost = document.querySelector<HTMLElement>("#distribution-chart");
-  /* Written once, from the chart module's own colours. It does not change
-   * with the filters -- the lines mean the same thing whatever is in view --
-   * so it is not rebuilt on every update. */
   const distributionKey = document.querySelector<HTMLElement>("#distribution-key");
-  if (distributionKey) {
-    distributionKey.replaceChildren(...distributionOverlayKey().map((entry) => {
+  /* The only legend the histogram has, so it is rebuilt whenever the chart
+   * is: the four lines mean the same thing whatever is in view, but the
+   * three values they sit at follow the filters. It used to be written once,
+   * which was right when the numbers lived in the SDK's own rail inside the
+   * chart -- and that rail is what made two legends of one. */
+  const renderDistributionKey = (stats: DistributionStats | null): void => {
+    if (!distributionKey) return;
+    distributionKey.replaceChildren(...distributionOverlayKey(stats).map((entry) => {
       const item = document.createElement("li");
       const swatch = document.createElement("span");
       swatch.className = `overlay-key-line overlay-key-${entry.style}`;
@@ -378,7 +383,8 @@ async function renderOverview(
       item.append(swatch, text);
       return item;
     }));
-  }
+  };
+  renderDistributionKey(null);
   const spreadHost = document.querySelector<HTMLElement>("#spread-chart");
   const chartLimit = document.querySelector<HTMLSelectElement>("#chart-limit");
   const chartMeasure = document.querySelector<HTMLSelectElement>("#chart-measure");
@@ -529,6 +535,10 @@ async function renderOverview(
     const measure = chartMeasure.value as ChartMeasure;
     const limit = Number(chartLimit.value) || visible.length;
     const values = percentFullValues(visible);
+    /* Before the charts, not after: the key is the histogram's only legend
+     * now, so a reader watching a filter change should see the three values
+     * move with the bars rather than a step behind them. */
+    renderDistributionKey(distributionStats(values));
     try {
       await Promise.all([
         renderArcgisBarChart(capacityHost,

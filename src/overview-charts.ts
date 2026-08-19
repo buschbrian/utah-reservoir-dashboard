@@ -12,9 +12,12 @@ import FeatureLayer from "@arcgis/core/layers/FeatureLayer.js";
 import Graphic from "@arcgis/core/Graphic.js";
 import Point from "@arcgis/core/geometry/Point.js";
 
+import { distributionKeyLines } from "./overview-model";
 import type {
   ChartMeasure,
+  DistributionStats,
   NormalPoint,
+  OverlayKeyLine,
   OverviewChartRecord,
   TrendPoint
 } from "./overview-model";
@@ -249,36 +252,49 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
 }
 
 /**
- * What the four lines across the histogram mean.
+ * What the four lines across the histogram mean, and where they sit.
  *
  * The chart draws a mean, a median, a standard-deviation band and a fitted
- * normal curve, in four different line styles, and the SDK's own legend is
- * off (see `legendVisibility` below, and the reasons beside it). So the chart
- * carried four unexplained lines: a reader could see that something was
- * marked at 46% and had no way to learn what.
+ * normal curve, in four different line styles. The SDK's own legend printed
+ * those four names with their values in a rail inside the chart, on the
+ * right; this key was added underneath and the rail was never switched off,
+ * so the card carried two legends -- one with the numbers and one without,
+ * the numbers in the one a reader reaches last.
+ *
+ * One legend now, under the x-axis, carrying both. The values come from
+ * `distributionStats`, which computes them the way the chart does, over the
+ * same array the chart is handed.
  *
  * Built from `CHART_INK` and the same dash patterns the symbols use, so the
  * key cannot drift from the chart it explains -- changing a line's colour in
  * one place changes both.
  */
-export interface OverlayKeyEntry {
-  label: string;
+export interface OverlayKeyEntry extends OverlayKeyLine {
   color: string;
-  /** How the swatch is drawn, matching the symbol's own line style. */
-  style: "solid" | "dashed" | "dotted";
 }
 
 function inkToCss(ink: readonly [number, number, number, number]): string {
   return `rgba(${ink[0]}, ${ink[1]}, ${ink[2]}, ${(ink[3] / 255).toFixed(3)})`;
 }
 
-export function distributionOverlayKey(): OverlayKeyEntry[] {
-  return [
-    { label: "Mean", color: inkToCss(CHART_INK.mean), style: "solid" },
-    { label: "Middle value", color: inkToCss(CHART_INK.median), style: "dashed" },
-    { label: "One standard deviation", color: inkToCss(CHART_INK.guide), style: "dotted" },
-    { label: "Fitted normal curve", color: inkToCss(CHART_INK.guide), style: "solid" }
-  ];
+/** The ink each line is drawn in, by the same key the line carries, so a
+ * label and its colour cannot come apart. The mean and median have their own;
+ * the deviation band and the fitted curve share the guide ink, which is what
+ * the chart draws them in. */
+const OVERLAY_INK: Record<OverlayKeyLine["key"],
+  readonly [number, number, number, number]> = {
+  mean: CHART_INK.mean,
+  median: CHART_INK.median,
+  deviation: CHART_INK.guide,
+  curve: CHART_INK.guide
+};
+
+export function distributionOverlayKey(
+  stats: DistributionStats | null = null
+): OverlayKeyEntry[] {
+  return distributionKeyLines(stats).map((line) => ({
+    ...line, color: inkToCss(OVERLAY_INK[line.key])
+  }));
 }
 
 /** The legend the charts share with the map: the class table, in order. */
@@ -868,6 +884,11 @@ export async function renderArcgisDistributionChart(
   if (!isCurrent()) return;
   model.numericField = "value";
   model.chartTitleVisibility = false;
+  /* Off, like every other chart on this page. It is a rail inside the plot
+   * on the right, and with the key already under the x-axis it made two
+   * legends of one -- the names in both and the numbers in only the rail.
+   * The key carries the numbers now, and the bars get the width back. */
+  model.legendVisibility = false;
   /* Ten bins. NOT ten-point bands: the SDK divides the range the data
    * actually covers, and axis bounds do not move the bin edges -- setting
    * them to 0 and 100 left the config saying 0-100 and the chart still
