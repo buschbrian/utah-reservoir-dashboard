@@ -65,7 +65,7 @@ is true in every word and wrong as a whole.
 
 **Measure payload cost gzipped, never raw** (ADR-051, ADR-052). GitHub Pages
 compresses the JSON, so a raw byte count overstates what a reader pays by
-several times -- `snowpack.json` is 1,166 KB on disk and 99 KB on the wire.
+several times -- `snowpack.json` is 3,607 KB on disk and 322 KB on the wire.
 Runtime fetches use `cache: "no-cache"`, which is not "do not cache": it means
 never use a stored copy without asking, so the morning's rewrite can never be
 served stale and an unchanged file costs a 304 instead of the whole payload.

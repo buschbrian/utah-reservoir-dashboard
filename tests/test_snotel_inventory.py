@@ -11,6 +11,7 @@ from tools.build_snotel_inventory import (  # noqa: E402
     refuse_newly_unmonitored,
     validate_inventory,
 )
+from watershed_scopes import get_scope, huc_field  # noqa: E402
 
 
 def unit(huc6, name, left, right):
@@ -61,10 +62,21 @@ def test_full_resolution_geometry_controls_inclusion_and_assignment():
 def test_committed_inventory_is_internally_complete():
     payload = json.loads((ROOT / "snow_sites.json").read_text(encoding="utf-8"))
     validate_inventory(payload)
-    assert set(payload["by_huc6"]) == {
-        "140100", "140300", "140401", "140500", "140600", "140700", "140802",
-        "150100", "160101", "160102", "160201", "160202", "160203", "160300",
-    }
+    # Every area of the scope it names, and no others -- read from that
+    # scope's own committed boundaries rather than from a list written here,
+    # which is what went stale the morning the inventory moved west. An area
+    # with no sites is still an area the inventory covers, and says so in
+    # `unmonitored_areas`.
+    scope = get_scope(payload["scope"])
+    field = huc_field(scope.level)
+    codes = {feature["properties"][field] for feature
+             in json.loads((ROOT / scope.output).read_text(encoding="utf-8"))["features"]}
+
+    assert set(payload["by_huc6"]) == codes
+    assert set(payload["unmonitored_areas"]) <= codes
+    assert payload["unmonitored_area_count"] == len(payload["unmonitored_areas"])
+    assert all(payload["by_huc6"][code] == 0 for code in payload["unmonitored_areas"])
+    assert sum(payload["by_huc6"].values()) == payload["site_count"]
     assert payload["selection"]["watershed_geometry"] == "full_resolution"
     assert payload["normal_period"] == {"start_year": 1991, "end_year": 2020}
 

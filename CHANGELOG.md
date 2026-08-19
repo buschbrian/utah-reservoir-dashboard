@@ -33,6 +33,13 @@ and is not listed here.
   the same sites grouped differently (ADR-064). The choice travels in the
   address, so a link carries it.
 
+- **The snow network covers the west.** 217 measurement sites became 637, in
+  51 drainage areas instead of 14, across eleven states. Twenty-four of the
+  western areas hold no automated snow site at all -- desert, coastal lowland,
+  valley floor -- and the inventory says so rather than refusing to publish.
+  The reservoir roster has not moved yet, so the storage figures are still
+  Utah's.
+
 - **Drought is measured over larger areas too.** The same weekly measurement
   is now published over the 44 subregions of the west as well as its 75
   basins, so the site can offer a reader the choice of how finely the ground
@@ -104,6 +111,13 @@ and is not listed here.
   is now chosen by rule instead of by whichever row arrived last (ADR-057).
 
 ### Fixed
+
+- **One dead snow station no longer costs every other station's reading.** A
+  station can be listed as active and answer with a whole winter of empty
+  rows; the refresh treated that as a fault and published nothing. It is now
+  counted with the stations that did not answer at all, named in the log, and
+  held to the same small tolerance -- so a real outage still stops the file
+  and one silent station does not.
 
 - **A quiet feed no longer costs a reservoir its climate normal.** The
   thirty-year baselines are built from the reservoirs published that morning,

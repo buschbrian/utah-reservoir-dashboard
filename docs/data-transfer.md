@@ -13,8 +13,9 @@ Two rules before any figure below is read:
 
 | file | raw | gzip |
 |---|---:|---:|
-| `snowpack.json` | 1,170 KB | **98.8 KB** |
+| `snowpack.json` | 3,607 KB | **322 KB** |
 | `reservoirs.json` | 360 KB | 43.1 KB |
+| `snow_sites.json` | 143 KB | 22 KB |
 | `reference.json` | 30 KB | 7.2 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
@@ -47,6 +48,35 @@ well against the twelve months of numbers already in each record.
 `snowpack.json` was 1,913 KB raw and 216.6 KB gzipped until ADR-052 wrote the
 water-year calendar once instead of once per site: **54% off the wire**, with
 all 68,540 rows verified identical after the rebuild.
+
+## The snow network at western coverage
+
+Measured 2026-08-19, after the inventory moved to `west-huc6`: 217 sites
+became **637**, in 51 basins rather than 14, and `snowpack.json` went from
+98.8 KB gzipped to **322 KB**. The scoping projected 287 KB and was 12% light.
+The inventory itself, which every snow page also fetches, went from 51 KB raw
+to 143 KB and costs 22 KB on the wire.
+
+**There is no cheap encoding left to take.** Two obvious reductions were
+measured against the real file rather than argued about:
+
+| | gzipped |
+|---|---:|
+| as published | 304 KB |
+| whole numbers written as integers rather than `0.0` | 295 KB |
+| ...and a full calendar index omitted where a site has every day | 293 KB |
+
+Together **3.6%**, for a payload encoding and a validator to match it. Fifty-
+three percent of the readings are exactly zero and 579 of 637 sites carry the
+whole calendar, so the raw file falls by nearly a megabyte -- and gzip had
+already taken almost all of it. This is the rule at the top of this file
+paying for itself: a raw byte count would have made both changes look worth
+making. (Figures here are gzip -9 locally; the table above is the default
+level, which is why 304 and 322 describe one file.)
+
+The lever that remains is not an encoding. Every site carries the whole water
+year because the page's subject is the shape of the season, and shortening
+that is a design decision rather than a compression one.
 
 ## Paying twice for the same bytes
 
@@ -164,9 +194,21 @@ Everything fetched to draw the areas, measured per page against a built
 
 | page | before | reference.json | hosted | after |
 |---|---:|---:|---:|---:|
-| Storage map | 1,001 KB | 26.9 KB | 210.6 KB (9 req) | **237.5 KB** |
-| Drought map | 1,001 KB | 26.9 KB | 241.2 KB (23 req) | **268.1 KB** |
-| Snow map | 1,001 KB | 26.9 KB | 120.7 KB (10 req) | **147.6 KB** |
+| Storage map | 1,001 KB | 30.0 KB | 210.6 KB (9 req) | **240.6 KB** |
+| Drought map | 1,001 KB | 30.0 KB | 566-663 KB (23 req) | **596-693 KB** |
+| Snow map | 1,001 KB | 30.0 KB | 52.2 KB (10 req) | **82.2 KB** |
+
+Re-measured 2026-08-19 with the snow network at western coverage. Two of the
+three are stable across runs; the drought map is not, and moved by 97 KB
+between two consecutive runs of the same build. That is the caveat below
+behaving exactly as written -- the outlines are quantized to whatever view the
+page has settled at when it goes idle -- so it is published as the range it
+measures at rather than as a figure that looks repeatable and is not.
+
+The snow map fell from 120.7 KB while going from 14 drawn areas to 51, which
+is recorded here as the measurement it is. No mechanism is offered for it: the
+same tool, the same build and the same framing produced both numbers, and
+guessing at the cause is what this file exists to stop.
 
 Re-measured 2026-08-18 at western coverage (ADR-063), and this is where
 publishing 75 areas instead of 14 is actually paid. The hosted outlines cost
