@@ -76,9 +76,17 @@ def tracked_points(reservoir, dam_points):
     A gauge is installed at the dam or at the water, and which of the two a
     provider publishes is that provider's choice rather than a fact about the
     reservoir.
+
+    Keyed by station rather than by name (ADR-066). It was by name, and the
+    lookup went on reading `reservoir["name"]` after `capacities.json` was
+    rekeyed to the provider's station id -- so every one of the thirty
+    reviewed dam points missed, silently, and the dedupe this exists for
+    stopped happening. A name key is also wrong on its own terms here: this
+    roster holds two Summit Counties' worth of repeated names, and the whole
+    point of the rekey was that a name does not identify a reservoir.
     """
     points = [(reservoir["lon"], reservoir["lat"])]
-    dam = dam_points.get(reservoir["name"])
+    dam = dam_points.get(str(reservoir.get("source_station_id") or ""))
     if dam:
         points.append(dam)
     return points
@@ -87,7 +95,7 @@ def tracked_points(reservoir, dam_points):
 def select_candidates(stations, payload, units, dam_points=None):
     """Apply the canonical point-in-polygon scope rule without network I/O.
 
-    `dam_points` maps a published reservoir's name to its reviewed dam
+    `dam_points` maps a published reservoir's station id to its reviewed dam
     coordinate. A reservoir is tracked at whichever point its provider
     publishes, and the two providers do not publish the same one: RISE gives
     Lake Mead as the water at Temple Bar and AWDB gives it as the gauge at
@@ -172,8 +180,8 @@ def find_candidates(units=None):
     #: a tool that needs none of it.
     catalog = json.loads((ROOT / "capacities.json").read_text())
     dam_points = {
-        name: (entry["dam_lon"], entry["dam_lat"])
-        for name, entry in catalog["capacities"].items()
+        station: (entry["dam_lon"], entry["dam_lat"])
+        for station, entry in catalog["capacities"].items()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None
     }
 

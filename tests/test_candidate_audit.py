@@ -5,7 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from tools.audit_awdb_stations import select_candidates  # noqa: E402
+import json  # noqa: E402
+from tools.audit_awdb_stations import select_candidates, tracked_points  # noqa: E402
 
 
 UNITS = [{
@@ -71,7 +72,7 @@ def test_a_reservoir_tracked_at_its_dam_is_not_offered_again_at_its_water():
     assert [c["station"] for c in without[0]] == ["awdb-1"]
 
     with_dam = select_candidates([far_dam], payload, UNITS,
-                                 {"Big Lake": (-109.6, 38.2)})
+                                 {"rise-1": (-109.6, 38.2)})
     assert with_dam[0] == []
     assert with_dam[1] == 1
 
@@ -84,7 +85,58 @@ def test_a_dam_point_does_not_excuse_a_different_reservoir():
     other = station("awdb-2", "140600123456", -109.6, 38.2, "Little Lake")
 
     candidates, already, _ = select_candidates(
-        [other], payload, UNITS, {"Big Lake": (-109.6, 38.2)})
+        [other], payload, UNITS, {"rise-1": (-109.6, 38.2)})
 
     assert [c["station"] for c in candidates] == ["awdb-2"]
     assert already == 0
+
+
+def test_the_reviewed_dam_points_are_keyed_the_way_the_payload_is_read():
+    """The two committed files have to agree on what identifies a reservoir.
+
+    `find_candidates` builds `dam_points` out of `capacities.json` and
+    `tracked_points` reads it with the published record's key. Those are two
+    files rekeyed by two different changes, and when ADR-066 moved
+    `capacities.json` from names to station ids this lookup was left reading
+    names -- so all thirty reviewed dam points missed and the Lake Mead dedupe
+    above stopped running, with every unit test still green because each one
+    hands `select_candidates` a fixture it built itself.
+
+    So this asserts the real files against each other rather than a fixture.
+    It is the only check here that would have failed on the morning the rekey
+    landed, and it is deliberately about the key space rather than about any
+    one reservoir: a roster addition must not be able to quietly reintroduce
+    the same silence.
+    """
+    catalog = json.loads((ROOT / "capacities.json").read_text())["capacities"]
+    published = json.loads((ROOT / "reservoirs.json").read_text())["reservoirs"]
+
+    dam_points = {
+        station: (entry["dam_lon"], entry["dam_lat"])
+        for station, entry in catalog.items()
+        if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None
+    }
+    assert dam_points, "the reviewed table publishes no dam points at all"
+
+    resolved = [r for r in published
+                if str(r.get("source_station_id") or "") in dam_points]
+    assert resolved, (
+        "no published reservoir resolves to a reviewed dam point; "
+        "capacities.json and reservoirs.json disagree about what keys a "
+        "reservoir")
+
+    # And the lookup itself, not just the two key spaces. A reservoir with a
+    # reviewed dam point is known at two positions, and `tracked_points` is
+    # where that second one either arrives or is silently dropped.
+    for reservoir in resolved:
+        points = tracked_points(reservoir, dam_points)
+        assert len(points) == 2, (
+            f"{reservoir['name']} has a reviewed dam point that "
+            f"tracked_points does not return")
+
+    # A table keyed by name would resolve nothing above and would also fail
+    # here, which is what makes the failure readable rather than a count.
+    names = {r["name"] for r in published}
+    assert not (set(dam_points) & names), (
+        "capacities.json appears to be keyed by reservoir name; ADR-066 keys "
+        "it by the provider's station id")
