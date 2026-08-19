@@ -20,7 +20,8 @@ import {
   regionRosterFromReference,
   resolveOpeningScope,
   withinOpeningArea,
-  type OpeningRosters
+  type OpeningRosters,
+  areaAtLevel
 } from "./opening-scope";
 
 const realFetch = globalThis.fetch;
@@ -382,5 +383,64 @@ describe("loadOpeningRosters against the committed reference export", () => {
     // pretending to be coarser than it is.
     expect(rosters.subregions.map((a) => a.huc6).sort())
       .toEqual(rosters.areas.map((a) => a.huc6).sort());
+  });
+});
+
+describe("a chosen area at the granularity a surface draws", () => {
+  it("coarsens a selection finer than the level to the level", () => {
+    // The failure this exists for: a six-digit basin held while the page
+    // draws four-digit subregions. Untouched, every comparison on the page
+    // is `"1401".startsWith("140100")`, which is false for every record.
+    expect(areaAtLevel("140100", 4)).toBe("1401");
+    expect(areaAtLevel("140100", 2)).toBe("14");
+  });
+
+  it("leaves a selection at or coarser than the level alone", () => {
+    expect(areaAtLevel("140100", 6)).toBe("140100");
+    expect(areaAtLevel("1401", 6)).toBe("1401");
+    expect(areaAtLevel("14", 6)).toBe("14");
+    /* Never refined upward. Picking one basin out of a subregion the reader
+     * did not name would invent a choice rather than keep one. */
+    expect(areaAtLevel("14", 4)).toBe("14");
+  });
+
+  it("keeps no selection as no selection", () => {
+    expect(areaAtLevel(null, 4)).toBeNull();
+    expect(areaAtLevel(null, 6)).toBeNull();
+  });
+
+  it("leaves the selection alone when the level is not a usable number", () => {
+    expect(areaAtLevel("140100", 0)).toBe("140100");
+    expect(areaAtLevel("140100", -2)).toBe("140100");
+    expect(areaAtLevel("140100", 1.5)).toBe("140100");
+  });
+
+  it("makes a coarsened selection actually match the records it should", () => {
+    // The whole point, asserted end to end rather than on the helper alone.
+    const drawnAtFour = ["1401", "1402", "1601"];
+    const chosen = areaAtLevel("140100", 4);
+    expect(drawnAtFour.filter((code) => withinOpeningArea(code, chosen)))
+      .toEqual(["1401"]);
+    // And without the coarsening it matches nothing at all, which is the bug.
+    expect(drawnAtFour.filter((code) => withinOpeningArea(code, "140100")))
+      .toEqual([]);
+  });
+});
+
+describe("a code coarser than the selection", () => {
+  it("says so instead of reporting a silent non-match", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(withinOpeningArea("1401", "140100")).toBe(false);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it("stays quiet for an ordinary match and an ordinary miss", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(withinOpeningArea("140100", "1401")).toBe(true);
+    expect(withinOpeningArea("160100", "1401")).toBe(false);
+    expect(withinOpeningArea("1401", "1401")).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

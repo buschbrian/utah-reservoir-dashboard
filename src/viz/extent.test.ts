@@ -20,6 +20,8 @@ import {
   selectionTarget,
   unionOfAreaBoxes,
   withinRegion
+  ,extentFromBox,
+  drainageExtent
 } from "./extent";
 
 const legacy = loadLegacyApi();
@@ -285,5 +287,19 @@ describe("where selecting a reservoir goes", () => {
     for (const current of [Number.NaN, 0, 1, MAP_MIN_ZOOM - 1]) {
       expect(selectionTarget(reservoir, current).zoom).toBeGreaterThanOrEqual(MAP_MIN_ZOOM);
     }
+  });
+});
+
+describe("a box as an extent", () => {
+  it("is the same four numbers, in longitude and latitude", () => {
+    expect(extentFromBox([[-113, 38], [-107, 42]])).toEqual({
+      xmin: -113, ymin: 38, xmax: -107, ymax: 42,
+      spatialReference: { wkid: 4326 }
+    });
+  });
+
+  it("is what the two fixed extents are built from, so they cannot drift", () => {
+    expect(regionExtent()).toEqual(extentFromBox(MAP_BOUNDS));
+    expect(drainageExtent()).toEqual(extentFromBox(HUC6_BOUNDS));
   });
 });

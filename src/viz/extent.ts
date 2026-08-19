@@ -156,9 +156,25 @@ export interface Extent {
   spatialReference: { wkid: number };
 }
 
-export function regionExtent(): Extent {
-  const [[xmin, ymin], [xmax, ymax]] = MAP_BOUNDS;
+/**
+ * A box as the SDK's extent, which is the same four numbers in a different
+ * shape.
+ *
+ * One conversion rather than one per caller. It was written twice here and
+ * then a third and fourth time by the surfaces opening on a reader's chosen
+ * scope, which is three chances for the spatial reference or the corner
+ * order to drift apart with nothing holding them together. Every box on this
+ * site is longitude and latitude, so the well-known id is not a parameter.
+ */
+export function extentFromBox(
+  box: readonly [readonly [number, number], readonly [number, number]]
+): Extent {
+  const [[xmin, ymin], [xmax, ymax]] = box;
   return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
+}
+
+export function regionExtent(): Extent {
+  return extentFromBox(MAP_BOUNDS);
 }
 
 /**
@@ -180,8 +196,7 @@ export function regionExtent(): Extent {
  * a reader can pan to is identical everywhere.
  */
 export function drainageExtent(): Extent {
-  const [[xmin, ymin], [xmax, ymax]] = HUC6_BOUNDS;
-  return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
+  return extentFromBox(HUC6_BOUNDS);
 }
 
 function clamp(value: number, low: number, high: number): number {

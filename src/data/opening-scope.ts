@@ -405,6 +405,38 @@ export function resolveOpeningScope(
 }
 
 /**
+ * A chosen area expressed at the granularity a surface is drawing.
+ *
+ * `?level=` and `?area=` are independent parameters, so a reader can hold a
+ * six-digit basin while asking to see four-digit subregions -- a shared link
+ * from another page carries the basin, the level control on this one carries
+ * the subregion. Nothing reconciles them, and the two are read from the
+ * address bar by different code.
+ *
+ * Left alone that combination empties the page in silence. A surface drawing
+ * at level four has already narrowed its records to four-digit codes, and
+ * `"1401".startsWith("140100")` is false for every record it holds, so the
+ * reader gets no sites, no rows and no explanation for a scope that has data
+ * in it. The URL writer then puts the same pair back on the next render, so
+ * a reload and a shared link both preserve the empty state.
+ *
+ * Coarsening is the honest repair. The reader named a place and a
+ * granularity; the place survives at the granularity they asked for, which
+ * is the same rule the rest of this module already follows -- a selection
+ * that cannot be honoured falls back to a wider one rather than filtering to
+ * nothing. Never the reverse: a four-digit choice is *not* refined to six
+ * digits, because picking one basin out of a subregion the reader did not
+ * name would be inventing a choice rather than keeping one.
+ *
+ * A level at or finer than the selection leaves it untouched, which is every
+ * ordinary case.
+ */
+export function areaAtLevel(area: string | null, level: number): string | null {
+  if (area === null || !Number.isInteger(level) || level <= 0) return area;
+  return area.length > level ? area.slice(0, level) : area;
+}
+
+/**
  * Does a record's own drainage-area code fall inside the areas
  * `OpeningScope.selection.area` narrows to?
  *
@@ -422,5 +454,20 @@ export function withinOpeningArea(
   huc6: string | null | undefined, area: string | null
 ): boolean {
   if (area === null) return true;
-  return typeof huc6 === "string" && huc6.startsWith(area);
+  if (typeof huc6 !== "string") return false;
+  /* A code shorter than the selection is not a non-match, it is a question
+   * this function cannot answer: a four-digit rollup covers basins the
+   * six-digit selection does not name, so neither keeping it nor dropping it
+   * is true. `areaAtLevel` is what stops a caller getting here -- coarsen the
+   * selection to what the surface draws before filtering with it. Answering
+   * `false` silently is what emptied the snow page. */
+  if (huc6.length < area.length) {
+    console.warn(
+      `A drainage-area code of ${huc6.length} digits was tested against a ` +
+      `${area.length}-digit selection. Coarsen the selection with ` +
+      "`areaAtLevel` before filtering, or the surface reports no records at " +
+      "all for a scope that holds them.");
+    return false;
+  }
+  return huc6.startsWith(area);
 }
