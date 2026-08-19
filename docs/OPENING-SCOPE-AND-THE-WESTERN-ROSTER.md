@@ -300,6 +300,9 @@ and all three were taken by the owner rather than assumed here.
 | D7 | **AWDB's 137 first**, RISE second | The rules have already run over that pool and the evidence exists. Two reviewable changes rather than one large one; the review is the real cost and it does not shrink by merging them. |
 | D8 | The five reservoir-less states are offered | With the counts on the tile. Hiding them makes the site look smaller than it is, and region 17 alone holds 45% of the snow network. |
 
+| D9 | The **conservation pool** is the denominator, and a reservoir above it is published above 100% | It is the figure reservoirs are managed and reported against, so it is the one a reader is comparing against everywhere else. A reservoir that is genuinely above its conservation pool is genuinely above 100%, and printing 100% instead would be rounding a measurement down to a bound it does not have. |
+| D10 | A reservoir whose **source record contradicts itself** is withheld and reported, not published | Not the same question as D9. Over 100% is a fact about water; a source that states two irreconcilable capacities for one dam is a fact about the record, and publishing a percentage from it would give the error a denominator and a colour. |
+
 Three ADRs come out of this, written when the work lands rather than now:
 
 - **The reader chooses the opening scope.** The address bar wins, storage is the
@@ -430,23 +433,56 @@ What it may not do is publish before the storage map has somewhere to open.
    blocking the admission on.
 
 5. **What does a reservoir held above its conservation pool read as?**
-   Answered in part on 2026-08-19: not yet, and keep measuring. Five Pacific
-   Northwest flood-control dams in the candidate pool operate routinely at
-   1.31 to 2.89 times the denominator their capacity is taken from, so
-   percent-full reads above 100 on an ordinary day and `ReservoirViz.CLASSES`
-   has no class above full. None of the 69 published today exercises this,
-   which is why the colour table has never had to answer it. The decision is
-   deferred rather than taken, because R1's publishing half is gated on the
-   chooser regardless and a class added to that table touches every renderer,
-   legend, chart and filter generated from it, plus the frozen oracle's
-   parity test. It needs an ADR when the roster work starts, and refusing the
-   five is a real option that costs the Pacific Northwest five of the very few
-   reservoirs it would have.
+   **Settled 2026-08-19 (D9): as what it is.** The conservation pool stays the
+   denominator and the percentage is published as measured. Over 100% is the
+   ordinary case rather than the exception -- 61 of the 138 admissible
+   candidates exceed it somewhere in the record and 38 of those are inside
+   five points, which is Jackson Lake, Lake Tahoe, Palisades and American
+   Falls behaving normally. Refusing the reading would have dropped 44% of
+   the pool for filling up.
+
+   Nothing in the colour table has to move, which is the part the earlier
+   scoping had wrong: the top class is "80% and over" and is open-ended, so a
+   reservoir at 289% draws in the same band as one at 85% and
+   `ReservoirViz.CLASSES` is untouched. Its parity test is not in play. Two
+   real consequences remain, and both are small:
+
+   - `fillSize` in [`src/viz/symbols.ts`](../src/viz/symbols.ts) clamps the
+     fill disc to its ring, so on the map a reservoir at 289% and one at 100%
+     draw identically. That is right as geometry -- a disc cannot be fuller
+     than full -- and it means the map understates the four extreme cases
+     while the panel and the list state them. Worth knowing rather than
+     worth fixing.
+   - Eleven candidates have no conservation pool published at all and fall
+     back to the maximum. `capacity_basis` already names which figure was
+     used, per reservoir, and it must stay visible: a percentage of a flood
+     pool and a percentage of a conservation pool are not the same
+     measurement and ADR-046 is the general form of that rule.
 
 6. **Does ADR-065's ceiling survive one bad figure in the source record?**
-   The rule takes the largest of three inventory figures as the ceiling, so a
-   data-entry error widens the ceiling rather than tightening it. Lemon
-   Reservoir, Colorado publishes a maximum of 487,660 acre-feet against a
-   normal of 40,146 for a reservoir that holds about forty thousand. It
-   changed no outcome here. It is the failure mode the rule is exposed to and
-   the review found it on the first pool the rule was applied to at scale.
+   **Not on its own, and D10 is the answer.** The rule takes the largest of
+   three inventory figures as the ceiling, so an overstated figure widens the
+   ceiling rather than tightening it -- exactly the wrong direction for a
+   guard.
+
+   Measured across the 138, the discriminator is narrower than it first
+   looked. A conservation figure smaller than a maximum figure is the *shape
+   of the data*, not a fault: 102 of the 138 have one, because that is what a
+   flood pool is. The signal is two fields of the **same** inventory record
+   disagreeing, and on that test one reservoir stands alone.
+
+   | | max against nid storage |
+   |---|---:|
+   | Lemon Reservoir, CO | **10.0x** |
+   | next worst (Blackfoot, ID) | 1.6x |
+   | 20 others | 1.1x to 1.6x |
+
+   The 1.1x-1.6x cluster is two field definitions differing, which is not an
+   error. Lemon is a digit. So the withheld set is **one** reservoir, and the
+   rule costs the roster almost nothing to adopt.
+
+   The threshold is **2x**, chosen with one clear example in hand: it sits
+   well above the legitimate cluster and well below the one fault. It is
+   calibrated on a sample of one and must be revisited when R2 doubles the
+   pool -- said out loud here because a threshold that has only ever seen one
+   positive is a hypothesis, not a measurement.

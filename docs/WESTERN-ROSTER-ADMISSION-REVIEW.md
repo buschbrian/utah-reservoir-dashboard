@@ -312,6 +312,76 @@ new candidates, against 25 dams nobody has matched by that process yet. That
 is real work, independent of R1's 137, and it is a reasonable thing to scope
 as its own follow-up rather than something this review can wave through.
 
+## The denominator, measured (added 2026-08-19)
+
+The review's flagged table named five reservoirs that read far above full.
+Measuring the whole pool rather than the tail changes what the question is.
+
+**61 of the 138 admissible candidates exceed 100% somewhere in the record**,
+and the distribution is the finding:
+
+| Above full | Candidates |
+|---|---:|
+| 1.00 to 1.05 times | 38 |
+| 1.05 to 1.20 times | 15 |
+| 1.20 to 1.50 times | 4 |
+| above 1.50 times | 4 |
+
+Thirty-eight are inside five points. Jackson Lake, Lake Tahoe, Palisades,
+American Falls and Wickiup all sit at 1.00 to 1.01 -- reservoirs filling
+slightly past a nominal figure, which is what reservoirs do. Publishing 101%
+for them is the correct number, and a rule that refused everything above full
+would have dropped 44% of the pool for ordinary operation. Decision D9 in the
+scoping document settles it: the conservation pool stays the denominator and
+the reading is published as measured.
+
+### Two figures disagreeing is not the same as a source contradicting itself
+
+The first cut of this review treated a conservation figure smaller than a
+maximum figure as a discrepancy. It is not. **102 of the 138 have one**,
+because that is what a flood pool is -- two correct numbers describing two
+different pools of the same dam.
+
+The signal is two fields of the *same* inventory record disagreeing, and on
+that test the pool is almost clean:
+
+| Reservoir | max storage against NID storage |
+|---|---:|
+| **Lemon Reservoir, CO** | **10.0 times** |
+| Blackfoot Reservoir, ID | 1.6 |
+| San Carlos Reservoir, AZ | 1.5 |
+| 19 others | 1.1 to 1.4 |
+
+The 1.1-to-1.6 cluster is two field definitions differing and is not a fault.
+Lemon is a digit, and it is alone.
+
+### The withheld list, and what to send
+
+One reservoir, withheld under D10 -- admitted by the rules, held back because
+its source record contradicts itself.
+
+**Lemon Reservoir, Colorado.** Storage from Reclamation, station
+`09009070:CO:BOR`. Capacity from the National Inventory of Dams, record
+**CO01688, "Lemon Dam"**, matched by name and position at 0.115 km.
+
+| Field | Value, acre-feet |
+|---|---:|
+| Normal storage | 40,146 |
+| NID storage | 48,658 |
+| **Maximum storage** | **487,660** |
+| Highest storage observed since 2015 | 39,753 |
+
+The maximum-storage field is almost exactly ten times the NID-storage field
+of the same record. Eleven years of Reclamation readings peak at 39,753
+acre-feet, within 1% of the normal-storage figure and 8% of the stated
+maximum. A reservoir on the Florida River near Durango does not hold half a
+million acre-feet.
+
+**The report goes to USACE, not Reclamation.** All three capacity figures are
+the National Inventory of Dams', which the Corps maintains; Reclamation's
+readings are the evidence the figure is wrong, not the thing that is wrong.
+This is the only entry the western pool produces.
+
 ## What R1's publishing half still costs
 
 The plan names four artefacts per addition. What this review de-risks, and
