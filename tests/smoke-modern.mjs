@@ -3006,6 +3006,67 @@ for (const failure of [
   await context.close();
 }
 
+/*
+ * Simplified Technical English, measured on what a reader actually sees.
+ *
+ * ADR-006 has always been enforced as a vocabulary -- a list of retired terms
+ * that must not reappear. That is one of ASD-STE100's rules and not the only
+ * one. This checks the structural rule that a reader feels first: sentence
+ * length. The specification allows 20 words in a procedural sentence and 25 in
+ * a descriptive one, and every page here is descriptive.
+ *
+ * Measured on `innerText` rather than on source, because that is the text as
+ * the page renders it -- the same reason the retired-vocabulary check reads
+ * rendered text (a `text-transform` makes the page say something the source
+ * does not).
+ */
+{
+  const STE_WORD_LIMIT = 25;
+  const context = await browser.newContext({ viewport: VIEWPORTS[0] });
+  const tab = await context.newPage();
+  const pages = [
+    ["Storage map", "", "__dashboardReady"],
+    ["Storage charts", "overview.html", "__overviewReady"],
+    ["Snowpack", "snow.html", "__snowReady"],
+    ["Drought", "drought.html", "__droughtReady"],
+    ["Methods", "methods.html", null],
+    ["Data reference", "data.html", "__dataDocsReady"],
+    ["Terms", "terms.html", null]
+  ];
+  console.log("\n=== Simplified Technical English");
+  for (const [label, path, signal] of pages) {
+    await tab.goto(`${URL}${path}`, { waitUntil: "load", timeout: 90000 });
+    if (signal) {
+      await tab.waitForFunction((key) => window[key] !== undefined, signal,
+        { timeout: 90000 }).catch(() => {});
+    }
+    await tab.waitForFunction(() => document.body.innerText.length > 800,
+      null, { timeout: 60000 }).catch(() => {});
+    const long = await tab.evaluate((limit) => {
+      /* Prose lines only. A table row, a legend entry and a number are not
+       * sentences, and counting them would make the rule meaningless. A
+       * sentence ends at a full stop followed by a capital or a digit. */
+      const sentences = [];
+      for (const line of document.body.innerText.split("\n")) {
+        const text = line.trim();
+        if (text.length < 40 || text.includes("\t")) continue;
+        for (const part of text.split(/(?<=[.!?])\s+(?=[A-Z"\u2014\d])/)) {
+          if (part.trim().split(/\s+/).length >= 4) sentences.push(part.trim());
+        }
+      }
+      return sentences
+        .map((sentence) => ({ words: sentence.split(/\s+/).length, sentence }))
+        .filter((entry) => entry.words > limit);
+    }, STE_WORD_LIMIT);
+    console.log(`  ${label}: ${long.length} sentence(s) over ${STE_WORD_LIMIT} words`);
+    for (const entry of long) {
+      failures.push(`${label}: a ${entry.words}-word sentence, over the `
+        + `${STE_WORD_LIMIT}-word limit -- "${entry.sentence.slice(0, 90)}..."`);
+    }
+  }
+  await context.close();
+}
+
 await browser.close();
 server.close();
 

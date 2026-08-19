@@ -131,7 +131,7 @@ describe("the sections that have nothing to report", () => {
       areasWorse: 0, areasBetter: 0, biggestMove: null
     });
 
-    expect(lines.join(" ")).toContain("the first drought map this site has kept");
+    expect(lines.join(" ")).toContain("the first drought map this site keeps");
     expect(lines.join(" ")).toContain("next week");
   });
 

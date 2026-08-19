@@ -44,29 +44,27 @@ root.innerHTML = `
       <h1>How these numbers are made</h1>
       <aside class="methods-disclaimer" aria-labelledby="disclaimer-heading">
         <h2 id="disclaimer-heading">This is not an official product</h2>
-        <p>This site is a personal open-source project. It is not made, endorsed,
-          sponsored or checked by any government agency, any water district, or any
-          other organization, and it does not speak for any of them. Nothing on it is
+        <p>This site is a personal open-source project. It is not made, endorsed, sponsored or checked by any government agency, any
+        water district, or any other organization. It does not speak for any of
+        them. Nothing on it is
           an official record.</p>
-        <p>It reads public data services that anyone can use, and it names every source
-          and identifier so any value here can be checked against the agency that
-          published it. Where this site and an agency disagree, the agency is right.
+        <p>It reads public data services that anyone can use. It also names every source
+        and identifier, so a reader can check any value here against the agency that
+        published it. Where this site and an agency disagree, the agency is right.
           Do not use this site for an operating decision, a legal purpose, or anything
           where being wrong would matter — go to the publisher.</p>
         <p>It is also built in the open in another sense: much of the code is written
-          by AI agents working from stated requirements, with every change reviewed by
-          a person, tested, and recorded in the project's decision records. The code,
-          the daily pipeline and every decision behind them are public, so the way each
-          number is produced can be read rather than taken on trust.</p>
+        by AI agents working from stated requirements. A person reviews every change,
+        the change is tested, and the project's decision records keep it. The code, the daily pipeline and every decision behind them are public. A
+        reader can follow how each number is made rather than take it on trust.</p>
       </aside>
 
-      <p class="methods-lede">Every value on this site is an observation published by a
-        public agency, or something worked out from those observations by a rule written
-        down below. Nothing here is modelled, predicted or smoothed.</p>
-      <p class="methods-lede">Three things are worth reading before the numbers:
+      <p class="methods-lede">Every value on this site is an observation from a public agency. The rest are
+        figures worked out from those observations, by a rule written down below. Nothing here is modelled, predicted or smoothed.</p>
+      <p class="methods-lede">Three things are worth reading before the numbers.
         these reservoirs are <a href="#limits">operated</a>, so storage reflects releases
-        as well as weather; snow and storage are compared against
-        <a href="#limits">different periods</a>; and "full" is measured against
+        as well as weather. Snow and storage use
+        <a href="#limits">different periods</a>. And "full" can mean
         <a href="#values">more than one kind of full level</a>.</p>
       <p class="methods-status" id="methods-status" role="status" aria-live="polite"
         aria-busy="true">Reading the published data&hellip;</p>
@@ -88,9 +86,8 @@ root.innerHTML = `
 
     <section class="methods-section" id="sources" aria-labelledby="sources-heading">
       <h2 id="sources-heading">Where the numbers come from</h2>
-      <p>Storage observations come from two federal programmes. Each reservoir record
-        names the one it came from, together with the identifier used to request it, so
-        any value on this site can be traced back to its publisher.</p>
+      <p>Storage observations come from two federal programmes. Each reservoir record names the one it came from, with the identifier that
+        requested it. Any value on this site therefore traces back to its publisher.</p>
       <dl class="methods-list">
         <dt>Bureau of Reclamation</dt>
         <dd>Daily storage for the larger reservoirs, through the agency's public data
@@ -102,18 +99,17 @@ root.innerHTML = `
           <a href="https://wcc.sc.egov.usda.gov/awdbRestApi/swagger-ui.html"
             target="_blank" rel="noreferrer">the water and climate data service</a>.</dd>
         <dt>Full level for Bureau of Reclamation sites</dt>
-        <dd>The U.S. Army Corps of Engineers National Inventory of Dams. These figures are
-          committed to the repository rather than requested each morning, because a full
-          level is a property of the dam and does not change daily. Read the source at
+        <dd>The U.S. Army Corps of Engineers National Inventory of Dams. The repository holds these figures rather than requesting them each morning. A
+        full level is a property of the dam and does not change daily. Read the source at
           <a href="https://nid.sec.usace.army.mil/" target="_blank"
             rel="noreferrer">the National Inventory of Dams</a>.</dd>
         <dt>Full level for the other sites</dt>
         <dd>The reservoir details published by the Natural Resources Conservation Service
           alongside the storage readings.</dd>
         <dt>Snow measurements</dt>
-        <dd>Daily snow water equivalent for the mountain sites on the snowpack page, from
-          the same Natural Resources Conservation Service water and climate service the
-          storage readings use. Each reading is compared with the middle value for the
+        <dd>Daily snow water equivalent for the mountain sites on the snowpack page. It
+        comes from the same Natural Resources Conservation Service water and climate
+        service as the storage readings. Each reading is compared with the middle value for the
           same day in the years 1991 through 2020, the standard comparison period that
           service publishes.</dd>
         <dt>Drought conditions</dt>
@@ -140,13 +136,11 @@ root.innerHTML = `
     <section class="methods-section" id="collection" aria-labelledby="collection-heading">
       <h2 id="collection-heading">How the data is collected</h2>
       <ol class="methods-steps">
-        <li><strong>Once every morning.</strong> A scheduled job runs at 5 in the morning,
-          mountain standard time, and asks each provider for the newest readings for every
-          reservoir in the inventory.</li>
-        <li><strong>Each reservoir is requested by a fixed identifier.</strong> The
-          identifiers are held in the refresh script and are not discovered at run time, so
-          the same request is made every day and a reservoir cannot quietly change meaning
-          between one morning and the next.</li>
+        <li><strong>Once every morning.</strong> A scheduled job runs at 5 in the morning, mountain standard time. It asks each
+        provider for the newest readings for every reservoir in the inventory.</li>
+        <li><strong>Each reservoir is requested by a fixed identifier.</strong> The refresh script holds the identifiers and does not discover them at run
+        time. It makes the same request every day, so a reservoir cannot quietly
+        change meaning between one morning and the next.</li>
         <li><strong>A failed request is retried, then given up on.</strong> If a provider
           cannot be reached, the reservoir keeps its last known reading and is marked as
           having late data. It is never dropped from the map and its old value is never
@@ -173,9 +167,9 @@ root.innerHTML = `
       <dl class="methods-list">
         <dt>Percent full</dt>
         <dd>Storage now, divided by the full level. The full level is the reservoir's
-          capacity where a traceable capacity exists. Where it does not, the highest storage
-          recorded since 2015 is used instead, and the reservoir details say which of the
-          two the percentage is measured against.</dd>
+          capacity where a traceable capacity exists. Where it does not, the site uses the highest storage recorded since 2015
+        instead. The reservoir details say which of the two the percentage measures
+        against.</dd>
         <dt>Which full level</dt>
         <dd>Three different full levels reach this site, and they do not mean the same
           thing. A <strong>normal full level</strong> is the amount a reservoir is operated
@@ -183,36 +177,33 @@ root.innerHTML = `
           kept empty to catch a flood and is not meant to be occupied. A third group carries
           the full level the water and climate service publishes beside its readings. Each
           reservoir's details name the one used for it.
-          <br />This matters most where it is least visible. Four reservoirs are measured
-          against a maximum level, and because Lake Powell is one of them, those four make up
-          about seven tenths of the combined full level that every regional percentage is
-          divided by. A reservoir measured against a maximum level reads lower than the same
-          reservoir measured against a normal one, so combined figures on this site are
-          slightly lower than they would be if one basis were used throughout. We publish the
+          <br />This matters most where it is least visible. Four reservoirs are measured against a maximum level, and Lake Powell is one
+        of them. Those four are about seven tenths of the combined full level that
+        every regional percentage divides by. A reservoir measured against a maximum level reads lower than the same
+        reservoir measured against a normal one. Combined figures on this site are
+        therefore slightly lower than a single basis would give. We publish the
           basis rather than silently converting between them, because converting would mean
           inventing numbers the dam owners have not published.</dd>
         <dt>Normal for this week</dt>
         <dd>The middle value of readings taken within seven days before or after the same
           date in earlier years. It answers "is this a normal amount of water for the time
-          of year", which percent full on its own cannot: the same percentage means
+          of year". Percent full on its own cannot: the same percentage means
           different things in April and in September.
-          <br /><strong>You choose which years.</strong> The storage map has a
-          "Compare against" control with two periods, and each reservoir says which one its
-          number came from and how many years stand behind it.
+          <br /><strong>You choose which years.</strong> The storage map has a "Compare against" control with two periods. Each
+        reservoir says which one its number came from, and how many years stand behind
+        it.
           <ul>
             <li><strong>1991 through 2020</strong> is the thirty-year period the World
               Meteorological Organization defines as standard, and the same period the
-              mountain snow measurements use. The map opens on it. It is built once from
-              the full provider records and kept in the repository, because a middle value
-              over a period that has ended cannot change.</li>
+              mountain snow measurements use. The map opens on it. The site builds it once from the full provider records and keeps it in the
+        repository. A middle value over a period that ended cannot change.</li>
             <li><strong>2015 through last year</strong> is every year this site collects.
-              Those years have been unusually dry here, so a reservoir can look ordinary
-              against them and still be low.</li>
+              Those years were unusually dry here, so a reservoir can look ordinary against them and still be low.</li>
           </ul>
           Sixty-three of the sixty-nine reservoirs have enough years for the standard
-          period. The rest are newer than it — Jackson Flat's dam dates from 2017 — and
-          their details say so and give the other period's value instead of a middle value
-          taken from three or four years.</dd>
+          period. The rest are newer than it, and Jackson Flat's dam dates from 2017. Their
+        details say so, and give the other period's value instead of a middle value
+        taken from three or four years.</dd>
         <dt>History rank</dt>
         <dd>How this reading compares with readings near the same date in earlier years.
           90% means it is higher than 90% of them. The current year is not counted against
@@ -224,22 +215,23 @@ root.innerHTML = `
           reading sits, not as a measurement.</dd>
         <dt>Change</dt>
         <dd>The difference between the newest reading and the reading nearest 7, 30 or 365
-          days before it, where the provider publishes often enough to support it.</dd>
+        days before it. Shown where the provider publishes often enough to support
+        it.</dd>
         <dt>The last 12 months</dt>
         <dd>For each month, the average, lowest, highest and closing storage, and the normal
           value for that month against whichever period is selected. The chart in the
           reservoir details shows the average, and the percentages under it use the same
-          full level the map colours by. A monthly normal value is the middle of that
-          calendar month's average storage across the years in the period, so a reservoir
-          read once a month and one read every day are weighted the same.</dd>
+          full level the map colours by. A monthly normal value is the middle of that calendar month's average storage
+        across the years in the period. A reservoir read once a month and one read
+        every day therefore carry the same weight.</dd>
         <dt>Combined percentages</dt>
-        <dd>Storage added up across reservoirs, divided by their full levels added up. A
-          large reservoir therefore counts for more than a small one, which is why Lake
-          Powell can be added and removed: it is large enough to hide local conditions
-          inside a single total.</dd>
+        <dd>Storage added up across reservoirs, divided by their full levels added up. A large reservoir therefore counts for more than a small one. That is why Lake
+        Powell has its own control: it is large enough to hide local conditions inside
+        a single total.</dd>
         <dt>Late data</dt>
-        <dd>A reading is late when it is older than the schedule its provider publishes on:
-          more than two days for daily readings, more than 45 days for month-end readings.
+        <dd>A reading is late when it is older than the schedule its provider publishes on.
+        That is more than two days for daily readings, and more than 45 days for
+        month-end readings.
           Late reservoirs stay on the map, marked, with the date of the reading they
           carry.</dd>
       </dl>
@@ -265,16 +257,16 @@ root.innerHTML = `
       <p>A reservoir is placed in a drainage area by its dam or outlet point, not by the
         middle of its water surface. A large reservoir can cross a boundary, and what
         matters is where the stored water leaves it.</p>
-      <p>The maps draw every drainage area of the west: all the land that drains to the
-        Pacific Ocean, and the Great Basin, whose water reaches no ocean at all. That is
+      <p>The maps draw every drainage area of the west. That is all the land that drains
+        to the Pacific Ocean, and the Great Basin, whose water reaches no ocean at
+        all. That is
         75 areas. Drought is measured for all of them.</p>
       <p>Each map offers two area sizes, and the reader chooses. Basins are the smaller
         of the two, 75 of them, and are what a map opens with. Subregions are larger and
         there are 44; each one holds whole basins, so nothing is split by the choice.
-        Every figure on the page is measured again at the size chosen — the drought
-        shares are computed over the larger areas, the reservoir totals are added over
-        them, and the snow figures are the mean over the same measurement sites grouped
-        differently. No figure is an average of the smaller areas' figures.</p>
+        Every figure on the page is measured again at the size chosen. The drought shares cover the larger areas, and the reservoir totals add up
+        over them. The snow figures are the mean over the same measurement sites in a
+        different grouping. No figure is an average of the smaller areas' figures.</p>
       <p>A reservoir is admitted from a smaller set. Its drainage area must touch Utah and
         belong to the Colorado River or Great Basin systems. Areas that drain to the
         Columbia River system are left out, because water stored in them never reaches
@@ -294,8 +286,8 @@ root.innerHTML = `
         <li>Published values are provisional. A provider can revise a reading after the
           fact, and the next morning's refresh will carry the revision.</li>
         <li>A full level taken from the highest storage since 2015 is a floor, not a
-          capacity: a reservoir that has never filled during that period will read higher
-          than it would against its true capacity.</li>
+        capacity. A reservoir that never filled in that period reads higher than it
+        would against its true capacity.</li>
         <li><strong>The years you compare against change the answer, and by a lot.</strong>
           Lake Powell in August 2026 is at 44.6% of normal measured against 2015 through
           2025, and at 35.0% measured against 1991 through 2020. Both are correct. The
@@ -367,9 +359,9 @@ root.innerHTML = `
         decision record are public at
         <a href="https://github.com/buschbrian/utah-water-dashboard" target="_blank"
           rel="noreferrer">github.com/buschbrian/utah-water-dashboard</a>.
-        The code is copyright &copy; 2026 Brian Busch and is licensed for
-        noncommercial use; the <a href="./terms.html">terms and license page</a>
-        states what that means and how to license the dashboard commercially.</p>
+        The code is copyright &copy; 2026 Brian Busch, licensed for
+        noncommercial use. The <a href="./terms.html">terms and license page</a>
+        states what that means, and how to license the dashboard commercially.</p>
     </section>
   </main>`;
 wireTheme();

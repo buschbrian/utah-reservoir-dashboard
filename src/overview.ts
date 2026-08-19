@@ -157,7 +157,7 @@ async function renderOverview(
       <div class="card-heading">
         <div>
           <h2 id="weekly-heading">What moved this week</h2>
-          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so turning Lake Powell off changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
+          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so a change to the Lake Powell control changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
           <p class="weekly-scope" data-weekly="scope" role="status" aria-live="polite"></p>
         </div>
       </div>

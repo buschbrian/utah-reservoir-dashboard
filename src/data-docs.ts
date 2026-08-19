@@ -79,10 +79,9 @@ root.innerHTML = `
           <a href="./data/drought/usdm-current.geojson"><code>/data/drought/usdm-current.geojson</code></a>.</p>
         <p>The same measurement over larger drainage areas is published at
           <a href="./data/drought/usdm-huc4.json"><code>/data/drought/usdm-huc4.json</code></a>:
-          44 subregions instead of 75 basins. Every file states its own
-          <code>level</code>, and each area carries its code under the attribute that
-          level names — <code>huc4</code> in that file and <code>huc6</code> in this
-          one.</p>
+          44 subregions instead of 75 basins. Every file states its own <code>level</code>. Each area carries its code under
+          the attribute that level names: <code>huc4</code> in that file, and
+          <code>huc6</code> in this one.</p>
       </article>
       <article class="api-file">
         <h3>Capacity and geography reference</h3>
@@ -135,8 +134,8 @@ print(data["reservoirs"])</code></pre>
     <section class="methods-section" id="access" aria-labelledby="access-heading">
       <h2 id="access-heading">Browser access and terms</h2>
       <p>GitHub Pages returned <code>Access-Control-Allow-Origin: *</code> for the
-        published files when checked on August 14, 2026; every file here is served the
-        same way from the same site. A browser application on another origin can
+        published files when checked on August 14, 2026. Every file here comes from the
+        same site in the same way. A browser application on another origin can
         fetch them directly. Responses can be cached for up to 10 minutes, so a newly
         published file may not appear at every edge immediately.</p>
       <ul class="methods-plain">
