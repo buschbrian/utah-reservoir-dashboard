@@ -152,7 +152,6 @@ SCOPES = {
         description="Every HUC4 subregion draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc4"),
         output="data/watersheds/west-huc4.geojson",
-        published=False,
         level=4,
         # Measured 2026-08-18, regions 14-18: 44 subregions.
         expected_range=(40, 50),
@@ -199,6 +198,20 @@ DEFAULT_SCOPE = "west-huc6"
 # follows the reservoirs out. `tests/test_watershed_scopes.py` asserts every
 # roster point is inside this scope, so it cannot be forgotten.
 ROSTER_SCOPE = "utah-connected"
+
+# The levels a reader may choose between, and the scope drawn at each
+# (ADR-064). `DEFAULT_SCOPE` must be one of them, and is what a reader who
+# chooses nothing gets.
+#
+# A mapping rather than a list of levels, because the client needs the scope
+# name to read the roster out of `reference.json` -- and a client scanning the
+# scopes for one at the right level would pick `utah-connected` or `west-huc6`
+# by dictionary order, which is a geography chosen by accident.
+#
+# HUC-8 is absent and that is a decision rather than an omission: 571 areas is
+# eight times the hosted-outline cost measured in ADR-063, and the archive
+# needs its own answer first.
+DRAWN_SCOPES = {6: "west-huc6", 4: "west-huc4"}
 
 
 def get_scope(name: str) -> WatershedScope:

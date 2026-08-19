@@ -53,7 +53,14 @@ export function isFiltered(state: FilterState): boolean {
 export function matchesFilter(reservoir: Reservoir, state: FilterState): boolean {
   if (state.reporting === "late" && !isLate(reservoir)) return false;
   if (state.reporting === "current" && isLate(reservoir)) return false;
-  if (state.drainageArea !== null && reservoir.huc6 !== state.drainageArea) return false;
+  /* Matched by prefix rather than by equality, which is exact at either level
+   * a reader may choose: hydrologic codes are fixed-width and nest, so a
+   * four-digit choice is the subregion a six-digit code sits inside and a
+   * six-digit choice still matches only itself (ADR-064). */
+  if (state.drainageArea !== null
+    && reservoir.huc6?.slice(0, state.drainageArea.length) !== state.drainageArea) {
+    return false;
+  }
   if (state.storageClass === null) return true;
   return classIndexOf(reservoir) === state.storageClass;
 }

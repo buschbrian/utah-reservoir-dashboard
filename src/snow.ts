@@ -21,7 +21,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import "@esri/calcite-components/components/calcite-slider";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageScope } from "./data/boundaries";
+import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
 import { loadSnowpack } from "./data/snow-load";
 import {
   basinChoices,
@@ -34,6 +34,7 @@ import {
   normalPeriodLabel,
   observedPeak,
   measuredScope,
+  payloadAtLevel,
   percentOfNormal,
   regionCurve,
   seasonHighPoint,
@@ -55,9 +56,11 @@ import {
   type SiteFilter,
   type SiteStatus
 } from "./snow-model";
+import { levelFromSearch, writeLevel } from "./state/level";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { createLevelControl } from "./ui/level-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
@@ -309,6 +312,7 @@ function renderSnow(payload: SnowpackPayload): void {
       status: siteFilter.status
     };
   }
+  let levelsOffered = 1;
   let lastCurvePoints = 0;
   let lastSiteCurvePoints = 0;
   let lastBasinCurvePoints = 0;
@@ -326,6 +330,8 @@ function renderSnow(payload: SnowpackPayload): void {
       siteCurvePoints: lastSiteCurvePoints,
       basin: currentBasin,
       basinCurvePoints: lastBasinCurvePoints,
+      level,
+      levelsOffered,
       ...(map ? {
         mapBasins: map.status.basins,
         mapSites: map.status.sites,
@@ -775,6 +781,29 @@ function renderSnow(payload: SnowpackPayload): void {
     applyFilter({ query: "", band: "all", status: "all" });
   });
 
+  /* The level control arrives with the reference export, which the map below
+   * fetches anyway, so the page a reader asked for is never waiting on it
+   * (ADR-064). */
+  void loadOfferedLevels().then((offered) => {
+    const control = createLevelControl(offered, level, (chosen) => {
+      /* A full navigation rather than a re-render: every figure on this page
+       * is a mean over a different set of sites at the other level, so this
+       * is the path a shared link already takes. Replaced, not pushed, like
+       * every other control here. */
+      const params = new URLSearchParams(window.location.search);
+      writeLevel(params, chosen);
+      const query = params.toString();
+      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+      /* Large, because the native selects it sits beside are a third taller
+       * than a Calcite control at the default scale. */
+    }, { scale: "l" });
+    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    levelsOffered = offered.length || 1;
+    publishReady();
+  }).catch((error: unknown) => {
+    console.warn("The area-size control could not be built:", error);
+  });
+
   area.addEventListener("change", update);
   sitePicker.addEventListener("change", () => {
     renderSiteDetail(sitePicker.value || null);
@@ -823,7 +852,7 @@ function renderSnow(payload: SnowpackPayload): void {
       installAnonymousAuthPolicy();
       /* The areas this payload has snow for, not every area drawn: see
        * `measuredScope`. */
-      const scope = measuredScope(await loadDrainageScope(), payload);
+      const scope = measuredScope(await loadDrainageScope(level), payload);
       if (scope.areas.length === 0) throw new Error("no drainage boundaries");
       /* Framed, controlled and constrained exactly like the storage map,
        * with the hover card already beside it in the host. */
@@ -873,8 +902,13 @@ function renderSnow(payload: SnowpackPayload): void {
   })();
 }
 
+const level = levelFromSearch(window.location.search);
+
 try {
-  const payload = await loadSnowpack();
+  /* Regrouped before anything reads it, so the picker, the curves, the table,
+   * the map and the `?basin=` link all describe the areas the reader asked
+   * for and none of them has to know a level exists (ADR-064). */
+  const payload = payloadAtLevel(await loadSnowpack(), level);
   renderSnow(payload);
 } catch (error) {
   console.error("Snowpack view failed:", error);

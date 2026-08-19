@@ -5,7 +5,8 @@ import {
   MASK_FILL,
   MASK_LINE,
   REFERENCE_SCHEMA_VERSION,
-  JOINABLE_LEVEL,
+  DEFAULT_LEVEL,
+  JOINABLE_LEVELS,
   parseDrainageUnits,
   parseUtahBoundary,
   referenceGeography,
@@ -119,13 +120,48 @@ describe("the drainage-area roster", () => {
       .toEqual([]);
   });
 
-  /* Every figure on this site -- storage banked in an area, drought
-   * coverage, snow percent of normal, and each reservoir's own code -- is a
-   * six-digit fact. A scope published at another size would draw shapes no
-   * figure describes. */
-  it("keys the figures at the level the payload publishes", () => {
-    expect(JOINABLE_LEVEL).toBe(6);
-    expect(referenceGeography(readReferenceExport())?.level).toBe(JOINABLE_LEVEL);
+  /* Every figure on this site -- storage banked in an area, drought coverage,
+   * snow percent of normal -- exists at both offered levels (ADR-064), and at
+   * no other. A scope drawn at a size no figure describes would put shapes on
+   * the map whose hover cards come back empty. */
+  it("keys the figures at the levels the export offers", () => {
+    expect(JOINABLE_LEVELS).toEqual([4, 6]);
+    expect(DEFAULT_LEVEL).toBe(6);
+
+    const reference = readReferenceExport();
+    const geography = referenceGeography(reference);
+    expect(geography?.level).toBe(DEFAULT_LEVEL);
+    /* Every offered level is one the figures exist at, and the default is one
+     * of them: a level offered with no figures behind it is a control that
+     * empties the map. */
+    expect(geography?.levels).toEqual([4, 6]);
+    for (const level of geography?.levels ?? []) {
+      expect(JOINABLE_LEVELS).toContain(level);
+      expect(referenceGeography(reference, level)?.level).toBe(level);
+    }
+    expect(geography?.levels).toContain(DEFAULT_LEVEL);
+  });
+
+  it("draws the coarser scope when the reader asks for it", () => {
+    const four = referenceGeography(readReferenceExport(), 4);
+    const six = referenceGeography(readReferenceExport(), 6);
+
+    expect(parseDrainageUnits(four?.drainage, 4)).toHaveLength(44);
+    expect(parseDrainageUnits(six?.drainage, 6)).toHaveLength(75);
+    /* Codes nest, which is what makes every figure regroupable: each of the
+     * 75 basins sits inside one of the 44 subregions. */
+    const subregions = new Set(parseDrainageUnits(four?.drainage, 4)
+      .map((area) => area.huc6));
+    for (const basin of parseDrainageUnits(six?.drainage, 6)) {
+      expect(subregions.has(basin.huc6.slice(0, 4))).toBe(true);
+    }
+  });
+
+  it("falls back to the default for a level it does not offer", () => {
+    /* A saved link to a level this site has stopped offering opens the map it
+     * has, rather than an empty one. */
+    const geography = referenceGeography(readReferenceExport(), 8);
+    expect(geography?.level).toBe(DEFAULT_LEVEL);
   });
 
   it("names an area after its code when the name is missing", () => {

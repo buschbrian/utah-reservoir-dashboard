@@ -222,6 +222,14 @@ export interface SnowRollup {
   series: SnowRollupDay[];
 }
 
+/** A subregion's code and name, for a reader who asks for the coarser
+ * grouping (ADR-064). Names only: the code is the first four digits of one
+ * every site already carries. */
+export interface Subregion {
+  huc4: string;
+  name: string;
+}
+
 export interface SnowpackPayload {
   schema_version: number;
   generated_at: string;
@@ -234,6 +242,8 @@ export interface SnowpackPayload {
   site_count: number;
   late_site_count: number;
   rollups: SnowRollup[];
+  /** Absent in a payload written before the second level existed. */
+  subregions?: Subregion[];
   sites: SnowSite[];
 }
 

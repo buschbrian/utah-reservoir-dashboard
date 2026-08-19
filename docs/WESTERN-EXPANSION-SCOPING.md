@@ -170,9 +170,10 @@ unmeasured.
 
 **The roster did not move**, so 61 areas hold nothing and the storage map's
 extent was decoupled from the drawn scope to keep the opening view on the
-reservoirs. Steps 2 and 3 below are unchanged. Step 4 -- watch the snow page --
-is answered for now by not expanding it: the snow map draws the 14 areas the
-network reports in, and `snowpack.json` is untouched at 98.6 KB.
+reservoirs. Step 4 -- watch the snow page -- is answered for now by not
+expanding it: the snow map draws the areas the network reports in, and
+`snowpack.json` is 98.8 KB gzipped, 0.1 KB of that the subregion names the
+second level needed.
 
 ## What this suggests doing, in order
 
@@ -181,7 +182,13 @@ network reports in, and `snowpack.json` is untouched at 98.6 KB.
    already keyed at, and no new level machinery. The registry, the boundary
    file, and the level plumbing (ADR-050) all exist.
 
-2. **Then add the level selector**, HUC4 and HUC6 first. Free in the
+2. **Then add the level selector**, HUC4 and HUC6 first. *(Done 2026-08-18,
+   ADR-064. The measurement held: the station payloads did not move at all,
+   and the whole cost was 2.0 KB of coverage, 0.9 KB of roster and 0.1 KB of
+   subregion names, gzipped. The decision ADR-050 needed is recorded there --
+   a reader-chosen level is a scope change, and what that record protects is
+   that every drawn area has a figure behind it, which publishing the figures
+   at both levels is how this keeps.)* Free in the
    expensive payloads, per the measurement above. This needs a decision
    recorded against ADR-050: that record says the drawn level is the *scope's*
    and deliberately not the *view's*, and a reader-chosen level is a scope

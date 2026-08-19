@@ -121,6 +121,18 @@ describe("public API field documentation", () => {
     expectFields(DROUGHT_GROUPS, "drought-measured", merged(measured));
   });
 
+  it("covers the same fields in the coarser drought file", () => {
+    /* The second level offered (ADR-064). Same shape, same groups, and each
+     * area's code under the attribute its level names -- so documenting one
+     * file and publishing two is how a reader of the other is left guessing. */
+    const data = read("data/drought/usdm-huc4.json");
+    expect(data.level).toBe(4);
+    expectFields(DROUGHT_GROUPS, "drought-header", data);
+    expectFields(DROUGHT_GROUPS, "drought-unit", merged(data.units));
+    expect(data.units.every((unit: Record<string, any>) => typeof unit.huc4 === "string"))
+      .toBe(true);
+  });
+
   it("keeps API explanations in plain language", () => {
     const prose = [...RESERVOIR_GROUPS, ...SNOW_GROUPS, ...DROUGHT_GROUPS, ...REFERENCE_GROUPS]
       .flatMap((section) => [section.title,

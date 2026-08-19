@@ -232,16 +232,41 @@ export function subregionOptions(
     .map((code) => ({ code, label: names.get(code) || code }));
 }
 
-export function watershedOptions(reservoirs: readonly Reservoir[]): Array<{
+export function watershedOptions(
+  reservoirs: readonly Reservoir[],
+  level = 6,
+  names: ReadonlyMap<string, string> = new Map()
+): Array<{
   code: string;
   label: string;
 }> {
   const labels = new Map<string, string>();
   for (const reservoir of reservoirs) {
-    if (reservoir.huc6) labels.set(reservoir.huc6, reservoir.huc6_name ?? reservoir.huc6);
+    if (!reservoir.huc6) continue;
+    /* At the coarser level the code is the first four digits -- fixed-width
+     * codes nest -- and the name has to come from a roster, because the
+     * record carries its basin's name and not its subregion's. That roster is
+     * `watersheds.subregions` in the same payload (ADR-060, ADR-064); an area
+     * it does not name is labelled by its code. */
+    const code = reservoir.huc6.slice(0, level);
+    const label = code === reservoir.huc6
+      ? reservoir.huc6_name ?? code
+      : names.get(code) ?? code;
+    labels.set(code, label);
   }
   return [...labels].map(([code, label]) => ({ code, label }))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** The subregion names a payload publishes, for `watershedOptions` to label
+ * the coarser grouping with. Empty for a payload written before they were
+ * published, which labels by code rather than failing. */
+export function subregionNames(payload: {
+  watersheds?: { subregions?: { huc4: string; name: string }[] };
+}): Map<string, string> {
+  return new Map((payload.watersheds?.subregions ?? [])
+    .filter((entry) => typeof entry?.huc4 === "string" && entry.huc4.length === 4)
+    .map((entry) => [entry.huc4, typeof entry.name === "string" ? entry.name : ""]));
 }
 
 /**

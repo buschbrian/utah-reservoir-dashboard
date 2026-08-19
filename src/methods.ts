@@ -268,6 +268,13 @@ root.innerHTML = `
       <p>The maps draw every drainage area of the west: all the land that drains to the
         Pacific Ocean, and the Great Basin, whose water reaches no ocean at all. That is
         75 areas. Drought is measured for all of them.</p>
+      <p>Each map offers two area sizes, and the reader chooses. Basins are the smaller
+        of the two, 75 of them, and are what a map opens with. Subregions are larger and
+        there are 44; each one holds whole basins, so nothing is split by the choice.
+        Every figure on the page is measured again at the size chosen — the drought
+        shares are computed over the larger areas, the reservoir totals are added over
+        them, and the snow figures are the mean over the same measurement sites grouped
+        differently. No figure is an average of the smaller areas' figures.</p>
       <p>A reservoir is admitted from a smaller set. Its drainage area must touch Utah and
         belong to the Colorado River or Great Basin systems. Areas that drain to the
         Columbia River system are left out, because water stored in them never reaches

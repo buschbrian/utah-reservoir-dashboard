@@ -102,6 +102,30 @@ as context around its subject. The two committed files must agree area for
 area -- fetched at different generalizations they did not, and two drought
 figures moved by a rounding step with no weather behind them.
 
+**Two levels are offered and the reader picks** (ADR-064). HUC-6 is the
+default and HUC-4 is the other; every figure is published at both, which is
+what makes a reader-chosen level a scope change rather than the view-scale
+change ADR-050 refuses. Drought coverage is computed per level into
+`data/drought/usdm-huc{level}.json`; storage regroups on `huc6[:4]`, exact
+because codes nest; snow regroups from *sites* with the pipeline's rule, never
+by averaging the published basin means. **Every coverage file must describe
+one week** -- `check_drought_pair.py` globs them all, because a reader who
+changes the level fetches a different file. **The archive is one level**, and
+`merge_history` refuses a payload at another rather than joining two series on
+one set of codes.
+
+**`?level=` is one parameter across all three maps**, like `?area=`, and it
+carries the digit count rather than a word because that is what every payload
+states and `data.html` documents. Absent means basins; a link never carries
+`level=6`. Changing it is a **navigation**, not a re-render: the level changes
+which files a page fetches and every figure computed from them, so the control
+takes the path a shared link already takes -- `location.replace`, never push.
+The control is appended when `reference.json` resolves rather than written into
+a template, because which levels are on offer is the export's answer
+(`drawn_scopes`), and it is built at the Calcite scale of the controls beside
+it -- the filter bars hold native selects a third taller than a default-scale
+Calcite one.
+
 **The maps draw the level the payload declares** (ADR-050). No client file
 names a hydrologic level; it arrives as `DrainageScope { level, areas }` and
 the code is read from the attribute that level names. `JOINABLE_LEVEL` in

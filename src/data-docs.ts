@@ -77,6 +77,12 @@ root.innerHTML = `
           downloaded. Shown on the <a href="./drought.html">drought page</a>. The
           national polygons the shares are calculated from are published beside it at
           <a href="./data/drought/usdm-current.geojson"><code>/data/drought/usdm-current.geojson</code></a>.</p>
+        <p>The same measurement over larger drainage areas is published at
+          <a href="./data/drought/usdm-huc4.json"><code>/data/drought/usdm-huc4.json</code></a>:
+          44 subregions instead of 75 basins. Every file states its own
+          <code>level</code>, and each area carries its code under the attribute that
+          level names — <code>huc4</code> in that file and <code>huc6</code> in this
+          one.</p>
       </article>
       <article class="api-file">
         <h3>Capacity and geography reference</h3>

@@ -194,6 +194,10 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("normal_period", "object", "Standard climate comparison period."),
     f("units", "text", "Storage unit used by each site series."),
     f("site_series_fields", "array", "Meaning and order of values in each compact site-series row."),
+    f("subregions", "array",
+      "Names of the larger drainage areas the sites fall in, for a reader " +
+      "who asks for that grouping. Codes are the first four digits of each " +
+      "site's own drainage-area code."),
     f("series_dates", "array", "The water-year calendar the sites index into, ascending, written once."),
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),
@@ -281,8 +285,12 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
     f("classes", "text", "How the drought classes relate to each other.")
   ]},
   { id: "drought-unit", title: "Drainage-area record", path: "units[]", fields: [
-    f("huc6", "identifier", "Six-digit drainage-area code."),
-    f("huc6_name", "text", "Six-digit drainage-area name."),
+    f("huc6", "identifier",
+      "Six-digit drainage-area code. Present in the file at that level.", true),
+    f("huc6_name", "text", "Six-digit drainage-area name.", true),
+    f("huc4", "identifier",
+      "Four-digit drainage-area code. Present in the file at that level.", true),
+    f("huc4_name", "text", "Four-digit drainage-area name.", true),
     f("percent_of_area", "object",
       "Share of the measured land in exactly each class. " +
       "Absent when the drought monitor measures none of the area.", true),
@@ -367,11 +375,16 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
   { id: "reference-watersheds", title: "Drainage-area scopes", path: "geography.watersheds", fields: [
     f("default_scope", "identifier", "Scope the maps draw."),
     f("roster_scope", "identifier", "Scope the reservoir roster covers."),
+    f("drawn_scopes", "object",
+      "Scope drawn at each area size a reader may choose, keyed by the length of its codes."),
     f("scopes", "object", "Named scope entries.")
   ]},
   { id: "reference-scope", title: "Named scope", path: "geography.watersheds.scopes.<scope>", fields: [
     f("description", "text", "Scope inclusion rule."),
-    f("huc6", "array", "Six-digit drainage-area codes."),
+    f("huc6", "array",
+      "Six-digit drainage-area codes. Present in a scope at that level.", true),
+    f("huc4", "array",
+      "Four-digit drainage-area codes. Present in a scope at that level.", true),
     f("name", "identifier", "Stable scope name."),
     f("source_file", "file name", "Reviewed boundary source file."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
@@ -379,7 +392,10 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("units", "array", "Drainage areas in the scope, by code and name.")
   ]},
   { id: "reference-scope-unit", title: "Drainage area", path: "geography.watersheds.scopes.<scope>.units[]", fields: [
-    f("huc6", "identifier", "Six-digit drainage-area code."),
+    f("huc6", "identifier",
+      "Six-digit drainage-area code. Present in a scope at that level.", true),
+    f("huc4", "identifier",
+      "Four-digit drainage-area code. Present in a scope at that level.", true),
     f("name", "text", "Drainage-area name."),
     f("states", "text", "States touched by the drainage area.")
   ]},

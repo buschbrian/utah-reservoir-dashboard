@@ -21,6 +21,7 @@ from compute_drought_coverage import (  # noqa: E402
     HISTORY_WEEKS_KEPT,
     LEVELS,
     build_payload,
+    unit_field,
     history_entry,
     land_mask_segments,
     merge_history,
@@ -197,24 +198,89 @@ class TestCommittedOutput:
                 previous = at_least[level]
 
 
-def week_payload(map_date, release_date="2026-08-13", d4=10.0):
-    """The smallest thing shaped like a computed week."""
+def week_payload(map_date, release_date="2026-08-13", d4=10.0, level=6):
+    """The smallest thing shaped like a computed week.
+
+    Carries its level, because a computed week always does: the archive and
+    the week-over-week comparison read each unit's code from the attribute the
+    level names rather than assuming six (ADR-050).
+    """
+    field = f"huc{level}"
     return {
         "map_date": map_date,
         "release_date": release_date,
         "source": "s",
         "attribution": "a",
         "method": {"sampling": "even-odd scanline over cell centres"},
+        "level": level,
         "unit_count": 1,
         "units": [{
-            "huc6": "140100",
-            "huc6_name": "Colorado Headwaters",
+            field: "140100"[:level],
+            f"{field}_name": "Colorado Headwaters",
             "percent_of_area": {"none": 0.0, "d0": 0.0, "d1": 0.0,
                                 "d2": 0.0, "d3": 100.0 - d4, "d4": d4},
             "percent_of_area_at_least": {"d0": 100.0, "d1": 100.0, "d2": 100.0,
                                          "d3": 100.0, "d4": d4},
         }],
     }
+
+
+class TestTheLevelTheEngineIsPointedAt:
+    """The engine measures whichever scope it is given, at whatever size.
+
+    Reading a fixed `huc6` refused a HUC-4 boundary file with a KeyError,
+    which is the polite version of ADR-050's failure -- the client version
+    parsed the payload as no areas at all and drew a blank map.
+    """
+
+    def test_the_code_is_read_and_written_under_the_level_s_own_name(self):
+        boundaries = {"features": [{
+            "properties": {"huc4": "1401", "name": "Colorado Headwaters"},
+            "geometry": polygon(square(0, 0, 1, 1)),
+        }]}
+        payload = build_payload(
+            drought_fixture([(3, polygon(square(0, 0, 1, 1)))]), boundaries, 0.05)
+
+        assert payload["level"] == 4
+        unit = payload["units"][0]
+        assert unit["huc4"] == "1401"
+        assert unit["huc4_name"] == "Colorado Headwaters"
+        assert "huc6" not in unit
+
+    def test_the_archive_follows_the_payload_s_level(self):
+        entry = history_entry(week_payload("2026-08-11", level=4))
+        assert set(entry["units"][0]) == {"huc4", "percent_of_area_at_least"}
+
+        history = merge_history(None, week_payload("2026-08-11", level=4))
+        before = previous_week(history, "2026-08-18", "huc4")
+        assert before["units"][0]["huc4"] == "1401"
+
+    def test_a_collection_with_no_code_or_two_is_refused(self):
+        with pytest.raises(ValueError, match="exactly one hydrologic code"):
+            unit_field({"features": [{"properties": {"name": "nameless"}}]})
+        with pytest.raises(ValueError, match="exactly one hydrologic code"):
+            unit_field({"features": [
+                {"properties": {"huc4": "1401", "huc6": "140100"}}]})
+        with pytest.raises(ValueError, match="no features"):
+            unit_field({"features": []})
+
+    def test_the_archive_refuses_a_week_at_another_level(self):
+        """One archive, one level. It joins its weeks on their codes, so a
+        file holding two would be two series wearing one name -- and the join
+        finds nothing rather than failing (ADR-063)."""
+        history = merge_history(None, week_payload("2026-08-11"))
+        assert history["level"] == 6
+
+        with pytest.raises(ValueError, match="publish the finer level"):
+            merge_history(history, week_payload("2026-08-18", level=4))
+
+    def test_a_payload_that_declares_no_level_is_refused(self):
+        """Rather than guessed at by measuring a code: a payload that cannot
+        say what size its areas are is malformed, and the archive joins on
+        those codes."""
+        with pytest.raises(ValueError, match="no usable hydrologic level"):
+            history_entry({"units": [], "map_date": "2026-08-11",
+                           "release_date": "2026-08-13"})
 
 
 class TestHistory:

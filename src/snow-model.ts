@@ -12,7 +12,13 @@
  * rollup, value for value.
  */
 import type { DrainageScope } from "./data/boundaries";
-import type { NullableNumber, SnowpackPayload, SnowSite } from "./types";
+import type {
+  NullableNumber,
+  SnowpackPayload,
+  SnowRollup,
+  SnowRollupDay,
+  SnowSite
+} from "./types";
 
 export interface BasinChoice {
   code: string;
@@ -54,6 +60,92 @@ export function percentOfNormal(
 ): number | null {
   if (value === null || median === null || median <= 0) return null;
   return roundTenth((value / median) * 100);
+}
+
+/**
+ * The payload regrouped into larger drainage areas.
+ *
+ * A reader may ask for subregions instead of basins (ADR-064), and what
+ * changes is only how the same sites are grouped: 217 stations reporting into
+ * 11 areas rather than 14. Every figure on the page is rebuilt from the
+ * *sites*, never by averaging the published basin means -- those are means
+ * over unequal numbers of stations, and a mean of them is a different number
+ * with no name.
+ *
+ * The whole payload is rebuilt rather than the rollups alone, so nothing
+ * downstream learns about levels: the picker, the curves, the site table, the
+ * map and the `?basin=` link all read `huc6` and get whichever grouping the
+ * reader asked for. It is the arrangement `validateSnowpackPayload` uses for
+ * the shared water-year calendar, one level up.
+ *
+ * The names come from the payload's own subregion roster, which is names and
+ * nothing else because the codes are the first four digits of one every site
+ * already carries (ADR-060's rule, applied to this payload). An area with no
+ * published name is labelled by its code, exactly as `parseDrainageUnits`
+ * does.
+ */
+export function payloadAtLevel(
+  payload: SnowpackPayload, level: number
+): SnowpackPayload {
+  if (level >= 6) return payload;
+  const names = new Map((payload.subregions ?? []).map(
+    (entry) => [entry.huc4, entry.name]));
+  const label = (code: string): string => {
+    const name = names.get(code);
+    return name !== undefined && name !== "" ? name : code;
+  };
+  const sites = payload.sites.map((site) => {
+    const code = site.huc6.slice(0, level);
+    return { ...site, huc6: code, huc6_name: label(code) };
+  });
+  /* The pipeline's own floor, carried rather than chosen here: a coarser area
+   * holds more stations, so the minimum that made a basin's mean publishable
+   * cannot make a subregion's less so. */
+  const floor = payload.rollups.reduce(
+    (highest, rollup) => Math.max(highest, rollup.minimum_reporting_sites), 2);
+  const grouped = new Map<string, SnowSite[]>();
+  for (const site of sites) {
+    const bucket = grouped.get(site.huc6);
+    if (bucket) bucket.push(site);
+    else grouped.set(site.huc6, [site]);
+  }
+  const rollups: SnowRollup[] = [...grouped.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([code, members]) => ({
+      huc6: code,
+      huc6_name: label(code),
+      site_count: members.length,
+      minimum_reporting_sites: floor,
+      series: seriesOverSites(members, floor)
+    }));
+  return { ...payload, sites, rollups };
+}
+
+/** One mean per date over a set of sites: the rule `build_rollups` uses in
+ * `refresh_snowpack.py`, and the one `regionCurve` already reimplements for
+ * the whole region. A test holds all three together. */
+function seriesOverSites(
+  sites: readonly SnowSite[], floor: number
+): SnowRollupDay[] {
+  const byDate = new Map<string, number[]>();
+  for (const site of sites) {
+    for (const [date, value, median] of site.series) {
+      const percent = percentOfNormal(value, median);
+      if (percent === null) continue;
+      const bucket = byDate.get(date);
+      if (bucket) bucket.push(percent);
+      else byDate.set(date, [percent]);
+    }
+  }
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, percents]) => ({
+      date,
+      reporting_site_count: percents.length,
+      mean_percent_of_normal_median: percents.length >= floor
+        ? roundTenth(percents.reduce((sum, value) => sum + value, 0) / percents.length)
+        : null
+    }));
 }
 
 /**

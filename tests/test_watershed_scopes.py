@@ -54,23 +54,34 @@ def test_the_dashboard_draws_the_western_huc6_scope():
     assert huc.BOUNDARY_PATH == ROOT / scope.output
 
 
-def test_the_finer_and_coarser_western_scopes_are_registered_and_draw_nothing():
-    """They exist so the geography can be fetched and reviewed before any
-    surface draws it, which is the state west-huc6 was in until it was
-    drawn. Neither is published, so the reference export skips both."""
-    for name, level, output in (
-        ("west-huc4", 4, "data/watersheds/west-huc4.geojson"),
-        ("west-huc8", 8, "data/watersheds/west-huc8.geojson"),
-    ):
-        scope = get_scope(name)
-        assert scope.level == level
-        assert scope.output == output
-        assert not scope.published
-        assert scope.output != get_scope(DEFAULT_SCOPE).output
-        # Banded rather than pinned: nine regions of the Watershed Boundary
-        # Dataset are revised more often than one.
-        assert scope.expected_count is None
-        assert scope.expected_range is not None
+def test_the_coarser_western_scope_is_published_beside_the_drawn_one():
+    """HUC-4 is the second level the site offers (ADR-064). It is published,
+    so its roster travels in the reference export and its drought coverage is
+    computed, and it is not the default: the map opens at HUC-6, which is
+    where every figure is keyed."""
+    scope = get_scope("west-huc4")
+
+    assert scope.level == 4
+    assert scope.output == "data/watersheds/west-huc4.geojson"
+    assert scope.published
+    assert scope.output != get_scope(DEFAULT_SCOPE).output
+    assert DEFAULT_SCOPE != "west-huc4"
+
+
+def test_the_finest_western_scope_is_registered_and_draws_nothing():
+    """It exists so the geography can be fetched and reviewed before any
+    surface draws it, which is the state all three western scopes were in
+    until the coverage moved. Not published, so the reference export skips
+    it."""
+    scope = get_scope("west-huc8")
+
+    assert scope.level == 8
+    assert scope.output == "data/watersheds/west-huc8.geojson"
+    assert not scope.published
+    # Banded rather than pinned: nine regions of the Watershed Boundary
+    # Dataset are revised more often than one.
+    assert scope.expected_count is None
+    assert scope.expected_range is not None
 
 
 def test_every_roster_reservoir_sits_inside_the_roster_scope():

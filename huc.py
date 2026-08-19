@@ -72,6 +72,44 @@ CROSS_BORDER_WATERBODIES = {
     "Meeks Cabin": {"states": ("UT", "WY"), "nhd_permanent_id": "120025290"},
 }
 
+def subregion_roster(codes) -> list[dict]:
+    """The HUC-4 subregions a set of finer codes belongs to, named.
+
+    The codes need nothing published: they are the first four digits of a code
+    every record already carries, because HUC codes are fixed-width (ADR-050).
+    The *names* have to come from somewhere, and this is ADR-048's rule -- the
+    roster, not the polygons -- applied one level up. Eleven entries today.
+
+    Read from the committed west-huc4 file, which covers every region any
+    scope here can reach. Absent, the names are empty and a caller labels by
+    code: a filter that says "1401" is worse than one that says "Colorado
+    Headwaters" and much better than no filter at all.
+
+    Published in each surface's own payload rather than in `reference.json`,
+    because every surface fetches its payload and only the maps fetch the
+    reference -- and one copy of a roster is the point of having a roster.
+
+    Lives here rather than in either refresh script because both of them
+    publish it now: the storage payload names the subregions its reservoirs
+    fall in, and the snow payload names the ones its sites do (ADR-064).
+    """
+    import watershed_scopes
+
+    names: dict[str, str] = {}
+    path = watershed_scopes.ROOT / watershed_scopes.get_scope("west-huc4").output
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for feature in payload.get("features") or []:
+            code = feature["properties"].get("huc4")
+            if code:
+                names[code] = feature["properties"].get("name", "")
+    else:
+        print(f"WARNING: {path.name} is absent; publishing subregion codes "
+              "without names")
+    return [{"huc4": code, "name": names.get(code, "")}
+            for code in sorted({str(c)[:4] for c in codes if c})]
+
+
 def _load_utah_polygons(path: Path = UTAH_BOUNDARY_PATH):
     """Read the committed UGRC polygon in the same normalized shape as WBD."""
     payload = json.loads(path.read_text(encoding="utf-8"))

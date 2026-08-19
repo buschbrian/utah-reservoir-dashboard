@@ -203,5 +203,18 @@ export function validateSnowpackPayload(value: unknown): SnowpackPayload {
       `Snow site ${(orphan as { station: string }).station} has no drainage area rollup`
     );
   }
+  /* The subregion roster, when the payload carries one (ADR-064). Names only,
+   * and a malformed entry is dropped rather than fatal: a reader who never
+   * asks for the coarser grouping must not lose the snow over a name, and one
+   * who does gets the code as its own label -- which is how
+   * `parseDrainageUnits` already treats a missing name. */
+  if (value.subregions !== undefined) {
+    if (!Array.isArray(value.subregions)) {
+      throw new Error("snowpack.json carries a malformed subregion roster");
+    }
+    const subregions = value.subregions.filter((entry) =>
+      isObject(entry) && typeof entry.huc4 === "string" && entry.huc4.length === 4);
+    return { ...value, subregions } as unknown as SnowpackPayload;
+  }
   return value as unknown as SnowpackPayload;
 }

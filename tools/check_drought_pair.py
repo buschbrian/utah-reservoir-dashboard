@@ -1,12 +1,16 @@
 """Check that the two committed drought files describe the same week, and how
 old that week is.
 
-Two files carry the weekly drought data. `data/drought/usdm-current.geojson`
-is the download; `data/drought/usdm-huc6.json` is the per-drainage-area
-coverage computed from it. The drought view refuses to draw when they name
-different weeks, and it is right to: two files describing two different weeks
-is a pipeline fault, and rendering a map of one week over figures from another
-would be worse than showing nothing.
+`data/drought/usdm-current.geojson` is the download, and one file per offered
+level -- `usdm-huc6.json` and `usdm-huc4.json` -- is the per-drainage-area
+coverage computed from it. The drought view refuses to draw when the pair it
+loaded names different weeks, and it is right to: two files describing two
+different weeks is a pipeline fault, and rendering a map of one week over
+figures from another would be worse than showing nothing.
+
+Every coverage file is checked, not just the one the map opens at. A reader
+who changes the level is fetching a different file (ADR-064), and a file that
+fell behind would put them on another week with nothing said.
 
 That refusal protects the reader, not the pipeline. This is the pipeline half.
 It runs in the refresh workflow between recomputing the coverage and committing
@@ -34,7 +38,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 POLYGON_PATH = ROOT / "data" / "drought" / "usdm-current.geojson"
-COVERAGE_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
+
+
+def coverage_paths() -> list[Path]:
+    """Every published weekly coverage file, one per offered level.
+
+    Found rather than listed: a level is added by publishing a scope and
+    running the engine at it, and a list here would be a second place to
+    remember. The archive is excluded by name -- it is a series, not a week.
+    """
+    return sorted(path for path in (ROOT / "data" / "drought").glob("usdm-huc*.json")
+                  if not path.name.endswith("-history.json"))
 
 # Nine days, matching LATE_AFTER_DAYS in src/drought-model.ts, which is what
 # the drought page marks a release late at. A weekly release plus two days of
@@ -86,26 +100,37 @@ def emit_github_output(values: dict[str, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--polygons", type=Path, default=POLYGON_PATH)
-    parser.add_argument("--coverage", type=Path, default=COVERAGE_PATH)
+    parser.add_argument("--coverage", type=Path, nargs="+", default=None,
+                        help="coverage files to check; every published level "
+                             "by default")
     parser.add_argument(
         "--github-output", action="store_true",
         help="Report the release age as workflow step outputs and exit zero.")
     args = parser.parse_args()
 
-    for path in (args.polygons, args.coverage):
+    coverage_files = args.coverage if args.coverage is not None else coverage_paths()
+    if not coverage_files:
+        print("no coverage files to check", file=sys.stderr)
+        return 1
+    for path in (args.polygons, *coverage_files):
         if not path.exists():
             print(f"missing {path}", file=sys.stderr)
             return 1
 
     polygons = read_json(args.polygons)
-    coverage = read_json(args.coverage)
+    covers = [(path, read_json(path)) for path in coverage_files]
 
-    problems = check_pair(polygons, coverage)
+    problems = [f"{path.name} {problem}"
+                for path, coverage in covers
+                for problem in check_pair(polygons, coverage)]
     if problems and not args.github_output:
         for problem in problems:
             print(f"drought files disagree -- {problem}", file=sys.stderr)
         return 1
 
+    # Every file agrees with the polygons by here, so any of them answers the
+    # age question; the one the map opens at is the one to name.
+    coverage = covers[0][1]
     release_date = coverage.get("release_date", "")
     today = datetime.now(timezone.utc).date()
     age = days_since(release_date, today) if release_date else -1
@@ -123,9 +148,10 @@ def main() -> int:
         # raises from these outputs is the right response, not a red run.
         return 0
 
+    names = ", ".join(path.name for path, _ in covers)
     print(
-        f"drought pair agrees on {coverage.get('map_date')} "
-        f"(released {release_date}, {age} days ago)"
+        f"drought files agree on {coverage.get('map_date')} "
+        f"(released {release_date}, {age} days ago): {names}"
         + (" -- LATE" if late else ""))
     return 0
 

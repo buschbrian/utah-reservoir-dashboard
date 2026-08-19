@@ -96,6 +96,21 @@ body {
   align-items: end;
 }
 .filterbar-controls > label { min-width: 0; }
+/* The area-size control is a `calcite-label` beside native ones, because it
+   is appended when the reference export resolves rather than written into the
+   template (ADR-064). `min-width: 0` for the same reason every other grid
+   child here has it: an unbreakable control widens the whole page otherwise.
+   The label text is styled by the rule below, which the shadow root does not
+   reach, so the uppercase treatment is set on the host. */
+.filterbar-controls > .level-control {
+  min-width: 0;
+  --calcite-label-margin-bottom: 0;
+  color: var(--app-muted);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
 .dashboard-filterbar .reset-button { flex: 0 0 auto; }
 
 .dashboard-filterbar label, .sort-control {

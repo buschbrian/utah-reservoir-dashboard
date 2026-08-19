@@ -10,6 +10,7 @@ import {
   mapDayValues,
   measuredScope,
   monthReadings,
+  payloadAtLevel,
   newestHeadline,
   percentOfNormal,
   observedPeak,
@@ -43,6 +44,71 @@ describe("percent of normal", () => {
   it("rounds to one decimal place, the pipeline's own precision", () => {
     expect(percentOfNormal(1, 3)).toBe(33.3);
     expect(percentOfNormal(10, 8)).toBe(125);
+  });
+});
+
+describe("the payload regrouped into subregions", () => {
+  const coarse = payloadAtLevel(payload, 4);
+
+  it("keeps every site and every reading, grouped differently", () => {
+    expect(coarse.sites).toHaveLength(payload.sites.length);
+    expect(coarse.rollups.length).toBeLessThan(payload.rollups.length);
+    expect(coarse.rollups.length).toBe(
+      new Set(payload.sites.map((site) => site.huc6.slice(0, 4))).size);
+    expect(coarse.rollups.reduce((sum, rollup) => sum + rollup.site_count, 0))
+      .toBe(payload.site_count);
+  });
+
+  it("recomputes each mean from its sites, not from the basin means", () => {
+    /* The published rollups are means over unequal numbers of stations, so a
+     * mean of them is a different number with no name. This is the same check
+     * the region curve gets, one level down. */
+    const rollup = coarse.rollups.find((entry) => entry.series.length > 0)!;
+    const members = payload.sites.filter(
+      (site) => site.huc6.startsWith(rollup.huc6));
+    const day = rollup.series.find(
+      (entry) => entry.mean_percent_of_normal_median !== null)!;
+    const percents = members
+      .map((site) => site.series.find(([date]) => date === day.date))
+      .filter((row): row is [string, number | null, number | null] => row !== undefined)
+      .map(([, value, median]) => percentOfNormal(value, median))
+      .filter((percent): percent is number => percent !== null);
+
+    expect(day.reporting_site_count).toBe(percents.length);
+    expect(day.mean_percent_of_normal_median).toBeCloseTo(
+      percents.reduce((sum, value) => sum + value, 0) / percents.length, 1);
+  });
+
+  it("names the areas from the payload's own roster", () => {
+    const named = new Map((payload.subregions ?? []).map(
+      (entry) => [entry.huc4, entry.name]));
+    expect(named.size).toBeGreaterThan(0);
+    for (const rollup of coarse.rollups) {
+      expect(rollup.huc6_name).toBe(named.get(rollup.huc6) ?? rollup.huc6);
+      expect(rollup.huc6_name).not.toBe("");
+    }
+  });
+
+  it("labels an area by its code when the roster does not name it", () => {
+    const nameless = payloadAtLevel({ ...payload, subregions: [] }, 4);
+    for (const rollup of nameless.rollups) {
+      expect(rollup.huc6_name).toBe(rollup.huc6);
+    }
+  });
+
+  it("hands every other function the grouping the reader asked for", () => {
+    /* The point of rebuilding the payload rather than the rollups alone:
+     * nothing downstream has to learn about levels. */
+    const choice = basinChoices(coarse)[0]!;
+    expect(choice.code).toHaveLength(4);
+    expect(basinCurve(coarse, choice.code)).not.toBeNull();
+    expect(siteRows(coarse, choice.code).length).toBe(choice.siteCount);
+    expect(mapDayValues(coarse, defaultMapDay(coarse)!).basins.size)
+      .toBe(coarse.rollups.length);
+  });
+
+  it("leaves the payload alone at the level it was published at", () => {
+    expect(payloadAtLevel(payload, 6)).toBe(payload);
   });
 });
 
