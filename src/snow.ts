@@ -22,6 +22,18 @@ import "@esri/calcite-components/components/calcite-slider";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
+import {
+  areaAtLevel,
+  DEFAULT_OPENING_SELECTION,
+  loadOpeningRosters,
+  openingSelectionFromSearch,
+  resolveOpeningScope,
+  withinOpeningArea,
+  type OpeningRosters,
+  type OpeningScope,
+  type OpeningSelection
+} from "./data/opening-scope";
+import { stateName } from "./data/state-vocabulary";
 import { loadSnowpack } from "./data/snow-load";
 import {
   basinChoices,
@@ -35,6 +47,8 @@ import {
   observedPeak,
   measuredScope,
   payloadAtLevel,
+  payloadForSites,
+  payloadForState,
   percentOfNormal,
   regionCurve,
   seasonHighPoint,
@@ -66,11 +80,130 @@ import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
+import { extentFromBox } from "./viz/extent";
 import { formatDate, formatPercent } from "./viz/format";
 import { renderSiteCurve } from "./viz/site-curve";
 import { renderSnowCurve } from "./viz/snow-curve";
 import "./styles/overview.css";
 import "./styles/snow.css";
+
+/*
+ * Slice S3b (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md): wiring the
+ * opening-scope module (`data/opening-scope.ts`) to this page. The pure
+ * functions below are kept free of `document` on purpose -- they are the
+ * part of this file a reviewer can trace by hand -- but they are not
+ * unit-tested in this change: `vitest.config.ts` runs in the Node
+ * environment with no DOM shim installed, and every top-level statement
+ * below this comment runs `document.querySelector` on import, the same as
+ * `main.ts`, `drought.ts` and `overview.ts` already do. Those three page
+ * scripts have no test files of their own for the same reason and are
+ * exercised by `tests/smoke-modern.mjs` instead; this file follows that
+ * existing convention rather than introducing a DOM-shimming dependency to
+ * break it.
+ */
+
+/**
+ * The payload narrowed by the reader's opening scope -- `?state=` and
+ * `?area=` together, already resolved against the published rosters and
+ * coarsest-first fallback rules (`resolveOpeningScope`).
+ *
+ * `level` is this page's own grouping (`?level=`, ADR-064), independent of
+ * `selection.area` -- a shared link can carry a six-digit basin while this
+ * page draws at level four, and `withinOpeningArea` refuses to test a
+ * shorter code against a longer selection rather than silently answering
+ * "no match" for every record. `areaAtLevel` is what keeps that refusal
+ * from ever firing here: the reader named a place and (elsewhere) a
+ * granularity, and the place survives at the granularity this page is
+ * actually drawing, coarsened, never refined upward.
+ *
+ * State narrows first, through `payloadForState`, which is the one place
+ * the honesty rule is written: it regroups every surviving area's mean from
+ * that area's own surviving *sites*, never by re-averaging the published
+ * basin means (ADR-064; the module doc's "honesty constraint" names this as
+ * the reason `resolveOpeningScope`'s own `state` axis stops at drainage
+ * areas and leaves reservoirs and snow sites to their own exact rules).
+ *
+ * Area narrows second and needs no recompute of its own. `payloadForState`
+ * has already rebuilt every surviving area's mean from its own sites, and
+ * `payloadAtLevel`/`payloadForState` both group sites by their own exact
+ * drainage-area code -- so a site inside an area that survives this second,
+ * prefix-matched pass was never partially excluded from it. Dropping whole
+ * areas that do not match the chosen region, subregion or basin changes
+ * *which* means are shown, never what any surviving one means. A basin
+ * whose mean already read `null` below the reporting floor keeps reading
+ * `null` here -- this pass only removes areas, it never touches a series.
+ *
+ * Skipped entirely when the level-coarsened code already names one of this
+ * level's own areas exactly: this page's own drainage-area picker
+ * (`choices`, `currentArea`, below) already narrows precisely to a code
+ * like that, and collapsing the payload here as well would make
+ * `payload.site_count` -- this page's own "of N sites" total -- equal the
+ * one narrowed area's count permanently, with no way for the picker's
+ * "whole region" option to widen back out again. That exact case is the
+ * ordinary, long-supported single-basin link this page has always carried;
+ * only a code coarser than this level's own grouping -- a region, or a
+ * subregion when this level's own areas are basins -- has no representation
+ * in `choices` at all, and that is the case this pass exists for.
+ */
+function payloadForOpeningScope(
+  payload: SnowpackPayload, selection: OpeningSelection, level: number
+): SnowpackPayload {
+  const byState = payloadForState(payload, selection.state);
+  const area = areaAtLevel(selection.area, level);
+  if (area === null) return byState;
+  if (byState.rollups.some((rollup) => rollup.huc6 === area)) return byState;
+  const sites = byState.sites.filter((site) => withinOpeningArea(site.huc6, area));
+  const rollups = byState.rollups.filter((rollup) => withinOpeningArea(rollup.huc6, area));
+  return payloadForSites(byState, sites, rollups);
+}
+
+/**
+ * The chosen region, subregion or basin's own published name, or `null`
+ * when no area is chosen.
+ *
+ * Searches every level's option list rather than branching on the code's
+ * own width, because the three lists never share a code and
+ * `resolveOpeningScope` keeps each one level short of its own choice (its
+ * own doc: "a subregion list narrowed down to the one subregion already
+ * chosen would give a reader nothing to switch to"). So whichever list sits
+ * at the width `selection.area` actually has is exactly the one still
+ * carrying it as a sibling among its neighbours.
+ */
+function openingAreaName(scope: OpeningScope): string | null {
+  const code = scope.selection.area;
+  if (code === null) return null;
+  const roster = [...scope.regions, ...scope.subregions, ...scope.areas];
+  return roster.find((entry) => entry.huc6 === code)?.name ?? null;
+}
+
+/**
+ * The summary sentence a reader sees once `?state=` or `?area=` has
+ * narrowed the page -- Simplified Technical English (ADR-006): a place name
+ * and nothing else, never the codes or the hydrologic vocabulary they come
+ * from. `null` for the whole region, which already has its own wording on
+ * the KPIs below ("the whole region") and does not need a second sentence
+ * saying the same thing.
+ *
+ * `widenedForSite` overrides everything else: it carries a linked
+ * measurement site's own name when that site would otherwise have been
+ * dropped by the scope a `?state=`/`?area=` link asked for, which is
+ * exactly the case the bootstrap below widens the whole scope back to "all"
+ * for. A reader following a link to one site must not find it missing, and
+ * a page that silently widened out from under a stated filter without
+ * saying so would read as a bug even though it is the correct repair.
+ */
+function openingScopeSummary(scope: OpeningScope, widenedForSite: string | null): string | null {
+  if (widenedForSite !== null) {
+    return `Showing the whole region so the linked measurement site, ` +
+      `${widenedForSite}, is included.`;
+  }
+  const state = scope.selection.state !== "all" ? stateName(scope.selection.state) : null;
+  const area = openingAreaName(scope);
+  if (state && area) return `Showing snow measurements for ${state}, in ${area}.`;
+  if (state) return `Showing snow measurements for ${state}.`;
+  if (area) return `Showing snow measurements for ${area}.`;
+  return null;
+}
 
 setCalciteAssetPath(new URL(/* @vite-ignore */ "../", import.meta.url).href);
 const root = document.querySelector<HTMLElement>("#snow-app");
@@ -99,13 +232,16 @@ function formatInches(value: number | null): string {
   return value === null ? "—" : value.toFixed(1);
 }
 
-function renderSnow(payload: SnowpackPayload): void {
+function renderSnow(
+  payload: SnowpackPayload, openingScope: OpeningScope, widenedForSite: string | null
+): void {
   const content = document.querySelector<HTMLElement>("#snow-content");
   if (!content) return;
   const choices = basinChoices(payload);
   const regionPoints = regionCurve(payload);
   const days = regionPoints.map((point) => point.date);
   content.innerHTML = `
+    <p id="snow-scope-summary" class="filter-status" role="status" hidden></p>
     <section class="dashboard-filterbar" aria-labelledby="snow-filter-heading">
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Mountain snow</p><h2 id="snow-filter-heading">Choose a drainage area</h2></div>
@@ -176,6 +312,19 @@ function renderSnow(payload: SnowpackPayload): void {
       <div class="snow-spread" id="snow-spread"></div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Measurement site table, scrolls sideways"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
     </section>`;
+
+  const scopeSummaryEl = document.querySelector<HTMLElement>("#snow-scope-summary");
+  if (scopeSummaryEl) {
+    /* Real text, not markup: `openingScopeSummary` builds its sentence out
+     * of a hardcoded state-name table and the reference export's own `name`
+     * field, and this file's own discipline (see the site-detail comment
+     * below) is that runtime-sourced words never pass through `innerHTML`.
+     * Hidden rather than absent from the template when there is nothing to
+     * say, so nothing else on the page has to shift to fill the gap. */
+    const summary = openingScopeSummary(openingScope, widenedForSite);
+    scopeSummaryEl.textContent = summary ?? "";
+    scopeSummaryEl.hidden = summary === null;
+  }
 
   const area = document.querySelector<HTMLSelectElement>("#snow-area");
   const status = document.querySelector<HTMLElement>("#snow-status");
@@ -293,6 +442,15 @@ function renderSnow(payload: SnowpackPayload): void {
    * every writer of the address bar carries all of them -- the reason the
    * whole state is written at once rather than per control. */
   let siteFilter: SiteFilter = { query: "", band: "all", status: "all" };
+  /* True once the reader has *chosen* "The whole region" from the drainage-
+   * area picker, as opposed to that being the picker's own starting value
+   * because a coarser opening-scope code (a region, or a subregion this
+   * level does not group at) is not one of `choices` -- see the comment on
+   * `writeUrl` below. Only a `change` event sets this, never the initial
+   * `area.value = ...` assignment near the bottom of this function, which
+   * is exactly the distinction that lets a shared `?area=14` link survive
+   * first paint while still leaving the reader a real way to clear it. */
+  let openingAreaCleared = false;
 
   /** The complete address-bar state. One builder, so a control that forgets
    * a field cannot quietly drop another control's choice from a shared
@@ -319,6 +477,37 @@ function renderSnow(payload: SnowpackPayload): void {
    * the one from first paint. */
   function writeUrl(): void {
     writeSnowUrl(urlState());
+    /*
+     * `?area=` is one parameter shared with the opening scope (D2/S3b), but
+     * `writeSnowUrl` above only knows this page's own drainage-area picker
+     * (`currentArea`), which is exact-match against `choices` -- the basins
+     * and subregions this page's own level actually groups sites into. A
+     * region, or a subregion narrower than this level's own grouping, is
+     * never one of `choices`, so it is never `currentArea` either, and the
+     * write above would otherwise silently delete the reader's `?area=14`
+     * on the very first render.
+     *
+     * Reasserted only while the picker itself is at "the whole region" --
+     * `currentArea === null` -- because any basin the reader *does* pick
+     * from `choices` is already a member of the narrowed payload
+     * (`payloadForOpeningScope` ran before this page ever built `choices`),
+     * so it is always at least as specific as the opening scope's own area
+     * and the write above already carries it correctly. Picking a basin
+     * must be able to replace a coarser opening-scope code in the address
+     * bar; only "nothing more specific chosen" should fall back to it.
+     *
+     * And never once `openingAreaCleared` -- a reader who explicitly picks
+     * "The whole region" is asking to see past the coarser scope a link
+     * arrived with, and a write that puts the code straight back would
+     * leave no way to do that at all.
+     */
+    if (currentArea === null && !openingAreaCleared && openingScope.selection.area !== null) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("area", openingScope.selection.area);
+      const query = params.toString();
+      history.replaceState(null, "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
     updatePageLinks(window.location.search);
   }
   let levelsOffered = 1;
@@ -813,7 +1002,15 @@ function renderSnow(payload: SnowpackPayload): void {
     console.warn("The area-size control could not be built:", error);
   });
 
-  area.addEventListener("change", update);
+  area.addEventListener("change", () => {
+    /* A real interaction, not the programmatic assignment near the bottom
+     * of this function -- setting `.value` in code never fires `change`,
+     * which is exactly what keeps a shared `?area=14` link's coarser code
+     * from being treated as "the reader already cleared it" before they
+     * have touched the control at all. */
+    if (area.value === "all") openingAreaCleared = true;
+    update();
+  });
   sitePicker.addEventListener("change", () => {
     renderSiteDetail(sitePicker.value || null);
   });
@@ -869,6 +1066,20 @@ function renderSnow(payload: SnowpackPayload): void {
         label: "A map of the drainage areas and snow measurement sites",
         cardId: "snow-map-hover"
       });
+      /* The opening view follows the reader's chosen scope (S3b, item 2):
+       * `createViewMap` framed the element on the fixed `drainageExtent()`
+       * a moment ago, and this replaces it with the union of the chosen
+       * areas' own published boxes before anything asynchronous below has
+       * a chance to let the view start resolving -- the same "set before
+       * the view resolves rather than eased into afterwards" rule
+       * `view-map.ts`'s own comment states for its default. The navigation
+       * bounds (`element.constraints.geometry`, `navigableExtent()`) are
+       * left exactly as `createViewMap` set them: what a reader can pan to
+       * covers every area any map on this site draws, chosen scope or not,
+       * which is also what makes this override trustworthy rather than
+       * clamped back to a narrower box the instant the view settles --
+       * every published unit's box now fits inside it. */
+      mapElement.extent = { type: "extent", ...extentFromBox(openingScope.box) };
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
@@ -914,11 +1125,75 @@ function renderSnow(payload: SnowpackPayload): void {
 const level = levelFromSearch(window.location.search);
 
 try {
+  /*
+   * The payload and the opening-scope rosters are independent fetches --
+   * `loadReference` (behind `loadOpeningRosters`) shares one in-flight
+   * request per URL, so the level control and the map boundaries further
+   * below cost nothing extra once this one has run -- and this page must
+   * not paint the whole west and then narrow to what the reader asked for:
+   * the narrowing happens once, here, before `renderSnow` is ever called,
+   * the same way a written zoom constraint has to be in place before a view
+   * opens rather than corrected once a fetch resolves (CLAUDE.md's rule for
+   * the title card's zoom gutter -- "a gutter cannot be late" -- applies to
+   * an opening extent for the same reason). Awaiting both together, rather
+   * than the payload alone, is what makes that possible: nothing below this
+   * point reads an unnarrowed payload.
+   *
+   * A rosters fetch that fails costs the reader the area narrowing and the
+   * chosen-area name, not the page: `resolveOpeningScope` degrades on its
+   * own when handed empty rosters (`state` is never checked against them,
+   * only `area`'s aliveness is, so it falls back to "all" the same way a
+   * dead code already does), and the fallback here is that same empty
+   * roster rather than a second code path.
+   */
+  const [rawSnowpack, rosters] = await Promise.all([
+    loadSnowpack(),
+    loadOpeningRosters().catch((error: unknown): OpeningRosters => {
+      console.warn("The opening-scope rosters could not load; the page " +
+        "opens with no area narrowing.", error);
+      return { regions: [], subregions: [], areas: [] };
+    })
+  ]);
   /* Regrouped before anything reads it, so the picker, the curves, the table,
    * the map and the `?basin=` link all describe the areas the reader asked
    * for and none of them has to know a level exists (ADR-064). */
-  const payload = payloadAtLevel(await loadSnowpack(), level);
-  renderSnow(payload);
+  const levelPayload = payloadAtLevel(rawSnowpack, level);
+  let openingScope = resolveOpeningScope(
+    openingSelectionFromSearch(window.location.search), rosters);
+
+  /*
+   * A linked measurement site outranks the opening scope. `?site=` names one
+   * specific station -- a stronger, narrower signal than `?state=`/`?area=`
+   * -- and the site table's own construction below already promises that
+   * "a reader following a link to one site must not find it missing." A
+   * `?state=CO` link paired with `?site=` naming a Utah station would break
+   * that promise silently: the station is real, but not in Colorado, so the
+   * state-narrowed payload would never carry it and the site card would
+   * just come up empty with no explanation.
+   *
+   * Checked once, against a trial narrowing, before the real one runs --
+   * not discovered after painting the narrow view and widening a second
+   * time, which is the double-render this page must not do. Widening falls
+   * all the way back to the default scope rather than trying to keep
+   * whichever half of the reader's choice still fits the site: a summary
+   * that said "narrowed to Colorado" while the map and table plainly showed
+   * Idaho too would be worse than naming the whole region and saying why.
+   */
+  const wantedSite = snowStateFromSearch(window.location.search).site;
+  let widenedForSite: string | null = null;
+  if (wantedSite !== null) {
+    const linkedSite = siteByStation(levelPayload, wantedSite);
+    if (linkedSite) {
+      const trial = payloadForOpeningScope(levelPayload, openingScope.selection, level);
+      if (!siteByStation(trial, wantedSite)) {
+        openingScope = resolveOpeningScope(DEFAULT_OPENING_SELECTION, rosters);
+        widenedForSite = linkedSite.name;
+      }
+    }
+  }
+
+  const payload = payloadForOpeningScope(levelPayload, openingScope.selection, level);
+  renderSnow(payload, openingScope, widenedForSite);
 } catch (error) {
   console.error("Snowpack view failed:", error);
   const content = document.querySelector<HTMLElement>("#snow-content");
