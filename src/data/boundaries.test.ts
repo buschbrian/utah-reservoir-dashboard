@@ -2,59 +2,27 @@ import { describe, expect, it } from "vitest";
 import {
   DRAINAGE_FILL,
   DRAINAGE_LINE,
-  MASK_FILL,
-  MASK_LINE,
   REFERENCE_SCHEMA_VERSION,
   DEFAULT_LEVEL,
   JOINABLE_LEVELS,
   parseDrainageUnits,
-  parseUtahBoundary,
-  referenceGeography,
-  utahMaskRings
+  referenceGeography
 } from "./boundaries";
 import { loadLegacyApi } from "./legacy-harness";
-import {
-  readDrainageGeoJson,
-  readPayload,
-  readReferenceExport,
-  readUtahBoundaryGeoJson
-} from "./payload-fixture";
+import { readDrainageGeoJson, readPayload, readReferenceExport } from "./payload-fixture";
 
 const legacy = loadLegacyApi();
 
-describe("the Utah mask", () => {
-  const boundary = parseUtahBoundary(readUtahBoundaryGeoJson());
-
-  it("reads the authoritative UGRC boundary rather than a corner approximation", () => {
-    expect(boundary).not.toBeNull();
-    expect(boundary?.[0]?.[0]?.length).toBeGreaterThan(100);
-    const outer = boundary?.[0]?.[0] ?? [];
-    const signedArea = outer.slice(0, -1).reduce((area, [x, y], index) => {
-      const next = outer[index + 1] ?? outer[0];
-      if (!next) return area;
-      return area + x * next[1] - next[0] * y;
-    }, 0) / 2;
-    expect(signedArea).toBeGreaterThan(0);
-  });
-
-  it("keeps the rings and colours the production maps draw", () => {
-    expect(utahMaskRings(boundary ?? [])).toEqual(
-      legacy.utahMaskRings(boundary ?? undefined));
-    expect(MASK_FILL).toBe(legacy.MASK_FILL);
-    expect(MASK_LINE).toBe(legacy.MASK_LINE);
+/* The Utah mask itself -- MASK_FILL, MASK_LINE, utahMaskRings, the
+ * authoritative-UGRC-boundary parity checks -- is gone with ADR-067. Per
+ * ADR-044, the frozen oracle's own colours and rings still describe a mask
+ * this site no longer draws, so parity with them stopped being a fact worth
+ * asserting rather than a fact worth pinning. The drainage colours below are
+ * the parity that is still load-bearing. */
+describe("the drainage-area colours", () => {
+  it("keeps the colours the production maps draw", () => {
     expect(DRAINAGE_FILL).toBe(legacy.HUC_FILL);
     expect(DRAINAGE_LINE).toBe(legacy.HUC_LINE);
-  });
-
-  it("puts the state inside a far larger surround, so it reads as a hole", () => {
-    const [surround, hole] = utahMaskRings(boundary ?? []);
-    expect(hole?.length).toBeGreaterThan(100);
-    const longitudes = (surround ?? []).map(([lon]) => lon);
-    expect(Math.min(...longitudes)).toBeLessThan(-114.052);
-    expect(Math.max(...longitudes)).toBeGreaterThan(-109.041);
-    // Not the whole world: an antimeridian-spanning ring dimmed Utah
-    // instead of everything around it.
-    expect(Math.min(...longitudes)).toBeGreaterThan(-180);
   });
 });
 
@@ -223,12 +191,11 @@ describe("the reference export", () => {
      * about where a drainage area is -- and the maps exist to be compared
      * (ADR-007), so a difference would read as an engine difference.
      *
-     * The state outline is still the committed polygon unchanged. The
-     * drainage areas are a roster now, so what has to match is which areas
+     * The drainage areas are a roster, so what has to match is which areas
      * exist and what each is called: the codes still come out of the same
      * committed file the pipeline assigns reservoirs with, which is the
-     * guarantee ADR-018 was written for. */
-    expect(sections?.state).toEqual(readUtahBoundaryGeoJson());
+     * guarantee ADR-018 was written for. There is no state outline to check
+     * here any more -- ADR-067 stopped publishing one. */
     const committed = (readDrainageGeoJson() as {
       features: { properties: Record<string, string> }[]
     }).features.map((feature) => feature.properties["huc6"]);
@@ -263,31 +230,30 @@ describe("the reference export", () => {
      * wrong geography while looking like it worked. */
     const later = { ...(readReferenceExport() as object), schema_version: 99 };
     expect(referenceGeography(later)).toBeNull();
-    expect(REFERENCE_SCHEMA_VERSION).toBe(3);
+    expect(REFERENCE_SCHEMA_VERSION).toBe(4);
   });
 
   it("reads the shape before this one as no boundaries either", () => {
-    /* Version 2 keyed the capacity catalog by reservoir name, which cannot
-     * hold two Lost Creeks (ADR-066). A reader still on that shape is told
-     * rather than handed a catalog whose keys mean something else. */
-    const earlier = { ...(readReferenceExport() as object), schema_version: 2 };
+    /* Version 3 still published a state boundary alongside the roster
+     * (ADR-014, retired by ADR-067). A reader still on that shape is told
+     * rather than handed a `state` field this build no longer looks for. */
+    const earlier = { ...(readReferenceExport() as object), schema_version: 3 };
     expect(referenceGeography(earlier)).toBeNull();
   });
 
   it.each([
     ["a null payload", null],
     ["an error document", { error: { code: 500 } }],
-    ["no version at all", { geography: { state: {}, watersheds: {} } }],
+    ["no version at all", { geography: { watersheds: {} } }],
     ["no geography", { schema_version: 1 }],
     ["a scope name nothing matches", {
       schema_version: 1,
-      geography: { state: {}, watersheds: { default_scope: "gone", scopes: {} } }
+      geography: { watersheds: { default_scope: "gone", scopes: {} } }
     }]
   ])("survives %s without throwing", (_label, value) => {
     const parsed = referenceGeography(value);
-    // Either no sections at all, or sections whose halves parse as empty --
-    // both are the soft failure the callers already handle.
+    // No sections at all, or sections whose drainage roster parses as
+    // empty -- both are the soft failure the callers already handle.
     expect(parseDrainageUnits(parsed?.drainage, 6)).toEqual([]);
-    expect(parseUtahBoundary(parsed?.state)).toBeNull();
   });
 });

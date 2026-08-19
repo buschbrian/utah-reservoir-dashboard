@@ -31,7 +31,15 @@ interface DashboardReady {
    * basemap's reference stack draws above every operational layer, so this
    * is what keeps a borrowed boundary off the reservoirs. */
   basemapReferenceSunk: number;
+  /** The translucent Utah mask this field used to report on. Retired by
+   * ADR-067 -- a dashboard drawing 75 basins across 11 states has no single
+   * state left to grey the rest of the map around -- so this is now always
+   * `false`. Kept rather than deleted: this field's own header comment says
+   * fields are added, never removed, and a permanently-false fact is still
+   * a fact a page or a test can read. */
   masked: boolean;
+  /** Vertices in the drawn mask boundary. Retired alongside `masked`, for
+   * the same reason, and now always `0`. */
   boundaryPoints: number;
   drainageAreas: number;
   /** Drainage-area names configured, one per area. */

@@ -1,10 +1,10 @@
 /*
  * The drawn layers, built from data already in memory.
  *
- * Separate layers, added independently on purpose: the mask, drainage
- * outlines and drainage text are context; the reservoirs are the page.
- * A boundary file that fails to load costs the reader context and nothing
- * else, so nothing here throws on the way to drawing the points.
+ * Separate layers, added independently on purpose: drainage outlines and
+ * drainage text are context; the reservoirs are the page. A boundary file
+ * that fails to load costs the reader context and nothing else, so nothing
+ * here throws on the way to drawing the points.
  *
  * The context is drawn once and is not part of reservoir selection. The
  * reservoirs are a client-side `FeatureLayer`, because a layer view is
@@ -13,20 +13,11 @@
  */
 
 import Graphic from "@arcgis/core/Graphic";
-import Polygon from "@arcgis/core/geometry/Polygon";
 import Point from "@arcgis/core/geometry/Point";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
-import {
-  DRAINAGE_FILL,
-  DRAINAGE_LINE,
-  MASK_FILL,
-  MASK_LINE,
-  utahMaskRings,
-  type UtahBoundary
-} from "../data/boundaries";
-import type { Ring } from "../data/huc";
+import { DRAINAGE_FILL, DRAINAGE_LINE } from "../data/boundaries";
 import { DRAINAGE_AREA_FIELD } from "../state/filters";
 import { sizeBasis } from "../data/rollup";
 import type { NullableNumber, Reservoir } from "../types";
@@ -123,20 +114,6 @@ const TRANSPARENT: [number, number, number, number] = [0, 0, 0, 0];
 
 function areaSymbol(fill: string, line: string): Fill {
   return { type: "simple-fill", color: fill, outline: { color: line, width: 1 } };
-}
-
-/** ArcGIS polygon rings want mutable arrays; ours are readonly by design. */
-function mutableRings(rings: readonly Ring[]): number[][][] {
-  return rings.map((ring) => ring.map(([lon, lat]) => [lon, lat]));
-}
-
-export function createMaskLayer(boundary?: UtahBoundary): GraphicsLayer {
-  const layer = new GraphicsLayer({ id: "utah-mask", listMode: "hide" });
-  layer.add(new Graphic({
-    geometry: new Polygon({ rings: mutableRings(utahMaskRings(boundary)), spatialReference: WGS84 }),
-    symbol: areaSymbol(MASK_FILL, MASK_LINE)
-  }));
-  return layer;
 }
 
 /**

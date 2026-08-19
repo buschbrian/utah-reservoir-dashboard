@@ -114,7 +114,11 @@ MIN_BASELINE_YEARS = 10
 # than slipped in -- a name cannot key a roster that holds two Lost Creeks,
 # and a consumer indexing by name should be told rather than left to find a
 # key it knows has quietly become a different reservoir's.
-EXPORT_SCHEMA_VERSION = 3
+#
+# 4 since ADR-067: `geography.state` is gone. No page draws a mask from it
+# any more, and a reader still expecting the field should be told rather than
+# handed a payload that silently stopped carrying one.
+EXPORT_SCHEMA_VERSION = 4
 RESERVOIR_SCHEMA_VERSION = 1
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
@@ -1214,12 +1218,17 @@ def build_export_sections() -> dict:
     Folding never-changing geometry into a daily payload would put a megabyte
     of unchanged polygons in every day's diff and make the storage numbers
     harder to review, which is the one thing that diff is for.
+
+    No state boundary here since ADR-067. `huc.UTAH_BOUNDARY_PATH` still
+    exists and is still committed, but nothing draws a mask from it any
+    more, so `in_utah` and `intersects_utah` are the only readers left --
+    and both are computed here in the pipeline, from the file directly,
+    rather than from anything this export publishes.
     """
     return {
         "schema_version": EXPORT_SCHEMA_VERSION,
         "capacity_catalog": load_capacity_catalog(),
         "geography": {
-            "state": _feature_collection(huc.UTAH_BOUNDARY_PATH),
             "watersheds": build_watershed_sections(),
         },
     }

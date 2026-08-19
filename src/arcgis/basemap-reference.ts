@@ -25,9 +25,9 @@
  * below everything this project draws.
  *
  * The trade is that the borrowed place names now sit under our own layers
- * rather than over them. On these maps that is the right way round: the fills
- * above them are either semi-transparent (the Utah mask) or thin outlines and
- * small circles, so the names still read — and where they do not, the thing
+ * rather than over them. On these maps that is the right way round: what
+ * draws above them is thin drainage-area outlines and small reservoir
+ * circles, so the names still read — and where they do not, the thing
  * covering them is the subject the reader came for.
  *
  * ## Why it has to be repeatable

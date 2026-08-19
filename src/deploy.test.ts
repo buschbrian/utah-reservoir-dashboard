@@ -29,17 +29,22 @@ const read = (file: string): Promise<string> => readFile(resolve(root, file), "u
  * the five region names -- its own polygons are exactly as unwanted in a
  * deploy as the other two, since the region roster it feeds
  * `build_watershed_sections` carries codes, names and boxes, never rings;
- * `us-land.geojson` is the mask the drought engine reads offline. Each would
- * be 2 copies in every deploy for nobody (ADR-048, ADR-049, ADR-059). */
+ * `us-land.geojson` is the mask the drought engine reads offline.
+ * `utah-boundary.geojson` joined this list under ADR-067: no map draws the
+ * translucent mask it used to fill any more, so the state polygon is
+ * reviewed by Python's `in_utah` and `intersects_utah` classification and
+ * nothing else, the same arrangement `normals.json` has had all along. Each
+ * would be 2 copies in every deploy for nobody (ADR-048, ADR-049, ADR-059,
+ * ADR-067). */
 const COMMITTED_BUT_UNPUBLISHED = [
   "huc6.geojson", "data/watersheds/west-huc6.geojson",
-  "data/watersheds/west-huc2.geojson", "data/us-land.geojson"
+  "data/watersheds/west-huc2.geojson", "data/us-land.geojson",
+  "utah-boundary.geojson"
 ];
 
 const RUNTIME_DATA = [
   "reservoirs.json", "snow_sites.json", "snowpack.json",
-  "reference.json", "capacities.json",
-  "utah-boundary.geojson"
+  "reference.json", "capacities.json"
 ];
 
 describe("a data-only commit deploys on its own", () => {
@@ -249,8 +254,7 @@ describe("a data-only commit deploys on its own", () => {
       "data.html", "api/reservoirs.json", "api/snowpack.json", "api/reference.json",
       "maplibre/index.html", "retired-route.js",
       "data/reservoirs.json", "data/snow_sites.json",
-      "data/snowpack.json", "data/reference.json",
-      "data/utah-boundary.geojson"]) {
+      "data/snowpack.json", "data/reference.json"]) {
       expect(workflow, `the deploy must verify dist/${path}`).toContain(path);
     }
     // The rule that makes a data-only deploy meaningful, checked in CI as

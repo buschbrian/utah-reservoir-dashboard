@@ -479,7 +479,6 @@ for (const viewport of VIEWPORTS) {
     check(ready.basemap === true, `${label}: no basemap resolved`);
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
-    check(ready.masked === true, `${label}: the Utah mask is missing`);
     /* `aria-busy` reports one fact: the map is still starting. Once it has
      * started, every path out of that has to clear it -- the visible loader
      * is replaced by the map element well before the view is ready, so a
@@ -500,8 +499,13 @@ for (const viewport of VIEWPORTS) {
     check(ready.basemapReferenceSunk >= 1,
       `${label}: ${ready.basemapReferenceSunk} basemap reference layers were ` +
       "moved below this project's own layers, expected at least one");
-    check(ready.boundaryPoints > 100,
-      `${label}: authoritative Utah boundary was not drawn (${ready.boundaryPoints} points)`);
+    /* ADR-067 retired the translucent Utah mask these two fields used to
+     * report on. They stay in the readiness signal rather than being
+     * deleted, permanently reporting the retired value -- so this checks
+     * that a mask has not quietly come back, not that one is present. */
+    check(ready.masked === false, `${label}: the retired Utah mask has come back`);
+    check(ready.boundaryPoints === 0,
+      `${label}: ${ready.boundaryPoints} boundary points drawn from a mask that no longer exists`);
     check(ready.drainageAreas === expectedAreas,
       `${label}: drew ${ready.drainageAreas} drainage areas, expected ${expectedAreas}`);
     check(ready.drainageLabels === expectedAreas,

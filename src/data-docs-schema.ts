@@ -332,7 +332,7 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
 export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
   { id: "reference-header", title: "File header", path: "root", fields: [
     f("capacity_catalog", "object", "Reviewed full levels and dam-point evidence."),
-    f("geography", "object", "State and drainage-area boundary collections."),
+    f("geography", "object", "Drainage-area boundary collections."),
     f("schema_version", "version number", "Version of this JSON structure.")
   ]},
   { id: "reference-capacity", title: "Capacity catalog", path: "capacity_catalog", fields: [
@@ -368,14 +368,7 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("source", "web address", "Dam-point source layer.")
   ]},
   { id: "reference-geography", title: "Geography", path: "geography", fields: [
-    f("state", "GeoJSON collection", "Utah state boundary."),
     f("watersheds", "object", "Named drainage-area scopes.")
-  ]},
-  { id: "reference-state", title: "State boundary", path: "geography.state", fields: [
-    f("feature_count", "features", "Number of state features."),
-    f("features", "array", "GeoJSON state features."),
-    f("source", "text", "Boundary publisher and source."),
-    f("type", "text", "GeoJSON collection type.")
   ]},
   { id: "reference-watersheds", title: "Drainage-area scopes", path: "geography.watersheds", fields: [
     f("default_scope", "identifier", "Scope the maps draw."),
@@ -409,21 +402,5 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("states", "text", "States touched by the drainage area."),
     f("bbox", "decimal degrees",
       "The edges of a box a map can open on to show this drainage area: west, south, east and north, in that order.")
-  ]},
-  { id: "reference-geojson-collection", title: "GeoJSON collection", path: "the state boundary collection", fields: [
-    f("type", "text", "GeoJSON collection type."),
-    f("features", "array", "Boundary features.")
-  ]},
-  { id: "reference-geojson", title: "GeoJSON feature", path: "state boundary features", fields: [
-    f("type", "text", "GeoJSON object type."),
-    f("properties", "object", "Feature name."),
-    f("geometry", "object", "Polygon or multipolygon type and coordinate arrays.")
-  ]},
-  { id: "reference-geometry", title: "GeoJSON geometry", path: "state boundary feature geometry", fields: [
-    f("type", "text", "Polygon or multipolygon type."),
-    f("coordinates", "decimal degrees", "Nested longitude and latitude coordinate arrays.")
-  ]},
-  { id: "reference-state-properties", title: "State feature properties", path: "geography.state.features[].properties", fields: [
-    f("name", "text", "State name.")
   ]},
 ];
