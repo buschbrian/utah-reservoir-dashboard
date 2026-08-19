@@ -48,17 +48,37 @@ NEAR_RADIUS_KM = 2.0
 # position, are accepted together where either alone would not be enough.
 NAMED_RADIUS_KM = 25.0
 
-# How much more water than the published figure a reservoir may hold when the
-# inventory gives no maximum pool.
+# How much more water than the largest published figure a reservoir may hold
+# before the match is read as a wrong dam.
 #
-# Reservoirs are operated a little above the conservation pool. Where the
-# inventory gives a maximum pool, that is a real ceiling and no allowance is
-# needed. Where it gives none, the only figure available describes the normal
-# level, so a small allowance keeps a reservoir that sits just above it from
-# being read as a wrong dam. Measured: Stagecoach Reservoir holds 36,474
-# acre-feet against a conservation pool of 36,439, which is 35 acre-feet more,
-# or one part in a thousand.
-CONSERVATION_ALLOWANCE = 0.02
+# Two things this has to absorb, both measured across the 158 western
+# candidates rather than reasoned about (docs/WESTERN-RESERVOIR-ADMISSION.md):
+#
+# **The inventory's own figures disagree about the ceiling.** A published
+# maximum pool was treated as a real ceiling needing no allowance, and it is
+# not always the largest figure the inventory holds for the same dam: Deadwood
+# Dam publishes a maximum pool of 153,992 and a headline figure of 191,600,
+# and the reservoir has held 157,590. Eight western reservoirs were refused
+# that way, matched at 0.04 to 0.12 km with their names agreeing -- Cle Elum
+# among them, refused while 62% full.
+#
+# **Reservoirs are surcharged above every published pool.** American Falls has
+# held 1% over, Lake Tahoe 1%, Jackson Gulch 2%, Drews 6%. None of those is a
+# wrong dam; a wrong dam is off by a lot. Lake Havasu matched a 6,300
+# acre-foot dam called Gene Wash while its water sits behind Parker Dam, which
+# is 97 times over, and the stations that report a total across several
+# reservoirs -- "Mission Valley (8)", "Camas (4)" -- are 8 and 7 times over.
+#
+# Ten percent separates the two groups with room on both sides. It is a
+# judgement at the edges and the edges are named: Drews at 1.06 is admitted,
+# and Lake Mohave at 1.11 is refused although Davis Dam is certainly its dam
+# (ADR-065).
+SURCHARGE_ALLOWANCE = 0.10
+
+#: The old name, kept because the reasoning above replaced a rule rather than
+#: a number, and a reader following a citation to `CONSERVATION_ALLOWANCE`
+#: should land on what it became.
+CONSERVATION_ALLOWANCE = SURCHARGE_ALLOWANCE
 
 EARTH_RADIUS_KM = 6371.0088
 
@@ -216,28 +236,39 @@ def capacity_of(dam):
     return None, None
 
 
+def largest_published_pool(dam):
+    """The most water the inventory says this dam holds, whatever it calls it.
+
+    All three figures, not the maximum pool alone. They are three fields of
+    one record and they do not agree about which is largest: Deadwood Dam's
+    maximum pool is 153,992 and its headline figure is 191,600. Reading one
+    field as the ceiling therefore refuses reservoirs that sit inside the same
+    record's own larger number (ADR-065).
+
+    None when the inventory publishes no figure at all, which is not evidence
+    either way.
+    """
+    figures = [value for value in (positive(dam.get("max_storage_af")),
+                                   positive(dam.get("nid_storage_af")),
+                                   positive(dam.get("normal_storage_af"))) if value]
+    return max(figures) if figures else None
+
+
 def holds_more_than_the_dam(dam, observed_max_af):
     """True when the reservoir has held more water than the dam can contain.
 
-    This is the test that finds a wrong match. Compare against the maximum
-    pool, which is the most water the structure holds and is a real ceiling.
-
-    Where the inventory publishes no maximum pool, the remaining figures
-    describe the normal level, so they get the small allowance above. The
-    inventory's headline figure is treated the same way: for Stagecoach
-    Reservoir it simply repeats the conservation pool, so reading it as a
-    ceiling would refuse the reservoir over 35 acre-feet.
+    This is the test that finds a wrong match, and what makes it one is the
+    *size* of the excess. A reservoir a few percent over its largest published
+    pool is being operated above it; a reservoir several times over is behind
+    a different dam. See `SURCHARGE_ALLOWANCE` for the measurements that
+    separate the two.
     """
     if observed_max_af is None:
         return False
-    maximum = positive(dam.get("max_storage_af"))
-    if maximum:
-        return observed_max_af > maximum
-    others = [value for value in (positive(dam.get("nid_storage_af")),
-                                  positive(dam.get("normal_storage_af"))) if value]
-    if others:
-        return observed_max_af > max(others) * (1 + CONSERVATION_ALLOWANCE)
-    return False
+    ceiling = largest_published_pool(dam)
+    if ceiling is None:
+        return False
+    return observed_max_af > ceiling * (1 + SURCHARGE_ALLOWANCE)
 
 
 def could_hold(dam, observed_max_af):
@@ -256,20 +287,20 @@ def could_hold(dam, observed_max_af):
     dam and settles for whatever is left, which is how Trial Lake ends up
     matched to Washington Lake Dam.
 
-    So every figure gets the same small allowance here, including a real
-    maximum pool. A structure still has to be in the right order of
-    magnitude: Huntington North's gauge has a settling pond 0.29 km away
-    holding 360 acre-feet, and no allowance makes that a reservoir seen
-    holding 4,259.
+    So every figure gets the same allowance here, including a real maximum
+    pool. A structure still has to be in the right order of magnitude:
+    Huntington North's gauge has a settling pond 0.29 km away holding 360
+    acre-feet, and no allowance makes that a reservoir seen holding 4,259.
+
+    Since ADR-065 the strict test asks the same question of the same figures,
+    so this is now its complement rather than a weaker relative -- which is
+    the right way round: a screen stricter than the acceptance test can throw
+    away a dam that would have been accepted, and that is how Trial Lake ended
+    up matched to Washington Lake Dam.
     """
     if not observed_max_af:
         return True
-    figures = [value for value in (positive(dam.get("max_storage_af")),
-                                   positive(dam.get("nid_storage_af")),
-                                   positive(dam.get("normal_storage_af"))) if value]
-    if not figures:
-        return True
-    return max(figures) * (1 + CONSERVATION_ALLOWANCE) >= observed_max_af
+    return not holds_more_than_the_dam(dam, observed_max_af)
 
 
 def admit(candidate, dams):
