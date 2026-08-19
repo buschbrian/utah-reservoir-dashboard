@@ -77,6 +77,7 @@ import {
   wireTableExport,
   wireTableRow
 } from "./ui/shell";
+import { updatePageLinks } from "./ui/page-header";
 import { renderShell } from "./ui/shell-template";
 import { markSelectedInTable, renderTable } from "./ui/table";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
@@ -321,7 +322,7 @@ function renderReservoirTable(): void {
       onSort: (key: SortKey) => {
         tableSort = nextSort(tableSort, key);
         renderReservoirTable();
-        writeUrlState({ ...viewState(), reservoir: selection.get() });
+        writeUrl({ ...viewState(), reservoir: selection.get() });
         /* Focus is on the heading that was just pressed, and the rebuild
          * replaced it. Put it back on the same column, or a reader sorting
          * from the keyboard is returned to the top of the document. */
@@ -489,12 +490,12 @@ function wireFilters(map: MapController): void {
         filterState = { ...filterState, drainageArea: value === "all" ? null : value };
       }
       apply();
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
     },
     () => {
       filterState = ALL_RESERVOIRS;
       apply();
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
     }
   );
   applyFilter = apply;
@@ -552,7 +553,7 @@ function wireBaseline(): void {
       // the difference between this and the period the page opened on.
       chosenBaseline = activeBaselineId;
       applyBaseline();
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
     }
   );
 }
@@ -597,18 +598,35 @@ function renderDetail(): void {
   );
 }
 
+/**
+ * Every in-place address-bar write goes through here, so the navigation
+ * bar's links are brought up to date in the same breath. `writeUrlState`
+ * uses `replaceState` deliberately -- no navigation, no re-render -- which
+ * is exactly the path `updatePageLinks` exists for: without it the bar
+ * carries whatever the URL held at first paint, and a reader who narrows
+ * the map and then clicks "Snowpack" loses the area they just chose.
+ */
+function writeUrl(state: Partial<DashboardUrlState>): void {
+  writeUrlState(state);
+  updatePageLinks(window.location.search);
+}
+
 /** Registered once. It reads the live scope, so it survives a redraw. */
 function wireSelection(): void {
   selection.subscribe((name) => {
     const reservoir = findReservoir(inScope, name);
-    markSelectedInList(reservoir?.name ?? null);
-    markSelectedInTable(reservoir?.name ?? null);
+    /* The list and table rows are keyed by the qualified label (ADR-066), so
+     * the highlight must be asked for by the same spelling -- the bare name
+     * matches nothing the moment two reservoirs share it. */
+    const label = reservoir ? reservoirLabel(reservoir, inScope) : null;
+    markSelectedInList(label);
+    markSelectedInTable(label);
     renderDetail();
     if (reservoir) revealDetail();
     // The readiness signal is written once, after the first draw; the
     // selection keeps changing after that, so the field is kept current
     // rather than left reporting the state the page loaded in.
-    if (window.__dashboardReady) window.__dashboardReady.selected = reservoir?.name ?? null;
+    if (window.__dashboardReady) window.__dashboardReady.selected = label;
   });
 }
 
@@ -704,14 +722,14 @@ if (!supportsDashboard(browserCapabilities())) {
         window.__dashboardReady.month = month;
         window.__dashboardReady.drawn = map.status.reservoirsDrawn;
       }
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
     };
 
     wireSelection();
     wireTableRow((open) => {
       tableOpen = open;
       if (window.__dashboardReady) window.__dashboardReady.tableOpen = open;
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
       // The first open is what builds the chart; a later one redraws it only
       // if the rows changed while the row was closed.
       if (open) scheduleRankingChart();
@@ -744,7 +762,7 @@ if (!supportsDashboard(browserCapabilities())) {
       };
       applyScope();
       applyMonth();
-      writeUrlState({ ...viewState(), reservoir: selection.get() });
+      writeUrl({ ...viewState(), reservoir: selection.get() });
     });
 
     /* Restore the whole view a link describes, not just its selection: a
@@ -789,7 +807,10 @@ if (!supportsDashboard(browserCapabilities())) {
      * "?reservoir=Deer%20Creek" the moment it resolves. */
     connectSelectionToUrl(selection, viewState);
     deepLink = findReservoir(inScope, wanted.reservoir);
-    if (deepLink) selection.set(deepLink.name, { source: "url" });
+    /* Stored as the qualified label, not the bare name: a link that resolved
+     * "Lost Creek, OR" and was re-stored as "Lost Creek" would be ambiguous
+     * again on the very next read (ADR-066). */
+    if (deepLink) selection.set(reservoirLabel(deepLink, inScope), { source: "url" });
   }
   wireBaseline();
   applyBaseline();

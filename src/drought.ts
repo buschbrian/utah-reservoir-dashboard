@@ -57,7 +57,7 @@ import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
 import { formatDate, formatPercent } from "./viz/format";
@@ -433,6 +433,9 @@ function renderDrought(
   function update(next: Partial<DroughtUrlState>): void {
     state = { ...state, ...next };
     writeDroughtUrl(state);
+    /* The write is a `replaceState`; there is no navigation to re-render the
+     * bar, so its links are brought up to date here or not at all. */
+    updatePageLinks(window.location.search);
     draw();
   }
 

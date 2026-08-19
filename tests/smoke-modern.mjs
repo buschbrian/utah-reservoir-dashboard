@@ -3002,6 +3002,35 @@ for (const failure of [
   check(fallback.navHrefs.every((href) => !(href ?? "").includes("?")),
     `the bar carries a query with nothing chosen: ${fallback.navHrefs.join(", ")}`);
 
+  /* The bar keeps up with the address bar. Narrowing the map is a
+   * `replaceState`, not a navigation, so nothing re-renders the links --
+   * they are rewritten in place, or they carry the URL from first paint and
+   * are quietly wrong by the time one is clicked. The map spells its own
+   * parameter `drainage=`; the bar must carry it under the one name every
+   * page reads. */
+  await tab.waitForFunction(() => document.querySelector(
+    '#start-panel [data-filter="drainage"] calcite-option[value]:not([value="all"])')
+    !== null, { timeout: 60000 });
+  const narrowedBar = await tab.evaluate(() => {
+    const select = document.querySelector('#start-panel [data-filter="drainage"]');
+    const area = [...select.querySelectorAll("calcite-option")]
+      .map((option) => option.value).find((value) => value && value !== "all");
+    select.value = area;
+    select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+    return {
+      area,
+      search: window.location.search,
+      navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+        .map((link) => link.getAttribute("href"))
+    };
+  });
+  check(narrowedBar.search.includes(`drainage=${narrowedBar.area}`),
+    `narrowing the map did not reach the address bar ("${narrowedBar.search}")`);
+  check(narrowedBar.navHrefs.every((href) =>
+    new RegExp(`[?&]area=${narrowedBar.area}(?:&|$)`).test(href ?? "")),
+    `the bar kept its first-paint links after the map was narrowed: ` +
+    narrowedBar.navHrefs.join(", "));
+
   for (const message of errors) failures.push(`Area size: ${message}`);
   await context.close();
 }

@@ -59,7 +59,7 @@ import {
 import { levelFromSearch, writeLevel } from "./state/level";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { createLevelControl } from "./ui/level-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
@@ -312,6 +312,15 @@ function renderSnow(payload: SnowpackPayload): void {
       status: siteFilter.status
     };
   }
+
+  /** Writes the bar's links in the same breath as the address bar: the write
+   * is a `replaceState`, so there is no navigation to re-render them, and a
+   * narrowed `?area=` would otherwise sit in the URL while the links carried
+   * the one from first paint. */
+  function writeUrl(): void {
+    writeSnowUrl(urlState());
+    updatePageLinks(window.location.search);
+  }
   let levelsOffered = 1;
   let lastCurvePoints = 0;
   let lastSiteCurvePoints = 0;
@@ -464,7 +473,7 @@ function renderSnow(payload: SnowpackPayload): void {
       children.push(reading, timingLine, table);
       siteDetail.replaceChildren(...children);
     }
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -566,7 +575,7 @@ function renderSnow(payload: SnowpackPayload): void {
       children.push(reading, table);
       basinDetail.replaceChildren(...children);
     }
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -586,7 +595,7 @@ function renderSnow(payload: SnowpackPayload): void {
     dayReading.textContent = describeDay(day);
     if (daySlider.value !== undefined) daySlider.value = Math.max(0, days.indexOf(day));
     if (map) map.setDay(mapDayValues(payload, day), day);
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -691,7 +700,7 @@ function renderSnow(payload: SnowpackPayload): void {
 
     drawSpread();
     if (map) map.setArea(chosen);
-    writeSnowUrl(urlState());
+    writeUrl();
     lastCurvePoints = curvePoints;
     publishReady();
   };

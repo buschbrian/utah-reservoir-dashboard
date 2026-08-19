@@ -59,7 +59,7 @@ import {
 import type {
   DroughtCoveragePayload, Reservoir, SnowpackPayload
 } from "./types";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import "./styles/overview.css";
@@ -611,6 +611,9 @@ async function renderOverview(
      * drawing, and a reader who copied it mid-render would send a link to
      * something they had not seen yet. */
     writeOverviewUrl(currentUrlState());
+    /* The write is a `replaceState`; there is no navigation to re-render the
+     * bar, so its links are brought up to date here or not at all. */
+    updatePageLinks(window.location.search);
     window.__overviewReady = {
       reservoirs: scoped.length,
       visible: visible.length,
