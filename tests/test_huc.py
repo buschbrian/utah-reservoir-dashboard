@@ -1,8 +1,13 @@
 """Tests for the committed watershed boundaries and the point assignment.
 
-Network-free, like the rest of the suite: `huc6.geojson` and
-`reservoirs.json` are both committed, so this asserts against exactly what
+Network-free, like the rest of the suite: the boundary files and
+`reservoirs.json` are all committed, so this asserts against exactly what
 ships rather than against whatever the USGS service returns today.
+
+Two files are in play since the coverage moved west (ADR-063). The drawn
+scope's file is what `load_units` reads and what every reservoir is assigned
+against -- 75 basins. `ROSTER_BOUNDARIES` is the fourteen the roster was
+admitted from, which is a subset of it and is what the map opens on.
 
 What this guards is the thing that would otherwise fail silently. A wrong
 watershed assignment does not throw, does not blank the map and does not
@@ -27,17 +32,19 @@ from huc import (  # noqa: E402
     in_utah, load_units, waterbody_intersects_utah, waterbody_states,
 )
 
-BOUNDARIES = ROOT / "huc6.geojson"
+ROSTER_BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
 CONNECTED = ROOT / "connected_reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 
-# Every hydrologic unit in scope: touching Utah, and in the Colorado River or
-# Great Basin systems. Upper Snake (170402) touches the state and is excluded
-# on purpose -- it drains to the Columbia. See ADR-010. Written down so a
-# service change that quietly drops or adds one is a failed test rather than
-# a differently-shaped map.
+# Every hydrologic unit the reservoir roster was admitted from: touching Utah,
+# and in the Colorado River or Great Basin systems. Upper Snake (170402)
+# touches the state and is excluded from *that* rule on purpose -- it drains
+# to the Columbia (ADR-010) -- though the maps have drawn it since the
+# coverage moved west, with nothing in it. Written down so a service change
+# that quietly drops or adds one is a failed test rather than a
+# differently-shaped map.
 EXPECTED_UNITS = {
     "140100": "Colorado Headwaters",
     "140300": "Upper Colorado-Dolores",
@@ -106,12 +113,26 @@ def reservoirs() -> list[dict]:
     return records
 
 
-def test_boundary_file_holds_exactly_the_units_that_touch_utah(units):
-    assert {unit["huc6"]: unit["name"] for unit in units} == EXPECTED_UNITS
+def test_the_drawn_file_is_the_west_and_still_holds_every_area_with_a_reservoir(units):
+    """The file the pipeline assigns against is the drawn scope's, and the
+    fourteen areas that hold reservoirs are inside it under the same names.
+
+    Names as well as codes: a code that survives a service revision under a
+    different name is still a renamed area, and the name is what a reader
+    sees on a hover card.
+    """
+    drawn = {unit["huc6"]: unit["name"] for unit in units}
+
+    assert len(drawn) == 75
+    assert sorted({code[:2] for code in drawn}) == ["14", "15", "16", "17", "18"]
+    assert {code: drawn.get(code) for code in EXPECTED_UNITS} == EXPECTED_UNITS
 
 
-def test_every_unit_lists_utah_among_its_states():
-    payload = json.loads(BOUNDARIES.read_text())
+def test_every_roster_unit_lists_utah_among_its_states():
+    """True of the roster scope, and deliberately not asserted of the drawn
+    one: the point of the western coverage is the basins that touch no part
+    of Utah."""
+    payload = json.loads(ROSTER_BOUNDARIES.read_text())
     for feature in payload["features"]:
         assert "UT" in feature["properties"]["states"], feature["properties"]["name"]
 
@@ -126,9 +147,17 @@ def test_every_published_reservoir_lands_in_exactly_one_unit(units, reservoirs):
         assert len(matches) == 1, f"{reservoir['name']} matched {matches}"
 
 
-def test_every_published_unit_has_at_least_one_tracked_reservoir(reservoirs):
+def test_the_areas_holding_reservoirs_are_exactly_the_roster_scopes(reservoirs, units):
+    """61 of the 75 drawn areas hold nothing, and that is the current state of
+    the expansion rather than a fault: coverage moved west and the roster has
+    not, because admitting a reservoir means tracing a capacity and reviewing
+    it (ADR-063). What must stay true is that every area holding a reservoir
+    is one the map opens on -- this is the assertion that fails when a
+    reservoir is admitted outside it and the extent is left behind."""
     represented = {reservoir["huc6"] for reservoir in reservoirs}
+
     assert represented == set(EXPECTED_UNITS)
+    assert represented <= {unit["huc6"] for unit in units}
 
 
 @pytest.mark.parametrize("name,huc6", sorted(KNOWN_ASSIGNMENTS.items()))

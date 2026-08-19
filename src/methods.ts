@@ -265,9 +265,14 @@ root.innerHTML = `
       <p>A reservoir is placed in a drainage area by its dam or outlet point, not by the
         middle of its water surface. A large reservoir can cross a boundary, and what
         matters is where the stored water leaves it.</p>
-      <p>A drainage area is included when it touches Utah and belongs to the Colorado River
-        or Great Basin systems. Areas that drain to the Columbia River system are excluded,
-        because water stored in them never reaches Utah.</p>
+      <p>The maps draw every drainage area of the west: all the land that drains to the
+        Pacific Ocean, and the Great Basin, whose water reaches no ocean at all. That is
+        75 areas. Drought is measured for all of them.</p>
+      <p>A reservoir is admitted from a smaller set. Its drainage area must touch Utah and
+        belong to the Colorado River or Great Basin systems. Areas that drain to the
+        Columbia River system are left out, because water stored in them never reaches
+        Utah. So most of the drawn areas hold no reservoir this dashboard tracks, and the
+        map opens on the areas that do.</p>
       <p>This admits connected reservoirs that sit outside the state, and the map offers
         both readings: Utah waterbodies alone, or every connected reservoir. Where a
         reservoir's water reaches Utah, it is counted as a Utah waterbody even when the

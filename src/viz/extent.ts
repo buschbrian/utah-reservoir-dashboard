@@ -13,14 +13,22 @@
  */
 
 /**
- * The bounding box of the committed drainage-area polygons.
+ * The bounding box of the drainage areas that hold published reservoirs.
  *
  * The drainage areas are the primary source, so the map's geography comes
- * from them. A constant rather than a computation because the navigation
- * constraint is needed when the view is constructed, before any boundary
- * file has been fetched -- and a constraint that arrives late is a map that
- * can be panned away in the meantime. `extent.test.ts` recomputes it from
- * `huc6.geojson`, so it cannot drift from the file it describes.
+ * from them -- but from the ones with reservoirs in them, not from every area
+ * drawn. Those were the same fourteen areas until the coverage moved west
+ * (ADR-063), and 75 areas with 69 reservoirs in a corner of them is a wider
+ * map rather than a fuller one: the box would have grown from 10 degrees of
+ * longitude to 19 without one more reservoir to look at. So the extent
+ * follows the roster and grows when the roster does.
+ *
+ * A constant rather than a computation because the navigation constraint is
+ * needed when the view is constructed, before any boundary file has been
+ * fetched -- and a constraint that arrives late is a map that can be panned
+ * away in the meantime. `extent.test.ts` recomputes it from whichever file
+ * `reference.json` names as the roster scope's, so it cannot drift from the
+ * areas it describes and it cannot be left behind when they move.
  *
  * The exact extremes of the committed rings rather than a rounded box. Three
  * decimals cannot express them without either clipping a divide or drifting
@@ -51,7 +59,9 @@ export function expandBounds(
  * puts them against the edges of the canvas; one level out gives them the
  * middle of it with the surrounding geography for context, and there is
  * nothing useful further out than that for a dashboard about these
- * drainage areas.
+ * drainage areas. Since the coverage moved west there is context in the
+ * literal sense too: the areas beyond the roster's are drawn, and this box
+ * reaches into them.
  */
 export const MAP_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
   expandBounds(HUC6_BOUNDS, 2);

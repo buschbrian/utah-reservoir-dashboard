@@ -7,6 +7,22 @@ and is not listed here.
 
 ### Added
 
+- **The maps cover the west.** Seventy-five drainage areas instead of
+  fourteen: everything draining to the Pacific, plus the Great Basin, which
+  drains nowhere. The drought map has a real measurement for every one of them
+  and draws every one of them. The snow map still draws fourteen, because the
+  snow network reports in fourteen and an outline with nothing behind it is
+  less to look at rather than more. The reservoir roster has not moved and is
+  still 69, so 61 of the drawn areas hold none -- admitting a reservoir means
+  tracing a full level and reviewing it, and that work is separate from
+  drawing the ground (ADR-063).
+
+- **The storage map still opens where the reservoirs are.** Where a reader may
+  pan now comes from the areas that hold reservoirs rather than from every
+  area drawn, so covering the west did not open the map on 19 degrees of
+  longitude with every reservoir in one corner of it. The opening view is
+  unchanged, and it will follow the reservoirs out when they go.
+
 - **Lake Mead, and a control for it.** Lake Mead sits in Lower Colorado-Lake
   Mead, one of the fourteen drainage areas this site has always published, and
   had never been admitted -- so the area named after it carried none of it. At
@@ -69,6 +85,14 @@ and is not listed here.
   reservoir's climate normal wrote that reservoir as the whole of
   `normals.json`, discarding the other sixty-eight and the thirty-year job
   that produced them. It merges now.
+
+- **The western boundaries were refetched at 56 metres.** They had been
+  fetched at 100, the ordinary tolerance for a new scope, and publishing them
+  made them the file every drought figure is measured against. At the coarser
+  tolerance two of the fourteen areas published today moved by a tenth of a
+  point -- one rounding step, with no weather behind it. Refetched, the
+  fourteen are identical to the reviewed file they have always been measured
+  with, and no published figure moved at all.
 
 - **Groundwork for covering the whole west.** Nothing on the site looks
   different yet, and that is the point of this step. The machinery that

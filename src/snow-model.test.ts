@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readSnowpack } from "./data/payload-fixture";
+import { parseDrainageUnits, type DrainageScope } from "./data/boundaries";
+import { readDrainageGeoJson, readSnowpack } from "./data/payload-fixture";
 import { SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
 import {
   basinChoices,
@@ -7,6 +8,7 @@ import {
   defaultMapDay,
   headlineFloor,
   mapDayValues,
+  measuredScope,
   monthReadings,
   newestHeadline,
   percentOfNormal,
@@ -41,6 +43,53 @@ describe("percent of normal", () => {
   it("rounds to one decimal place, the pipeline's own precision", () => {
     expect(percentOfNormal(1, 3)).toBe(33.3);
     expect(percentOfNormal(10, 8)).toBe(125);
+  });
+});
+
+describe("the scope the map draws", () => {
+  /* The drawn scope, read the way the page reads it. 75 basins since the
+   * coverage moved west; the snow network reports in 14 of them. */
+  const drawn = (): DrainageScope => ({
+    level: 6,
+    areas: parseDrainageUnits(
+      (readDrainageGeoJson() as { features: { properties: Record<string, string> }[] })
+        .features.map((feature) => ({
+          huc6: feature.properties["huc6"],
+          name: feature.properties["name"],
+          states: feature.properties["states"]
+        })), 6)
+  });
+
+  it("is the areas this payload measures, not every area drawn", () => {
+    const scope = measuredScope(drawn(), payload);
+    const measured = new Set(payload.rollups.map((rollup) => rollup.huc6));
+
+    expect(scope.areas.length).toBe(measured.size);
+    expect(scope.level).toBe(6);
+    for (const area of scope.areas) expect(measured.has(area.huc6)).toBe(true);
+    /* The point of the narrowing: there is something to leave out. If the
+     * snow inventory ever covers the whole drawn scope this is an equality
+     * and the filter is a no-op, which is the right behaviour then too. */
+    expect(scope.areas.length).toBeLessThanOrEqual(drawn().areas.length);
+  });
+
+  it("keeps every area a reader can pick from the payload", () => {
+    /* The basin picker, the map and the `?basin=` link are three ways to the
+     * same card, so an area offered by one and missing from another is a
+     * control that does nothing. */
+    const drawnCodes = new Set(drawn().areas.map((area) => area.huc6));
+    const offered = basinChoices(payload).map((choice) => choice.code);
+    const scope = measuredScope(drawn(), payload);
+    const kept = new Set(scope.areas.map((area) => area.huc6));
+
+    for (const code of offered) {
+      if (drawnCodes.has(code)) expect(kept.has(code)).toBe(true);
+    }
+  });
+
+  it("draws nothing when the payload measures none of the drawn areas", () => {
+    const empty = { ...payload, rollups: [] };
+    expect(measuredScope(drawn(), empty).areas).toEqual([]);
   });
 });
 

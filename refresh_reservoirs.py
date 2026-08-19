@@ -1063,11 +1063,17 @@ def build_watershed_sections() -> dict:
     already is. That is what keeps the outlines from disagreeing with the
     assignments: the codes published here are read out of that same file.
 
-    All of them, not just the published one: the scopes exist to be compared
+    All of them, not just the drawn one: the scopes exist to be compared
     (docs/UPPER-COLORADO-PIPELINE.md), and a research scope that ships only
     as a file on disk cannot be compared against anything. `default_scope`
     is what keeps that from changing the dashboard -- the extra scopes are
-    available, and one of them is still the accepted geography.
+    available, and one of them is the accepted geography.
+
+    Two of them are named. `default_scope` is what the maps draw, 75 basins
+    since 2026-08-18; `roster_scope` is the geography the reservoir roster was
+    admitted from, still the fourteen areas that touch Utah, and it is what
+    the storage map opens on (ADR-063). They were the same name for as long
+    as coverage and roster moved together.
 
     A *published* scope that is missing, short, duplicated or out of region
     raises rather than exporting quietly. This is reference data assembled
@@ -1109,7 +1115,17 @@ def build_watershed_sections() -> dict:
             ],
         }
 
-    return {"default_scope": watershed_scopes.DEFAULT_SCOPE, "scopes": scopes}
+    return {
+        "default_scope": watershed_scopes.DEFAULT_SCOPE,
+        # Which areas are drawn and which areas hold reservoirs stopped being
+        # one question when the coverage moved west (ADR-063). A client that
+        # wants the geography the roster covers -- the storage map's opening
+        # extent is the one that does -- reads this rather than assuming the
+        # drawn scope, and `src/viz/extent.ts` is held against the file it
+        # names so the box cannot drift from the reservoirs.
+        "roster_scope": watershed_scopes.ROSTER_SCOPE,
+        "scopes": scopes,
+    }
 
 
 def build_export_sections() -> dict:

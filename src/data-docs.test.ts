@@ -111,6 +111,14 @@ describe("public API field documentation", () => {
       merged(data.units.map((unit: Record<string, any>) => unit.percent_of_area)));
     expectFields(DROUGHT_GROUPS, "drought-at-least",
       merged(data.units.map((unit: Record<string, any>) => unit.percent_of_area_at_least)));
+    /* Partly measured areas arrived with the western coverage: every area
+     * published before it was wholly inside the country, so nothing carried
+     * this block and nothing documented it (ADR-059, ADR-063). */
+    const measured = data.units
+      .map((unit: Record<string, any>) => unit.measured)
+      .filter((block: unknown) => block !== undefined);
+    expect(measured.length).toBeGreaterThan(0);
+    expectFields(DROUGHT_GROUPS, "drought-measured", merged(measured));
   });
 
   it("keeps API explanations in plain language", () => {

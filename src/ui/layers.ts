@@ -162,7 +162,9 @@ export function drainageLabelingInfo(nameField: string): unknown[] {
     maxScale: 0,
     /* The engine's whole reason for being here: at fourteen names a fixed
      * position was fine, and past that a name that cannot be placed has to
-     * drop rather than pile onto its neighbour. */
+     * drop rather than pile onto its neighbour. There are 75 since the
+     * coverage moved west (ADR-063), so this is now load-bearing rather than
+     * provident. */
     deconflictionStrategy: "dynamic",
     symbol: {
       type: "text",
@@ -437,7 +439,7 @@ export interface ReservoirReferenceResult {
  * They still earn their place. "Which reservoirs are in the basin that is
  * at 46% of normal snow" and "which reservoirs are under the D4 patch" are
  * exactly the readings these two pages exist to make possible, and until now
- * the reader had to hold fourteen area names in their head to make them.
+ * the reader had to hold every area name in their head to make them.
  */
 export function createReservoirReferenceLayer(
   reservoirs: readonly ReservoirReference[]

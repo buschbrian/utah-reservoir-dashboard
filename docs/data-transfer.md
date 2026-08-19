@@ -13,15 +13,26 @@ Two rules before any figure below is read:
 
 | file | raw | gzip |
 |---|---:|---:|
-| `snowpack.json` | 1,166 KB | **98.8 KB** |
-| `reservoirs.json` | 359 KB | 43.0 KB |
-| `reference.json` | 22 KB | 5.7 KB |
+| `snowpack.json` | 1,170 KB | **98.6 KB** |
+| `reservoirs.json` | 360 KB | 43.1 KB |
+| `reference.json` | 27 KB | 6.7 KB |
+| `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 
-Re-measured 2026-08-18, after Lake Mead joined the roster (ADR-062) and the
-county and state fields joined every record (ADR-058, ADR-060): `reservoirs.json`
-gained 1.2 KB on the wire for a reservoir and five new fields per record. The
-new fields are short strings and short arrays, so they compress well against
-the twelve months of numbers already in each record.
+Re-measured 2026-08-18, after the coverage moved to the whole west (ADR-063).
+The two files that carry a row per drainage area went from 14 rows to 75:
+`reference.json` gained 1.2 KB on the wire and the weekly drought coverage
+gained 2.0 KB. Both are roughly a fifth of what the area count did, because
+what repeats between rows is keys and class names rather than values. The
+scoping projected 4.8 KB for the coverage file and it came in at 2.9.
+
+`reservoirs.json` did not move: the roster is still 69 reservoirs in 14 of the
+75 areas, and the drainage codes it carries were already six digits.
+
+Measured 2026-08-18 before that, after Lake Mead joined the roster (ADR-062)
+and the county and state fields joined every record (ADR-058, ADR-060):
+`reservoirs.json` gained 1.2 KB on the wire for a reservoir and five new fields
+per record. The new fields are short strings and short arrays, so they compress
+well against the twelve months of numbers already in each record.
 
 `snowpack.json` was 1,913 KB raw and 216.6 KB gzipped until ADR-052 wrote the
 water-year calendar once instead of once per site: **54% off the wire**, with
@@ -143,15 +154,29 @@ Everything fetched to draw the areas, measured per page against a built
 
 | page | before | reference.json | hosted | after |
 |---|---:|---:|---:|---:|
-| Storage map | 1,001 KB | 21.2 KB | 42.5 KB (10 req) | **63.7 KB** |
-| Drought map | 1,001 KB | 21.2 KB | 60.4 KB (28 req) | **81.6 KB** |
-| Snow map | 1,001 KB | 21.2 KB | 124.5 KB (14 req) | **145.7 KB** |
+| Storage map | 1,001 KB | 26.9 KB | 210.6 KB (9 req) | **237.5 KB** |
+| Drought map | 1,001 KB | 26.9 KB | 241.2 KB (23 req) | **268.1 KB** |
+| Snow map | 1,001 KB | 26.9 KB | 120.7 KB (10 req) | **147.6 KB** |
 
-The snow map is the expensive one, and the reason is the point of the whole
-arrangement rather than a fault in it: its opening view is tighter, so the
-quantized geometry it asks for is finer. The cost follows what is on screen.
-It also means every figure in this table moves with a map's opening extent --
-re-measure rather than reason.
+Re-measured 2026-08-18 at western coverage (ADR-063), and this is where
+publishing 75 areas instead of 14 is actually paid. The hosted outlines cost
+the storage map 168 KB more and the drought map 181 KB more; the snow map is
+within 4 KB of its old figure because `measuredScope` keeps it drawing the 14
+areas the snow network reports in. Nothing about the arrangement changed --
+the geometry is still quantized to the view and still never enters a committed
+file -- there is simply five times as much of it in front of the reader.
+
+This is the first-load figure and the lever on it is what each map draws, not
+how it fetches: the drought map has a measurement for all 75 and pays for all
+75, and the storage map draws the areas beyond the roster as context around 69
+reservoirs. If that trade ever stops being worth 168 KB, narrowing the storage
+map the way the snow map is narrowed is the change, and it is four lines.
+
+The snow map used to be the expensive one, and the reason it was is the point
+of the arrangement rather than a fault in it: its opening view is tighter, so
+the quantized geometry it asks for is finer. The cost follows what is on
+screen. It also means every figure in this table moves with a map's opening
+extent -- re-measure rather than reason.
 
 ## What no longer ships at all
 

@@ -24,7 +24,8 @@ redirects, one frozen source oracle, and one Python pipeline:
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
 | `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
-| `huc6.geojson` | The reviewed drainage-area polygons. Committed, read by the pipeline to assign reservoirs, never published: not inside `reference.json` and not copied into `dist/` (ADR-048, ADR-049). Nothing in a browser has fetched it since the outlines became the hosted layer's. |
+| `data/watersheds/west-huc6.geojson` | The 75 drainage areas the maps draw and the pipeline assigns against, since ADR-063. Committed, never published: not inside `reference.json` and not copied into `dist/` (ADR-048, ADR-049). Nothing in a browser has fetched a polygon file since the outlines became the hosted layer's. |
+| `huc6.geojson` | The fourteen areas the reservoir roster was admitted from, and the box the storage map opens on. Still committed, still reviewed, and its geometry is asserted identical to the same fourteen inside the drawn file. |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules
@@ -75,7 +76,7 @@ that exists, and 13,910 of them do.
 
 **The payload carries the roster; the service carries the shapes**
 (ADR-047, ADR-048). `reference.json` publishes each area's code, name and
-states and no drainage geometry -- it was 1,001 KB and is 21 KB, and every
+states and no drainage geometry -- it was 1,001 KB and is 27 KB, and every
 map page fetches it whole on every load. Outlines come from the hosted
 Watershed Boundary Dataset, quantized to the view. A map that needs each area
 coloured by one of this project's own numbers does **not** need the shapes in
@@ -83,6 +84,23 @@ hand: that is a unique-value renderer keyed on the code, which is what the
 snow map does. Never fetch geometry into the browser to colour something.
 `docs/data-transfer.md` holds the measurements and is the file to update when
 they change.
+
+**The drawn scope and the roster scope are two names** (ADR-063).
+`DEFAULT_SCOPE` is what the maps draw -- `west-huc6`, 75 basins across regions
+14 to 18. `ROSTER_SCOPE` is the geography the published reservoirs were
+admitted from -- still `utah-connected`, fourteen areas -- and it is what
+`HUC6_BOUNDS` is the box of, so the map opens on the reservoirs rather than on
+19 degrees of longitude with 69 reservoirs in one corner. Both are published
+in `reference.json` as `default_scope` and `roster_scope`; no test, tool or
+fixture may name a boundary file directly, because which file holds which
+geography has moved once and will move again when the roster expands west.
+**61 drawn areas hold no reservoir**, which is a state ADR-056 already allowed
+for. **Each map draws what it can say something about**: the drought engine
+measures all 75 so the drought map draws 75, the snow network reports in 14 so
+`measuredScope` narrows the snow map to 14, and the storage map draws all 75
+as context around its subject. The two committed files must agree area for
+area -- fetched at different generalizations they did not, and two drought
+figures moved by a rounding step with no weather behind them.
 
 **The maps draw the level the payload declares** (ADR-050). No client file
 names a hydrologic level; it arrives as `DrainageScope { level, areas }` and

@@ -11,6 +11,7 @@
  * recomputing a basin from its sites and comparing against the published
  * rollup, value for value.
  */
+import type { DrainageScope } from "./data/boundaries";
 import type { NullableNumber, SnowpackPayload, SnowSite } from "./types";
 
 export interface BasinChoice {
@@ -53,6 +54,30 @@ export function percentOfNormal(
 ): number | null {
   if (value === null || median === null || median <= 0) return null;
   return roundTenth((value / median) * 100);
+}
+
+/**
+ * The drawn scope narrowed to the areas this payload measures.
+ *
+ * The maps draw 75 basins across the west and the snow network reports in 14
+ * of them, because the coverage moved and the snow inventory did not
+ * (ADR-063). Drawing the other 61 here would put an outline on the one map
+ * whose subject *is* the drainage areas with nothing behind it: no percent of
+ * normal, no site, and a hover card that comes back empty -- which ADR-050
+ * already judges to be less information rather than more.
+ *
+ * Deliberately not the same answer as the drought map's, which draws all 75
+ * because it has a measurement for all 75. Each map draws what it can say
+ * something about.
+ */
+export function measuredScope(
+  scope: DrainageScope, payload: SnowpackPayload
+): DrainageScope {
+  const measured = new Set(payload.rollups.map((rollup) => rollup.huc6));
+  return {
+    level: scope.level,
+    areas: scope.areas.filter((area) => measured.has(area.huc6))
+  };
 }
 
 export function basinChoices(payload: SnowpackPayload): BasinChoice[] {

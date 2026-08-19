@@ -8,7 +8,7 @@
  *
  * The framing is deliberately the storage map's own: the same region
  * extent, the same minimum and maximum zoom, and the same refusal to leave
- * the region. Three maps of the same fourteen drainage areas that each open
+ * the region. Three maps of the same drainage areas that each open
  * at a different box are three maps a reader cannot compare by flipping
  * between them, and a map that can be panned into the Pacific is one a
  * reader can only recover from by reloading the page.

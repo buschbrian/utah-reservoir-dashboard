@@ -140,9 +140,43 @@ only.
 one.** HUC6 is the natural home for it. A reader choosing HUC8 still gets
 this week and last week, because those travel in the coverage file.
 
+## Step 1 delivered, 2026-08-18
+
+`west-huc6` is published and drawn: 75 basins, ADR-063. What the measurements
+above got right and wrong, against the run:
+
+| | projected | measured |
+|---|---:|---:|
+| drought coverage file | 4.8 KB gzip | **2.9 KB** |
+| drought engine runtime | 8.8 s | **10.3 s** |
+| `reference.json` | -- | 5.5 KB to **6.7 KB** gzip |
+| hosted outlines, storage map | -- | 42.5 KB to **210.6 KB** |
+| hosted outlines, drought map | -- | 60.4 KB to **241.2 KB** |
+
+**The payload projections held; the one that was never made is the one that
+moved.** Both committed files grew about as expected and by trivial amounts.
+The cost of the expansion is not in this project's own files at all -- it is
+the hosted outlines, where five times the areas cost the storage map 168 KB
+more and the drought map 181 KB more on first load. That is the arrangement
+working as designed (quantized to the view, never committed), but it is the
+figure to watch, and `docs/data-transfer.md` now carries it.
+
+**Two things the scoping did not predict.** The western file had been fetched
+at 100 metres and publishing it made it the measurement geometry, which moved
+two published drought figures by a rounding step until it was refetched at 56.
+And 21 of the 75 basins cross a border, so the `measured` block ADR-059 added
+was published for the first time -- no area published before this was partly
+unmeasured.
+
+**The roster did not move**, so 61 areas hold nothing and the storage map's
+extent was decoupled from the drawn scope to keep the opening view on the
+reservoirs. Steps 2 and 3 below are unchanged. Step 4 -- watch the snow page --
+is answered for now by not expanding it: the snow map draws the 14 areas the
+network reports in, and `snowpack.json` is untouched at 98.6 KB.
+
 ## What this suggests doing, in order
 
-1. **Publish `west-huc6`.** It is the coverage change the request is really
+1. **Publish `west-huc6`.** *(Done 2026-08-18, ADR-063.)* It is the coverage change the request is really
    asking for: 75 whole basins instead of 14, the same level everything is
    already keyed at, and no new level machinery. The registry, the boundary
    file, and the level plumbing (ADR-050) all exist.
