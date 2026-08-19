@@ -180,7 +180,20 @@ def normalize_site(site: dict, record: dict, as_of: date) -> dict:
         default=None,
     )
     if latest is None:
-        raise ValueError(f"{site['station']} returned no numeric daily values")
+        # A station that answered with a whole water year of nulls.
+        #
+        # Not an error, and not the same thing as a station that did not
+        # answer -- but the same fact for a reader: an inventory station that
+        # contributed no reading. It is returned as one of those rather than
+        # raised, so it counts against the tolerance below, gets named in the
+        # log and in `missing_site_count`, and does not stop the file.
+        #
+        # This never happened at 217 Utah sites and happens at 639 western
+        # ones: 549:NV:SNTL is listed active and returned 317 daily rows for
+        # the water year, every one of them flagged M for missing. A network
+        # three times the size has stations in that state, and one dead
+        # station must not cost every other station's reading.
+        return None
     latest_day = date.fromisoformat(latest)
 
     timing = source.get("timingCentralTendencies") or {}
@@ -235,17 +248,28 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
     if len(sites_by_station) != inventory["site_count"]:
         raise ValueError("snow site inventory count or station uniqueness is invalid")
     normalized = [
-        normalize_site(sites_by_station[record["stationTriplet"]], record, as_of)
-        for record in records
+        site for site in (
+            normalize_site(sites_by_station[record["stationTriplet"]], record, as_of)
+            for record in records)
+        if site is not None
     ]
     drawn = {site["station"] for site in normalized}
     if not drawn <= set(sites_by_station):
         raise ValueError("snow data covers stations that are not in the inventory")
+    #: Every inventory station that contributed no reading, whether it was
+    #: absent from the response or answered with nothing but nulls. One fact,
+    #: one count; the log says which stations and the tolerance is the guard
+    #: that keeps a real outage loud.
     missing_sites = sorted(set(sites_by_station) - drawn)
     if len(missing_sites) > int(len(sites_by_station) * MISSING_SITE_TOLERANCE):
         raise ValueError(
             f"normalized snow data is missing {len(missing_sites)} of "
-            f"{len(sites_by_station)} inventory stations")
+            f"{len(sites_by_station)} inventory stations: "
+            + ", ".join(missing_sites[:10])
+            + (" ..." if len(missing_sites) > 10 else ""))
+    if missing_sites:
+        print(f"  {len(missing_sites)} station(s) contributed no reading and are "
+              f"left out of today's file: {', '.join(missing_sites)}")
     normalized.sort(key=lambda site: (site["huc6"], site["name"], site["station"]))
     huc_names = {site["huc6"]: site["huc6_name"] for site in inventory["sites"]}
     rollups = build_rollups(normalized, huc_names)
@@ -291,7 +315,9 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         # Inventory stations that published nothing at all today. A separate
         # fact from `late_site_count`, which counts stations that answered
         # with an old reading -- one is a station whose newest value is
-        # stale, the other is a station that is not in the file.
+        # stale, the other is a station with no value at all. That covers
+        # both ways of having none: absent from the response, and present
+        # with a water year of nulls behind it.
         "missing_site_count": len(missing_sites),
         "rollups": rollups,
         # The coarser grouping, for a reader who asks for subregions rather

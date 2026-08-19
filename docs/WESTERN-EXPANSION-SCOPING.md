@@ -170,10 +170,34 @@ unmeasured.
 
 **The roster did not move**, so 61 areas hold nothing and the storage map's
 extent was decoupled from the drawn scope to keep the opening view on the
-reservoirs. Step 4 -- watch the snow page -- is answered for now by not
-expanding it: the snow map draws the areas the network reports in, and
-`snowpack.json` is 98.8 KB gzipped, 0.1 KB of that the subregion names the
-second level needed.
+reservoirs. Step 4 -- watch the snow page -- was answered by expanding it on 2026-08-19;
+see below.
+
+## Step 4 measured, 2026-08-19: the snow network moved west
+
+217 sites became **637**, in 51 basins of the 75 rather than 14. Twenty-four
+basins hold no automated snow site at all and say so rather than being
+refused: Sonoran and Mojave desert, Pacific coastal lowland, Central Valley
+floor, and three basins that are in Mexico.
+
+| | projected | measured |
+|---|---:|---:|
+| `snowpack.json` | 287 KB gzip | **322 KB** |
+| snow sites | 639 | **639** inventoried, 637 reporting |
+
+The site count was exact. The payload was 12% heavier than projected, and no
+cheap encoding is left to take -- two obvious reductions were measured at 3.6%
+together, because gzip had already removed the zeros and the repeated calendar
+indices. `docs/data-transfer.md` carries that measurement.
+
+**Two things the scoping did not predict.** A station listed as active can
+answer with a whole water year of nulls -- 549:NV:SNTL returned 317 rows, every
+one flagged missing -- and the refresh treated that as fatal. It never happened
+at 217 Utah sites. It is now counted with the stations that did not answer at
+all, against the same tolerance, because one dead station must not cost every
+other station's reading. And the provider disagrees with this project's
+full-resolution assignment for two sites, both on a divide; they are listed
+rather than resolved silently, which is what that report is for.
 
 ## What this suggests doing, in order
 
