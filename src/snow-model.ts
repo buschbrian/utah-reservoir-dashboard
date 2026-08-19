@@ -173,6 +173,24 @@ export function payloadForState(
         series: seriesOverSites(members, floor)
       };
     });
+  return payloadForSites(payload, sites, rollups);
+}
+
+/**
+ * A payload's trailing per-payload totals (`site_count`, `late_site_count`),
+ * rebuilt from a caller's own narrowed `sites` and `rollups` -- every other
+ * field carried through unchanged.
+ *
+ * One place for the shape every narrowing pass returns, so it cannot drift
+ * between a pass that recomputes each surviving area's mean from its own
+ * sites (`payloadForState`, above) and one that only drops whole areas
+ * wholesale without touching any series (the opening scope's area pass in
+ * `snow.ts`, which narrows a payload `payloadForState` has already
+ * narrowed once).
+ */
+export function payloadForSites(
+  payload: SnowpackPayload, sites: SnowSite[], rollups: SnowRollup[]
+): SnowpackPayload {
   return {
     ...payload,
     sites,
