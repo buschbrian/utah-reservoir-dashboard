@@ -228,37 +228,22 @@ export function orderUnits(
 /* ------------------------------------------------------------------ */
 
 /**
- * Whether a drought unit's own code falls inside the areas an opening-scope
- * selection narrowed to.
- *
- * `OpeningScope.chosenAreas` is always the six-digit basin tier, independent
- * of which level this page happens to be showing -- the opening scope has
- * no notion of `?level=` at all (ADR-064: HUC-6 is the default, HUC-4 is
- * the other, and that is a page-local axis). A drought unit's own `huc6` is
- * whichever of those two the page asked for, so this checks both
- * directions of the prefix relationship rather than assuming one: a chosen
- * six-digit basin starts with a four-digit unit's code exactly when that
- * subregion contains it, and a six-digit unit's code equals a chosen
- * basin's own code outright. Codes nest exactly -- fixed-width, ADR-050 --
- * so a single `startsWith` check in whichever direction the two widths call
- * for is exact, never approximate.
- */
-export function unitWithinChosenAreas(
-  huc6: string, chosenAreas: readonly { huc6: string }[]
-): boolean {
-  return chosenAreas.some((area) =>
-    area.huc6.startsWith(huc6) || huc6.startsWith(area.huc6));
-}
-
-/**
  * The units an opening-scope selection actually means.
  *
- * `chosenAreas === null` reads as "no scope resolved" -- the reference
- * export could not be read, so there is nothing to narrow by -- and returns
- * every unit rather than guessing: a chooser that failed to load must cost
- * a reader the narrowing, not the whole page. An empty array is a real,
- * narrowed-to-nothing answer (a chosen state with no drainage area on this
- * roster) and stays exactly that empty.
+ * `chosenCodes === null` reads as "no scope resolved" -- either the
+ * reference export could not be read, or a reader chose nothing at all --
+ * and returns every unit rather than guessing: a chooser that failed to
+ * load, or an ordinary scope-free visit, must cost a reader nothing. An
+ * empty set is a real, narrowed-to-nothing answer (a chosen state with no
+ * drainage area on this roster) and stays exactly that empty.
+ *
+ * The caller builds `chosenCodes` at whichever digit width this page is
+ * currently drawing (`?level=`, four or six) -- exact string membership
+ * rather than a prefix relationship, because a caller that already knows
+ * the page's own level owes this function codes at that level, not a
+ * mismatched width for it to reconcile (`src/data/opening-scope.ts`'s
+ * `areaAtLevel` is where that reconciliation belongs, once, rather than
+ * silently inside every membership check here).
  *
  * This is the one join every other figure on the drought page is built
  * from once a reader has chosen a place -- the map, the bars, the table and
@@ -272,10 +257,10 @@ export function unitWithinChosenAreas(
  */
 export function unitsInOpeningScope(
   units: readonly DroughtUnit[],
-  chosenAreas: readonly { huc6: string }[] | null
+  chosenCodes: ReadonlySet<string> | null
 ): DroughtUnit[] {
-  if (chosenAreas === null) return [...units];
-  return units.filter((unit) => unitWithinChosenAreas(unit.huc6, chosenAreas));
+  if (chosenCodes === null) return [...units];
+  return units.filter((unit) => chosenCodes.has(unit.huc6));
 }
 
 /* ------------------------------------------------------------------ */

@@ -14,7 +14,6 @@ import {
   storageAgainstDrought,
   storageByArea,
   unitsInOpeningScope,
-  unitWithinChosenAreas,
   worstClassCounts,
   unitsAtOrWorse,
   worstClass
@@ -310,28 +309,6 @@ describe("ranking dry land against banked water", () => {
 });
 
 describe("the opening scope's narrowing (S3c)", () => {
-  // A chosen subregion (1401) with two basins under it, and a sibling
-  // subregion (1402) with one -- so a level-4 unit and a level-6 unit can
-  // both be checked against the same six-digit chosen roster.
-  const chosenBasins = [{ huc6: "140101" }, { huc6: "140102" }];
-
-  it("matches a basin-level unit against its own six-digit code", () => {
-    expect(unitWithinChosenAreas("140101", chosenBasins)).toBe(true);
-    expect(unitWithinChosenAreas("140200", chosenBasins)).toBe(false);
-  });
-
-  it("matches a subregion-level unit when a chosen basin nests inside it", () => {
-    // "1401" is the subregion both chosen basins share.
-    expect(unitWithinChosenAreas("1401", chosenBasins)).toBe(true);
-    // "1402" holds none of the chosen basins.
-    expect(unitWithinChosenAreas("1402", chosenBasins)).toBe(false);
-  });
-
-  it("matches nothing against an empty chosen roster", () => {
-    expect(unitWithinChosenAreas("140101", [])).toBe(false);
-    expect(unitWithinChosenAreas("1401", [])).toBe(false);
-  });
-
   const colorado = unit("140101", "Colorado Headwaters", [0, 0, 0, 84.9, 15.1, 0]);
   const gunnison = unit("140200", "Gunnison", [100, 0, 0, 0, 0, 0]);
 
@@ -346,8 +323,8 @@ describe("the opening scope's narrowing (S3c)", () => {
     expect(narrowed).not.toBe(input);
   });
 
-  it("narrows to the chosen basins and leaves every field untouched", () => {
-    const narrowed = unitsInOpeningScope([colorado, gunnison], [{ huc6: "140101" }]);
+  it("narrows to the chosen codes and leaves every field untouched", () => {
+    const narrowed = unitsInOpeningScope([colorado, gunnison], new Set(["140101"]));
     expect(narrowed).toEqual([colorado]);
     // The exact object the pipeline published, not a recomputed one -- this
     // function only selects rows, so nothing about a unit's own shares can
@@ -356,9 +333,25 @@ describe("the opening scope's narrowing (S3c)", () => {
     expect(narrowed[0]).toBe(colorado);
   });
 
-  it("narrows to nothing rather than falling back to everything, for a chosen roster with no match", () => {
+  it("narrows to nothing rather than falling back to everything, for a chosen set with no match", () => {
     // A real, narrowed-to-nothing answer -- distinct from `null`, which
     // means "no scope resolved" and returns everything instead.
-    expect(unitsInOpeningScope([colorado, gunnison], [{ huc6: "160101" }])).toEqual([]);
+    expect(unitsInOpeningScope([colorado, gunnison], new Set(["160101"]))).toEqual([]);
+  });
+
+  it("matches by exact code, not by prefix -- the caller owes codes at this page's own level", () => {
+    // A four-digit chosen code must not accidentally swallow a six-digit
+    // unit that merely starts with it, or vice versa: the caller
+    // (`src/drought.ts`) is responsible for building `chosenCodes` at
+    // whichever width the page is currently drawing, via
+    // `src/data/opening-scope.ts`'s `areaAtLevel`, so this function's job
+    // is exact membership, nothing looser.
+    expect(unitsInOpeningScope([colorado], new Set(["1401"]))).toEqual([]);
+    const subregionUnit = unit("1401", "Colorado Headwaters subregion", [0, 0, 0, 84.9, 15.1, 0]);
+    expect(unitsInOpeningScope([subregionUnit], new Set(["140101"]))).toEqual([]);
+  });
+
+  it("matches nothing against an empty chosen set", () => {
+    expect(unitsInOpeningScope([colorado, gunnison], new Set())).toEqual([]);
   });
 });
