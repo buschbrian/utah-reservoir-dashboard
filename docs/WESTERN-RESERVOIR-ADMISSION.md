@@ -118,6 +118,50 @@ label a reader sees has to carry the state.
    published through one provider cannot be admitted again through another.
 3. **Key the roster on provider identity and label with the state**, before
    admitting anything, because a collision admitted under a name key is a
-   silent wrong number rather than a failure.
+   silent wrong number rather than a failure. Decided 2026-08-19; not yet
+   built. The design below.
 4. **Then admit**, refresh, and build the normals for what was added --
    which is now a four-minute job (`--missing`), not an hour.
+
+## Findings 1 and 2 are done
+
+- **ADR-065** measures a dam's ceiling against the largest figure its record
+  holds, with a 10% surcharge allowance: 137 of 157 candidates admitted rather
+  than 124, nothing that was admitted becoming refused, and the Utah scope
+  unchanged.
+- **The dedupe compares against the reviewed dam point as well as the
+  published water**, so Lake Mead is recognised as already tracked. 157
+  candidates, 68 tracked.
+
+## The design for finding 3, not yet built
+
+**The key already exists.** Every published record carries `source_key` and
+`source_station_id` -- a RISE item id or an AWDB station triplet -- and ADR-003
+already calls that the stable provider identity. Nothing new has to be
+invented; the roster files simply stop being keyed by name:
+
+| file | today | after |
+|---|---|---|
+| `RESERVOIRS`, `BASE_AWDB_RESERVOIRS` in `refresh_reservoirs.py` | name → tuple | station id → record carrying the name |
+| `connected_reservoirs.json` | name → record | station id → record |
+| `capacities.json` | name → capacity | station id → capacity |
+| `normals.json` | `by_name` lookup | by station id |
+
+**The label is the name, and the state settles a tie.** The payload already
+carries `state` on every record, and `countyOptions` already does exactly this
+for the counties ADR-058 found colliding -- "Summit County, CO" beside "Summit
+County, UT". Two reservoirs sharing a name are labelled "Lost Creek, UT" and
+"Lost Creek, OR"; a reservoir whose name is unique keeps it unadorned, because
+most of them are and a state on every label is noise.
+
+**`?reservoir=` keeps working.** It names a reservoir in a published URL and
+the retired routes translate into it (ADR-031), so it goes on accepting a bare
+name and resolves it when exactly one reservoir has it. Where more than one
+does, it accepts the qualified label -- `?reservoir=Lost Creek, OR` -- which is
+what the reader can see on screen. A bare name that no longer resolves to one
+reservoir opens no selection rather than picking one, which is the same rule
+every other parameter here follows.
+
+**The client's selection is the work.** The store, the list, the table, the CSV
+filename and the deep link all carry the name as identity today. They carry the
+station id, with the label beside it for display.
