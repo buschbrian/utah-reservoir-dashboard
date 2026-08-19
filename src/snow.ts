@@ -1073,10 +1073,12 @@ function renderSnow(
        * a chance to let the view start resolving -- the same "set before
        * the view resolves rather than eased into afterwards" rule
        * `view-map.ts`'s own comment states for its default. The navigation
-       * bounds (`element.constraints`) are left exactly as `createViewMap`
-       * set them: what a reader can pan to stays the whole region on every
-       * map, chosen scope or not (`docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`,
-       * "the navigation bounds stay `regionExtent`"). */
+       * bounds (`element.constraints.geometry`, `navigableExtent()`) are
+       * left exactly as `createViewMap` set them: what a reader can pan to
+       * covers every area any map on this site draws, chosen scope or not,
+       * which is also what makes this override trustworthy rather than
+       * clamped back to a narrower box the instant the view settles --
+       * every published unit's box now fits inside it. */
       mapElement.extent = { type: "extent", ...extentFromBox(openingScope.box) };
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
