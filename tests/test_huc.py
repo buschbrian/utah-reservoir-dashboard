@@ -34,7 +34,7 @@ from huc import (  # noqa: E402
 
 ROSTER_BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
-CONNECTED = ROOT / "connected_reservoirs.json"
+ADMITTED = ROOT / "admitted_reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 
@@ -106,7 +106,7 @@ def reservoirs() -> list[dict]:
     records = json.loads(RESERVOIRS.read_text())["reservoirs"]
     published = {record["name"] for record in records}
     # Keyed by station since ADR-066; the name it is called by is inside.
-    roster = json.loads(CONNECTED.read_text()).get("reservoirs", {})
+    roster = json.loads(ADMITTED.read_text()).get("reservoirs", {})
     for entry in roster.values():
         name = entry["name"]
         if name not in published and entry.get("lat") and entry.get("lon"):

@@ -37,7 +37,7 @@ def test_every_published_reservoir_has_a_county():
     reads the payload would let a withdrawal silently retire the assertion.
     """
     roster = set(json.loads(
-        (ROOT / "connected_reservoirs.json").read_text(encoding="utf-8"))["reservoirs"])
+        (ROOT / "admitted_reservoirs.json").read_text(encoding="utf-8"))["reservoirs"])
     roster |= set(refresh_reservoirs.RESERVOIRS)
     missing = sorted(roster - set(COUNTIES["counties"]))
     assert not missing, f"no county assignment for: {', '.join(missing)}"

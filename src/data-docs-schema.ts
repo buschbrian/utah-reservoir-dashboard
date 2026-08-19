@@ -341,7 +341,7 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
       "identifier each reservoir record publishes as source_station_id, " +
       "because two reservoirs may share a name."),
     f("keyed_by", "field name", "Which identifier the capacity map is keyed by."),
-    f("connected_reservoirs", "file name", "Reviewed connected-reservoir source file."),
+    f("admitted_reservoirs", "file name", "Reviewed admitted-reservoir source file."),
     f("dam_points", "object", "Summary of reviewed dam coordinates."),
     f("denominator", "text", "Rule used to choose the published full level."),
     f("note", "text", "Capacity review warning."),

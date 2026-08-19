@@ -244,7 +244,7 @@ def test_committed_capacity_table_covers_every_reservoir():
 
 def test_awdb_inventory_has_traceable_capacity_and_cadence():
     assert len(R.BASE_AWDB_RESERVOIRS) == 25
-    assert len(R.CONNECTED_RESERVOIRS) == 15
+    assert len(R.ADMITTED_RESERVOIRS) == 15
     assert len(R.AWDB_RESERVOIRS) == 40
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
     for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
@@ -258,7 +258,7 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     # silently collapsed two reservoirs sharing one (ADR-066).
     assert len(R.RESERVOIR_NAMES) == len(R.ALL_RESERVOIR_IDS)
 
-    for station, row in R.CONNECTED_RESERVOIRS.items():
+    for station, row in R.ADMITTED_RESERVOIRS.items():
         name = row["name"]
         assert row["station_triplet"] == station
         evidence = row["capacity"]
@@ -274,7 +274,7 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
 def test_connected_inventory_fills_exactly_the_previously_empty_areas():
     by_huc = {}
     units = R.huc.load_units()
-    for row in R.CONNECTED_RESERVOIRS.values():
+    for row in R.ADMITTED_RESERVOIRS.values():
         by_huc[row["huc6"]] = by_huc.get(row["huc6"], 0) + 1
         capacity = row["capacity"]
         assigned = R.huc.assign_huc((capacity["dam_lon"], capacity["dam_lat"]), units)

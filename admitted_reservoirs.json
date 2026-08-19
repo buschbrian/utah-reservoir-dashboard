@@ -3,7 +3,7 @@
   "capacity_source": "U.S. Army Corps of Engineers National Inventory of Dams",
   "capacity_source_layer": "https://geospatial.sec.usace.army.mil/dls/rest/services/NID/National_Inventory_of_Dams_Public_Service/FeatureServer/0",
   "reviewed": "2026-08-14",
-  "selection": "Capacity-admissible storage stations in the three published HUC-6 drainage areas that previously had no tracked reservoir",
+  "selection": "Capacity-admissible storage stations, reviewed against the National Inventory of Dams, admitted to fill drainage areas that previously had no tracked reservoir",
   "reservoirs": {
     "09009020:CO:BOR": {
       "name": "Dillon Reservoir",
