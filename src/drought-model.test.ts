@@ -13,6 +13,8 @@ import {
   byStorageGap,
   storageAgainstDrought,
   storageByArea,
+  unitsInOpeningScope,
+  unitWithinChosenAreas,
   worstClassCounts,
   unitsAtOrWorse,
   worstClass
@@ -304,5 +306,59 @@ describe("ranking dry land against banked water", () => {
 
   it("ranks nothing when nothing could be joined", () => {
     expect(byStorageGap([])).toEqual([]);
+  });
+});
+
+describe("the opening scope's narrowing (S3c)", () => {
+  // A chosen subregion (1401) with two basins under it, and a sibling
+  // subregion (1402) with one -- so a level-4 unit and a level-6 unit can
+  // both be checked against the same six-digit chosen roster.
+  const chosenBasins = [{ huc6: "140101" }, { huc6: "140102" }];
+
+  it("matches a basin-level unit against its own six-digit code", () => {
+    expect(unitWithinChosenAreas("140101", chosenBasins)).toBe(true);
+    expect(unitWithinChosenAreas("140200", chosenBasins)).toBe(false);
+  });
+
+  it("matches a subregion-level unit when a chosen basin nests inside it", () => {
+    // "1401" is the subregion both chosen basins share.
+    expect(unitWithinChosenAreas("1401", chosenBasins)).toBe(true);
+    // "1402" holds none of the chosen basins.
+    expect(unitWithinChosenAreas("1402", chosenBasins)).toBe(false);
+  });
+
+  it("matches nothing against an empty chosen roster", () => {
+    expect(unitWithinChosenAreas("140101", [])).toBe(false);
+    expect(unitWithinChosenAreas("1401", [])).toBe(false);
+  });
+
+  const colorado = unit("140101", "Colorado Headwaters", [0, 0, 0, 84.9, 15.1, 0]);
+  const gunnison = unit("140200", "Gunnison", [100, 0, 0, 0, 0, 0]);
+
+  it("returns every unit untouched when no scope was resolved", () => {
+    const input = [colorado, gunnison];
+    const narrowed = unitsInOpeningScope(input, null);
+    expect(narrowed).toEqual([colorado, gunnison]);
+    // A copy, not the same array reference -- a caller mutating the result
+    // must never reach into the original payload. A fresh array literal on
+    // the right of `.not.toBe` would never be `===` to anything regardless
+    // of what `narrowed` is, so this compares against the actual input.
+    expect(narrowed).not.toBe(input);
+  });
+
+  it("narrows to the chosen basins and leaves every field untouched", () => {
+    const narrowed = unitsInOpeningScope([colorado, gunnison], [{ huc6: "140101" }]);
+    expect(narrowed).toEqual([colorado]);
+    // The exact object the pipeline published, not a recomputed one -- this
+    // function only selects rows, so nothing about a unit's own shares can
+    // have been touched on the way through (ADR-046: there is nothing here
+    // that could have summed or averaged one).
+    expect(narrowed[0]).toBe(colorado);
+  });
+
+  it("narrows to nothing rather than falling back to everything, for a chosen roster with no match", () => {
+    // A real, narrowed-to-nothing answer -- distinct from `null`, which
+    // means "no scope resolved" and returns everything instead.
+    expect(unitsInOpeningScope([colorado, gunnison], [{ huc6: "160101" }])).toEqual([]);
   });
 });

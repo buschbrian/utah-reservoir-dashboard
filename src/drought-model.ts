@@ -222,6 +222,63 @@ export function orderUnits(
 }
 
 /* ------------------------------------------------------------------ */
+/* The opening scope: which units a reader's `?state=` and `?area=`     */
+/* selection means (slice S3c, docs/OPENING-SCOPE-AND-THE-WESTERN-      */
+/* ROSTER.md, `src/data/opening-scope.ts`)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Whether a drought unit's own code falls inside the areas an opening-scope
+ * selection narrowed to.
+ *
+ * `OpeningScope.chosenAreas` is always the six-digit basin tier, independent
+ * of which level this page happens to be showing -- the opening scope has
+ * no notion of `?level=` at all (ADR-064: HUC-6 is the default, HUC-4 is
+ * the other, and that is a page-local axis). A drought unit's own `huc6` is
+ * whichever of those two the page asked for, so this checks both
+ * directions of the prefix relationship rather than assuming one: a chosen
+ * six-digit basin starts with a four-digit unit's code exactly when that
+ * subregion contains it, and a six-digit unit's code equals a chosen
+ * basin's own code outright. Codes nest exactly -- fixed-width, ADR-050 --
+ * so a single `startsWith` check in whichever direction the two widths call
+ * for is exact, never approximate.
+ */
+export function unitWithinChosenAreas(
+  huc6: string, chosenAreas: readonly { huc6: string }[]
+): boolean {
+  return chosenAreas.some((area) =>
+    area.huc6.startsWith(huc6) || huc6.startsWith(area.huc6));
+}
+
+/**
+ * The units an opening-scope selection actually means.
+ *
+ * `chosenAreas === null` reads as "no scope resolved" -- the reference
+ * export could not be read, so there is nothing to narrow by -- and returns
+ * every unit rather than guessing: a chooser that failed to load must cost
+ * a reader the narrowing, not the whole page. An empty array is a real,
+ * narrowed-to-nothing answer (a chosen state with no drainage area on this
+ * roster) and stays exactly that empty.
+ *
+ * This is the one join every other figure on the drought page is built
+ * from once a reader has chosen a place -- the map, the bars, the table and
+ * every chart narrow from this single call so none of them can describe a
+ * different set of areas than the others. It only chooses which of the
+ * pipeline's own rows exist on the page; every field on a returned unit is
+ * untouched. There is deliberately nothing here that sums or averages a
+ * share across areas -- ADR-046 refuses a state-wide drought share
+ * anywhere on this site, and a selection function has nothing in it that
+ * could quietly become one.
+ */
+export function unitsInOpeningScope(
+  units: readonly DroughtUnit[],
+  chosenAreas: readonly { huc6: string }[] | null
+): DroughtUnit[] {
+  if (chosenAreas === null) return [...units];
+  return units.filter((unit) => unitWithinChosenAreas(unit.huc6, chosenAreas));
+}
+
+/* ------------------------------------------------------------------ */
 /* Land conditions against banked water                                */
 /* ------------------------------------------------------------------ */
 
