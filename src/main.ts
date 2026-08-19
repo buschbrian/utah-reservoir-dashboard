@@ -32,7 +32,7 @@ import {
   type FilterState
 } from "./state/filters";
 import { describeRanking, rankingRecords } from "./state/ranking";
-import { createSelectionStore, findReservoir } from "./state/selection";
+import { createSelectionStore, findReservoir, reservoirLabel } from "./state/selection";
 import {
   DEFAULT_SORT,
   describeTable,
@@ -446,7 +446,8 @@ function wireFilters(map: MapController): void {
     // controls were built: changing the scope has to re-answer the filter.
     const shown = inScope.filter((reservoir) => matchesFilter(reservoir, filterState));
     map.setFilter(filterWhere(filterState));
-    markFilteredInList((name) => !shown.some((reservoir) => reservoir.name === name));
+    markFilteredInList((label) =>
+      !shown.some((reservoir) => reservoirLabel(reservoir, inScope) === label));
     setFilterState(
       { storage: String(filterState.storageClass ?? "all"),
         reporting: filterState.reporting,
@@ -560,7 +561,11 @@ function wireBaseline(): void {
 function renderReservoirList(): void {
   setReservoirList(
     inScope.map((reservoir) => ({
-      name: reservoir.name,
+      /* The label, not the bare name: it is what the reader reads *and* what
+       * the selection carries, so two reservoirs sharing a name are two rows
+       * a reader can tell apart and select separately (ADR-066). Qualified
+       * only where it has to be. */
+      name: reservoirLabel(reservoir, inScope),
       percent: formatPercent(percentShown(reservoir)),
       color: storageColor(percentShown(reservoir)),
       late: isLate(reservoir)
@@ -586,7 +591,8 @@ function renderDetail(): void {
       reservoir, storageColor(headlinePercent(reservoir)),
       activeBaselineId, baselineOptions, baselineMinimumYears) : null,
     reservoir ? () => downloadCsv(
-      reservoirHistoryCsv(reservoir), reservoirCsvFilename(reservoir.name, publishedAt)
+      reservoirHistoryCsv(reservoir, reservoirLabel(reservoir, inScope)),
+      reservoirCsvFilename(reservoirLabel(reservoir, inScope), publishedAt)
     ) : undefined
   );
 }

@@ -1,3 +1,4 @@
+import { reservoirLabel } from "../state/selection";
 import type { TableRow } from "../state/table";
 import type { MonthlyRecord, Reservoir, SourceKey } from "../types";
 
@@ -46,7 +47,24 @@ export function capacitySource(reservoir: Reservoir): string {
   return "U.S. Army Corps of Engineers National Inventory of Dams";
 }
 
-/** The visible table columns first, followed by the record's provenance. */
+/**
+ * The visible table columns first, followed by the record's provenance.
+ *
+ * `Reservoir` carries the label rather than the bare name, qualified with the
+ * state where another reservoir in the same file shares it (ADR-066). A
+ * spreadsheet of two rows both called "Lost Creek" is two rows a reader
+ * cannot tell apart, and the station column that could tell them apart is
+ * four columns to the right.
+ */
+export function overviewColumns(
+  among: readonly Reservoir[] = []
+): readonly CsvColumn<Reservoir>[] {
+  return [
+    { header: "Reservoir", value: (row) => reservoirLabel(row, among) },
+    ...OVERVIEW_COLUMNS.slice(1)
+  ];
+}
+
 export const OVERVIEW_COLUMNS: readonly CsvColumn<Reservoir>[] = [
   { header: "Reservoir", value: (row) => row.name },
   { header: "Drainage area", value: (row) => row.huc6_name },
@@ -60,7 +78,7 @@ export const OVERVIEW_COLUMNS: readonly CsvColumn<Reservoir>[] = [
 ];
 
 export function overviewCsv(reservoirs: readonly Reservoir[]): string {
-  return serializeCsv(reservoirs, OVERVIEW_COLUMNS);
+  return serializeCsv(reservoirs, overviewColumns(reservoirs));
 }
 
 /**
@@ -90,10 +108,12 @@ export function tableCsv(rows: readonly TableRow[]): string {
 interface HistoryRow {
   reservoir: Reservoir;
   month: MonthlyRecord | null;
+  /** What the page called it, which is what the file should call it too. */
+  label: string;
 }
 
 const HISTORY_COLUMNS: readonly CsvColumn<HistoryRow>[] = [
-  { header: "Reservoir", value: ({ reservoir }) => reservoir.name },
+  { header: "Reservoir", value: ({ label }) => label },
   { header: "Drainage area", value: ({ reservoir }) => reservoir.huc6_name },
   { header: "Measured by", value: ({ reservoir }) => reservoirProvider(reservoir) },
   {
@@ -114,10 +134,21 @@ const HISTORY_COLUMNS: readonly CsvColumn<HistoryRow>[] = [
   { header: "Days with readings", value: ({ month }) => month?.days }
 ];
 
-export function reservoirHistoryCsv(reservoir: Reservoir): string {
+/**
+ * One reservoir's twelve months, as a file.
+ *
+ * `label` is what the reader saw on screen -- the name, qualified with the
+ * state where another reservoir shares it (ADR-066) -- so the file names the
+ * reservoir the way the page did. It defaults to the bare name, which is
+ * right for a caller with one reservoir and no set to compare it against.
+ */
+export function reservoirHistoryCsv(
+  reservoir: Reservoir, label: string = reservoir.name
+): string {
   const months: readonly (MonthlyRecord | null)[] = reservoir.monthly.length
     ? reservoir.monthly : [null];
-  return serializeCsv(months.map((month) => ({ reservoir, month })), HISTORY_COLUMNS);
+  return serializeCsv(
+    months.map((month) => ({ reservoir, month, label })), HISTORY_COLUMNS);
 }
 
 function safeFilenamePart(value: string): string {
@@ -128,6 +159,14 @@ export function overviewCsvFilename(date: string): string {
   return `utah-reservoirs-${date.slice(0, 10)}.csv`;
 }
 
-export function reservoirCsvFilename(name: string, date: string): string {
-  return `${safeFilenamePart(name) || "reservoir"}-${date.slice(0, 10)}.csv`;
+/**
+ * What one reservoir's file is called.
+ *
+ * Takes the label, so two reservoirs sharing a name do not produce one
+ * filename -- "lost-creek-2026-08-19.csv" downloaded twice is the second
+ * file quietly replacing the first, or sitting beside it as a numbered
+ * duplicate nothing distinguishes (ADR-066).
+ */
+export function reservoirCsvFilename(label: string, date: string): string {
+  return `${safeFilenamePart(label) || "reservoir"}-${date.slice(0, 10)}.csv`;
 }

@@ -2721,7 +2721,11 @@ for (const viewport of VIEWPORTS) {
       `${label}: the drainage-area control shows "${narrowed.control}", not the link's area`);
     check(narrowed.storage === String(storageClass),
       `${label}: the storage control shows "${narrowed.storage}", not class ${storageClass}`);
-    check(narrowed.where?.includes(`drainage_area = '${area}'`) &&
+    /* `LIKE 'code%'`, not equality: the clause and the predicate state one
+     * rule, and the predicate compares by prefix so a four-digit subregion
+     * matches the basins inside it. At full width the two forms are the same
+     * comparison. */
+    check(narrowed.where?.includes(`drainage_area LIKE '${area}%'`) &&
       /fill_percent/.test(narrowed.where),
     `${label}: the map filter is "${narrowed.where}" after restoring both filters`);
     check(narrowed.ready.drawn === expectedReservoirs,
