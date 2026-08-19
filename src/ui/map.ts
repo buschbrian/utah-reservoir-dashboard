@@ -347,7 +347,7 @@ export async function loadMap(
     maxZoom: MAP_MAX_ZOOM,
     geometry: { type: "extent", ...regionExtent() }
   };
-  element.setAttribute("aria-label", "Interactive map of Utah and connected drainage areas");
+  element.setAttribute("aria-label", "Interactive map of western reservoirs and drainage areas");
   element.map = map;
   element.animationsDisabled = reducedMotionQuery.matches;
   /* Every tool on the right. The left of the map is the storage summary's

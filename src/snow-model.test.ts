@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseDrainageUnits, type DrainageScope } from "./data/boundaries";
 import { readDrainageGeoJson, readSnowpack } from "./data/payload-fixture";
 import { SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
+import type { SnowpackPayload } from "./types";
 import {
   basinChoices,
   basinCurve,
@@ -13,6 +14,7 @@ import {
   payloadAtLevel,
   newestHeadline,
   percentOfNormal,
+  payloadForState,
   observedPeak,
   regionCurve,
   regionDepthCurve,
@@ -112,9 +114,137 @@ describe("the payload regrouped into subregions", () => {
   });
 });
 
+describe("the payload narrowed to one state's sites", () => {
+  it("keeps only sites in the chosen state, and nothing else", () => {
+    const state = payload.sites[0]!.state;
+    const narrowed = payloadForState(payload, state);
+    expect(narrowed.sites.length).toBeGreaterThan(0);
+    expect(narrowed.sites.every((site) => site.state === state)).toBe(true);
+    expect(narrowed.sites.length).toBe(
+      payload.sites.filter((site) => site.state === state).length);
+    expect(narrowed.site_count).toBe(narrowed.sites.length);
+    expect(narrowed.late_site_count).toBe(
+      narrowed.sites.filter((site) => site.late).length);
+  });
+
+  it("returns the payload unchanged for \"all\"", () => {
+    expect(payloadForState(payload, "all")).toBe(payload);
+  });
+
+  it("drops every area entirely for a state with no sites at all", () => {
+    /* No site in the committed payload carries this state (confirmed against
+     * the payload's own roster below); every area should vanish rather than
+     * publish an empty-but-present roster. */
+    expect(payload.sites.some((site) => site.state === "TX")).toBe(false);
+    const narrowed = payloadForState(payload, "TX");
+    expect(narrowed.sites).toEqual([]);
+    expect(narrowed.rollups).toEqual([]);
+    expect(narrowed.site_count).toBe(0);
+  });
+
+  it("recomputes each area's mean from the state's own sites, never from the unfiltered basin mean", () => {
+    /* Over an area whose sites are NOT all in one state, which is the only
+     * place the two answers differ: 20 of the payload's 51 areas span a
+     * border, and over a single-state area a mean of the state's sites and
+     * the published basin mean are the same number, so the assertion would
+     * hold against an implementation that simply copied the published
+     * series. The search below fails the test if the payload ever stops
+     * containing such a case rather than passing quietly. */
+    const spans = payload.rollups
+      .map((rollup) => {
+        const members = payload.sites.filter((site) => site.huc6 === rollup.huc6);
+        const states = [...new Set(members.map((site) => site.state))];
+        return { rollup, states };
+      })
+      .find((entry) => entry.states.length > 1);
+    expect(spans, "no area in the payload spans two states").toBeDefined();
+
+    const state = spans!.states[0]!;
+    const narrowed = payloadForState(payload, state);
+    const rollup = narrowed.rollups.find((entry) => entry.huc6 === spans!.rollup.huc6)!;
+    expect(rollup).toBeDefined();
+
+    const members = payload.sites.filter(
+      (site) => site.huc6 === rollup.huc6 && site.state === state);
+    const meanOn = (date: string): number | null => {
+      const percents = members
+        .map((site) => site.series.find(([day]) => day === date))
+        .filter((row): row is [string, number | null, number | null] => row !== undefined)
+        .map(([, value, median]) => percentOfNormal(value, median))
+        .filter((percent): percent is number => percent !== null);
+      return percents.length
+        ? percents.reduce((sum, value) => sum + value, 0) / percents.length
+        : null;
+    };
+
+    /* Every day agrees with a mean taken over this state's sites alone. */
+    let differed = 0;
+    for (const day of rollup.series) {
+      if (day.mean_percent_of_normal_median === null) continue;
+      const expected = meanOn(day.date);
+      expect(expected, `no sites behind ${day.date}`).not.toBeNull();
+      expect(day.mean_percent_of_normal_median, day.date).toBeCloseTo(expected!, 1);
+      const published = spans!.rollup.series
+        .find((entry) => entry.date === day.date)?.mean_percent_of_normal_median;
+      if (published !== null && published !== undefined
+        && Math.abs(published - day.mean_percent_of_normal_median) > 0.05) differed += 1;
+    }
+    /* And at least one of them is a different number from the published
+     * basin mean, which is what makes the paragraph above a test rather
+     * than a restatement. */
+    expect(differed, "the state's mean never differed from the published basin mean")
+      .toBeGreaterThan(0);
+  });
+
+  it("keeps each area's own published reporting floor rather than the highest on the payload", () => {
+    /* Unlike a coarser level, a state filter does not merge areas, so there
+     * is no reason a narrower area should inherit a stricter floor built for
+     * a wider one.
+     *
+     * Against a payload whose floors differ, because every floor the
+     * committed payload publishes is 2 -- so over that payload "its own
+     * floor" and "the highest floor" are the same number, and the assertion
+     * would hold just as well against the wrong rule. `payloadAtLevel` takes
+     * the highest deliberately; this must not. */
+    const [low, high] = payload.rollups;
+    expect(low, "the payload publishes no areas").toBeDefined();
+    expect(high, "the payload publishes only one area").toBeDefined();
+    const raised: SnowpackPayload = {
+      ...payload,
+      rollups: payload.rollups.map((rollup) => rollup.huc6 === high!.huc6
+        ? { ...rollup, minimum_reporting_sites: 9 }
+        : { ...rollup, minimum_reporting_sites: 2 })
+    };
+    const state = payload.sites.find((site) => site.huc6 === low!.huc6)!.state;
+    const narrowed = payloadForState(raised, state);
+    const kept = narrowed.rollups.find((entry) => entry.huc6 === low!.huc6);
+
+    expect(kept).toBeDefined();
+    expect(kept!.minimum_reporting_sites, "the low area borrowed the high floor").toBe(2);
+    for (const rollup of narrowed.rollups) {
+      const original = raised.rollups.find((entry) => entry.huc6 === rollup.huc6);
+      expect(rollup.minimum_reporting_sites, rollup.huc6)
+        .toBe(original?.minimum_reporting_sites);
+    }
+  });
+
+  it("keeps an area whose site count falls below its floor, publishing no figure rather than a zero", () => {
+    const rollup = payload.rollups.find((entry) => entry.minimum_reporting_sites >= 2)!;
+    const oneSite = payload.sites.find((site) => site.huc6 === rollup.huc6)!;
+    const solo = { ...payload, sites: [oneSite] };
+    const narrowed = payloadForState(solo, oneSite.state);
+    const kept = narrowed.rollups.find((entry) => entry.huc6 === rollup.huc6);
+
+    expect(kept).toBeDefined();
+    expect(kept!.site_count).toBe(1);
+    expect(kept!.series.length).toBeGreaterThan(0);
+    expect(kept!.series.every((day) => day.mean_percent_of_normal_median === null)).toBe(true);
+  });
+});
+
 describe("the scope the map draws", () => {
   /* The drawn scope, read the way the page reads it. 75 basins since the
-   * coverage moved west; the snow network reports in 14 of them. */
+   * coverage moved west; the snow network reports in 51 of them. */
   const drawn = (): DrainageScope => ({
     level: 6,
     areas: parseDrainageUnits(

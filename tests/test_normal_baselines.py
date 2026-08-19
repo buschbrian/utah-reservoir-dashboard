@@ -90,10 +90,18 @@ def test_the_climate_period_matches_the_period_the_snow_payload_uses():
 # The lookup
 # --------------------------------------------------------------------------
 
+#: The station the fixtures below are about. Indexed by it and not by the
+#: name, since ADR-066: a climate normal is a denominator, and two reservoirs
+#: sharing a name must not share one.
+TEST_STATION = "1"
+
+
 def normals_table(available: bool = True, years: int = 30,
-                  full: bool = True, name: str = "Test") -> dict:
+                  full: bool = True, name: str = "Test",
+                  station: str = TEST_STATION) -> dict:
     record = {
         "name": name,
+        "source_station_id": station,
         "available": available,
         "covers_full_period": full,
         "first_obs": "1991-01-02",
@@ -102,7 +110,8 @@ def normals_table(available: bool = True, years: int = 30,
         "month": {"median_af": [None] + [2100.0] * 12, "years": [0] + [years] * 12},
     }
     return {"period": {"start_year": 1991, "end_year": 2020},
-            "built": "2026-08-16", "window_days": 7, "by_name": {name: record}}
+            "built": "2026-08-16", "window_days": 7,
+            "by_station": {station: record}}
 
 
 # --------------------------------------------------------------------------
@@ -110,7 +119,8 @@ def normals_table(available: bool = True, years: int = 30,
 # --------------------------------------------------------------------------
 
 def roster(*names):
-    return [{"name": name} for name in names]
+    """Roster records carry the identity beside the name (ADR-066)."""
+    return [{"name": name, "source_station_id": f"sid-{name}"} for name in names]
 
 
 def test_missing_builds_only_what_the_file_has_no_usable_normal_for():
@@ -118,11 +128,11 @@ def test_missing_builds_only_what_the_file_has_no_usable_normal_for():
     the roster gains reservoirs in batches, and re-fetching thirty years for
     the ones already done is the whole cost of the job."""
     existing = {
-        "Done": {"name": "Done", "available": True},
-        "Failed": {"name": "Failed", "available": False,
-                   "reason": "the provider did not answer"},
-        "Empty": {"name": "Empty", "available": False,
-                  "reason": "no readings in the period"},
+        "sid-Done": {"name": "Done", "available": True},
+        "sid-Failed": {"name": "Failed", "available": False,
+                       "reason": "the provider did not answer"},
+        "sid-Empty": {"name": "Empty", "available": False,
+                      "reason": "no readings in the period"},
     }
 
     chosen = B.select(roster("Done", "Failed", "Empty", "New"), None, True, existing)
@@ -134,18 +144,57 @@ def test_a_reservoir_with_no_record_is_not_asked_again_every_run():
     """A reservoir built in 2011 will not grow a 1991 record by being asked
     twice, so its absence is a finding rather than a gap. Only a provider
     that did not answer is worth another fetch."""
-    assert B.needs_building({"name": "R"}, {}) is True
+    reservoir = {"name": "R", "source_station_id": "sid-R"}
+    assert B.needs_building(reservoir, {}) is True
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "no readings in the period"}}) is False
+        reservoir,
+        {"sid-R": {"available": False, "reason": "no readings in the period"}}) is False
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "the record begins after the period ends"}}
+        reservoir,
+        {"sid-R": {"available": False,
+                   "reason": "the record begins after the period ends"}}
     ) is False
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "the provider did not answer"}}) is True
-    assert B.needs_building({"name": "R"}, {"R": {"available": True}}) is False
+        reservoir,
+        {"sid-R": {"available": False,
+                   "reason": "the provider did not answer"}}) is True
+    assert B.needs_building(reservoir, {"sid-R": {"available": True}}) is False
+
+
+def test_two_reservoirs_sharing_a_name_are_indexed_apart(tmp_path):
+    """The index the merge and `--missing` both read is by station (ADR-066):
+    a name index would hold one Lost Creek while answering for both."""
+    path = tmp_path / "normals.json"
+    path.write_text(json.dumps({"reservoirs": [
+        {"name": "Lost Creek", "source_station_id": "sid-UT", "available": True},
+        {"name": "Lost Creek", "source_station_id": "sid-OR", "available": False,
+         "reason": "the provider did not answer"},
+    ]}), encoding="utf-8")
+
+    existing = B.already_built(path)
+
+    assert len(existing) == 2
+    assert B.needs_building(
+        {"name": "Lost Creek", "source_station_id": "sid-UT"}, existing) is False
+    assert B.needs_building(
+        {"name": "Lost Creek", "source_station_id": "sid-OR"}, existing) is True
+
+
+def test_a_rebuild_of_one_twin_keeps_the_other_twins_normal():
+    """Always a merge, never a replacement -- by station, not by name: a
+    name-keyed merge that rebuilt one Lost Creek would silently delete the
+    untouched twin's thirty-year normal."""
+    previous = [
+        {"name": "Lost Creek", "source_station_id": "sid-UT", "available": True},
+        {"name": "Lost Creek", "source_station_id": "sid-OR", "available": True},
+    ]
+    rebuilt = [{"name": "Lost Creek", "source_station_id": "sid-UT",
+                "available": True}]
+
+    kept, merged = B.merged_reservoirs(previous, rebuilt)
+
+    assert [r["source_station_id"] for r in kept] == ["sid-OR"]
+    assert sorted(r["source_station_id"] for r in merged) == ["sid-OR", "sid-UT"]
 
 
 def test_only_takes_several_names_and_keeps_roster_order():
@@ -189,7 +238,7 @@ def test_a_station_that_fails_does_not_fail_the_run():
 
 def test_the_lookup_reads_the_day_the_reading_was_taken():
     found = R.climate_baseline(
-        normals_table(), "Test", pd.Timestamp("2026-08-16"), 1000.0)
+        normals_table(), TEST_STATION, pd.Timestamp("2026-08-16"), 1000.0)
     assert found["normal_af"] == 2000.0
     assert found["pct_of_normal"] == 50.0
     assert found["sample_years"] == 30
@@ -198,12 +247,16 @@ def test_the_lookup_reads_the_day_the_reading_was_taken():
 @pytest.mark.parametrize("table,reason", [
     ({}, "no normals file at all"),
     (normals_table(available=False), "the reservoir has no usable record"),
-    (normals_table(name="Somewhere else"), "the reservoir is not in the table"),
+    (normals_table(station="another-station"), "the reservoir is not in the table"),
+    (normals_table(name="Somewhere else", station="another-station"),
+     "a reservoir sharing this one's name is not this one"),
 ])
 def test_the_lookup_answers_nothing_rather_than_something_else(table, reason):
-    """It must never fall back to the other baseline behind the reader's back."""
+    """It must never fall back to the other baseline behind the reader's back,
+    and since ADR-066 it must not answer for a reservoir that merely shares a
+    name -- the two Lost Creeks' records differ by a factor of twenty."""
     assert R.climate_baseline(
-        table, "Test", pd.Timestamp("2026-08-16"), 1000.0) is None, reason
+        table, TEST_STATION, pd.Timestamp("2026-08-16"), 1000.0) is None, reason
 
 
 # --------------------------------------------------------------------------

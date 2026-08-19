@@ -6,7 +6,8 @@
   "note": "Capacities are NID's, not Utah DWR's; the two can differ on what counts as capacity. Every entry was checked against the storage observed since 2015 and rejected if it came in lower.",
   "unmatched": [],
   "capacities": {
-    "Deer Creek": {
+    "290": {
+      "name": "Deer Creek",
       "capacity_af": 152570.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 152570.0,
@@ -17,7 +18,8 @@
       "dam_lon": -111.52781,
       "dam_lat": 40.40721
     },
-    "Jordanelle": {
+    "468": {
+      "name": "Jordanelle",
       "capacity_af": 363354.0,
       "capacity_basis": "max_storage",
       "normal_storage_af": null,
@@ -28,7 +30,8 @@
       "dam_lon": -111.42461,
       "dam_lat": 40.59781
     },
-    "Strawberry": {
+    "779": {
+      "name": "Strawberry",
       "capacity_af": 1105910.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 1105910.0,
@@ -39,7 +42,8 @@
       "dam_lon": -111.02621,
       "dam_lat": 40.13691
     },
-    "Rockport": {
+    "706": {
+      "name": "Rockport",
       "capacity_af": 62120.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 62120.0,
@@ -50,7 +54,8 @@
       "dam_lon": -111.40531,
       "dam_lat": 40.78841
     },
-    "Echo": {
+    "314": {
+      "name": "Echo",
       "capacity_af": 73940.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 73940.0,
@@ -61,7 +66,8 @@
       "dam_lon": -111.43101,
       "dam_lat": 40.96551
     },
-    "East Canyon": {
+    "310": {
+      "name": "East Canyon",
       "capacity_af": 51200.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 51200.0,
@@ -72,7 +78,8 @@
       "dam_lon": -111.60091,
       "dam_lat": 40.92041
     },
-    "Pineview": {
+    "652": {
+      "name": "Pineview",
       "capacity_af": 110150.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 110150.0,
@@ -83,7 +90,8 @@
       "dam_lon": -111.84221,
       "dam_lat": 41.25461
     },
-    "Willard Bay": {
+    "866": {
+      "name": "Willard Bay",
       "capacity_af": 215500.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 215500.0,
@@ -94,7 +102,8 @@
       "dam_lon": -112.07781,
       "dam_lat": 41.35571
     },
-    "Scofield": {
+    "727": {
+      "name": "Scofield",
       "capacity_af": 73600.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 73600.0,
@@ -105,7 +114,8 @@
       "dam_lon": -111.11991,
       "dam_lat": 39.78681
     },
-    "Starvation": {
+    "764": {
+      "name": "Starvation",
       "capacity_af": 165320.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 165320.0,
@@ -116,7 +126,8 @@
       "dam_lon": -110.44351,
       "dam_lat": 40.19101
     },
-    "Flaming Gorge": {
+    "337": {
+      "name": "Flaming Gorge",
       "capacity_af": 3788900.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 3788900.0,
@@ -127,7 +138,8 @@
       "dam_lon": -109.42191,
       "dam_lat": 40.91491
     },
-    "Lake Mead": {
+    "6124": {
+      "name": "Lake Mead",
       "capacity_af": 28255000.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 28255000.0,
@@ -138,7 +150,8 @@
       "dam_lon": -114.7374,
       "dam_lat": 36.0163
     },
-    "Lake Powell": {
+    "509": {
+      "name": "Lake Powell",
       "capacity_af": 25025826.0,
       "capacity_basis": "max_storage",
       "normal_storage_af": null,
@@ -149,7 +162,8 @@
       "dam_lon": -111.48421,
       "dam_lat": 36.93791
     },
-    "Causey": {
+    "219": {
+      "name": "Causey",
       "capacity_af": 7870.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 7870.0,
@@ -160,7 +174,8 @@
       "dam_lon": -111.58721,
       "dam_lat": 41.29831
     },
-    "Currant Creek": {
+    "278": {
+      "name": "Currant Creek",
       "capacity_af": 15671.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 15671.0,
@@ -171,7 +186,8 @@
       "dam_lon": -111.05211,
       "dam_lat": 40.33281
     },
-    "Huntington North": {
+    "432": {
+      "name": "Huntington North",
       "capacity_af": 5420.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 5420.0,
@@ -182,7 +198,8 @@
       "dam_lon": -110.9424,
       "dam_lat": 39.34519
     },
-    "Hyrum": {
+    "439": {
+      "name": "Hyrum",
       "capacity_af": 18685.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 18685.0,
@@ -193,7 +210,8 @@
       "dam_lon": -111.87321,
       "dam_lat": 41.62401
     },
-    "Joes Valley": {
+    "463": {
+      "name": "Joes Valley",
       "capacity_af": 61538.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 61538.0,
@@ -204,7 +222,8 @@
       "dam_lon": -111.27074,
       "dam_lat": 39.29018
     },
-    "Lost Creek": {
+    "544": {
+      "name": "Lost Creek",
       "capacity_af": 22510.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 22510.0,
@@ -215,7 +234,8 @@
       "dam_lon": -111.39901,
       "dam_lat": 41.18421
     },
-    "Meeks Cabin": {
+    "574": {
+      "name": "Meeks Cabin",
       "capacity_af": 32470.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 32470.0,
@@ -226,7 +246,8 @@
       "dam_lon": -110.57921,
       "dam_lat": 41.02581
     },
-    "Moon Lake": {
+    "587": {
+      "name": "Moon Lake",
       "capacity_af": 49500.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 49500.0,
@@ -237,7 +258,8 @@
       "dam_lon": -110.48831,
       "dam_lat": 40.56181
     },
-    "Newton": {
+    "623": {
+      "name": "Newton",
       "capacity_af": 5594.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 5594.0,
@@ -248,7 +270,8 @@
       "dam_lon": -111.97371,
       "dam_lat": 41.89591
     },
-    "Red Fleet": {
+    "685": {
+      "name": "Red Fleet",
       "capacity_af": 26000.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 26000.0,
@@ -259,7 +282,8 @@
       "dam_lon": -109.42221,
       "dam_lat": 40.57481
     },
-    "Stateline": {
+    "769": {
+      "name": "Stateline",
       "capacity_af": 14020.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 14020.0,
@@ -270,7 +294,8 @@
       "dam_lon": -110.38571,
       "dam_lat": 40.98851
     },
-    "Steinaker": {
+    "774": {
+      "name": "Steinaker",
       "capacity_af": 38173.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 38173.0,
@@ -281,7 +306,8 @@
       "dam_lon": -109.53091,
       "dam_lat": 40.50691
     },
-    "Trial Lake": {
+    "4516": {
+      "name": "Trial Lake",
       "capacity_af": 1661.0,
       "capacity_basis": "max_storage",
       "normal_storage_af": null,
@@ -292,7 +318,8 @@
       "dam_lon": -110.95701,
       "dam_lat": 40.67991
     },
-    "Upper Stillwater": {
+    "826": {
+      "name": "Upper Stillwater",
       "capacity_af": 33123.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 33123.0,
@@ -303,7 +330,8 @@
       "dam_lon": -110.69991,
       "dam_lat": 40.55991
     },
-    "Washington Lake": {
+    "4530": {
+      "name": "Washington Lake",
       "capacity_af": 2705.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 2705.0,
@@ -314,7 +342,8 @@
       "dam_lon": -110.96361,
       "dam_lat": 40.67651
     },
-    "Lost Lake": {
+    "4523": {
+      "name": "Lost Lake",
       "capacity_af": 1155.0,
       "capacity_basis": "normal_storage",
       "normal_storage_af": 1155.0,
@@ -325,7 +354,8 @@
       "dam_lon": -110.94151,
       "dam_lat": 40.67411
     },
-    "Fontenelle": {
+    "347": {
+      "name": "Fontenelle",
       "capacity_af": 334411.0,
       "capacity_basis": "max_storage",
       "normal_storage_af": null,
@@ -341,5 +371,6 @@
     "source": "https://geospatial.sec.usace.army.mil/dls/rest/services/NID/National_Inventory_of_Dams_Public_Service/FeatureServer/0",
     "note": "Dam coordinates, from the matched inventory row. Used as the watershed assignment point: the drainage area is where the stored water leaves, not where the middle of the lake is. A dam identifier names a project, and three of these return several structures; the point is the main dam rather than a dike, chosen by rule so a rebuild gives the same answer twice.",
     "count": 29
-  }
+  },
+  "keyed_by": "source_station_id"
 }

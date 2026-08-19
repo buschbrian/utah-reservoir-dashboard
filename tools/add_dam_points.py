@@ -143,7 +143,10 @@ def main() -> int:
 
     document = json.loads(CAPACITIES_PATH.read_text())
     capacities = document["capacities"]
-    published = {r["name"]: (r["lon"], r["lat"])
+    # By station id since ADR-066: the capacity table is keyed by it, and a
+    # name join would quietly disable the distance and drainage-area guards
+    # below for any reservoir whose spellings drift apart.
+    published = {r["source_station_id"]: (r["lon"], r["lat"])
                  for r in json.loads(RESERVOIRS_PATH.read_text())["reservoirs"]}
     units = load_units()
 
@@ -154,12 +157,13 @@ def main() -> int:
 
     rejected, moved, updated = [], [], 0
     print(f"{'reservoir':<20} {'km from lake point':>18}  drainage area")
-    for name, entry in sorted(capacities.items()):
+    for station, entry in sorted(capacities.items()):
+        name = entry.get("name") or station
         point = points.get(entry.get("nid_id"))
         if point is None:
             rejected.append(f"{name}: no geometry for {entry.get('nid_id')}")
             continue
-        lake = published.get(name)
+        lake = published.get(station)
         distance = haversine_km(lake, point) if lake else None
 
         # The same guard build_capacity_table.py applies to the capacity

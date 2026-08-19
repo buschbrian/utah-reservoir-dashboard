@@ -17,6 +17,7 @@
  */
 
 import { isLate } from "../data/rollup";
+import { HUC_CODE } from "../data/huc";
 import { STORAGE_CLASSES, storageClass } from "../viz/classes";
 import { headlinePercent } from "../viz/symbols";
 import type { Reservoir } from "../types";
@@ -47,18 +48,27 @@ export function classIndexOf(reservoir: Reservoir): number | null {
 export function isFiltered(state: FilterState): boolean {
   return state.storageClass !== null
     || state.reporting !== "all"
-    || state.drainageArea !== null;
+    /* The validated code, so a refused one reads as "nothing is filtered"
+     * here too -- otherwise `filterWhere` returns null for a filter this
+     * reports as active, and the caller hands the layer no clause while the
+     * summary says a drainage area is chosen. */
+    || drainageAreaCode(state) !== null;
 }
 
 export function matchesFilter(reservoir: Reservoir, state: FilterState): boolean {
   if (state.reporting === "late" && !isLate(reservoir)) return false;
   if (state.reporting === "current" && isLate(reservoir)) return false;
-  /* Matched by prefix rather than by equality, which is exact at either level
+  /* Matched by prefix rather than by equality, which is exact at every level
    * a reader may choose: hydrologic codes are fixed-width and nest, so a
    * four-digit choice is the subregion a six-digit code sits inside and a
-   * six-digit choice still matches only itself (ADR-064). */
-  if (state.drainageArea !== null
-    && reservoir.huc6?.slice(0, state.drainageArea.length) !== state.drainageArea) {
+   * six-digit choice still matches only itself (ADR-064).
+   *
+   * Through `drainageAreaCode`, so this reads the same validated code the
+   * clause does. Reading `state.drainageArea` raw is what made the two forms
+   * disagree on a code of an odd width: the clause dropped it and greyed
+   * nothing, while this prefix-matched five characters and dimmed the list. */
+  const code = drainageAreaCode(state);
+  if (code !== null && reservoir.huc6?.slice(0, code.length) !== code) {
     return false;
   }
   if (state.storageClass === null) return true;
@@ -85,7 +95,10 @@ export interface FilterBounds {
   minPercent: number | null;
   /** Exclusive upper bound on `fill_percent`, null for none. */
   maxPercent: number | null;
-  /** An exact `drainage_area` code, null to accept every area. */
+  /** A `drainage_area` code to match by prefix, null to accept every area.
+   * Matched by prefix rather than equality for the reason `matchesFilter`
+   * is: a shorter code is a region or subregion a full-width code sits
+   * inside. */
   drainageArea: string | null;
 }
 
@@ -95,8 +108,29 @@ export interface FilterBounds {
  * rather than from a bounded set. A code of any other shape is dropped rather
  * than quoted: a clause is a small language, and the one thing never worth
  * doing is passing a string through into it because it looked fine today.
+ *
+ * `HUC_CODE` is the shared pattern (`src/data/huc.ts`) rather than a second
+ * hand-rolled one: codes are fixed-width and come in even lengths from 2 to
+ * 12, so this refuses a 5-digit typo the same way it refuses a letter.
  */
-const DRAINAGE_AREA_CODE = /^[0-9]{1,12}$/;
+const DRAINAGE_AREA_CODE = HUC_CODE;
+
+/**
+ * The drainage area a filter actually asks for, or null when it asks for
+ * every area.
+ *
+ * One reading of the reader's choice, used by both the predicate and the
+ * bounds the clause is rendered from. A code this refuses is not a narrower
+ * filter, it is no filter -- and the important part is that it is no filter
+ * to *both* of them. Two validations of one value is how a map and the list
+ * beside it come to disagree about what was asked for, which is the whole
+ * failure this module exists to prevent.
+ */
+function drainageAreaCode(state: FilterState): string | null {
+  return state.drainageArea !== null && DRAINAGE_AREA_CODE.test(state.drainageArea)
+    ? state.drainageArea
+    : null;
+}
 
 /** The layer field the clause reads. Exported so `layers.ts` builds the
  * attribute from the same name the filter asks for. */
@@ -110,9 +144,7 @@ export function filterBounds(state: FilterState): FilterBounds {
     late: state.reporting === "all" ? null : state.reporting === "late" ? 1 : 0,
     minPercent: index === null || index === 0 || !lower ? null : lower.min,
     maxPercent: index === null ? null : upper?.min ?? null,
-    drainageArea: state.drainageArea !== null && DRAINAGE_AREA_CODE.test(state.drainageArea)
-      ? state.drainageArea
-      : null
+    drainageArea: drainageAreaCode(state)
   };
 }
 
@@ -129,7 +161,16 @@ export function filterWhere(state: FilterState): string | null {
   const bounds = filterBounds(state);
   const clauses: string[] = [];
   if (bounds.drainageArea !== null) {
-    clauses.push(`${DRAINAGE_AREA_FIELD} = '${bounds.drainageArea}'`);
+    /* A prefix match, not an equality, because `matchesFilter` is one: codes
+     * nest, so a four-digit choice has to match every six-digit code sitting
+     * inside it, not just a four-digit field value that never occurs. The
+     * layer's own field always holds a full-width code or the empty string
+     * (`layers.ts`), so `LIKE '<code>%'` lands on exactly the same rows as
+     * equality when the code is already full width -- one clause covers both
+     * cases rather than branching on length. `bounds.drainageArea` is
+     * digits-only by construction (`DRAINAGE_AREA_CODE` above), so there is
+     * no wildcard character a reader's choice could smuggle into the pattern. */
+    clauses.push(`${DRAINAGE_AREA_FIELD} LIKE '${bounds.drainageArea}%'`);
   }
   if (bounds.late !== null) clauses.push(`late = ${bounds.late}`);
   if (bounds.minPercent !== null) clauses.push(`fill_percent >= ${bounds.minPercent}`);

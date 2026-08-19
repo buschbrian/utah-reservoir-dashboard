@@ -105,8 +105,10 @@ def reservoirs() -> list[dict]:
     """
     records = json.loads(RESERVOIRS.read_text())["reservoirs"]
     published = {record["name"] for record in records}
+    # Keyed by station since ADR-066; the name it is called by is inside.
     roster = json.loads(CONNECTED.read_text()).get("reservoirs", {})
-    for name, entry in roster.items():
+    for entry in roster.values():
+        name = entry["name"]
         if name not in published and entry.get("lat") and entry.get("lon"):
             records.append({"name": name, "lat": entry["lat"], "lon": entry["lon"],
                             "huc6": entry.get("huc6")})

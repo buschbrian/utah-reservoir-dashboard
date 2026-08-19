@@ -102,16 +102,19 @@ def test_every_roster_reservoir_sits_inside_the_roster_scope():
     units = load_scope_units(ROSTER_SCOPE)
     dams = refresh_reservoirs.dam_points()
 
-    points = {name: (lon, lat) for name, (_, lat, lon)
+    # Keyed by station since ADR-066, so two reservoirs sharing a name are two
+    # points to check rather than one.
+    points = {station: (lon, lat) for station, (_, lat, lon)
               in refresh_reservoirs.RESERVOIRS.items()}
-    points.update({name: (lon, lat) for name, (_, lat, lon, _, _)
+    points.update({station: (lon, lat) for station, (_, lat, lon, _, _)
                    in refresh_reservoirs.AWDB_RESERVOIRS.items()})
     # The assignment point, not the published one, wherever there is a
     # reviewed dam: a drainage area is where the stored water leaves.
     points.update(dams)
     assert len(points) >= 69
 
-    outside = sorted(name for name, point in points.items()
+    outside = sorted(refresh_reservoirs.RESERVOIR_NAMES.get(station, station)
+                     for station, point in points.items()
                      if huc.assign_huc(point, units) is None)
     assert outside == [], (
         f"{outside} are outside the {ROSTER_SCOPE} scope the map opens on; "

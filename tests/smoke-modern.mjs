@@ -2721,7 +2721,11 @@ for (const viewport of VIEWPORTS) {
       `${label}: the drainage-area control shows "${narrowed.control}", not the link's area`);
     check(narrowed.storage === String(storageClass),
       `${label}: the storage control shows "${narrowed.storage}", not class ${storageClass}`);
-    check(narrowed.where?.includes(`drainage_area = '${area}'`) &&
+    /* `LIKE 'code%'`, not equality: the clause and the predicate state one
+     * rule, and the predicate compares by prefix so a four-digit subregion
+     * matches the basins inside it. At full width the two forms are the same
+     * comparison. */
+    check(narrowed.where?.includes(`drainage_area LIKE '${area}%'`) &&
       /fill_percent/.test(narrowed.where),
     `${label}: the map filter is "${narrowed.where}" after restoring both filters`);
     check(narrowed.ready.drawn === expectedReservoirs,
@@ -2953,7 +2957,12 @@ for (const failure of [
       control: document.querySelectorAll(".level-control calcite-select").length,
       chosen: document.querySelector(".level-control calcite-select")?.value ?? null,
       viewport: document.documentElement.clientWidth,
-      scroll: document.documentElement.scrollWidth
+      scroll: document.documentElement.scrollWidth,
+      /* Both renderings of the bar. They are generated from one table so
+       * they cannot offer different sets, and the hrefs are built now
+       * rather than written down, so both are read. */
+      navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+        .map((link) => link.getAttribute("href"))
     }), scenario.signal);
     console.log("  ready:", JSON.stringify({
       level: state.ready?.level, levelsOffered: state.ready?.levelsOffered,
@@ -2968,16 +2977,122 @@ for (const failure of [
       `${scenario.label}: the control shows ${state.chosen}, not the level in the address`);
     check(state.scroll <= state.viewport + 1,
       `${scenario.label}: the page scrolls sideways at the coarser level`);
+    /* The level is one parameter across all three maps, and the bar is where
+     * that promise was being broken: these hrefs were written down as
+     * constants, so every click dropped the reader's choice and landed them
+     * on a map drawn in basins. */
+    check(state.navHrefs.length > 0,
+      `${scenario.label}: the bar offers no page links to check`);
+    check(state.navHrefs.every((href) => /[?&]level=4(?:&|$)/.test(href ?? "")),
+      `${scenario.label}: the bar drops the level: ${state.navHrefs.join(", ")}`);
   }
 
   /* The default is the absence of the parameter, so a page with no `?level=`
    * must be the basins page it always was. */
   await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
   await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 90000 });
-  const fallback = await tab.evaluate(() => window.__dashboardReady?.level);
-  check(fallback === 6, `the storage map opens at level ${fallback}, expected 6`);
+  const fallback = await tab.evaluate(() => ({
+    level: window.__dashboardReady?.level,
+    navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+      .map((link) => link.getAttribute("href"))
+  }));
+  check(fallback.level === 6, `the storage map opens at level ${fallback.level}, expected 6`);
+  /* And absence stays absence: a default is never written into a link, so an
+   * untouched dashboard still links to clean addresses. */
+  check(fallback.navHrefs.every((href) => !(href ?? "").includes("?")),
+    `the bar carries a query with nothing chosen: ${fallback.navHrefs.join(", ")}`);
+
+  /* The bar keeps up with the address bar. Narrowing the map is a
+   * `replaceState`, not a navigation, so nothing re-renders the links --
+   * they are rewritten in place, or they carry the URL from first paint and
+   * are quietly wrong by the time one is clicked. The map spells its own
+   * parameter `drainage=`; the bar must carry it under the one name every
+   * page reads. */
+  await tab.waitForFunction(() => document.querySelector(
+    '#start-panel [data-filter="drainage"] calcite-option[value]:not([value="all"])')
+    !== null, { timeout: 60000 });
+  const narrowedBar = await tab.evaluate(() => {
+    const select = document.querySelector('#start-panel [data-filter="drainage"]');
+    const area = [...select.querySelectorAll("calcite-option")]
+      .map((option) => option.value).find((value) => value && value !== "all");
+    select.value = area;
+    select.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
+    return {
+      area,
+      search: window.location.search,
+      navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+        .map((link) => link.getAttribute("href"))
+    };
+  });
+  check(narrowedBar.search.includes(`drainage=${narrowedBar.area}`),
+    `narrowing the map did not reach the address bar ("${narrowedBar.search}")`);
+  check(narrowedBar.navHrefs.every((href) =>
+    new RegExp(`[?&]area=${narrowedBar.area}(?:&|$)`).test(href ?? "")),
+    `the bar kept its first-paint links after the map was narrowed: ` +
+    narrowedBar.navHrefs.join(", "));
 
   for (const message of errors) failures.push(`Area size: ${message}`);
+  await context.close();
+}
+
+/*
+ * Simplified Technical English, measured on what a reader actually sees.
+ *
+ * ADR-006 has always been enforced as a vocabulary -- a list of retired terms
+ * that must not reappear. That is one of ASD-STE100's rules and not the only
+ * one. This checks the structural rule that a reader feels first: sentence
+ * length. The specification allows 20 words in a procedural sentence and 25 in
+ * a descriptive one, and every page here is descriptive.
+ *
+ * Measured on `innerText` rather than on source, because that is the text as
+ * the page renders it -- the same reason the retired-vocabulary check reads
+ * rendered text (a `text-transform` makes the page say something the source
+ * does not).
+ */
+{
+  const STE_WORD_LIMIT = 25;
+  const context = await browser.newContext({ viewport: VIEWPORTS[0] });
+  const tab = await context.newPage();
+  const pages = [
+    ["Storage map", "", "__dashboardReady"],
+    ["Storage charts", "overview.html", "__overviewReady"],
+    ["Snowpack", "snow.html", "__snowReady"],
+    ["Drought", "drought.html", "__droughtReady"],
+    ["Methods", "methods.html", null],
+    ["Data reference", "data.html", "__dataDocsReady"],
+    ["Terms", "terms.html", null]
+  ];
+  console.log("\n=== Simplified Technical English");
+  for (const [label, path, signal] of pages) {
+    await tab.goto(`${URL}${path}`, { waitUntil: "load", timeout: 90000 });
+    if (signal) {
+      await tab.waitForFunction((key) => window[key] !== undefined, signal,
+        { timeout: 90000 }).catch(() => {});
+    }
+    await tab.waitForFunction(() => document.body.innerText.length > 800,
+      null, { timeout: 60000 }).catch(() => {});
+    const long = await tab.evaluate((limit) => {
+      /* Prose lines only. A table row, a legend entry and a number are not
+       * sentences, and counting them would make the rule meaningless. A
+       * sentence ends at a full stop followed by a capital or a digit. */
+      const sentences = [];
+      for (const line of document.body.innerText.split("\n")) {
+        const text = line.trim();
+        if (text.length < 40 || text.includes("\t")) continue;
+        for (const part of text.split(/(?<=[.!?])\s+(?=[A-Z"\u2014\d])/)) {
+          if (part.trim().split(/\s+/).length >= 4) sentences.push(part.trim());
+        }
+      }
+      return sentences
+        .map((sentence) => ({ words: sentence.split(/\s+/).length, sentence }))
+        .filter((entry) => entry.words > limit);
+    }, STE_WORD_LIMIT);
+    console.log(`  ${label}: ${long.length} sentence(s) over ${STE_WORD_LIMIT} words`);
+    for (const entry of long) {
+      failures.push(`${label}: a ${entry.words}-word sentence, over the `
+        + `${STE_WORD_LIMIT}-word limit -- "${entry.sentence.slice(0, 90)}..."`);
+    }
+  }
   await context.close();
 }
 

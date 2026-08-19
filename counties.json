@@ -6,355 +6,426 @@
   "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
   "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
   "counties": {
-    "Bear Lake": {
+    "10055500:ID:BOR": {
+      "name": "Bear Lake",
       "county_fips": "16007",
       "county_name": "Bear Lake County",
       "state": "ID"
     },
-    "Big Sand Wash": {
+    "09UTBSWR:UT:BOR": {
+      "name": "Big Sand Wash",
       "county_fips": "49013",
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "Causey": {
+    "219": {
+      "name": "Causey",
       "county_fips": "49057",
       "county_name": "Weber County",
       "state": "UT"
     },
-    "Cleveland": {
+    "09UTCLEV:UT:BOR": {
+      "name": "Cleveland",
       "county_fips": "49015",
       "county_name": "Emery County",
       "state": "UT"
     },
-    "Currant Creek": {
+    "278": {
+      "name": "Currant Creek",
       "county_fips": "49051",
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "Deer Creek": {
+    "290": {
+      "name": "Deer Creek",
       "county_fips": "49051",
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "Dillon Reservoir": {
+    "09009020:CO:BOR": {
+      "name": "Dillon Reservoir",
       "county_fips": "08117",
       "county_name": "Summit County",
       "state": "CO"
     },
-    "East Canyon": {
+    "310": {
+      "name": "East Canyon",
       "county_fips": "49029",
       "county_name": "Morgan County",
       "state": "UT"
     },
-    "Echo": {
+    "314": {
+      "name": "Echo",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Elkhead Reservoir": {
+    "09246300:CO:BOR": {
+      "name": "Elkhead Reservoir",
       "county_fips": "08081",
       "county_name": "Moffat County",
       "state": "CO"
     },
-    "Flaming Gorge": {
+    "337": {
+      "name": "Flaming Gorge",
       "county_fips": "49009",
       "county_name": "Daggett County",
       "state": "UT"
     },
-    "Fontenelle": {
+    "347": {
+      "name": "Fontenelle",
       "county_fips": "56023",
       "county_name": "Lincoln County",
       "state": "WY"
     },
-    "Grantsville": {
+    "10UTGTVL:UT:BOR": {
+      "name": "Grantsville",
       "county_fips": "49045",
       "county_name": "Tooele County",
       "state": "UT"
     },
-    "Green Mountain Reservoir": {
+    "09009030:CO:BOR": {
+      "name": "Green Mountain Reservoir",
       "county_fips": "08117",
       "county_name": "Summit County",
       "state": "CO"
     },
-    "Gunlock": {
+    "09UTGUNL:UT:BOR": {
+      "name": "Gunlock",
       "county_fips": "49053",
       "county_name": "Washington County",
       "state": "UT"
     },
-    "Gunnison": {
+    "10216200:UT:BOR": {
+      "name": "Gunnison",
       "county_fips": "49039",
       "county_name": "Sanpete County",
       "state": "UT"
     },
-    "High Savery Reservoir": {
+    "09255450:WY:BOR": {
+      "name": "High Savery Reservoir",
       "county_fips": "56007",
       "county_name": "Carbon County",
       "state": "WY"
     },
-    "Homestake Reservoir": {
+    "09009040:CO:BOR": {
+      "name": "Homestake Reservoir",
       "county_fips": "08037",
       "county_name": "Eagle County",
       "state": "CO"
     },
-    "Huntington North": {
+    "432": {
+      "name": "Huntington North",
       "county_fips": "49015",
       "county_name": "Emery County",
       "state": "UT"
     },
-    "Hyrum": {
+    "439": {
+      "name": "Hyrum",
       "county_fips": "49005",
       "county_name": "Cache County",
       "state": "UT"
     },
-    "Jackson Flat": {
+    "09UTJACK:UT:BOR": {
+      "name": "Jackson Flat",
       "county_fips": "49025",
       "county_name": "Kane County",
       "state": "UT"
     },
-    "Joes Valley": {
+    "463": {
+      "name": "Joes Valley",
       "county_fips": "49015",
       "county_name": "Emery County",
       "state": "UT"
     },
-    "Jordanelle": {
+    "468": {
+      "name": "Jordanelle",
       "county_fips": "49051",
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "Ken's Lake": {
+    "09UTKENS:UT:BOR": {
+      "name": "Ken's Lake",
       "county_fips": "49037",
       "county_name": "San Juan County",
       "state": "UT"
     },
-    "Lake Granby": {
+    "09009060:CO:BOR": {
+      "name": "Lake Granby",
       "county_fips": "08049",
       "county_name": "Grand County",
       "state": "CO"
     },
-    "Lake Mead": {
+    "6124": {
+      "name": "Lake Mead",
       "county_fips": "32003",
       "county_name": "Clark County",
       "state": "NV"
     },
-    "Lake Powell": {
+    "509": {
+      "name": "Lake Powell",
       "county_fips": "49037",
       "county_name": "San Juan County",
       "state": "UT"
     },
-    "Lost Creek": {
+    "544": {
+      "name": "Lost Creek",
       "county_fips": "49029",
       "county_name": "Morgan County",
       "state": "UT"
     },
-    "Lost Lake": {
+    "4523": {
+      "name": "Lost Lake",
       "county_fips": "49051",
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "Lower Enterprise": {
+    "10UTENTL:UT:BOR": {
+      "name": "Lower Enterprise",
       "county_fips": "49053",
       "county_name": "Washington County",
       "state": "UT"
     },
-    "Meeks Cabin": {
+    "574": {
+      "name": "Meeks Cabin",
       "county_fips": "56041",
       "county_name": "Uinta County",
       "state": "WY"
     },
-    "Miller Flat": {
+    "09UTMILF:UT:BOR": {
+      "name": "Miller Flat",
       "county_fips": "49015",
       "county_name": "Emery County",
       "state": "UT"
     },
-    "Millsite": {
+    "09UTMILL:UT:BOR": {
+      "name": "Millsite",
       "county_fips": "49015",
       "county_name": "Emery County",
       "state": "UT"
     },
-    "Minersville": {
+    "10238500:UT:BOR": {
+      "name": "Minersville",
       "county_fips": "49001",
       "county_name": "Beaver County",
       "state": "UT"
     },
-    "Moon Lake": {
+    "587": {
+      "name": "Moon Lake",
       "county_fips": "49013",
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "Narraguinnep Reservoir": {
+    "09009350:CO:BOR": {
+      "name": "Narraguinnep Reservoir",
       "county_fips": "08083",
       "county_name": "Montezuma County",
       "state": "CO"
     },
-    "Newton": {
+    "623": {
+      "name": "Newton",
       "county_fips": "49005",
       "county_name": "Cache County",
       "state": "UT"
     },
-    "Otter Creek": {
+    "10188000:UT:BOR": {
+      "name": "Otter Creek",
       "county_fips": "49031",
       "county_name": "Piute County",
       "state": "UT"
     },
-    "Panguitch": {
+    "10UTPANG:UT:BOR": {
+      "name": "Panguitch",
       "county_fips": "49017",
       "county_name": "Garfield County",
       "state": "UT"
     },
-    "Pineview": {
+    "652": {
+      "name": "Pineview",
       "county_fips": "49057",
       "county_name": "Weber County",
       "state": "UT"
     },
-    "Piute": {
+    "10191000:UT:BOR": {
+      "name": "Piute",
       "county_fips": "49031",
       "county_name": "Piute County",
       "state": "UT"
     },
-    "Porcupine": {
+    "10105200:UT:BOR": {
+      "name": "Porcupine",
       "county_fips": "49005",
       "county_name": "Cache County",
       "state": "UT"
     },
-    "Quail Creek": {
+    "09UTQUAI:UT:BOR": {
+      "name": "Quail Creek",
       "county_fips": "49053",
       "county_name": "Washington County",
       "state": "UT"
     },
-    "Red Fleet": {
+    "685": {
+      "name": "Red Fleet",
       "county_fips": "49047",
       "county_name": "Uintah County",
       "state": "UT"
     },
-    "Rockport": {
+    "706": {
+      "name": "Rockport",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Ruedi Reservoir": {
+    "09009110:CO:BOR": {
+      "name": "Ruedi Reservoir",
       "county_fips": "08097",
       "county_name": "Pitkin County",
       "state": "CO"
     },
-    "Sand Hollow": {
+    "09UTSAND:UT:BOR": {
+      "name": "Sand Hollow",
       "county_fips": "49053",
       "county_name": "Washington County",
       "state": "UT"
     },
-    "Scofield": {
+    "727": {
+      "name": "Scofield",
       "county_fips": "49007",
       "county_name": "Carbon County",
       "state": "UT"
     },
-    "Settlement Canyon": {
+    "10UT03JJ:UT:BOR": {
+      "name": "Settlement Canyon",
       "county_fips": "49045",
       "county_name": "Tooele County",
       "state": "UT"
     },
-    "Shadow Mountain Reservoir": {
+    "09014500:CO:BOR": {
+      "name": "Shadow Mountain Reservoir",
       "county_fips": "08049",
       "county_name": "Grand County",
       "state": "CO"
     },
-    "Smith and Morehouse": {
+    "10128000:UT:BOR": {
+      "name": "Smith and Morehouse",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Stagecoach Reservoir nr Oak Creek": {
+    "09237495:CO:BOR": {
+      "name": "Stagecoach Reservoir nr Oak Creek",
       "county_fips": "08107",
       "county_name": "Routt County",
       "state": "CO"
     },
-    "Starvation": {
+    "764": {
+      "name": "Starvation",
       "county_fips": "49013",
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "Stateline": {
+    "769": {
+      "name": "Stateline",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Steinaker": {
+    "774": {
+      "name": "Steinaker",
       "county_fips": "49047",
       "county_name": "Uintah County",
       "state": "UT"
     },
-    "Strawberry": {
+    "779": {
+      "name": "Strawberry",
       "county_fips": "49051",
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "Trial Lake": {
+    "4516": {
+      "name": "Trial Lake",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Upper Enterprise": {
+    "10UTENTU:UT:BOR": {
+      "name": "Upper Enterprise",
       "county_fips": "49053",
       "county_name": "Washington County",
       "state": "UT"
     },
-    "Upper Stillwater": {
+    "826": {
+      "name": "Upper Stillwater",
       "county_fips": "49013",
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "Utah Lake": {
+    "10166500:UT:BOR": {
+      "name": "Utah Lake",
       "county_fips": "49049",
       "county_name": "Utah County",
       "state": "UT"
     },
-    "Vega Reservoir": {
+    "09009140:CO:BOR": {
+      "name": "Vega Reservoir",
       "county_fips": "08077",
       "county_name": "Mesa County",
       "state": "CO"
     },
-    "Washington Lake": {
+    "4530": {
+      "name": "Washington Lake",
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
     },
-    "Willard Bay": {
+    "866": {
+      "name": "Willard Bay",
       "county_fips": "49003",
       "county_name": "Box Elder County",
       "state": "UT"
     },
-    "Williams Fork Reservoir": {
+    "09009150:CO:BOR": {
+      "name": "Williams Fork Reservoir",
       "county_fips": "08049",
       "county_name": "Grand County",
       "state": "CO"
     },
-    "Willow Creek Reservoir": {
+    "09009160:CO:BOR": {
+      "name": "Willow Creek Reservoir",
       "county_fips": "08049",
       "county_name": "Grand County",
       "state": "CO"
     },
-    "Wolford Mountain Reservoir": {
+    "09041395:CO:BOR": {
+      "name": "Wolford Mountain Reservoir",
       "county_fips": "08049",
       "county_name": "Grand County",
       "state": "CO"
     },
-    "Woodruff Creek": {
+    "10UTWOOD:UT:BOR": {
+      "name": "Woodruff Creek",
       "county_fips": "49033",
       "county_name": "Rich County",
       "state": "UT"
     },
-    "Woodruff Narrows": {
+    "10020200:WY:BOR": {
+      "name": "Woodruff Narrows",
       "county_fips": "56041",
       "county_name": "Uinta County",
       "state": "WY"
     },
-    "Yamcolo Reservoir": {
+    "YAMRESCO:CO:BOR": {
+      "name": "Yamcolo Reservoir",
       "county_fips": "08045",
       "county_name": "Garfield County",
       "state": "CO"
     },
-    "Yuba": {
+    "10218500:UT:BOR": {
+      "name": "Yuba",
       "county_fips": "49023",
       "county_name": "Juab County",
       "state": "UT"
     }
-  }
+  },
+  "keyed_by": "source_station_id"
 }

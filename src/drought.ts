@@ -57,7 +57,7 @@ import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
 import { formatDate, formatPercent } from "./viz/format";
@@ -71,13 +71,13 @@ if (!root) throw new Error("Missing #drought-app root");
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
     ${brandMarkup(1, "drought")}
-    ${pageLinksMarkup("drought")}
+    ${pageLinksMarkup("drought", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
   <main class="overview-main">
     <header class="overview-intro">
-      <p>How dry the land is, area by area, from the U.S. Drought Monitor's weekly national map. Reservoir storage is shown beside each drainage area because the two can disagree: a full reservoir in a dry basin is a region drawing on saved water.</p>
+      <p>How dry the land is, area by area, from the U.S. Drought Monitor's weekly national map. Each drainage area also shows its reservoir storage, because the two can disagree. A full reservoir in a dry basin is a region that draws on saved water.</p>
     </header>
     <section id="drought-content" aria-live="polite"><calcite-loader label="Loading drought conditions"></calcite-loader></section>
   </main>`;
@@ -130,7 +130,7 @@ function renderDrought(
     </section>
     <section class="overview-card" aria-labelledby="drought-map-heading">
       <div class="card-heading">
-        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${payload.unit_count} drainage areas the figures below describe; drought does not stop at their edges, so the wider pattern is drawn too.</p></div>
+        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${payload.unit_count} drainage areas the figures below describe. Drought does not stop at their edges, so the map draws the wider pattern too.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div id="drought-map-host" class="view-map-host has-inset-legend" aria-busy="true"
@@ -138,20 +138,20 @@ function renderDrought(
     </section>
     <section class="overview-card" aria-labelledby="drought-severity-heading">
       <div class="card-heading">
-        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse; this says where all ${payload.unit_count} sit, which is a different question — nine clear areas and nine areas one class below the line give the same count and are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
+        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse. This says where all ${payload.unit_count} sit, which is a different question. Nine clear areas and nine areas one class below the line give the same count, and they are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
       </div>
       <div id="drought-severity-host" class="drought-severity-host"></div>
       <ul class="overlay-key" id="drought-severity-key" aria-label="What each severity level is called"></ul>
     </section>
     <section class="overview-card" aria-labelledby="drought-join-heading">
       <div class="card-heading">
-        <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point: how much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse across the bottom, and how full its reservoirs are up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point — an area far to the right and high up is drawing on water banked in better years, and one far to the right and low has neither the rain nor the savings.</p></div>
+        <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point. How much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse goes across the bottom. How full its reservoirs are goes up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point. An area far to the right and high up draws on water banked in better years. One far to the right and low has neither the rain nor the savings.</p></div>
       </div>
       <div id="drought-scatter-host" class="drought-scatter-host"></div>
     </section>
     <section class="overview-card" aria-labelledby="drought-gap-heading">
       <div class="card-heading">
-        <div><h2 id="drought-gap-heading">The same comparison, in order</h2><p>One row for each drainage area, worst first. The left dot is the share of land in ${dryness.label.toLowerCase()} (${dryness.code}) or worse, in the class colours; the right dot is how full that area's reservoirs are, in the storage colours. The line between them is the distance, and it is only a distance: the two shares divide by different things, one by land and one by reservoir capacity, so the site never states their difference as a number. Rows where the water dot sits left of the dry dot are areas with dry ground and little banked to draw on.</p></div>
+        <div><h2 id="drought-gap-heading">The same comparison, in order</h2><p>One row for each drainage area, worst first. The left dot is the share of land in ${dryness.label.toLowerCase()} (${dryness.code}) or worse, in the class colours. The right dot is how full that area's reservoirs are, in the storage colours. The line between them is the distance, and it is only a distance. The two shares divide by different things, one by land and one by reservoir capacity, so the site never states their difference as a number. Rows where the water dot sits left of the dry dot are areas with dry ground and little banked to draw on.</p></div>
       </div>
       <div id="drought-gap-host" class="drought-gap-host"></div>
     </section>
@@ -433,6 +433,9 @@ function renderDrought(
   function update(next: Partial<DroughtUrlState>): void {
     state = { ...state, ...next };
     writeDroughtUrl(state);
+    /* The write is a `replaceState`; there is no navigation to re-render the
+     * bar, so its links are brought up to date here or not at all. */
+    updatePageLinks(window.location.search);
     draw();
   }
 

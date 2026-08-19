@@ -336,7 +336,11 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("schema_version", "version number", "Version of this JSON structure.")
   ]},
   { id: "reference-capacity", title: "Capacity catalog", path: "capacity_catalog", fields: [
-    f("capacities", "object", "Reservoir-name map of reviewed capacity entries."),
+    f("capacities", "object",
+      "Station-id map of reviewed capacity entries. Keyed by the same " +
+      "identifier each reservoir record publishes as source_station_id, " +
+      "because two reservoirs may share a name."),
+    f("keyed_by", "field name", "Which identifier the capacity map is keyed by."),
     f("connected_reservoirs", "file name", "Reviewed connected-reservoir source file."),
     f("dam_points", "object", "Summary of reviewed dam coordinates."),
     f("denominator", "text", "Rule used to choose the published full level."),
@@ -346,7 +350,8 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("source_layer", "web address", "Capacity source layer."),
     f("unmatched", "array", "Inventory names that could not be matched.")
   ]},
-  { id: "reference-capacity-entry", title: "Capacity entry", path: "capacity_catalog.capacities.<reservoir>", fields: [
+  { id: "reference-capacity-entry", title: "Capacity entry", path: "capacity_catalog.capacities.<station id>", fields: [
+    f("name", "text", "What this reservoir is called."),
     f("capacity_af", "acre-feet", "Selected full level used by the dashboard."),
     f("capacity_basis", "identifier", "Inventory field selected as the full level."),
     f("dam_lat", "decimal degrees", "Reviewed dam latitude."),

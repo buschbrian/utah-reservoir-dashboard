@@ -20,6 +20,7 @@
  */
 
 import { isLate } from "../data/rollup";
+import { reservoirLabel } from "./selection";
 import { matchesFilter, type FilterState } from "./filters";
 import type { MonthKey } from "../data/months";
 import type { NullableNumber, Reservoir } from "../types";
@@ -128,7 +129,9 @@ export function tableRows(input: TableInput): TableRow[] {
   return reservoirs
     .filter((reservoir) => matchesFilter(reservoir, filter))
     .map((reservoir) => ({
-      name: reservoir.name,
+      /* The label a reader can tell apart, qualified with the state only
+       * where another reservoir shares the name (ADR-066). */
+      name: reservoirLabel(reservoir, reservoirs),
       percent: percentOf(reservoir),
       storageAf: month === null ? reservoir.current_storage_af : monthlyMean(reservoir, month),
       capacityAf: reservoir.capacity_af,

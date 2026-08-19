@@ -165,7 +165,7 @@ export function renderShell(root: HTMLElement): void {
     <calcite-shell id="dashboard-shell" content-behind>
       <calcite-navigation slot="header" aria-label="Primary navigation">
         ${brandMarkup(1, "map")}
-        ${pageLinksMarkup("map")}
+        ${pageLinksMarkup("map", window.location.search)}
         <!-- Icon only. With their text these were 152px and 145px in a bar
              whose contents have to fit inside the viewport, spent on two
              words each that the panel they open repeats as its own heading.

@@ -89,3 +89,48 @@ describe("CSV serialization", () => {
       .toBe("ken-s-lake-2026-08-14.csv");
   });
 });
+
+describe("two reservoirs with one name, exported", () => {
+  /* The west holds a Lost Creek in Utah and another in Oregon (ADR-066). A
+   * spreadsheet of two rows both called "Lost Creek" is two rows a reader
+   * cannot tell apart, and two downloads under one filename is the second
+   * file replacing the first. */
+  const lostCreekUt = {
+    ...readPayload().reservoirs[0]!,
+    name: "Lost Creek", source_station_id: "544", state: "UT"
+  };
+  const lostCreekOr = {
+    ...readPayload().reservoirs[1]!,
+    name: "Lost Creek", source_station_id: "14335040:OR:BOR", state: "OR"
+  };
+
+  it("names each row so a reader can tell them apart", () => {
+    const rows = overviewCsv([lostCreekUt, lostCreekOr]).trim().split("\r\n");
+
+    expect(rows[1]).toContain("\"Lost Creek, UT\"");
+    expect(rows[2]).toContain("\"Lost Creek, OR\"");
+  });
+
+  it("leaves a unique name unqualified", () => {
+    const reservoirs = readPayload().reservoirs;
+    const csv = overviewCsv(reservoirs);
+
+    expect(csv).toContain("Deer Creek");
+    expect(csv).not.toContain("Deer Creek, UT");
+  });
+
+  it("gives each one its own filename", () => {
+    expect(reservoirCsvFilename("Lost Creek, UT", "2026-08-19"))
+      .toBe("lost-creek-ut-2026-08-19.csv");
+    expect(reservoirCsvFilename("Lost Creek, OR", "2026-08-19"))
+      .toBe("lost-creek-or-2026-08-19.csv");
+  });
+
+  it("carries the label into a single reservoir's history file", () => {
+    const csv = reservoirHistoryCsv(lostCreekOr, "Lost Creek, OR");
+
+    expect(csv).toContain("\"Lost Creek, OR\"");
+    // The station is in the file either way, and stays the identity.
+    expect(csv).toContain("14335040:OR:BOR");
+  });
+});

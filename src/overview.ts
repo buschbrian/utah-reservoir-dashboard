@@ -59,7 +59,7 @@ import {
 import type {
   DroughtCoveragePayload, Reservoir, SnowpackPayload
 } from "./types";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import "./styles/overview.css";
@@ -76,7 +76,7 @@ root.innerHTML = `
          bar has to be the h1, or the page has none at all. The map shell
          has always done it this way. -->
     ${brandMarkup(1, "overview")}
-    ${pageLinksMarkup("overview")}
+    ${pageLinksMarkup("overview", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
@@ -157,7 +157,7 @@ async function renderOverview(
       <div class="card-heading">
         <div>
           <h2 id="weekly-heading">What moved this week</h2>
-          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so turning Lake Powell off changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
+          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so a change to the Lake Powell control changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
           <p class="weekly-scope" data-weekly="scope" role="status" aria-live="polite"></p>
         </div>
       </div>
@@ -611,6 +611,9 @@ async function renderOverview(
      * drawing, and a reader who copied it mid-render would send a link to
      * something they had not seen yet. */
     writeOverviewUrl(currentUrlState());
+    /* The write is a `replaceState`; there is no navigation to re-render the
+     * bar, so its links are brought up to date here or not at all. */
+    updatePageLinks(window.location.search);
     window.__overviewReady = {
       reservoirs: scoped.length,
       visible: visible.length,

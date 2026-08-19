@@ -59,7 +59,7 @@ import {
 import { levelFromSearch, writeLevel } from "./state/level";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
-import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
+import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { createLevelControl } from "./ui/level-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
@@ -79,7 +79,7 @@ if (!root) throw new Error("Missing #snow-app root");
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
     ${brandMarkup(1, "snow")}
-    ${pageLinksMarkup("snow")}
+    ${pageLinksMarkup("snow", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
@@ -135,7 +135,7 @@ function renderSnow(payload: SnowpackPayload): void {
     </section>
     <section class="overview-card" aria-labelledby="snow-map-heading">
       <div class="card-heading">
-        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area is coloured by its mean percent of normal for the day shown, and each measurement site is a point on the same scale. The map opens on the day this season held the most snow, because that is the day the rest of the year is judged against; move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
+        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area takes its colour from its mean percent of normal for the day shown. Each measurement site is a point on the same scale. The map opens on the day this season held the most snow, because the rest of the year measures against that day. Move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div id="snow-map-host" class="view-map-host" aria-busy="true"
@@ -159,7 +159,7 @@ function renderSnow(payload: SnowpackPayload): void {
     </section>
     <section class="overview-card" aria-labelledby="snow-basin-heading">
       <div class="card-heading">
-        <div><h2 id="snow-basin-heading">One drainage area through the season</h2><p>The mean of the chosen area's site values as a percent of normal, day by day, with the middle value for the same day in the years ${normalPeriodLabel(payload)} as the dashed line. Choose an area here, or select one on the map above.</p></div>
+        <div><h2 id="snow-basin-heading">One drainage area through the season</h2><p>The mean of the chosen area's site values as a percent of normal, day by day. The dashed line is the middle value for the same day in the years ${normalPeriodLabel(payload)}. Choose an area here, or select one on the map above.</p></div>
         <label class="sort-control">Drainage area<select id="snow-basin-pick"><option value="">Choose a drainage area</option></select></label>
       </div>
       <div id="snow-basin-detail"><p class="chart-empty">Choose a drainage area above, or select one on the map.</p></div>
@@ -172,7 +172,7 @@ function renderSnow(payload: SnowpackPayload): void {
       <div id="snow-site-detail"><p class="chart-empty">Choose a measurement site above, or select one in the table below.</p></div>
     </section>
     <section class="overview-card table-card" aria-labelledby="snow-table-heading">
-      <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. Select a site name to see its season. A summer value near zero is normal: the snow has melted.</p></div></div>
+      <div class="card-heading"><div><h2 id="snow-table-heading">Measurement sites</h2><p>The newest value at each site, ordered by drainage area and name. Select a site name to see its season. A summer value near zero is normal: the snow melts each summer.</p></div></div>
       <div class="snow-spread" id="snow-spread"></div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Measurement site table, scrolls sideways"><table class="overview-table"><thead><tr><th>Site</th><th>Drainage area</th><th>Elevation (feet)</th><th>Snow water (inches)</th><th>Normal (inches)</th><th>Of normal</th><th>Observed</th></tr></thead><tbody id="snow-site-rows"></tbody></table></div>
     </section>`;
@@ -311,6 +311,15 @@ function renderSnow(payload: SnowpackPayload): void {
       band: siteFilter.band,
       status: siteFilter.status
     };
+  }
+
+  /** Writes the bar's links in the same breath as the address bar: the write
+   * is a `replaceState`, so there is no navigation to re-render them, and a
+   * narrowed `?area=` would otherwise sit in the URL while the links carried
+   * the one from first paint. */
+  function writeUrl(): void {
+    writeSnowUrl(urlState());
+    updatePageLinks(window.location.search);
   }
   let levelsOffered = 1;
   let lastCurvePoints = 0;
@@ -464,7 +473,7 @@ function renderSnow(payload: SnowpackPayload): void {
       children.push(reading, timingLine, table);
       siteDetail.replaceChildren(...children);
     }
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -566,7 +575,7 @@ function renderSnow(payload: SnowpackPayload): void {
       children.push(reading, table);
       basinDetail.replaceChildren(...children);
     }
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -586,7 +595,7 @@ function renderSnow(payload: SnowpackPayload): void {
     dayReading.textContent = describeDay(day);
     if (daySlider.value !== undefined) daySlider.value = Math.max(0, days.indexOf(day));
     if (map) map.setDay(mapDayValues(payload, day), day);
-    writeSnowUrl(urlState());
+    writeUrl();
     publishReady();
   };
 
@@ -691,7 +700,7 @@ function renderSnow(payload: SnowpackPayload): void {
 
     drawSpread();
     if (map) map.setArea(chosen);
-    writeSnowUrl(urlState());
+    writeUrl();
     lastCurvePoints = curvePoints;
     publishReady();
   };

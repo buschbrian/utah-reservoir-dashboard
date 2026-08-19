@@ -104,11 +104,14 @@ export function describeMovers(storage: WeeklyStorage): string[] {
   const share = storage.largestShareMove;
   if (share && share.name !== storage.biggestFall?.name
     && share.name !== storage.biggestRise?.name) {
+    /* Two sentences, not one clause chained onto another: the single form ran
+     * to 28 words, and the two figures answer different questions -- how much
+     * of the reservoir moved, and how much of last week's water that was. */
     lines.push(
-      `Largest move for its own size: ${describeMove(share)}` +
+      `Largest move for its own size: ${describeMove(share)}.` +
       (share.changePercent === null
-        ? "."
-        : `, which is ${formatPercent(Math.abs(share.changePercent))} of what it ` +
+        ? ""
+        : ` That is ${formatPercent(Math.abs(share.changePercent))} of what it ` +
           "held a week earlier."));
   }
   return lines;
@@ -122,10 +125,9 @@ export function describeSnow(snow: WeeklySnow): string[] {
     /* The honest reason, not a blank. Percent of normal has no value once the
      * normal for the day is zero, which is every site by late summer. */
     return [
-      "There is no snow comparison for this week. Percent of normal is measured " +
-      "against the middle value for the same day in 1991 through 2020, and by " +
-      "late summer that value is zero at these sites, so there is nothing to " +
-      "divide by.",
+      "There is no snow comparison for this week. Percent of normal measures " +
+      "against the middle value for the same day in 1991 through 2020. By late " +
+      "summer that value is zero at these sites, so there is nothing to divide by.",
       "The snowpack view carries the whole season, including its high point."
     ];
   }
@@ -156,7 +158,7 @@ export function describeDrought(drought: WeeklyDrought | null): string[] {
     /* A fact about this project's data, not about the monitor, and the
      * sentence has to say which. */
     lines.push(
-      "This is the first drought map this site has kept, so there is no change " +
+      "This is the first drought map this site keeps, so there is no change " +
       "from last week to report yet. There will be one next week.");
     return lines;
   }

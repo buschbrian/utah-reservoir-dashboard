@@ -220,7 +220,15 @@ describe("the reference export", () => {
      * wrong geography while looking like it worked. */
     const later = { ...(readReferenceExport() as object), schema_version: 99 };
     expect(referenceGeography(later)).toBeNull();
-    expect(REFERENCE_SCHEMA_VERSION).toBe(2);
+    expect(REFERENCE_SCHEMA_VERSION).toBe(3);
+  });
+
+  it("reads the shape before this one as no boundaries either", () => {
+    /* Version 2 keyed the capacity catalog by reservoir name, which cannot
+     * hold two Lost Creeks (ADR-066). A reader still on that shape is told
+     * rather than handed a catalog whose keys mean something else. */
+    const earlier = { ...(readReferenceExport() as object), schema_version: 2 };
+    expect(referenceGeography(earlier)).toBeNull();
   });
 
   it.each([
