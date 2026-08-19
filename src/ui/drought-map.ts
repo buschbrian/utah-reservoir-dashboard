@@ -96,6 +96,10 @@ export interface DroughtMapStatus {
   reservoirs: number;
   /** True while those reference reservoirs are carrying their names. */
   reservoirLabels: boolean;
+  /** Whether those points are on screen. Separate from `reservoirs`, which
+   * counts what was placed: a field reports one fact, and "how many" and
+   * "are they shown" are two. */
+  reservoirsShown: boolean;
   /** True when the hosted state boundaries answered and were drawn. False
    * is a supported outcome, not a failure: the page is complete without
    * them. */
@@ -250,6 +254,21 @@ export async function createDroughtMap(
   });
 
   const reference = createReservoirReferenceLayer(reservoirs);
+  /* Built, and hidden until a reader asks for it.
+   *
+   * The snow map removed these points on 2026-08-16 with the argument that
+   * settles it here too: "density is the argument, not principle". That
+   * removal was measured against sixty-nine reservoirs. The western roster
+   * is about three times that, and three times the labelled points over
+   * five broad classes is ink the map's one question did not ask for.
+   *
+   * Hidden rather than absent, because the join is still the thing this
+   * page is built around -- a reader who wants to see which reservoirs sit
+   * inside the D4 patch gets them in one click, with no fetch and no
+   * rebuild, because the layer is already there. `reservoirs` and
+   * `reservoirLabels` go on reporting what was placed; whether it is on
+   * screen is a different fact and gets its own field. */
+  reference.layer.visible = false;
   const reservoirByName = new Map(
     reservoirs.map((reservoir) => [reservoir.name, reservoir]));
   const areaNames = new Map(areas.map((area) => [area.huc6, area.name]));
@@ -268,6 +287,7 @@ export async function createDroughtMap(
     areaLabelsDeconflicted: true,
     reservoirs: reference.drawn,
     reservoirLabels: reference.labelled,
+    reservoirsShown: reference.layer.visible,
     stateBoundaries: boundaries.states !== null,
     countyBoundaries: boundaries.counties !== null
   };

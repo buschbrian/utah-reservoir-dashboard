@@ -2349,6 +2349,15 @@ for (const viewport of VIEWPORTS) {
     }
     check(mapState.ready?.mapReservoirLabels === true,
       `${label}: the drought map drew reservoirs without their names`);
+    /* Placed, and not on screen until a reader asks. The whole roster of
+     * labelled points over five broad classes is more ink than this map's
+     * one question asks for, and the roster is about three times the size
+     * the last judgement of that balance was made against. The points stay
+     * built so the toggle costs no fetch, which is why the count above is
+     * still greater than zero while this is false. */
+    check(mapState.ready?.mapReservoirsShown === false,
+      `${label}: the drought map shows reservoirs on load ` +
+      `(${mapState.ready?.mapReservoirsShown})`);
 
     /* The hosted boundaries are optional, so the layer list is checked
      * against what actually loaded rather than against a fixed list -- a

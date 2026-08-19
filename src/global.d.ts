@@ -210,6 +210,9 @@ interface Window {
     /** Reservoirs drawn on the drought map for reference. They carry no
      * storage colour: the monitor's palette owns this map. */
     mapReservoirs?: number;
+    /** Whether the reference reservoirs are on screen. A separate fact from
+     * how many were placed, so a separate field (ADR-045). */
+    mapReservoirsShown?: boolean;
     /** True while those reference reservoirs are carrying their names. */
     mapReservoirLabels?: boolean;
     /** True when the hosted state boundaries answered and were drawn.
