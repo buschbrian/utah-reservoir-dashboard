@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import huc  # noqa: E402
 import refresh_reservoirs as R  # noqa: E402
 
 
@@ -621,6 +622,18 @@ def test_the_export_carries_no_polygons_but_the_state_outline():
 
 
 # --- watershed enrichment -------------------------------------------------
+
+def test_the_cross_border_review_is_keyed_by_stations_on_the_roster():
+    """A waterbody review is a fact about one reservoir, so its key is the
+    station id the roster is keyed by and its name is that station's label
+    (ADR-066). A key that drifts from the roster is a review of nothing:
+    the lookup misses and the entry quietly defaults to the point's state,
+    which is exactly the wrong answer for every reservoir in this table.
+    """
+    for station, entry in huc.CROSS_BORDER_WATERBODIES.items():
+        assert station in R.ALL_RESERVOIR_IDS, entry.get("name", station)
+        assert entry["name"] == R.RESERVOIR_NAMES[station], station
+
 
 def test_every_record_gets_a_watershed_and_the_summary_agrees():
     # Each record carries the station it was fetched with, which is what the

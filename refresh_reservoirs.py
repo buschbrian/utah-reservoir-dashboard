@@ -950,9 +950,9 @@ def attach_counties(records: list[dict]) -> dict:
         # against NHD for the waterbodies that cross a line; the point's own
         # state for every other, which is a default rather than a finding
         # (ADR-060). `connected_states` is attached with the drainage area,
-        # because that is what knows it.
+        # because that is what knows it. Looked up by station id (ADR-066).
         record["waterbody_states"] = huc.waterbody_states(
-            record["name"], found["state"])
+            str(record.get("source_station_id")), found["state"])
 
     distinct = {r["county_fips"] for r in records if r.get("county_fips")}
     states = {r["state"] for r in records if r.get("state")}
@@ -987,7 +987,8 @@ def attach_watersheds(records: list[dict]) -> dict:
     for record in records:
         lat, lon = record.get("lat"), record.get("lon")
         if lat is not None and lon is not None:
-            record.update(huc.location_fields(record["name"], lat, lon))
+            record.update(huc.location_fields(
+                str(record.get("source_station_id")), lat, lon))
 
     try:
         units = huc.load_units()
@@ -1010,7 +1011,7 @@ def attach_watersheds(records: list[dict]) -> dict:
         # not a correction, and a reader can tell the two apart.
         dam = dams.get(str(record.get("source_station_id")))
         record.update(huc.describe(
-            lat, lon, units, name=record["name"],
+            lat, lon, units, station=str(record.get("source_station_id")),
             assignment_point=dam,
             source="nid_dam_point" if dam else "published_point"))
         if record["huc6"] is None:

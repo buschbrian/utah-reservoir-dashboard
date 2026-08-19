@@ -60,16 +60,25 @@ UTAH_BOUNDARY_PATH = Path(__file__).resolve().parent / "utah-boundary.geojson"
 # which is why the Utah-only table never needed it: that table existed to add
 # Utah to waterbodies whose *point* was elsewhere, and Powell's point is
 # already in Utah. Generalising the question exposed the gap.
+#
+# Keyed by the station id the roster is keyed by -- a RISE item id or an AWDB
+# station triplet, exactly as `RESERVOIRS` and `AWDB_RESERVOIRS` in
+# refresh_reservoirs.py are (ADR-066). A review is a fact about one reservoir,
+# and a name can be shared by two: the west holds a Lost Creek in Utah and
+# another in Oregon. The name stays in the value for the human reader.
 CROSS_BORDER_WATERBODIES = {
-    "Bear Lake": {"states": ("ID", "UT"), "nhd_permanent_id": "120026431"},
-    "Lake Powell": {"states": ("AZ", "UT"),
-                    "evidence": "dam point in Arizona, waterbody point in Utah"},
+    "10055500:ID:BOR": {"name": "Bear Lake", "states": ("ID", "UT"),
+                        "nhd_permanent_id": "120026431"},
+    "509": {"name": "Lake Powell", "states": ("AZ", "UT"),
+            "evidence": "dam point in Arizona, waterbody point in Utah"},
     # Measured against the NHD polygon: 66.7% Nevada, 33.2% Arizona. RISE's
     # own five monitoring points on the lake are all in Clark County, Nevada,
     # so the provider's evidence alone would have defaulted this to Nevada and
     # been a third wrong.
-    "Lake Mead": {"states": ("AZ", "NV"), "nhd_permanent_id": "122648503"},
-    "Meeks Cabin": {"states": ("UT", "WY"), "nhd_permanent_id": "120025290"},
+    "6124": {"name": "Lake Mead", "states": ("AZ", "NV"),
+             "nhd_permanent_id": "122648503"},
+    "574": {"name": "Meeks Cabin", "states": ("UT", "WY"),
+            "nhd_permanent_id": "120025290"},
 }
 
 def subregion_roster(codes) -> list[dict]:
@@ -174,40 +183,43 @@ def in_utah(point: Point) -> bool:
     return any(in_polygon(point, polygon) for polygon in UTAH_POLYGONS)
 
 
-def waterbody_states(name: str, point_state: str | None) -> list[str]:
+def waterbody_states(station: str | None, point_state: str | None) -> list[str]:
     """Every state this reservoir's water touches.
 
-    The reviewed answer where there is one, and the point's own state
-    otherwise. Sorted so two records carrying the same states compare equal
-    however the table was written.
+    Looked up by the station id the roster is keyed by (ADR-066): a review is
+    a fact about one reservoir, and a name can be shared by two. The reviewed
+    answer where there is one, and the point's own state otherwise. Sorted so
+    two records carrying the same states compare equal however the table was
+    written.
 
     A reservoir whose point falls in no state at all -- which the mask can
     produce for a waterbody just off a generalized outline -- returns the
     reviewed list if it has one and an empty list if it does not, rather than
     inventing a state to be in.
     """
-    reviewed = CROSS_BORDER_WATERBODIES.get(name)
+    reviewed = CROSS_BORDER_WATERBODIES.get(station)
     if reviewed:
         return sorted(reviewed["states"])
     return [point_state] if point_state else []
 
 
-def waterbody_intersects_utah(name: str, point: Point) -> bool:
+def waterbody_intersects_utah(station: str | None, point: Point) -> bool:
     """Whether the reservoir surface intersects Utah.
 
     A point inside Utah proves intersection. A point outside the state needs
-    a reviewed polygon; the current exceptions are versioned above.
+    a reviewed polygon; the current exceptions are versioned above, by
+    station id (ADR-066).
     """
-    reviewed = CROSS_BORDER_WATERBODIES.get(name)
+    reviewed = CROSS_BORDER_WATERBODIES.get(station)
     return in_utah(point) or bool(reviewed and "UT" in reviewed["states"])
 
 
-def location_fields(name: str, lat: float, lon: float) -> dict:
+def location_fields(station: str | None, lat: float, lon: float) -> dict:
     """Stable location facts that do not depend on watershed boundaries."""
     site = (lon, lat)
     return {
         "in_utah": in_utah(site),
-        "intersects_utah": waterbody_intersects_utah(name, site),
+        "intersects_utah": waterbody_intersects_utah(station, site),
     }
 
 
@@ -359,10 +371,13 @@ def haversine_km(a: Point, b: Point) -> float:
     return 2 * 6371.0088 * math.asin(math.sqrt(h))
 
 
-def describe(lat: float, lon: float, units, *, name: str,
+def describe(lat: float, lon: float, units, *, station: str | None,
              assignment_point: Point | None = None,
              source: str = "published_point") -> dict:
     """The watershed fields for one reservoir record.
+
+    `station` is the id the roster keys the reservoir by (ADR-066); it is
+    what the cross-border waterbody review is looked up with.
 
     Two points, and they must not be collapsed into one:
 
@@ -400,7 +415,7 @@ def describe(lat: float, lon: float, units, *, name: str,
             point, unit = site, from_site
             source = "published_point_dam_on_divide"
     return {
-        **location_fields(name, lat, lon),
+        **location_fields(station, lat, lon),
         "huc6": unit["huc6"] if unit else None,
         "huc6_name": unit["name"] if unit else None,
         # Every state the drainage area reaches, which is a different question
