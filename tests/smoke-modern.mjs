@@ -53,7 +53,15 @@ try {
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.join(REPO_ROOT, "dist");
-const PORT = 8138;
+/* Overridable, because this suite binds a real socket and more than one of
+ * these can be in flight on a developer's machine at once -- a second run,
+ * or several agents working in parallel git worktrees. A fixed port made
+ * those runs kill each other's servers mid-suite, which surfaces as asset
+ * 404s and `waitForFunction` timeouts on whichever run lost the race: a
+ * failure that reads exactly like a real regression and costs an afternoon
+ * to prove is not one. `SMOKE_PORT=0` asks the operating system for any
+ * free port, which is the right answer when nothing needs to predict it. */
+const PORT = Number(process.env.SMOKE_PORT ?? 8138);
 const TYPES = {
   ".html": "text/html", ".js": "text/javascript",
   ".json": "application/json", ".css": "text/css"
@@ -204,7 +212,9 @@ const expectedConnectedWithMead = payload.reservoirs.filter((reservoir) =>
   reservoir.rise_item_id !== 509 &&
   reservoir.name.trim().toLowerCase() !== "lake powell").length;
 
-const URL = `http://127.0.0.1:${PORT}/`;
+/* Assigned once the server is listening, not here: with `SMOKE_PORT=0` the
+ * operating system picks the port and only the bound socket knows it. */
+let URL = "";
 
 /*
  * axe-core, injected into each page rather than run as a Playwright plugin.
@@ -397,6 +407,7 @@ const FIND_CREDENTIAL_UI = `(() => {
 })()`;
 
 await new Promise((resolve) => server.listen(PORT, resolve));
+URL = `http://127.0.0.1:${server.address().port}/`;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
   : {});
@@ -1361,7 +1372,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const label = `ArcGIS data workspace (${viewport.name})`;
   console.log(`\n=== ${label}`);
   try {
-    await tab.goto(`http://127.0.0.1:${PORT}/overview.html`,
+    await tab.goto(`${URL}overview.html`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
     const CHART_HOSTS = ["#capacity-chart", "#watershed-chart", "#trend-chart",
       "#normal-chart", "#distribution-chart", "#spread-chart"];
@@ -1885,7 +1896,8 @@ for (const viewport of VIEWPORTS) {
  * on the shape of the card, and the last time it was written as a zoom the
  * component snapped it to an integer and the region spanned a continent.
  */
-async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
+async function checkViewMapParity(
+  tab, check, label, hostId, cardId, layerIds, scaleBand = null) {
   const frame = await tab.evaluate(({ hostId, cardId }) => {
     const element = document.querySelector("#" + hostId + " arcgis-map");
     const view = element?.view;
@@ -1953,9 +1965,19 @@ async function checkViewMapParity(tab, check, label, hostId, cardId, layerIds) {
   /* The storage map opens near 1:10,700,000. A card is a different shape,
    * so this is a band rather than a number -- but a view that has fallen
    * out to the minimum zoom, which is what an unframed short card does,
-   * lands at 1:18,000,000 and fails it. */
-  check(frame.scale > 3000000 && frame.scale < 16000000,
-    `${label}: ${hostId} opens at 1:${frame.scale}, outside the storage map's band`);
+   * lands at 1:18,000,000 and fails it.
+   *
+   * The band is a parameter because a card opening on a scope the reader
+   * chose is framed on that scope, not on the region. A link naming one
+   * basin should open on that basin -- that is the whole point of reading
+   * `?area=` -- and it lands far tighter than a region-wide card without
+   * being unframed. What must stay true either way is the upper bound: a
+   * card at the minimum zoom has failed to frame itself whatever the
+   * reader asked for. */
+  const [tightest, widest] = scaleBand ?? [3000000, 16000000];
+  check(frame.scale > tightest && frame.scale < widest,
+    `${label}: ${hostId} opens at 1:${frame.scale}, outside ` +
+    `1:${tightest}-1:${widest}`);
   check(frame.card && frame.hostPositioned,
     `${label}: ${hostId} hover card ${frame.card}, host positioned ${frame.hostPositioned}`);
 }
@@ -2133,8 +2155,12 @@ for (const viewport of VIEWPORTS) {
     /* The reservoirs are deliberately absent here. This map already carries
      * fourteen filled basins and 217 site markers; the same points that are
      * useful context on the drought map buried the readings on this one. */
+    /* This view is opened with `?area=140100`, so it frames that one basin
+     * rather than the region -- the reader named a place and the map goes
+     * there. Still bounded above: a card that fell out to the minimum zoom
+     * has not framed anything, and that is what this assertion is for. */
     await checkViewMapParity(tab, check, label, "snow-map-host", "snow-map-hover",
-      ["snow-basins", "snow-sites"]);
+      ["snow-basins", "snow-sites"], [200000, 16000000]);
     /* Two layers, two cards, one check each: the resolver walks the hits in
      * layer order, so a mistake there shows up as one kind of feature
      * answering with another kind of description. */
