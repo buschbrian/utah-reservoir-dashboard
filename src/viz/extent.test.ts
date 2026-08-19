@@ -5,6 +5,7 @@
  * literal coordinate. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { parseDrainageUnits } from "../data/boundaries";
 import { loadLegacyApi } from "../data/legacy-harness";
 import { readPayload } from "../data/payload-fixture";
 import {
@@ -17,6 +18,7 @@ import {
   SELECTION_ZOOM,
   regionExtent,
   selectionTarget,
+  unionOfAreaBoxes,
   withinRegion
 } from "./extent";
 
@@ -101,7 +103,7 @@ describe("the drainage-area extent the map is built from", () => {
     geography: {
       watersheds: {
         roster_scope: string;
-        scopes: Record<string, { source_file: string }>;
+        scopes: Record<string, { source_file: string; level: number; units: unknown }>;
       };
     };
   };
@@ -151,6 +153,68 @@ describe("the drainage-area extent the map is built from", () => {
   it("is the shared module's, so the three maps use one geography", () => {
     expect(HUC6_BOUNDS.map((corner) => [...corner]))
       .toEqual(legacy.HUC6_BOUNDS.map((corner) => [...corner]));
+  });
+
+  /* S1 published a box per unit (`bbox`, `huc.outer_bbox`) so a future
+   * chooser can build an opening view from whatever areas a reader picks,
+   * rather than only from the fixed roster scope. This holds that second
+   * path against the first: unioning the roster scope's own published boxes
+   * has to land on the same box `HUC6_BOUNDS` is pinned to, or a reader who
+   * chose every roster area one at a time would get a different view than
+   * the one the map opens on by default.
+   *
+   * Not an exact match: the published boxes are rounded outward to three
+   * decimal places (`PUBLISHED_BBOX_DECIMALS` in `huc.py`) and `HUC6_BOUNDS`
+   * is the unrounded extreme, so the union can only be as wide as
+   * `HUC6_BOUNDS` or up to one thousandth of a degree wider on each edge --
+   * never narrower, because a narrower published box would clip the very
+   * area it describes, which `test_watershed_scopes.py` also guards. */
+  it("equals HUC6_BOUNDS when the roster scope's own published boxes are unioned", () => {
+    const areas = parseDrainageUnits(rosterScope.units, rosterScope.level);
+    const union = unionOfAreaBoxes(areas);
+
+    expect(union).not.toBeNull();
+    if (!union) return;
+
+    expect(union[0][0]).toBeLessThanOrEqual(HUC6_BOUNDS[0][0]);
+    expect(union[0][0]).toBeGreaterThan(HUC6_BOUNDS[0][0] - 0.001);
+    expect(union[0][1]).toBeLessThanOrEqual(HUC6_BOUNDS[0][1]);
+    expect(union[0][1]).toBeGreaterThan(HUC6_BOUNDS[0][1] - 0.001);
+
+    expect(union[1][0]).toBeGreaterThanOrEqual(HUC6_BOUNDS[1][0]);
+    expect(union[1][0]).toBeLessThan(HUC6_BOUNDS[1][0] + 0.001);
+    expect(union[1][1]).toBeGreaterThanOrEqual(HUC6_BOUNDS[1][1]);
+    expect(union[1][1]).toBeLessThan(HUC6_BOUNDS[1][1] + 0.001);
+  });
+});
+
+describe("unioning a chosen set of areas' published boxes", () => {
+  const box = (west: number, south: number, east: number, north: number):
+    [[number, number], [number, number]] => [[west, south], [east, north]];
+
+  it("is null when none of the areas have a box", () => {
+    expect(unionOfAreaBoxes([{ huc6: "140100", name: "No box", states: "" }])).toBeNull();
+  });
+
+  it("contains every area's box, and nothing wider", () => {
+    const areas = [
+      { huc6: "140100", name: "A", states: "", box: box(-112, 39, -111, 40) },
+      { huc6: "140200", name: "B", states: "", box: box(-113, 38, -110, 39.5) }
+    ];
+    expect(unionOfAreaBoxes(areas)).toEqual(box(-113, 38, -110, 40));
+  });
+
+  it("skips an area with no box rather than failing the whole union", () => {
+    const areas = [
+      { huc6: "140100", name: "A", states: "", box: box(-112, 39, -111, 40) },
+      { huc6: "140200", name: "No box here", states: "" }
+    ];
+    expect(unionOfAreaBoxes(areas)).toEqual(box(-112, 39, -111, 40));
+  });
+
+  it("returns a single area's own box unchanged", () => {
+    const areas = [{ huc6: "140100", name: "A", states: "", box: box(-112, 39, -111, 40) }];
+    expect(unionOfAreaBoxes(areas)).toEqual(box(-112, 39, -111, 40));
   });
 });
 

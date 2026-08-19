@@ -31,9 +31,12 @@ function preserveRuntimeDataAndRedirects(): Plugin {
       // No boundary polygon file is here and that is deliberate (ADR-048).
       // `data/watersheds/west-huc6.geojson` is the drawn scope the pipeline
       // assigns and measures against and `huc6.geojson` the roster scope the
-      // map opens on (ADR-063); both stay committed -- but no page has
-      // fetched a polygon file since the outlines became the hosted layer's,
-      // and publishing one put megabytes in every deploy, twice, for nobody. It is reviewable in the repository
+      // map opens on (ADR-063); `data/watersheds/west-huc2.geojson` is the
+      // region scope registered so `reference.json` can publish the five
+      // region names (OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md, decision D3).
+      // All three stay committed -- but no page has fetched a polygon file
+      // since the outlines became the hosted layer's, and publishing one put
+      // megabytes in every deploy, twice, for nobody. It is reviewable in the repository
       // like `normals.json`, which is the same arrangement for the same
       // reason. `utah-boundary.geojson` stays: the mask is still drawn from
       // the reviewed polygon, republished inside `reference.json`.

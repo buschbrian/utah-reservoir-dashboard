@@ -16,8 +16,10 @@ import huc
 import refresh_reservoirs
 from watershed_scopes import (
     DEFAULT_SCOPE,
+    DRAWN_SCOPES,
     ROOT,
     ROSTER_SCOPE,
+    SCOPES,
     WBD_LAYER_BY_LEVEL,
     get_scope,
     huc_field,
@@ -82,6 +84,101 @@ def test_the_finest_western_scope_is_registered_and_draws_nothing():
     # Dataset are revised more often than one.
     assert scope.expected_count is None
     assert scope.expected_range is not None
+
+
+def test_the_region_scope_is_published_for_its_names_but_never_drawn():
+    """Five two-digit codes, registered so `reference.json` can carry the
+    region names -- 14 Upper Colorado, 15 Lower Colorado, 16 Great Basin, 17
+    Pacific Northwest, 18 California -- and not from a table written down in
+    a TypeScript file, which ADR-002 refuses (decision D3,
+    OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
+
+    Published, unlike `west-huc8`: the roster travels in the export today,
+    not once the geography has been reviewed. But never drawn (decision D2):
+    a region is an entry vocabulary a reader narrows the existing HUC-4 or
+    HUC-6 view with (`?area=14`), not a size the ground is drawn at. Drawing
+    five regions would mean five drought rows and five storage groups, a
+    coarser answer to a question nobody asked -- so `west-huc2` must not
+    appear in `DRAWN_SCOPES`, which `build_watershed_sections` already
+    asserts every entry of is published (a published scope that is not drawn
+    is a state this file already allowed for, in `upper-colorado`).
+    """
+    scope = get_scope("west-huc2")
+
+    assert scope.level == 2
+    assert scope.output == "data/watersheds/west-huc2.geojson"
+    assert scope.published
+    assert scope.expected_count == 5
+    assert "west-huc2" not in DRAWN_SCOPES.values()
+
+    units = load_scope_units("west-huc2")
+    assert [unit["huc6"] for unit in units] == ["14", "15", "16", "17", "18"]
+    assert {unit["name"] for unit in units} == {
+        "Upper Colorado Region", "Lower Colorado Region", "Great Basin Region",
+        "Pacific Northwest Region", "California Region",
+    }
+
+
+def test_every_published_scopes_boxes_contain_the_rings_they_describe():
+    """A box that clips the polygon it is a box *of* is worse than no box at
+    all: `src/viz/extent.ts` (S2) will union these to build an opening view
+    for whatever a reader has chosen, and a box narrower than its geometry
+    would drop the edge of the very area they asked to see.
+
+    Walked directly off the committed GeoJSON here, independently of
+    `huc._bounds` -- the same arithmetic `refresh_reservoirs.py` uses to
+    produce the published `bbox` -- so a wiring mistake (the wrong unit's
+    box keyed to the wrong code, say) would still be caught rather than
+    quietly agreeing with itself.
+
+    Asserted over every published scope, not just the drawn one: a stale or
+    misrounded box in a research scope is exactly as wrong as one in
+    `west-huc6`, it is just less likely to be noticed by looking at a map.
+    """
+    def ring_bounds(geometry: dict) -> tuple[float, float, float, float]:
+        west = south = float("inf")
+        east = north = float("-inf")
+
+        def walk(node) -> None:
+            nonlocal west, south, east, north
+            if not isinstance(node, list):
+                return
+            if len(node) >= 2 and all(isinstance(v, (int, float)) for v in node[:2]):
+                lon, lat = node[0], node[1]
+                west, east = min(west, lon), max(east, lon)
+                south, north = min(south, lat), max(north, lat)
+                return
+            for child in node:
+                walk(child)
+
+        walk(geometry["coordinates"])
+        return west, south, east, north
+
+    sections = refresh_reservoirs.build_export_sections()
+    scopes = sections["geography"]["watersheds"]["scopes"]
+
+    checked = 0
+    for name, scope in SCOPES.items():
+        if not scope.published:
+            continue
+        field = huc_field(scope.level)
+        boundaries = json.loads((ROOT / scope.output).read_text(encoding="utf-8"))
+        exact = {feature["properties"][field]: ring_bounds(feature["geometry"])
+                 for feature in boundaries["features"]}
+        for unit in scopes[name]["units"]:
+            code = unit[field]
+            west, south, east, north = exact[code]
+            box_west, box_south, box_east, box_north = unit["bbox"]
+            assert box_west <= west, (name, code, "west")
+            assert box_south <= south, (name, code, "south")
+            assert box_east >= east, (name, code, "east")
+            assert box_north >= north, (name, code, "north")
+            checked += 1
+
+    # 75 + 44 + 14 + 10 + 5: west-huc6, west-huc4, utah-connected,
+    # upper-colorado, west-huc2. A drop in this count means a scope stopped
+    # publishing boxes, not that fewer units needed checking.
+    assert checked == 148
 
 
 def test_every_roster_reservoir_sits_inside_the_roster_scope():

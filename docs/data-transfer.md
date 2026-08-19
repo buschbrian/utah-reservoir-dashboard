@@ -16,9 +16,21 @@ Two rules before any figure below is read:
 | `snowpack.json` | 3,607 KB | **322 KB** |
 | `reservoirs.json` | 360 KB | 43.1 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
-| `reference.json` | 30 KB | 7.2 KB |
+| `reference.json` | 36.9 KB | 8.8 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
+
+Measured 2026-08-19, after S1 of
+[`OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`](OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md)
+published a bounding box per drainage area and registered `west-huc2` for the
+five region names: `reference.json` went from 7.4 KB gzipped to **8.8 KB**, a
+1.6 KB gzip cost (6.6 KB raw) for 148 boxes -- 75 + 44 + 14 + 10 + 5, one per
+unit across every published scope -- plus the five region names themselves.
+Rounding each box outward to three decimal places (`huc.outer_bbox`) is what
+kept that number this small: the source geometry is committed at five, and
+two more decimals on 148 boxes was not worth the bytes for a box whose job is
+"open a map here", not trace a ring. `west-huc2` costs five rows the same
+shape as any other scope's, not a special case.
 
 Re-measured 2026-08-18, after the coverage moved to the whole west (ADR-063).
 The two files that carry a row per drainage area went from 14 rows to 75:

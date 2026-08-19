@@ -168,6 +168,32 @@ SCOPES = {
         # see the module docstring.
         expected_range=(540, 610),
     ),
+    # Two-digit codes: the five hydrologic regions themselves, not a finer
+    # subdivision of them. Published, unlike west-huc8, but for a different
+    # reason than "the maps will draw it eventually" -- this scope exists so
+    # `reference.json` can carry the five region names (14 Upper Colorado, 15
+    # Lower Colorado, 16 Great Basin, 17 Pacific Northwest, 18 California),
+    # which is otherwise published nowhere. A splash tile or a filter control
+    # that reads "region 15" instead of "Lower Colorado" is the same failure
+    # ADR-002 refuses for every other name on this site: a table living in
+    # TypeScript, silently out of date the day the registry changes.
+    #
+    # Deliberately absent from `DRAWN_SCOPES` (OPENING-SCOPE-AND-THE-WESTERN-
+    # ROSTER.md, decision D2). A region is an entry vocabulary a reader
+    # narrows the existing HUC-4 or HUC-6 view with -- `?area=14` -- not a
+    # size the ground is drawn at. Drawing five regions would mean five
+    # drought rows and five storage groups, which is a coarser answer to a
+    # question nobody asked; `build_watershed_sections` already asserts every
+    # entry of `DRAWN_SCOPES` is published, and a published scope that is not
+    # drawn is a state this file already allowed for (`upper-colorado`).
+    "west-huc2": WatershedScope(
+        name="west-huc2",
+        description="The five hydrologic regions this dashboard covers",
+        where=WEST_REGION_WHERE.format(field="huc2"),
+        output="data/watersheds/west-huc2.geojson",
+        level=2,
+        expected_count=5,
+    ),
 }
 
 

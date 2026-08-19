@@ -241,6 +241,43 @@ def _bounds(polygons) -> tuple[float, float, float, float]:
     return west, south, east, north
 
 
+#: Decimal places a published drainage-area bounding box is rounded to.
+#:
+#: The source geometry is committed at five (`GEOMETRY_PRECISION` in
+#: `tools/fetch_watershed_scope.py`), and a box does not need that much: it
+#: only has to say roughly where a map should open, not trace a ring, and
+#: every extra decimal is bytes every map page fetches on 75+44+14+10+5
+#: units. Three is about 111 metres at the equator -- the same 0.001-degree
+#: margin `extent.test.ts` already allows a freshly measured box to differ
+#: from the frozen module's `HUC6_BOUNDS` by.
+PUBLISHED_BBOX_DECIMALS = 3
+
+
+def outer_bbox(
+    bounds: tuple[float, float, float, float],
+    decimals: int = PUBLISHED_BBOX_DECIMALS
+) -> list[float]:
+    """``[west, south, east, north]``, coarsened so the box still contains
+    the rings ``bounds`` was measured from.
+
+    The two edges cannot round the same way. Rounding the minimum up or the
+    maximum down moves that edge *inward* -- toward the middle of the box --
+    which is exactly the direction that clips the polygon the box is
+    published to describe. So the minima floor and the maxima ceil: rounding
+    outward rather than to the nearest value is what keeps a coarsened box a
+    superset of the exact one ``_bounds`` measured, not an approximation of
+    it that happens to be close.
+    """
+    west, south, east, north = bounds
+    scale = 10 ** decimals
+    return [
+        math.floor(west * scale) / scale,
+        math.floor(south * scale) / scale,
+        math.ceil(east * scale) / scale,
+        math.ceil(north * scale) / scale,
+    ]
+
+
 def unit_code(properties: dict) -> str:
     """The unit's code, whatever size the collection is.
 

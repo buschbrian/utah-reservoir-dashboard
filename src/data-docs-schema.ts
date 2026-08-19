@@ -390,19 +390,25 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
       "Six-digit drainage-area codes. Present in a scope at that level.", true),
     f("huc4", "array",
       "Four-digit drainage-area codes. Present in a scope at that level.", true),
+    f("huc2", "array",
+      "Two-digit region codes. Present in a scope at that level.", true),
     f("name", "identifier", "Stable scope name."),
     f("source_file", "file name", "Reviewed boundary source file."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
     f("unit_count", "drainage areas", "Number of units in the scope."),
-    f("units", "array", "Drainage areas in the scope, by code and name.")
+    f("units", "array", "Drainage areas in the scope, by code, name and opening box.")
   ]},
   { id: "reference-scope-unit", title: "Drainage area", path: "geography.watersheds.scopes.<scope>.units[]", fields: [
     f("huc6", "identifier",
       "Six-digit drainage-area code. Present in a scope at that level.", true),
     f("huc4", "identifier",
       "Four-digit drainage-area code. Present in a scope at that level.", true),
+    f("huc2", "identifier",
+      "Two-digit region code. Present in a scope at that level.", true),
     f("name", "text", "Drainage-area name."),
-    f("states", "text", "States touched by the drainage area.")
+    f("states", "text", "States touched by the drainage area."),
+    f("bbox", "decimal degrees",
+      "The edges of a box a map can open on to show this drainage area: west, south, east and north, in that order.")
   ]},
   { id: "reference-geojson-collection", title: "GeoJSON collection", path: "the state boundary collection", fields: [
     f("type", "text", "GeoJSON collection type."),

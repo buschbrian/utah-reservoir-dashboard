@@ -1082,7 +1082,12 @@ def build_watershed_sections() -> dict:
     type-check it. The maps take their outlines from the hosted Watershed
     Boundary Dataset now, quantized to whatever the reader is looking at, so
     what this file still owes them is the roster: which areas are in scope,
-    what each is called, and which states it touches.
+    what each is called, which states it touches, and a box to open a map on
+    (`bbox`, `huc.outer_bbox`) -- four numbers rather than the ring itself,
+    coarsened outward so it still contains what it is a box of. Publishing
+    that is what lets `src/viz/extent.ts` build an opening view for any set
+    of units a reader chooses (state, region, subregion) without shipping
+    the polygons a view like that would otherwise need in the browser.
 
     The committed GeoJSON does not go away. `source_file` still names it, the
     pipeline still assigns every reservoir with it, and it stays reviewable in
@@ -1140,6 +1145,14 @@ def build_watershed_sections() -> dict:
         if scope.expected_count is not None and len(codes) != scope.expected_count:
             raise ValueError(f"expected {scope.expected_count} units for {name}, "
                              f"received {len(codes)}")
+        # Bounds per unit, exact, keyed by the code every unit below reads by.
+        # `huc.units_from_collection` already computes this for the point-in-
+        # polygon assignment (`assign_huc`'s bounding-box prefilter), and it
+        # is the same committed geometry the export reads -- so this is a
+        # second read of the ring coordinates, not a second measurement of
+        # them, and the two can never disagree about where a unit sits.
+        exact_bounds = {unit["huc6"]: unit["bounds"]
+                        for unit in huc.units_from_collection(boundaries)}
         scopes[name] = {
             "name": scope.name,
             "description": scope.description,
@@ -1152,6 +1165,14 @@ def build_watershed_sections() -> dict:
                     field: feature["properties"][field],
                     "name": feature["properties"].get("name", ""),
                     "states": feature["properties"].get("states", ""),
+                    # [west, south, east, north] in decimal degrees, rounded
+                    # outward (`huc.outer_bbox`) so a reader who opens a map
+                    # on this box gets the whole area and not a hairline of
+                    # it cut off by a coarsened edge. This is what
+                    # `src/viz/extent.ts`'s opening-box chooser (S2) unions
+                    # over a set of units, and what `extent.test.ts` holds
+                    # `HUC6_BOUNDS` against for the roster scope.
+                    "bbox": huc.outer_bbox(exact_bounds[feature["properties"][field]]),
                 }
                 for feature in boundaries["features"]
             ],
