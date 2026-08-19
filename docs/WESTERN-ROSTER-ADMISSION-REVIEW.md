@@ -382,6 +382,48 @@ the National Inventory of Dams', which the Corps maintains; Reclamation's
 readings are the evidence the figure is wrong, not the thing that is wrong.
 This is the only entry the western pool produces.
 
+## The dam matches, decided (2026-08-19)
+
+Four candidates were admitted by the rules on a dam match a human had not
+read. The owner has now read them.
+
+| Reservoir | NID record | Match | Decision |
+|---|---|---|---|
+| Eden, WY | `WY01388` "Eden Dike 1" | 0.035 km, by position | **Excluded** |
+| Fruitland Reservoir, CO | `CO00603` "Onion Valley" | 1.468 km, by position | **Excluded** |
+| Lake Tahoe, CA | `CA10162` "Lake Tahoe Dam" | 2.689 km, by name and position | Admitted |
+| Kolob Reservoir, UT | `UT00164` "Kolob Creek" | 1.052 km, by position | Admitted |
+
+**Eden** is excluded on ADR-057's grounds rather than on distance: the match
+is 35 metres away, so the location is not in doubt at all. What is in doubt
+is which structure it names. "Eden Dike 1" is a secondary structure of the
+project, and ADR-057 recorded exactly this gap -- the admission matcher finds
+any nearby structure, while the principal-structure rule is applied only to
+the committed dam-point table. Capacity is unaffected, because every row of a
+project carries the same storage figures; the matched *point* is what is not
+trustworthy, and a point is what the drainage area and the county are
+assigned from.
+
+**Fruitland Reservoir** is excluded because the names are unrelated and the
+match rests on position alone. "Onion Valley" and "Fruitland" share nothing,
+and 1.47 km is inside the rule's radius but well outside the distance at
+which a position match speaks for itself. This is the Wolford Mountain and
+Ritschard pattern ADR-015 already found once. Recorded for the avoidance of
+doubt: the dam is `CO00603` at -107.594, 38.603 -- western Colorado, near
+Gunnison, in the same drainage area as the reservoir. It is not out of state.
+
+**Lake Tahoe** is admitted: the record names the lake outright and agrees on
+position, so the 2.7 km is the distance from a published lake point to its
+outlet dam, which is what that distance ought to be.
+
+**Kolob Reservoir** is admitted: "Kolob Creek" is the dam the reservoir is
+impounded by, confirmed by the owner.
+
+Both exclusions are refusals of a *match*, not findings about the reservoir.
+Either could be admitted later by a reviewed dam point, the way Lake Powell
+and Lake Mead already are -- `tools/add_dam_points.py` is where that would
+go, and it applies the principal-structure rule Eden needs.
+
 ## What R1's publishing half still costs
 
 The plan names four artefacts per addition. What this review de-risks, and
