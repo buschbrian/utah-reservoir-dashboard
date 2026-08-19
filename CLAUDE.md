@@ -254,8 +254,9 @@ parity is only meaningful with both controls open.
 asserts every roster name is either published or withdrawn, and there is no
 "pending" state on purpose: a name on the roster and absent from the payload is
 what a silently failed fetch looks like. `refresh_reservoirs.py --only` prints
-and never writes, so it is a probe. `tools/build_normal_baselines.py --only`
-merges — it used to write its one reservoir as the whole file.
+and never writes, so it is a probe. `tools/build_normal_baselines.py` merges on
+every path — `--only` used to write its one reservoir as the whole file, and a
+full run used to drop the normal of every reservoir withdrawn that morning.
 
 **Late and out-of-season are different faults** (ADR-056). `carry_forward`
 keeps publishing a quiet feed's last value because a point vanishing with no
@@ -371,14 +372,32 @@ On demand, not part of the build and not runnable in CI:
 ```bash
 node tools/profile-symbols.mjs   # needs a real, visible browser window
 node tools/audit-transfer.mjs    # needs a built dist/ and Playwright Chromium
-python tools/build_normal_baselines.py   # ~20 min; rewrites normals.json
+python tools/build_normal_baselines.py            # ~1.6 min for 69 reservoirs
+python tools/build_normal_baselines.py --missing # only what has no normal yet
 ```
 
-`build_normal_baselines.py` fetches thirty years of readings for all 69
-reservoirs, so it is slow and deliberately not part of any build. Run it when
-the standard climate period moves (2021-2050 becomes standard in 2031) or when
-a reservoir joins the roster. `--dry-run` prints the coverage summary without
-writing, and `--only "Name"` builds one.
+`build_normal_baselines.py` fetches thirty years of readings for every
+reservoir in `reservoirs.json`, so it is a network job and deliberately not
+part of any build. Run it when the standard climate period moves (2021-2050
+becomes standard in 2031) or when a reservoir joins the roster.
+
+**It is network-bound, not slow.** One reservoir is 12.2 seconds of wall clock
+for 0.8 seconds of processor, so it fetches `--workers` at a time (six by
+default, kept small because both providers are public services this project
+does not pay for). Sixty-nine reservoirs take 1.6 minutes rather than
+fourteen, and the same run at western coverage projects to about four and a
+half.
+
+**Every run merges; none replaces.** `--only "A" "B"` builds those,
+`--missing` builds what the committed file has no usable normal for — which is
+also how an interrupted run is resumed, and what makes a roster addition cost
+one fetch rather than all of them. A reservoir absent from today's payload
+keeps its normal and the run says so: the roster this reads is what the
+providers answered *this morning*, and a reservoir withdrawn for a quiet feed
+(ADR-056) would otherwise have a thirty-year fact deleted over a fortnight of
+silence. **A reservoir with no record is not asked again** — "no readings in
+the period" is a finding about a dam built in 2011, not a fetch to retry;
+only "the provider did not answer" is retryable.
 
 `audit-transfer.mjs` reports what each page actually requests and from which
 hosts. It is the measurement the content policy was written from: if a new

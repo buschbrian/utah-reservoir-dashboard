@@ -105,6 +105,88 @@ def normals_table(available: bool = True, years: int = 30,
             "built": "2026-08-16", "window_days": 7, "by_name": {name: record}}
 
 
+# --------------------------------------------------------------------------
+# Which reservoirs a run builds, and which it leaves alone
+# --------------------------------------------------------------------------
+
+def roster(*names):
+    return [{"name": name} for name in names]
+
+
+def test_missing_builds_only_what_the_file_has_no_usable_normal_for():
+    """The flag that keeps a growing roster affordable: at western coverage
+    the roster gains reservoirs in batches, and re-fetching thirty years for
+    the ones already done is the whole cost of the job."""
+    existing = {
+        "Done": {"name": "Done", "available": True},
+        "Failed": {"name": "Failed", "available": False,
+                   "reason": "the provider did not answer"},
+        "Empty": {"name": "Empty", "available": False,
+                  "reason": "no readings in the period"},
+    }
+
+    chosen = B.select(roster("Done", "Failed", "Empty", "New"), None, True, existing)
+
+    assert [r["name"] for r in chosen] == ["Failed", "New"]
+
+
+def test_a_reservoir_with_no_record_is_not_asked_again_every_run():
+    """A reservoir built in 2011 will not grow a 1991 record by being asked
+    twice, so its absence is a finding rather than a gap. Only a provider
+    that did not answer is worth another fetch."""
+    assert B.needs_building({"name": "R"}, {}) is True
+    assert B.needs_building(
+        {"name": "R"},
+        {"R": {"available": False, "reason": "no readings in the period"}}) is False
+    assert B.needs_building(
+        {"name": "R"},
+        {"R": {"available": False, "reason": "the record begins after the period ends"}}
+    ) is False
+    assert B.needs_building(
+        {"name": "R"},
+        {"R": {"available": False, "reason": "the provider did not answer"}}) is True
+    assert B.needs_building({"name": "R"}, {"R": {"available": True}}) is False
+
+
+def test_only_takes_several_names_and_keeps_roster_order():
+    chosen = B.select(roster("A", "B", "C"), ["C", "A"], False, {})
+
+    assert [r["name"] for r in chosen] == ["A", "C"]
+
+
+def test_a_run_with_no_selection_builds_the_whole_roster():
+    assert len(B.select(roster("A", "B"), None, False, {})) == 2
+
+
+def test_the_default_worker_count_is_neighbourly():
+    """Both providers are public services this project does not pay for, and
+    the daily refresh asks for one series at a time. A handful of concurrent
+    thirty-year queries is a different request pattern from a hundred."""
+    assert 2 <= B.DEFAULT_WORKERS <= 8
+
+
+def test_a_station_that_fails_does_not_fail_the_run():
+    """One bad station is not a bad run -- the rule the sequential builder
+    followed, kept now that the work is concurrent. The record it yields is
+    the retryable one, so `--missing` asks again."""
+    def explode(reservoir):
+        raise RuntimeError("provider said no")
+
+    original = B.build_one
+    B.build_one = explode
+    try:
+        results = list(B.build_many([{
+            "name": "Broken", "source_key": "rise",
+            "source_station_id": "x", "data_frequency": "daily"}], workers=1))
+    finally:
+        B.build_one = original
+
+    record, error = results[0]
+    assert error == "provider said no"
+    assert record["available"] is False
+    assert record["reason"] in B.RETRYABLE_REASONS
+
+
 def test_the_lookup_reads_the_day_the_reading_was_taken():
     found = R.climate_baseline(
         normals_table(), "Test", pd.Timestamp("2026-08-16"), 1000.0)

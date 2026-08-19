@@ -17,6 +17,13 @@ and is not listed here.
   tracing a full level and reviewing it, and that work is separate from
   drawing the ground (ADR-063).
 
+- **Building the climate normals takes minutes rather than an hour.** The job
+  spends almost all of its time waiting for the two providers to answer, so it
+  now asks for six reservoirs at once rather than one: 69 reservoirs in 1.6
+  minutes instead of about fourteen, and the same file byte for byte.
+  `--missing` builds only what has no normal yet, which is what a roster
+  addition costs and how an interrupted run is resumed.
+
 - **Choose how finely the ground is divided.** Every map now offers two area
   sizes: 75 basins, which is what a map opens with, or 44 subregions. Each
   subregion holds whole basins, so the choice splits nothing, and every figure
@@ -97,6 +104,13 @@ and is not listed here.
   is now chosen by rule instead of by whichever row arrived last (ADR-057).
 
 ### Fixed
+
+- **A quiet feed no longer costs a reservoir its climate normal.** The
+  thirty-year baselines are built from the reservoirs published that morning,
+  and a reservoir whose provider has gone quiet is not among them — so a full
+  rebuild would drop a fact about 1991 through 2020 over a fortnight of
+  silence. Every build merges now, and says which normals it kept without
+  being asked for them.
 
 - **The histogram had two legends, and the numbers were in the wrong one.**
   The key naming its four lines had been moved under the chart, and the

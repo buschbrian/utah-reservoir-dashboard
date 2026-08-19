@@ -206,10 +206,15 @@ second level needed.
 
 ## Open questions this did not answer
 
-- **Does `normals.json` have to grow with the roster?** It is rebuilt by a
-  ~20-minute job over 30 years for 69 reservoirs. At ~193 that is close to an
-  hour, still off the build path and off CI, but worth knowing before it is a
-  surprise on the morning someone runs it.
+- **Answered 2026-08-19: `normals.json` grows with the roster and the job no
+  longer does.** The ~20-minute figure was a sequential job that spent
+  fifteen sixteenths of itself waiting: 12.2 seconds of wall clock per
+  reservoir for 0.8 seconds of processor. Fetching six at a time takes the
+  same 69 reservoirs in **1.6 minutes**, verified byte-for-byte identical to
+  the committed file, which projects to about four and a half minutes at ~193.
+  `--missing` makes a roster addition cost only the reservoirs added, and is
+  how an interrupted run resumes. The hour is not a reason to sequence
+  anything.
 - **Answered 2026-08-18: the aggregation axes are not the answer.** This
   document called the county and district axes "the strongest argument" for
   keeping a 193-row list browsable. Measured (ADR-058), counties group 69

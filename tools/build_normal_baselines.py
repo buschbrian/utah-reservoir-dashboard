@@ -56,6 +56,8 @@ import argparse
 import datetime as dt
 import json
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -78,6 +80,9 @@ CLIMATE_END_YEAR = 2020
 
 # The shape of this file, not the numbers in it.
 SCHEMA_VERSION = 1
+
+#: How many reservoirs to fetch at once. See `build_many` for why it is small.
+DEFAULT_WORKERS = 6
 
 # A day of the year whose window draws on fewer than this many distinct
 # calendar years is published with its count rather than suppressed, but the
@@ -203,29 +208,73 @@ def build_one(reservoir: dict) -> dict:
     return record
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dry-run", action="store_true",
-                        help="print the summary and write nothing")
-    parser.add_argument("--only", default=None,
-                        help="build one reservoir by name, for checking a fix")
-    args = parser.parse_args()
+def already_built(path: Path = OUTPUT_PATH) -> dict:
+    """The committed normals, by reservoir name. Empty when there is no file."""
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return {record["name"]: record for record in payload.get("reservoirs") or []}
 
-    roster = json.loads(ROSTER_PATH.read_text(encoding="utf-8"))["reservoirs"]
-    if args.only:
-        roster = [r for r in roster if r["name"] == args.only]
-        if not roster:
-            print(f"No reservoir named {args.only!r} in {ROSTER_PATH.name}")
-            return 1
 
-    records = []
-    failures = []
-    for reservoir in roster:
+#: Why a record with no normal has none, and whether asking again could
+#: change the answer.
+#:
+#: "the provider did not answer" is a network fault: the station may well have
+#: thirty years behind it and the run simply failed to reach them. The other
+#: two are findings -- a reservoir built in 2011 will not grow a 1991 record
+#: by being asked twice -- so `--missing` leaves them alone rather than
+#: spending a fetch on each of them on every run.
+RETRYABLE_REASONS = frozenset({"the provider did not answer"})
+
+
+def needs_building(reservoir: dict, existing: dict) -> bool:
+    """Whether this reservoir has no usable normal in the committed file.
+
+    The question `--missing` answers, and the reason a roster that grows by a
+    hundred reservoirs does not cost a rebuild of the ones already done.
+    """
+    record = existing.get(reservoir["name"])
+    if record is None:
+        return True
+    if record.get("available"):
+        return False
+    return record.get("reason") in RETRYABLE_REASONS
+
+
+def select(roster: list[dict], names: list[str] | None, missing: bool,
+           existing: dict) -> list[dict]:
+    """The reservoirs a run will fetch, in roster order."""
+    if names:
+        wanted = set(names)
+        return [r for r in roster if r["name"] in wanted]
+    if missing:
+        return [r for r in roster if needs_building(r, existing)]
+    return list(roster)
+
+
+def build_many(reservoirs: list[dict], workers: int):
+    """Build several reservoirs at once, yielding each as it finishes.
+
+    Concurrent because the work is not the arithmetic. Measured on one
+    reservoir: 12.2 seconds of wall clock for 0.8 seconds of processor, so
+    fifteen sixteenths of a sequential run is this machine waiting for a
+    provider. At western coverage that is the difference between a job someone
+    schedules and one they can watch finish.
+
+    Deliberately modest. Both providers are public services this project does
+    not pay for, and the daily refresh asks them for one series at a time; a
+    handful of concurrent thirty-year queries is a different request pattern
+    from a hundred, and only one of them is neighbourly.
+
+    A station that fails is yielded with its error rather than raised, so one
+    bad station is not a bad run -- the same rule the sequential version
+    followed.
+    """
+    def attempt(reservoir: dict) -> tuple[dict, str | None]:
         try:
-            record = build_one(reservoir)
+            return build_one(reservoir), None
         except Exception as error:  # noqa: BLE001 - one bad station is not a bad run
-            failures.append((reservoir["name"], str(error)))
-            record = {
+            return {
                 "name": reservoir["name"],
                 "source_key": reservoir["source_key"],
                 "source_station_id": reservoir["source_station_id"],
@@ -235,12 +284,76 @@ def main() -> int:
                 "first_obs": None, "last_obs": None, "n_obs": 0,
                 "years_in_period": 0, "covers_full_period": False,
                 "day_of_year": None, "month": None,
-            }
-        records.append(record)
-        state = ("full" if record.get("covers_full_period")
-                 else f"{record['years_in_period']}y" if record["available"]
-                 else "none")
-        print(f"  {record['name']:<28} {state:>5}  {record['n_obs']:>6} readings")
+            }, str(error)
+
+    if workers <= 1:
+        for reservoir in reservoirs:
+            yield attempt(reservoir)
+        return
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(attempt, reservoir) for reservoir in reservoirs]
+        for future in as_completed(futures):
+            yield future.result()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the summary and write nothing")
+    parser.add_argument("--only", nargs="+", default=None, metavar="NAME",
+                        help="build these reservoirs by name, for checking a "
+                             "fix or adding a few to a built file")
+    parser.add_argument("--missing", action="store_true",
+                        help="build only the reservoirs the committed file has "
+                             "no usable normal for; this is also how an "
+                             "interrupted run is resumed")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                        help="how many reservoirs to fetch at once")
+    args = parser.parse_args()
+
+    roster = json.loads(ROSTER_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    existing = already_built()
+    if args.only and args.missing:
+        print("ERROR: --only names the reservoirs and --missing works them out; "
+              "pass one or the other", file=sys.stderr)
+        return 1
+    chosen = select(roster, args.only, args.missing, existing)
+    if args.only:
+        unknown = sorted(set(args.only) - {r["name"] for r in chosen})
+        if unknown:
+            print(f"No reservoir named {', '.join(repr(n) for n in unknown)} "
+                  f"in {ROSTER_PATH.name}", file=sys.stderr)
+            return 1
+    if not chosen:
+        print(f"Nothing to build: every reservoir in {ROSTER_PATH.name} already "
+              f"has a normal in {OUTPUT_PATH.name}.")
+        return 0
+    merging = bool(args.only or args.missing)
+
+    records = []
+    failures = []
+    started = time.monotonic()
+    print(f"building {len(chosen)} of {len(roster)} reservoirs, "
+          f"{args.workers} at a time")
+    try:
+        for record, error in build_many(chosen, args.workers):
+            if error is not None:
+                failures.append((record["name"], error))
+            records.append(record)
+            state = ("full" if record.get("covers_full_period")
+                     else f"{record['years_in_period']}y" if record["available"]
+                     else "none")
+            print(f"  [{len(records):>3}/{len(chosen)}] {record['name']:<28} "
+                  f"{state:>5}  {record['n_obs']:>6} readings")
+    except KeyboardInterrupt:
+        # What was fetched is kept. Thirty years for a hundred reservoirs is
+        # a long enough run that throwing away the finished half because the
+        # rest was interrupted is its own fault; `--missing` picks up the
+        # remainder.
+        print(f"\ninterrupted after {len(records)} of {len(chosen)}; "
+              "keeping what was built", file=sys.stderr)
+        merging = True
+    elapsed = time.monotonic() - started
 
     available = [r for r in records if r["available"]]
     full = [r for r in available if r["covers_full_period"]]
@@ -253,10 +366,16 @@ def main() -> int:
     print(f"fewer than {MIN_YEARS_FOR_A_NORMAL} years      : {len(thin)}"
           + (f"  ({', '.join(r['name'] for r in thin)})" if thin else ""))
     if failures:
-        print(f"providers did not answer : {len(failures)}")
+        print(f"providers did not answer : {len(failures)}"
+              "  (re-run with --missing to ask again)")
         for name, error in failures:
             print(f"    {name}: {error}")
+    print(f"elapsed                  : {elapsed / 60:.1f} min "
+          f"({elapsed / max(1, len(records)):.1f} s per reservoir)")
 
+    # Completion order is arrival order under concurrency, so the file is
+    # sorted here rather than left to record which station answered first.
+    records.sort(key=lambda record: record["name"])
     payload = {
         "schema_version": SCHEMA_VERSION,
         "built": dt.date.today().isoformat(),
@@ -277,34 +396,50 @@ def main() -> int:
         "reservoirs": records,
     }
 
-    if args.only:
-        # Merge, never replace.
+    # Always a merge, never a replacement.
+    #
+    # Two reasons, and the second is the one that cost something. `--only`
+    # used to write its records as the whole file, so building one reservoir
+    # silently deleted the other sixty-eight.
+    #
+    # And the roster this reads is `reservoirs.json`, which is what the
+    # providers answered *this morning*: a reservoir withdrawn for a quiet
+    # feed (ADR-056) is not in it. A full build that replaced the file would
+    # therefore throw away the climate normal of every reservoir having a bad
+    # month -- a thirty-year fact deleted over a fortnight of silence, and
+    # refetched the day the feed came back. Elkhead Reservoir is in exactly
+    # that state as this is written. Nothing is deleted here for the same
+    # reason nothing is deleted from the roster: the judgement is remade every
+    # run, and a normal over a closed period cannot go stale.
+    if True:  # noqa: SIM108 - kept as a block so the reasoning above stays put
         #
-        # `--only` used to write `records` as the whole file, so building one
-        # reservoir silently deleted the other sixty-eight -- a thirty-year,
-        # twenty-minute job to undo, and nothing said it had happened. The
-        # flag exists so a roster addition does not cost a full rebuild, which
-        # is the thing it was destroying.
-        #
-        # This matters more as the roster grows: at western coverage a full
-        # rebuild is about an hour, so adding one reservoir has to be cheap.
-        if not OUTPUT_PATH.exists():
-            print(f"ERROR: --only merges into {OUTPUT_PATH.name} and it does not "
-                  "exist; run a full build first", file=sys.stderr)
+        if merging and not OUTPUT_PATH.exists():
+            print(f"ERROR: a partial run merges into {OUTPUT_PATH.name} and it "
+                  "does not exist; run a full build first", file=sys.stderr)
             return 1
-        existing = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+        previous = (json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+                    if OUTPUT_PATH.exists() else {"reservoirs": []})
         built = {record["name"] for record in records}
-        kept = [r for r in existing["reservoirs"] if r["name"] not in built]
+        kept = [r for r in previous["reservoirs"] if r["name"] not in built]
         payload["reservoirs"] = sorted(kept + records, key=lambda r: r["name"])
-        # The period and method belong to the whole file; a one-reservoir run
-        # must not restate them from today's constants if the committed file
-        # was built under different ones.
-        for field in ("period", "window_days", "minimum_years", "method",
-                      "schema_version"):
-            if field in existing:
-                payload[field] = existing[field]
-        print(f"\nmerging {len(records)} into {len(existing['reservoirs'])} "
+        if merging:
+            # The period and method belong to the whole file; a partial run
+            # must not restate them from today's constants if the committed
+            # file was built under different ones.
+            for field in ("period", "window_days", "minimum_years", "method",
+                          "schema_version"):
+                if field in previous:
+                    payload[field] = previous[field]
+        print(f"\nmerging {len(records)} into {len(previous['reservoirs'])} "
               f"existing -> {len(payload['reservoirs'])}")
+        # Named rather than counted: a reader of this run's output should be
+        # able to see that a reservoir kept its normal without being asked
+        # for one, and why.
+        absent = sorted(r["name"] for r in kept
+                        if r["name"] not in {res["name"] for res in roster})
+        if absent:
+            print(f"kept {len(absent)} normal(s) for reservoirs not in today's "
+                  f"payload: {', '.join(absent)}")
 
     if args.dry_run:
         print(f"\n--dry-run: {OUTPUT_PATH.name} not written")
