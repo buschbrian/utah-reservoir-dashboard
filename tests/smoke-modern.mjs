@@ -2908,8 +2908,22 @@ for (const failure of [
   const coarseScope = referenceWatersheds.scopes[referenceWatersheds.drawn_scopes["4"]];
   const expectedCoarseAreas = JSON.parse(
     await readFile(path.join(REPO_ROOT, coarseScope.source_file), "utf8")).features.length;
-  const coarseSnowBasins = new Set(
-    snowPayload.sites.map((site) => site.huc6.slice(0, 4))).size;
+  /* Subregions the snow page can speak for at the coarser level: the sites
+   * regrouped on a four-digit prefix, then held to the same reporting floor
+   * the basins are. A subregion with fewer sites than the floor publishes no
+   * mean, so the map does not draw it and the picker does not offer it --
+   * counting it here would expect an outline with nothing behind it
+   * (ADR-050). The floor comes from the payload rather than a literal,
+   * because it is the payload's to state. */
+  const coarseSnowFloor = snowPayload.rollups.reduce(
+    (highest, rollup) => Math.max(highest, rollup.minimum_reporting_sites), 2);
+  const coarseSnowSites = new Map();
+  for (const site of snowPayload.sites) {
+    const code = site.huc6.slice(0, 4);
+    coarseSnowSites.set(code, (coarseSnowSites.get(code) ?? 0) + 1);
+  }
+  const coarseSnowBasins = [...coarseSnowSites.values()]
+    .filter((count) => count >= coarseSnowFloor).length;
   const coarseDroughtAreas = new Set(coarse.units.map((unit) => unit.huc4));
   const coarseStorageJoined = new Set(payload.reservoirs
     .map((reservoir) => reservoir.huc6?.slice(0, 4))

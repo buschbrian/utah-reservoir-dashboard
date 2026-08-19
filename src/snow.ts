@@ -36,6 +36,7 @@ import {
 import { stateName } from "./data/state-vocabulary";
 import { loadSnowpack } from "./data/snow-load";
 import {
+  areaCanReport,
   basinChoices,
   basinCurve,
   defaultMapDay,
@@ -520,7 +521,12 @@ function renderSnow(
     window.__snowReady = {
       sites: payload.site_count,
       late: payload.late_site_count,
-      basins: payload.rollups.length,
+      /* Areas this page can speak for, not every rollup the payload carries.
+       * A rollup below its own reporting floor publishes no mean, so the map
+       * does not draw it and the picker does not offer it (`areaCanReport`);
+       * counting it here would be a third answer to a question that has
+       * one. */
+      basins: payload.rollups.filter(areaCanReport).length,
       curvePoints: lastCurvePoints,
       tableRows: rows.length,
       area: currentArea,
