@@ -131,6 +131,55 @@ const sharedFilter = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
 const expectedAreas = JSON.parse(
   await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
 
+/* The geographic filters, derived the way src/overview-model.ts derives
+ * them: a state means the water (ADR-060, waterbody_states falling back to
+ * the point's state), a subregion is the first four digits of the drainage
+ * code, and a county is its FIPS code. The state, subregion and county to
+ * exercise are chosen from the payload -- each one narrowing the default
+ * scope without emptying it -- so the morning refresh cannot turn this red
+ * on its own. */
+const statesOf = (reservoir) => (reservoir.waterbody_states?.length
+  ? reservoir.waterbody_states
+  : (reservoir.state ? [reservoir.state] : []));
+const filterState = [...new Set(inScope.flatMap(statesOf))].sort()
+  .map((code) => ({
+    code,
+    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length
+  }))
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+const stateRows = filterState
+  ? inScope.filter((reservoir) => statesOf(reservoir).includes(filterState.code))
+  : [];
+const expectedStateSubregions = [...new Set(stateRows
+  .filter((reservoir) => typeof reservoir.huc6 === "string")
+  .map((reservoir) => reservoir.huc6.slice(0, 4)))].sort();
+const subregionCandidates = expectedStateSubregions.map((code) => ({
+  code,
+  count: stateRows.filter((reservoir) => reservoir.huc6?.startsWith(code)).length
+}));
+/* Prefer a subregion that narrows the state's rows further, so the wait
+ * below has a row-count change to observe; any non-empty one still proves
+ * the control and the address. */
+const filterSubregion =
+  subregionCandidates.find((c) => c.count > 0 && c.count < stateRows.length)
+  ?? subregionCandidates.find((c) => c.count > 0);
+const filterCounty = [...new Set(inScope.map((reservoir) => reservoir.county_fips)
+  .filter((code) => typeof code === "string"))].sort()
+  .map((code) => ({
+    code,
+    count: inScope.filter((reservoir) => reservoir.county_fips === code).length
+  }))
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+/* Everything the connected scope holds once both dominant controls are
+ * open, except Lake Powell, which stays excluded in this exercise -- the
+ * two toggles are independent and the test drives exactly one. */
+const lakeMeadRow = payload.reservoirs.find((reservoir) =>
+  reservoir.rise_item_id === 6124 ||
+  reservoir.name.trim().toLowerCase() === "lake mead");
+const expectedConnectedWithMead = payload.reservoirs.filter((reservoir) =>
+  reservoir.rise_item_id !== 509 &&
+  reservoir.name.trim().toLowerCase() !== "lake powell").length;
+
 const URL = `http://127.0.0.1:${PORT}/`;
 
 /*
@@ -1258,7 +1307,22 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
   const context = await browser.newContext({ viewport });
   const tab = await context.newPage();
   const errors = [];
-  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  /* One vendor teardown race is accepted here, like AXE_EXCEPTIONS and for
+   * the same reason. `mountChart` stops waiting for
+   * `arcgisRenderingComplete` after a deadline because the event has been
+   * observed never to arrive, so a filter change can replace a chart the
+   * SDK is still measuring -- and the disposed component's pending
+   * callback then reads getComputedStyle of an element it no longer has.
+   * The chart is already off the page when it fires, nothing a reader can
+   * see is affected, and the component exposes no dispose to cancel the
+   * callback with. Only this exact message is excepted; any other uncaught
+   * error still fails the run. */
+  const CHART_TEARDOWN_ERROR = "Failed to execute 'getComputedStyle' on " +
+    "'Window': parameter 1 is not of type 'Element'.";
+  tab.on("pageerror", (err) => {
+    if (err.message.includes(CHART_TEARDOWN_ERROR)) return;
+    errors.push(`uncaught: ${err.message}`);
+  });
   const labelFonts = watchLabelFonts(tab);
   tab.on("console", (msg) => {
     const diagnostic = `${msg.text()} ${msg.location().url}`.trim();
@@ -1502,6 +1566,131 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
         `${label}: opening a shared link rewrote ${sharedQuery} to ${restored.search}`);
     } finally {
       await recipient.close();
+    }
+
+    /* The geographic filters, driven the way a reader drives them. These
+     * controls shipped inert once -- present in the markup, missing from
+     * the update() wiring -- and nothing here noticed, so every step waits
+     * on a consequence the reader can see (rows, the address, the
+     * readiness signal), never on the select's own value. */
+    check(Boolean(filterState && filterSubregion),
+      `${label}: no state and subregion in the payload narrow the scope`);
+    if (filterState && filterSubregion) {
+      await tab.locator("#reset-filters").click();
+      await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+        expectedReservoirs, { timeout: 60000 });
+
+      // Picking a state narrows the table and writes the address, on its own.
+      await tab.selectOption("#state-filter", filterState.code);
+      await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+        filterState.count, { timeout: 60000 });
+      check((await tab.evaluate(() => window.location.search))
+        .includes(`state=${filterState.code}`),
+      `${label}: the state choice is not in the address`);
+
+      // The subregion list is repopulated from what the state leaves.
+      const offeredSubregions = await tab.evaluate(() =>
+        [...document.querySelectorAll("#subregion-filter option")]
+          .map((option) => option.value));
+      check(offeredSubregions[0] === "all"
+        && JSON.stringify(offeredSubregions.slice(1))
+          === JSON.stringify(expectedStateSubregions),
+      `${label}: the subregion list is not what the state leaves ` +
+        `(${offeredSubregions.join(",")} vs all,${expectedStateSubregions.join(",")})`);
+
+      // Picking a subregion narrows further and survives its own repopulation.
+      await tab.selectOption("#subregion-filter", filterSubregion.code);
+      await tab.waitForFunction((expected) =>
+        window.__overviewReady?.visible === expected
+        && window.location.search.includes("huc4="),
+      filterSubregion.count, { timeout: 60000 });
+      check(await tab.locator("#subregion-filter").inputValue() === filterSubregion.code,
+        `${label}: the subregion choice did not survive its own repopulation`);
+
+      // A keystroke in the search box must not reset the geographic choices.
+      await tab.locator("#reservoir-search").fill("zzz-no-such-reservoir");
+      await tab.waitForFunction(() => window.__overviewReady?.visible === 0,
+        null, { timeout: 60000 });
+      const kept = await tab.evaluate(() => ({
+        state: document.querySelector("#state-filter")?.value,
+        subregion: document.querySelector("#subregion-filter")?.value
+      }));
+      check(kept.state === filterState.code && kept.subregion === filterSubregion.code,
+        `${label}: a keystroke reset the geographic filters ` +
+        `(${kept.state}, ${kept.subregion})`);
+
+      /* A shared link carrying the state and the subregion restores both --
+       * the subregion needs its options to exist before the restore runs,
+       * which a link is the only way to exercise. */
+      const geoLink = `${URL}overview.html` +
+        `?state=${filterState.code}&huc4=${filterSubregion.code}`;
+      const geoRecipient = await context.newPage();
+      try {
+        await geoRecipient.goto(geoLink,
+          { waitUntil: "domcontentloaded", timeout: 60000 });
+        await geoRecipient.waitForFunction((expected) =>
+          window.__overviewReady?.charts === expected, CHART_HOSTS.length,
+        { timeout: 120000 });
+        const restored = await geoRecipient.evaluate(() => ({
+          state: document.querySelector("#state-filter")?.value,
+          subregion: document.querySelector("#subregion-filter")?.value,
+          rows: document.querySelectorAll("#reservoir-rows tr").length
+        }));
+        check(restored.state === filterState.code
+          && restored.subregion === filterSubregion.code,
+        `${label}: a shared link restored (${restored.state}, ${restored.subregion}), ` +
+          `not (${filterState.code}, ${filterSubregion.code})`);
+        check(restored.rows === filterSubregion.count,
+          `${label}: a shared geographic link restored ${restored.rows} rows, ` +
+          `not ${filterSubregion.count}`);
+      } finally {
+        await geoRecipient.close();
+      }
+
+      // The county axis, offered exactly when the payload carries counties.
+      await tab.locator("#reset-filters").click();
+      await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+        expectedReservoirs, { timeout: 60000 });
+      if (filterCounty) {
+        check(await tab.evaluate(() =>
+          document.querySelector("#county-field")?.hidden) === false,
+        `${label}: the payload carries counties and the county control is hidden`);
+        await tab.selectOption("#county-filter", filterCounty.code);
+        await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+          filterCounty.count, { timeout: 60000 });
+        await tab.locator("#reset-filters").click();
+        await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+          expectedReservoirs, { timeout: 60000 });
+      }
+
+      /* Lake Mead's own control (ADR-062): excluded by default and reported
+       * so, and when a reader lets it in, the page has to say so in the one
+       * sentence it states its scope with -- 28 million acre-feet entering
+       * every total is not a footnote. Lake Powell's toggle stays off, so
+       * this drives exactly one of the two independent controls. */
+      check((await tab.evaluate(() => window.__overviewReady?.lakeMeadExcluded)) === true,
+        `${label}: readiness signal does not report Lake Mead excluded by default`);
+      await tab.selectOption("#geography-filter", "connected");
+      await tab.locator("#lake-mead-toggle").check();
+      await tab.waitForFunction((expected) =>
+        window.__overviewReady?.visible === expected
+        && window.__overviewReady?.lakeMeadExcluded === false,
+      expectedConnectedWithMead, { timeout: 60000 });
+      const meadStatus = await tab.locator("#filter-status").innerText();
+      check(meadStatus.includes("Lake Powell excluded")
+        && meadStatus.includes("Lake Mead included"),
+      `${label}: the status line does not state both dominant controls (${meadStatus})`);
+      if (lakeMeadRow) {
+        check((await tab.locator("#reservoir-rows").innerText()).includes(lakeMeadRow.name),
+          `${label}: Lake Mead is toggled in and absent from the table`);
+      }
+      check((await tab.evaluate(() => window.location.search)).includes("mead=include"),
+        `${label}: the Lake Mead choice is not in the address`);
+
+      // Leave the page as the reader first found it.
+      await tab.locator("#reset-filters").click();
+      await tab.waitForFunction((expected) => window.__overviewReady?.visible === expected,
+        expectedReservoirs, { timeout: 60000 });
     }
     const layout = await tab.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
