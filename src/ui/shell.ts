@@ -498,6 +498,8 @@ type CalciteSwitch = HTMLElement & { checked: boolean };
 export interface ScopeControls {
   geography: string;
   lakePowell: boolean;
+  /** Lake Mead's own switch, for the reason Powell has one (ADR-062). */
+  lakeMead: boolean;
 }
 
 /**
@@ -512,7 +514,8 @@ export interface ScopeControls {
 export function setScopeControl(onChange: (scope: ScopeControls) => void): void {
   const read = (): ScopeControls => ({
     geography: document.querySelector<CalciteSelect>('[data-scope="geography"]')?.value ?? "utah",
-    lakePowell: document.querySelector<CalciteSwitch>('[data-scope="powell"]')?.checked ?? false
+    lakePowell: document.querySelector<CalciteSwitch>('[data-scope="powell"]')?.checked ?? false,
+    lakeMead: document.querySelector<CalciteSwitch>('[data-scope="mead"]')?.checked ?? false
   });
   document.querySelectorAll<CalciteSelect>('[data-scope="geography"]').forEach((select) => {
     select.addEventListener("calciteSelectChange", () => onChange({
@@ -524,6 +527,14 @@ export function setScopeControl(onChange: (scope: ScopeControls) => void): void 
       ...read(), lakePowell: toggle.checked
     }));
   });
+  /* Read from the event's own control rather than from the document, like
+   * Powell's above: both surfaces carry a copy of every scope control, and
+   * the one the reader touched is the one whose value is not yet mirrored. */
+  document.querySelectorAll<CalciteSwitch>('[data-scope="mead"]').forEach((toggle) => {
+    toggle.addEventListener("calciteSwitchChange", () => onChange({
+      ...read(), lakeMead: toggle.checked
+    }));
+  });
 }
 
 export function setScopeValue(scope: ScopeControls): void {
@@ -531,6 +542,8 @@ export function setScopeValue(scope: ScopeControls): void {
     .forEach((select) => { select.value = scope.geography; });
   document.querySelectorAll<CalciteSwitch>('[data-scope="powell"]')
     .forEach((toggle) => { toggle.checked = scope.lakePowell; });
+  document.querySelectorAll<CalciteSwitch>('[data-scope="mead"]')
+    .forEach((toggle) => { toggle.checked = scope.lakeMead; });
 }
 
 type CalciteSlider = HTMLElement & { value: number; max: number };

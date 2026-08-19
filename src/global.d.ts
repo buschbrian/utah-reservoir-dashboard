@@ -85,6 +85,9 @@ interface DashboardReady {
   deepLink: string | null;
   /** Whether Lake Powell is in scope: a comparison control, not a filter. */
   lakePowell: "include" | "exclude";
+  /** Lake Mead's own answer to the same question (ADR-062). Its own field,
+   * never folded into Powell's: one fact per field. */
+  lakeMead?: "include" | "exclude";
   /** Utah waterbodies, or every connected reservoir (ADR-011). */
   geography: "utah" | "connected";
   /** How many months the slider offers besides the newest reading. */

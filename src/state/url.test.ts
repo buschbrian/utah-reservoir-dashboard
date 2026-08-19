@@ -153,16 +153,41 @@ describe("the rest of the view in the link", () => {
     expect(stateFromSearch("").baseline).toBeNull();
   });
 
+  it("keeps Lake Mead's own answer, and defaults it to excluded", () => {
+    /* Absent means excluded, exactly as it does for Powell and for every
+     * caller of `reservoirInScope`: a default of include would have every
+     * saved link silently start adding 28 million acre-feet (ADR-062). */
+    expect(stateFromSearch("").lakeMead).toBe("exclude");
+    expect(stateFromSearch("?mead=include").lakeMead).toBe("include");
+    expect(stateFromSearch("?mead=yes").lakeMead).toBe("exclude");
+    expect(searchWithState({ lakeMead: "exclude" })).toBe("");
+    expect(searchWithState({ lakeMead: "include" })).toContain("mead=include");
+
+    /* Two questions, two parameters: a link may include one lake and not the
+     * other, and the four answers are four different totals. */
+    const both = searchWithState({ lakePowell: "include", lakeMead: "include" });
+    expect(both).toContain("powell=include");
+    expect(both).toContain("mead=include");
+    expect(stateFromSearch("?powell=include").lakeMead).toBe("exclude");
+    expect(stateFromSearch("?mead=include").lakePowell).toBe("exclude");
+    /* The storage charts spell it the same way, so a scope carries between
+     * the two pages rather than being dropped at the link. */
+    expect(searchWithState({ lakeMead: "include" })).toContain("mead=");
+  });
+
   it("survives a round trip in every combination the controls can reach", () => {
     for (const storageClass of CLASSES) {
       for (const reporting of ["all", "late", "current"] as const) {
         for (const drainageArea of AREAS) {
           for (const lakePowell of ["exclude", "include"] as const) {
+            /* Mead's own dimension, not folded into Powell's: the four
+             * combinations are four different totals (ADR-062). */
+            for (const lakeMead of ["exclude", "include"] as const) {
             for (const geography of ["utah", "connected"] as const) {
               for (const month of MONTHS) {
                 const state = {
                   reservoir: "Deer Creek", storageClass, reporting, drainageArea,
-                  lakePowell, geography, month,
+                  lakePowell, lakeMead, geography, month,
                   /* The bottom row has its own round trip below. Held at its
                    * default here so this loop keeps testing the controls it
                    * was written for rather than multiplying by two more. */
@@ -174,6 +199,7 @@ describe("the rest of the view in the link", () => {
                 };
                 expect(stateFromSearch(searchWithState(state))).toEqual(state);
               }
+            }
             }
           }
         }

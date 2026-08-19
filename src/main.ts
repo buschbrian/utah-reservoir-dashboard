@@ -190,10 +190,15 @@ function updateSummary(): void {
     updated: month === null
       ? `Published ${formatDate(publishedAt)}`
       : `Average through ${monthLabel(month)}`,
-    // Written from the control rather than fixed in the markup: it read
-    // "excluding Lake Powell" whatever the reader had chosen.
+    // Written from the controls rather than fixed in the markup: it read
+    // "excluding Lake Powell" whatever the reader had chosen. Both dominant
+    // reservoirs are named whatever their state, because a total that
+    // silently holds 28 million acre-feet is what ADR-011 and ADR-062 exist
+    // to prevent -- and a card naming one of the two invites the reader to
+    // assume the other is in it.
     scope: `${scope.geography === "connected" ? "Connected reservoirs" : "Utah waterbodies"}, ` +
-      `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell`
+      `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell, ` +
+      `${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead`
   });
 }
 
@@ -266,6 +271,7 @@ function viewState(): Omit<DashboardUrlState, "reservoir"> {
     reporting: filterState.reporting,
     drainageArea: filterState.drainageArea,
     lakePowell: scope.lakePowell,
+    lakeMead: scope.lakeMead ?? "exclude",
     geography: scope.geography,
     month: selectedMonth(),
     tableOpen,
@@ -659,6 +665,7 @@ if (!supportsDashboard(browserCapabilities())) {
         window.__dashboardReady.symbols = map.status.reservoirSymbols;
         window.__dashboardReady.late = inScope.filter(isLate).length;
         window.__dashboardReady.lakePowell = scope.lakePowell;
+        window.__dashboardReady.lakeMead = scope.lakeMead ?? "exclude";
         window.__dashboardReady.geography = scope.geography;
         window.__dashboardReady.listItems =
           document.querySelectorAll("#start-panel .list-btn").length;
@@ -726,7 +733,8 @@ if (!supportsDashboard(browserCapabilities())) {
     setScopeControl((chosen) => {
       scope = {
         geography: chosen.geography === "connected" ? "connected" : "utah",
-        lakePowell: chosen.lakePowell ? "include" : "exclude"
+        lakePowell: chosen.lakePowell ? "include" : "exclude",
+        lakeMead: chosen.lakeMead ? "include" : "exclude"
       };
       applyScope();
       applyMonth();
@@ -737,7 +745,11 @@ if (!supportsDashboard(browserCapabilities())) {
      * filtered, Lake-Powell-included link that opened on an unfiltered
      * dashboard would show numbers that do not match the words around it. */
     const wanted = stateFromSearch(window.location.search);
-    scope = { geography: wanted.geography, lakePowell: wanted.lakePowell };
+    scope = {
+      geography: wanted.geography,
+      lakePowell: wanted.lakePowell,
+      lakeMead: wanted.lakeMead
+    };
     filterState = {
       storageClass: wanted.storageClass,
       reporting: wanted.reporting,
@@ -759,7 +771,8 @@ if (!supportsDashboard(browserCapabilities())) {
     setTableRowOpen(tableOpen);
     setScopeValue({
       geography: scope.geography,
-      lakePowell: scope.lakePowell === "include"
+      lakePowell: scope.lakePowell === "include",
+      lakeMead: scope.lakeMead === "include"
     });
     applyScope();
     applyMonth();
@@ -789,6 +802,10 @@ if (!supportsDashboard(browserCapabilities())) {
     reservoirLabels: map.status.reservoirLabels,
     late: inScope.filter(isLate).length,
     lakePowell: scope.lakePowell,
+    /* Its own field beside Powell's, because it is its own question: a
+     * total with Mead and one without are both true and are not the same
+     * measurement (ADR-062). */
+    lakeMead: scope.lakeMead ?? "exclude",
     geography: scope.geography,
     months: months.length,
     month: selectedMonth(),

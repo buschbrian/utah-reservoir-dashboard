@@ -728,10 +728,19 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
    * means this time. */
   const scopeLine = document.querySelector<HTMLElement>('[data-weekly="scope"]');
   if (scopeLine) {
+    /* Both dominant reservoirs, whatever their state. Read from the rows the
+     * digest was handed rather than from the controls, so the sentence
+     * describes the figures beside it even if the two ever disagree. Powell
+     * is 25 million acre-feet and Mead 28, against about 34 for everything
+     * else on the roster put together: a digest that names one and stays
+     * quiet about the other invites the reader to assume it is in there
+     * (ADR-011, ADR-062). */
     const hasPowell = reservoirs.some(isLakePowell);
+    const hasMead = reservoirs.some(isLakeMead);
     scopeLine.textContent =
       `Storage covers ${reservoirs.length} reservoirs, Lake Powell ` +
-      `${hasPowell ? "included" : "excluded"}.`;
+      `${hasPowell ? "included" : "excluded"}, Lake Mead ` +
+      `${hasMead ? "included" : "excluded"}.`;
   }
 
   const sections = describeWeek(weeklySummary(reservoirs, snow, drought));

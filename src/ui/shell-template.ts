@@ -90,6 +90,16 @@ function panelContents(suffix: string): string {
           <calcite-switch data-scope="powell"
             label="Include Lake Powell in every total"></calcite-switch>
         </calcite-label>
+        <!-- Its own control, for the reason Powell has one: at 28 million
+             acre-feet Mead is larger still, and a total with it and one
+             without are both true and are not the same measurement
+             (ADR-062). Absent means excluded, so nothing silently gains
+             28 million acre-feet. -->
+        <calcite-label layout="inline-space-between">
+          Include Lake Mead
+          <calcite-switch data-scope="mead"
+            label="Include Lake Mead in every total"></calcite-switch>
+        </calcite-label>
         <!-- Which period "normal" means. Not a filter and not a scope: it
              changes nothing about which reservoirs are drawn, only what the
              details panel compares them against. It lives here because it is

@@ -37,6 +37,10 @@ const SELECTION_PARAMS = {
   reporting: "late",
   drainageArea: "drainage",
   lakePowell: "powell",
+  /* Lake Mead's own parameter, spelled the way the storage charts already
+   * spell it so a reader can carry a scope between the two pages (ADR-062).
+   * Absent means excluded, exactly like Powell's. */
+  lakeMead: "mead",
   geography: "reservoirs",
   month: "month",
   /* The bottom row's two facts, one parameter each. `table=open` is the row
@@ -82,6 +86,8 @@ export interface DashboardUrlState {
   /** A drainage-area code the payload carries, or null for every area. */
   drainageArea: string | null;
   lakePowell: LakePowellChoice;
+  /** Lake Mead's own choice, for the reason Powell has one (ADR-062). */
+  lakeMead: LakePowellChoice;
   /** Utah waterbodies, or every connected reservoir (ADR-011). */
   geography: ReservoirGeography;
   /** A month key the payload carries, or null for the newest reading. */
@@ -106,6 +112,7 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   reporting: "all",
   drainageArea: null,
   lakePowell: "exclude",
+  lakeMead: "exclude",
   geography: "utah",
   month: null,
   tableOpen: false,
@@ -196,6 +203,8 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
 
   state.lakePowell = lastValue(pairs, SELECTION_PARAMS.lakePowell) === "include"
     ? "include" : "exclude";
+  state.lakeMead = lastValue(pairs, SELECTION_PARAMS.lakeMead) === "include"
+    ? "include" : "exclude";
   state.geography = lastValue(pairs, SELECTION_PARAMS.geography) === "connected"
     ? "connected" : "utah";
   const month = lastValue(pairs, SELECTION_PARAMS.month);
@@ -243,6 +252,9 @@ export function searchWithState(
   }
   if (full.lakePowell !== "exclude") {
     parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);
+  }
+  if (full.lakeMead !== "exclude") {
+    parts.push(`${SELECTION_PARAMS.lakeMead}=${full.lakeMead}`);
   }
   if (full.geography !== "utah") {
     parts.push(`${SELECTION_PARAMS.geography}=${full.geography}`);

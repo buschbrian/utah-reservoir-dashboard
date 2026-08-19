@@ -2603,7 +2603,7 @@ for (const viewport of VIEWPORTS) {
      * opened on an unfiltered dashboard would show numbers that disagree
      * with the words printed beside them. */
     await tab.goto(`${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}` +
-      "&reporting=late&powell=include",
+      "&reporting=late&powell=include&mead=include",
     { waitUntil: "domcontentloaded", timeout: 60000 });
     await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const restored = await tab.evaluate(() => ({
@@ -2612,6 +2612,8 @@ for (const viewport of VIEWPORTS) {
       reporting: document.querySelector('#start-panel [data-filter="reporting"]')?.value,
       scope: document.querySelector('#start-panel [data-scope="powell"]')?.checked
         ? "include" : "exclude",
+      mead: document.querySelector('#start-panel [data-scope="mead"]')?.checked
+        ? "include" : "exclude",
       where: document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
     }));
@@ -2619,14 +2621,49 @@ for (const viewport of VIEWPORTS) {
       `${label}: the link's scope was not restored`);
     check(restored.scope === "include",
       `${label}: the Lake Powell switch does not show the scope the link asked for`);
+    /* Mead's own switch and its own parameter (ADR-062): two dominant
+     * reservoirs, two questions, and a link may answer them differently. */
+    check(restored.ready.lakeMead === "include",
+      `${label}: the link's Lake Mead scope was not restored`);
+    check(restored.mead === "include",
+      `${label}: the Lake Mead switch does not show the scope the link asked for`);
     check(restored.reporting === "late",
       `${label}: the reporting control does not show the filter the link asked for`);
     check(restored.ready.filtered === true,
       `${label}: the link's filter was not applied`);
     check(restored.where === "late = 1",
       `${label}: the map filter is "${restored.where}" after restoring a filtered link`);
-    check(/powell=include/.test(restored.search) && /late=true/.test(restored.search),
-      `${label}: the address bar dropped the view it restored ("${restored.search}")`);
+    check(/powell=include/.test(restored.search) && /late=true/.test(restored.search)
+      && /mead=include/.test(restored.search),
+    `${label}: the address bar dropped the view it restored ("${restored.search}")`);
+
+    /* The control, driven rather than described: a switch that reports a
+     * scope it did not change is the failure this catches. Mead is the only
+     * reservoir in its drainage area and never touches Utah, so it appears
+     * only under the connected geography -- which is why the link opens
+     * there. */
+    await tab.goto(`${URL}?reservoirs=connected`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    const withoutMead = await tab.evaluate(() => window.__dashboardReady.reservoirs);
+    await tab.evaluate(() => {
+      const toggle = document.querySelector('#start-panel [data-scope="mead"]');
+      toggle.checked = true;
+      toggle.dispatchEvent(new CustomEvent("calciteSwitchChange", { bubbles: true }));
+    });
+    const afterMead = await tab.evaluate(() => ({
+      reservoirs: window.__dashboardReady.reservoirs,
+      scope: window.__dashboardReady.lakeMead,
+      search: window.location.search
+    }));
+    check(afterMead.reservoirs === withoutMead + 1,
+      `${label}: including Lake Mead moved the count from ${withoutMead} to ` +
+      `${afterMead.reservoirs}, expected one more`);
+    check(afterMead.scope === "include",
+      `${label}: the readiness signal reports Lake Mead ${afterMead.scope} after including it`);
+    check(/mead=include/.test(afterMead.search),
+      `${label}: the address bar did not record the Lake Mead choice ` +
+      `("${afterMead.search}")`);
 
     /* The drainage-area filter, which is a filter and not a scope: the map
      * keeps every reservoir and greys the ones outside the area, so the
