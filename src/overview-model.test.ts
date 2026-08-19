@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
+import type { OpeningRosters, OpeningSelection } from "./data/opening-scope";
 import {
   countyOptions,
   distributionKeyLines,
   distributionStats,
+  openingScopeSummary,
   reservoirInState,
   stateOptions,
   subregionOf,
@@ -315,5 +317,59 @@ describe("the state and subregion axes", () => {
       .toEqual([]);
     expect(filterOverview(all, filters({ state: "UT", huc4: "1601", huc6: "160102" })))
       .toEqual([hyrum]);
+  });
+});
+
+/*
+ * Slice S3d (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md): the sentence
+ * naming the place a reader's ?state= and ?area= opened this page on.
+ */
+describe("the opening scope summary sentence", () => {
+  const rosters: OpeningRosters = {
+    regions: [{ huc6: "14", name: "Upper Colorado Region", states: "CO,UT,WY" }],
+    subregions: [{ huc6: "1601", name: "Bear River", states: "ID,UT,WY" }],
+    areas: [{ huc6: "160101", name: "Bear Lake", states: "ID,UT" }]
+  };
+  const selection = (overrides: Partial<OpeningSelection>): OpeningSelection =>
+    ({ state: "all", area: null, ...overrides });
+
+  it("says nothing was narrowed when neither is chosen", () => {
+    expect(openingScopeSummary(selection({}), rosters)).toBe("");
+  });
+
+  it("names the state alone", () => {
+    expect(openingScopeSummary(selection({ state: "ID" }), rosters))
+      .toBe("Storage narrowed to reservoirs in Idaho.");
+  });
+
+  it("names the area alone, at any of the three widths", () => {
+    expect(openingScopeSummary(selection({ area: "14" }), rosters))
+      .toBe("Storage narrowed to Upper Colorado Region.");
+    expect(openingScopeSummary(selection({ area: "1601" }), rosters))
+      .toBe("Storage narrowed to Bear River.");
+    expect(openingScopeSummary(selection({ area: "160101" }), rosters))
+      .toBe("Storage narrowed to Bear Lake.");
+  });
+
+  it("names the state and the area together", () => {
+    expect(openingScopeSummary(selection({ state: "ID", area: "1601" }), rosters))
+      .toBe("Storage narrowed to Bear River in Idaho.");
+  });
+
+  it("drops a code with no published name rather than printing the digits", () => {
+    // Alive (it survived resolveOpeningScope's own aliveness check against
+    // the state) but absent from this particular roster snapshot -- the same
+    // gap a payload published between R1 and R2 would leave.
+    expect(openingScopeSummary(selection({ state: "UT", area: "999999" }), rosters))
+      .toBe("Storage narrowed to reservoirs in Utah.");
+  });
+
+  it("falls back to the raw code for a state stateName does not recognise", () => {
+    // Not a code resolveOpeningScope would ever hand this function -- it
+    // only reaches here already validated -- but stateName's own fallback
+    // (the code itself) is worth pinning down so a change to that function
+    // cannot silently start printing something else here.
+    expect(openingScopeSummary(selection({ state: "ZZ" }), rosters))
+      .toBe("Storage narrowed to reservoirs in ZZ.");
   });
 });

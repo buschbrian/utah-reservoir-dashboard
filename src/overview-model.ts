@@ -1,5 +1,6 @@
 import type { Reservoir } from "./types";
 import { monthKeys, monthLabel, monthlyRollup } from "./data/months";
+import type { OpeningRosters, OpeningSelection } from "./data/opening-scope";
 import {
   isLate,
   reservoirInScope,
@@ -9,6 +10,7 @@ import {
   type ReservoirInclusion,
   type ReservoirGeography
 } from "./data/rollup";
+import { stateName } from "./data/state-vocabulary";
 import { STALE_COLOR, storageClass } from "./viz/classes";
 import { formatPercent } from "./viz/format";
 
@@ -53,6 +55,59 @@ export function reservoirInState(reservoir: Reservoir, state: string): boolean {
 /** The subregion a drainage area belongs to. Codes are fixed-width (ADR-050). */
 export function subregionOf(reservoir: Reservoir): string | null {
   return reservoir.huc6 ? reservoir.huc6.slice(0, 4) : null;
+}
+
+/**
+ * Looks a resolved `?area=` code up in the published roster it belongs to,
+ * by its own width -- two digits is a region, four a subregion, six a basin
+ * (`data/opening-scope.ts`). Reads the rosters straight from the reference
+ * export rather than `OpeningScope`'s own `regions`/`subregions`/`areas`
+ * lists, which are narrowed by *state* first: a region whose own `states`
+ * attribute happens not to list a state one of its basins still reaches
+ * (the same shape of inexactness ADR-060 already accepts for Hyrum) would
+ * otherwise cost the reader the region's name for a reason that has nothing
+ * to do with whether the code exists.
+ */
+function namedOpeningArea(area: string, rosters: OpeningRosters): string | null {
+  const roster = area.length === 2 ? rosters.regions
+    : area.length === 4 ? rosters.subregions
+    : rosters.areas;
+  return roster.find((candidate) => candidate.huc6 === area)?.name ?? null;
+}
+
+/**
+ * The place a reader's `?state=` and `?area=` opened this page on, in
+ * Simplified Technical English (ADR-006) -- "the summary sentence that
+ * names the chosen place" slice S3d owes
+ * (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
+ *
+ * Reads `selection` rather than the live filter controls: it reports what
+ * the *link* asked for, once, the way a map's opening extent does. The
+ * controls' own answer to "what is on screen right now" is
+ * `#filter-status`, which already exists and already changes on every
+ * keystroke -- a second sentence chasing the same value would just be behind
+ * it by one render.
+ *
+ * `selection.area` has already been through `resolveOpeningScope`'s
+ * aliveness check by the time it reaches here, so a region or subregion the
+ * chosen state does not reach has already fallen back to `null` -- this
+ * function only has to decide how to phrase what survived, never whether it
+ * did. A code that survived but carries no published name (`namedOpeningArea`
+ * returns `null`) is dropped from the sentence rather than printed as a raw
+ * digit string, the same "silently narrow to what can be said" rule
+ * `resolveOpeningScope` itself follows for a dead selection.
+ */
+export function openingScopeSummary(
+  selection: OpeningSelection, rosters: OpeningRosters
+): string {
+  const { state, area } = selection;
+  const areaName = area === null ? null : namedOpeningArea(area, rosters);
+  if (state !== "all" && areaName) {
+    return `Storage narrowed to ${areaName} in ${stateName(state)}.`;
+  }
+  if (state !== "all") return `Storage narrowed to reservoirs in ${stateName(state)}.`;
+  if (areaName) return `Storage narrowed to ${areaName}.`;
+  return "";
 }
 
 export interface OverviewChartRecord {

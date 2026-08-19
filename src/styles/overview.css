@@ -151,6 +151,10 @@ body {
 }
 .reset-button:hover { background: color-mix(in srgb, var(--app-accent) 10%, transparent); }
 .filter-status { margin: .5rem .15rem 0; color: var(--app-muted); font-size: .78rem; }
+/* Sits between the weekly digest and the filter bar it precedes -- the same
+ * small, muted treatment as #filter-status below it, so the two read as one
+ * family of status lines rather than a status line and a stray paragraph. */
+.opening-scope-summary { margin: 0 .15rem .85rem; color: var(--app-muted); font-size: .85rem; }
 /* Five cards never divide evenly into a fixed column count, so a grid left
  * a hole beside the last row -- three cards, then two and a gap. Flex lets
  * whatever lands on the final row grow to fill it, so the strip reads as a
