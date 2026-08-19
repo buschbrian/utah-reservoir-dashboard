@@ -204,6 +204,35 @@ second level needed.
    step 1, not to predict. ADR-052's write-the-calendar-once encoding already
    absorbs part of this, since sites index into a shared date array.
 
+## What the roster step also changes: the site's name
+
+Decided 2026-08-19, to be done **with** the roster and not before.
+
+When the reservoirs cover the west, the header stops being true. `SITE_NAME`
+in `src/ui/page-header.ts` becomes **"Western Water Dashboard"**
+(`SITE_NAME_SHORT`, "Western Water"), and the page headings drop the state
+they carry today -- `PAGE_SUBJECTS` is one table and this is one edit to it.
+
+**The heading then follows the reader's state filter**: "Wyoming Drought"
+where Wyoming is chosen, and the unfiltered form otherwise. That is ADR-045
+unchanged in principle -- the site is named for the water and each page for
+its subject -- with the subject's geography following the reader rather than
+being written down.
+
+Two things it needs, neither of them hard:
+
+- **A word for "no state chosen".** The plain reading is that the heading is
+  simply "Drought" or "Snowpack" with nothing in front of it, which is what
+  the page is about when it is about all of them. "Western Drought" is the
+  alternative and it repeats the brand line directly above it.
+- **A state filter on the pages that lack one.** Only the storage charts have
+  one today (ADR-060). The snow and drought pages would need theirs before
+  their headings can follow it, and the storage map before its own.
+
+Not done now, on purpose: the roster is still the fourteen Utah-connected
+areas' worth of reservoirs, and a header saying "Western" over 69 Utah
+reservoirs claims a coverage the payload does not have.
+
 ## Open questions this did not answer
 
 - **Answered 2026-08-19: `normals.json` grows with the roster and the job no
