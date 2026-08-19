@@ -46,6 +46,7 @@
 import { HUC_CODE } from "./huc";
 import { areaReachesState, isUsStateCode } from "./state-vocabulary";
 import {
+  isObject,
   loadReference,
   parseDrainageUnits,
   referenceGeography,
@@ -63,6 +64,14 @@ import { MAP_BOUNDS, unionOfAreaBoxes } from "../viz/extent";
  * Region is on this list and never on that one; a basin is on both, for
  * unrelated reasons -- it is where every figure on this site is keyed, and
  * separately it is the finest level this hierarchy narrows to.
+ *
+ * These are string-prefix widths, arithmetic on a fixed-width code -- not
+ * hydrologic levels. `SUBREGION_LEVEL` below is the level, a claim about
+ * published geography read from the payload; the two are the same number
+ * today only because a subregion code happens to be four digits, and
+ * `loadOpeningRosters` keeps them as two named constants rather than one so
+ * that stays true by construction rather than by coincidence (ADR-050 is
+ * exactly the rule against treating a level as derivable from a width).
  */
 const REGION_WIDTH = 2;
 const SUBREGION_WIDTH = 4;
@@ -75,10 +84,18 @@ const OPENING_AREA_WIDTHS: ReadonlySet<number> = new Set([REGION_WIDTH, SUBREGIO
  * `HUC_CODE` accepts any even width to twelve (`src/data/huc.ts`), which is
  * right for a payload's own `huc6` field but wrong for a reader's choice
  * here: an eight-digit code would silently narrow to zero areas at every
- * level this module knows, since nothing in this hierarchy is that fine
- * (region, subregion, basin -- 2, 4 and 6 only, the same three widths the
- * predicate and the `where` clause in `state/filters.ts` have agreed at
- * since `ada826a`).
+ * level this module knows, since nothing in this hierarchy is that fine --
+ * region, subregion and basin are 2, 4 and 6 digits and nothing else.
+ *
+ * Deliberately stricter than `state/filters.ts` and `state/url.ts`, which
+ * both accept a wider range: `state/filters.ts`'s `DRAINAGE_AREA_CODE` is
+ * `HUC_CODE` itself, unrestricted, and `state/url.ts`'s own check is looser
+ * still (`/^[0-9]{1,12}$/`, which takes odd widths too). Those two are
+ * matching a payload's own `huc6` field, which can legitimately be any
+ * level the pipeline publishes; this module is matching a three-level
+ * hierarchy it defines itself, and a width outside it is not a finer
+ * selection -- it is a selection this hierarchy has no level for, so it is
+ * refused here rather than silently narrowing every roster to nothing.
  */
 function isOpeningAreaCode(value: string): boolean {
   return HUC_CODE.test(value) && OPENING_AREA_WIDTHS.has(value.length);
@@ -121,7 +138,13 @@ export const DEFAULT_OPENING_SELECTION: OpeningSelection = { state: "all", area:
  * same as today.
  */
 export function openingSelectionFromSearch(search: string | null | undefined): OpeningSelection {
-  const params = new URLSearchParams(String(search ?? "").replace(/^\?/, ""));
+  // `+`, not `^\?`: a search string built by prefixing "?" onto something
+  // that already had one -- unlikely by hand, easy by string concatenation
+  // -- leaves more than one leading "?", and `URLSearchParams` only ever
+  // strips a single leading one itself. Stripping just one here too would
+  // leave a literal "?" on the front of the first key, which is how
+  // "??state=CA" loses its `state` silently rather than reading it.
+  const params = new URLSearchParams(String(search ?? "").replace(/^\?+/, ""));
   const state = params.get("state");
   const area = params.get("area");
   return {
@@ -153,10 +176,6 @@ export function openingSelectionFromSearch(search: string | null | undefined): O
  */
 const REGION_SCOPE_NAME = "west-huc2";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * The region roster straight out of a parsed reference export.
  *
@@ -164,18 +183,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * parameter only resolves names published in `drawn_scopes`, and region is
  * deliberately absent from it (see `REGION_SCOPE_NAME`). This walks the
  * same `geography.watersheds.scopes` structure by the one name this module
- * is allowed to know, and returns no regions rather than throwing for a
- * payload at an unrecognised schema version or missing the scope entirely
- * -- the same soft-failure rule `referenceGeography` follows, so a reader
- * loses the region tier of the chooser rather than the whole page.
+ * is allowed to know, using `boundaries.ts`'s own `isObject` rather than a
+ * second, separately-maintained shape guard.
+ *
+ * Returns no regions rather than throwing, for a payload at an unrecognised
+ * schema version, missing the scope entirely, or -- new in this revision --
+ * publishing the scope without a numeric `level`. That last case is not
+ * guessed at as `REGION_WIDTH`: a scope with no stated level is a payload
+ * declining to answer a question about its own geography, and *this*
+ * client deciding "it must mean 2" is exactly what `referenceGeography`
+ * refuses for the very same shape of gap (an unrecognised schema version
+ * reads as no boundaries, not as "assume the shape has not changed"). This
+ * is the soft-failure rule `referenceGeography` already follows, so a
+ * reader loses the region tier of the chooser rather than the whole page.
  */
 export function regionRosterFromReference(value: unknown): readonly DrainageArea[] {
-  if (!isRecord(value) || value.schema_version !== REFERENCE_SCHEMA_VERSION) return [];
-  const geography = isRecord(value.geography) ? value.geography : null;
-  const watersheds = geography && isRecord(geography.watersheds) ? geography.watersheds : null;
-  const scopes = watersheds && isRecord(watersheds.scopes) ? watersheds.scopes : null;
-  const region = scopes && isRecord(scopes[REGION_SCOPE_NAME]) ? scopes[REGION_SCOPE_NAME] : null;
-  const level = region && typeof region.level === "number" ? region.level : REGION_WIDTH;
+  if (!isObject(value) || value.schema_version !== REFERENCE_SCHEMA_VERSION) return [];
+  const geography = isObject(value.geography) ? value.geography : null;
+  const watersheds = geography && isObject(geography.watersheds) ? geography.watersheds : null;
+  const scopes = watersheds && isObject(watersheds.scopes) ? watersheds.scopes : null;
+  const region = scopes && isObject(scopes[REGION_SCOPE_NAME]) ? scopes[REGION_SCOPE_NAME] : null;
+  // `parseDrainageUnits` itself already treats a falsy level as "no areas"
+  // (`if (!Array.isArray(value) || !level) return [];`), so defaulting to
+  // 0 here rather than guessing a level is what makes a malformed scope
+  // fail closed to an empty roster instead of parsing under an assumption.
+  const level = region && typeof region.level === "number" ? region.level : 0;
   return parseDrainageUnits(region?.units, level);
 }
 
@@ -197,23 +229,54 @@ export interface OpeningRosters {
 }
 
 /**
+ * The hydrologic level `referenceGeography` is asked for when resolving the
+ * subregion roster.
+ *
+ * A level, not a width -- see the comment on `SUBREGION_WIDTH` above for
+ * why the two are kept as separate constants even though both are 4 today.
+ * This one is a claim read from the payload (`drawn_scopes` either offers
+ * level 4 or it does not); `SUBREGION_WIDTH` is arithmetic on a code
+ * `String.prototype.slice` already knows how to do regardless of what the
+ * payload publishes.
+ */
+const SUBREGION_LEVEL = 4;
+
+/**
  * `OpeningRosters`, fetched from the reference export in one request
  * (`loadReference` already shares it across callers, keyed by URL).
  *
  * Subregions and areas go through `referenceGeography`'s own indirection
- * (`wanted: 4`, and the default for whatever `default_scope` publishes) --
- * the same discipline `loadDrainageScope` already keeps, so this module
- * never assumes `west-huc4` or `west-huc6` are the names either. Only the
- * region roster is read by its literal name, for the reason
- * `REGION_SCOPE_NAME` documents.
+ * (`wanted: SUBREGION_LEVEL`, and the default for whatever `default_scope`
+ * publishes) -- the same discipline `loadDrainageScope` already keeps, so
+ * this module never assumes `west-huc4` or `west-huc6` are the names
+ * either. Only the region roster is read by its literal name, for the
+ * reason `REGION_SCOPE_NAME` documents.
+ *
+ * `referenceGeography` honours `wanted` only when the export's
+ * `drawn_scopes` currently offers that level, and silently falls back to
+ * `default_scope` otherwise -- correct for a page asking "give me whatever
+ * this site draws", wrong for this call, which is asking for subregions
+ * specifically. Without a check here, a export that stopped publishing
+ * level 4 would hand back the level-6 basin roster relabelled as
+ * `subregions`, and every prefix match downstream would still "work" --
+ * two identical lists, silently. `loadDrainageScope` already warns on the
+ * same shape of surprise (an unjoinable level); this is that same warning
+ * for a level this module asked for by name and did not get.
  */
 export async function loadOpeningRosters(url?: string): Promise<OpeningRosters> {
   const value = await loadReference(url);
-  const subregionGeography = referenceGeography(value, SUBREGION_WIDTH);
+  const subregionGeography = referenceGeography(value, SUBREGION_LEVEL);
   const areaGeography = referenceGeography(value);
+  const subregionLevel = subregionGeography?.level ?? 0;
+  if (subregionLevel && subregionLevel !== SUBREGION_LEVEL) {
+    console.warn(
+      `The reference export does not currently offer hydrologic level ${SUBREGION_LEVEL} ` +
+      `(subregions); it fell back to level ${subregionLevel}, so the opening scope's ` +
+      "subregion tier will not narrow to true subregions until that level is republished.");
+  }
   return {
     regions: regionRosterFromReference(value),
-    subregions: parseDrainageUnits(subregionGeography?.drainage, subregionGeography?.level ?? 0),
+    subregions: parseDrainageUnits(subregionGeography?.drainage, subregionLevel),
     areas: parseDrainageUnits(areaGeography?.drainage, areaGeography?.level ?? 0)
   };
 }
@@ -305,8 +368,12 @@ export function resolveOpeningScope(
     ? rawArea
     : null;
 
+  // `String.prototype.slice` already clamps to the string's own length, so
+  // a two-digit `area` sliced to four still comes back as itself -- no
+  // `Math.min` needed to keep a region-width choice from being sliced past
+  // its own end.
   const regionPrefix = area !== null ? area.slice(0, REGION_WIDTH) : null;
-  const subregionPrefix = area !== null ? area.slice(0, Math.min(SUBREGION_WIDTH, area.length)) : null;
+  const subregionPrefix = area !== null ? area.slice(0, SUBREGION_WIDTH) : null;
 
   const subregions = regionPrefix === null
     ? stateSubregions
@@ -314,9 +381,18 @@ export function resolveOpeningScope(
   const areas = subregionPrefix === null
     ? stateAreas
     : stateAreas.filter((candidate) => candidate.huc6.startsWith(subregionPrefix));
-  const chosenAreas = area === null
-    ? stateAreas
-    : stateAreas.filter((candidate) => candidate.huc6.startsWith(area));
+  /* `areas` above is already narrowed to `subregionPrefix`, which is a
+   * prefix of `area` itself whenever `area` is longer than four digits, and
+   * *is* `area` exactly at two or four digits (see the slice comment
+   * above). So at every width but six, `areas` already equals what
+   * `chosenAreas` should be, and re-filtering `stateAreas` a second time
+   * from scratch -- once for the option list, once for the chosen set --
+   * would scan the same roster twice for the same answer. Only a full
+   * six-digit basin choice needs one more, cheaper pass, over the handful
+   * of siblings `areas` already narrowed to rather than the whole roster. */
+  const chosenAreas = area === null || area.length <= SUBREGION_WIDTH
+    ? areas
+    : areas.filter((candidate) => candidate.huc6.startsWith(area));
 
   return {
     selection: { state, area },
