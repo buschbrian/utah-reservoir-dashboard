@@ -119,7 +119,8 @@ def normals_table(available: bool = True, years: int = 30,
 # --------------------------------------------------------------------------
 
 def roster(*names):
-    return [{"name": name} for name in names]
+    """Roster records carry the identity beside the name (ADR-066)."""
+    return [{"name": name, "source_station_id": f"sid-{name}"} for name in names]
 
 
 def test_missing_builds_only_what_the_file_has_no_usable_normal_for():
@@ -127,11 +128,11 @@ def test_missing_builds_only_what_the_file_has_no_usable_normal_for():
     the roster gains reservoirs in batches, and re-fetching thirty years for
     the ones already done is the whole cost of the job."""
     existing = {
-        "Done": {"name": "Done", "available": True},
-        "Failed": {"name": "Failed", "available": False,
-                   "reason": "the provider did not answer"},
-        "Empty": {"name": "Empty", "available": False,
-                  "reason": "no readings in the period"},
+        "sid-Done": {"name": "Done", "available": True},
+        "sid-Failed": {"name": "Failed", "available": False,
+                       "reason": "the provider did not answer"},
+        "sid-Empty": {"name": "Empty", "available": False,
+                      "reason": "no readings in the period"},
     }
 
     chosen = B.select(roster("Done", "Failed", "Empty", "New"), None, True, existing)
@@ -143,18 +144,57 @@ def test_a_reservoir_with_no_record_is_not_asked_again_every_run():
     """A reservoir built in 2011 will not grow a 1991 record by being asked
     twice, so its absence is a finding rather than a gap. Only a provider
     that did not answer is worth another fetch."""
-    assert B.needs_building({"name": "R"}, {}) is True
+    reservoir = {"name": "R", "source_station_id": "sid-R"}
+    assert B.needs_building(reservoir, {}) is True
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "no readings in the period"}}) is False
+        reservoir,
+        {"sid-R": {"available": False, "reason": "no readings in the period"}}) is False
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "the record begins after the period ends"}}
+        reservoir,
+        {"sid-R": {"available": False,
+                   "reason": "the record begins after the period ends"}}
     ) is False
     assert B.needs_building(
-        {"name": "R"},
-        {"R": {"available": False, "reason": "the provider did not answer"}}) is True
-    assert B.needs_building({"name": "R"}, {"R": {"available": True}}) is False
+        reservoir,
+        {"sid-R": {"available": False,
+                   "reason": "the provider did not answer"}}) is True
+    assert B.needs_building(reservoir, {"sid-R": {"available": True}}) is False
+
+
+def test_two_reservoirs_sharing_a_name_are_indexed_apart(tmp_path):
+    """The index the merge and `--missing` both read is by station (ADR-066):
+    a name index would hold one Lost Creek while answering for both."""
+    path = tmp_path / "normals.json"
+    path.write_text(json.dumps({"reservoirs": [
+        {"name": "Lost Creek", "source_station_id": "sid-UT", "available": True},
+        {"name": "Lost Creek", "source_station_id": "sid-OR", "available": False,
+         "reason": "the provider did not answer"},
+    ]}), encoding="utf-8")
+
+    existing = B.already_built(path)
+
+    assert len(existing) == 2
+    assert B.needs_building(
+        {"name": "Lost Creek", "source_station_id": "sid-UT"}, existing) is False
+    assert B.needs_building(
+        {"name": "Lost Creek", "source_station_id": "sid-OR"}, existing) is True
+
+
+def test_a_rebuild_of_one_twin_keeps_the_other_twins_normal():
+    """Always a merge, never a replacement -- by station, not by name: a
+    name-keyed merge that rebuilt one Lost Creek would silently delete the
+    untouched twin's thirty-year normal."""
+    previous = [
+        {"name": "Lost Creek", "source_station_id": "sid-UT", "available": True},
+        {"name": "Lost Creek", "source_station_id": "sid-OR", "available": True},
+    ]
+    rebuilt = [{"name": "Lost Creek", "source_station_id": "sid-UT",
+                "available": True}]
+
+    kept, merged = B.merged_reservoirs(previous, rebuilt)
+
+    assert [r["source_station_id"] for r in kept] == ["sid-OR"]
+    assert sorted(r["source_station_id"] for r in merged) == ["sid-OR", "sid-UT"]
 
 
 def test_only_takes_several_names_and_keeps_roster_order():

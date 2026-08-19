@@ -209,11 +209,17 @@ def build_one(reservoir: dict) -> dict:
 
 
 def already_built(path: Path = OUTPUT_PATH) -> dict:
-    """The committed normals, by reservoir name. Empty when there is no file."""
+    """The committed normals, by station id (ADR-066). Empty when no file.
+
+    By station and never by name: the west holds two Lost Creeks, and a
+    name index would hold one of them while answering for both -- which is
+    how a `--missing` run comes to skip a reservoir that has no normal.
+    """
     if not path.exists():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return {record["name"]: record for record in payload.get("reservoirs") or []}
+    return {record["source_station_id"]: record
+            for record in payload.get("reservoirs") or []}
 
 
 #: Why a record with no normal has none, and whether asking again could
@@ -233,12 +239,28 @@ def needs_building(reservoir: dict, existing: dict) -> bool:
     The question `--missing` answers, and the reason a roster that grows by a
     hundred reservoirs does not cost a rebuild of the ones already done.
     """
-    record = existing.get(reservoir["name"])
+    record = existing.get(reservoir["source_station_id"])
     if record is None:
         return True
     if record.get("available"):
         return False
     return record.get("reason") in RETRYABLE_REASONS
+
+
+def merged_reservoirs(previous: list[dict],
+                      records: list[dict]) -> tuple[list[dict], list[dict]]:
+    """What a merge keeps, and the whole merged roster, ordered.
+
+    By station id and never by name (ADR-066): with two Lost Creeks in the
+    file, a name-keyed merge that rebuilt one would silently delete the
+    untouched twin's thirty-year normal -- a replacement wearing a merge's
+    name.
+    """
+    built = {record["source_station_id"] for record in records}
+    kept = [r for r in previous if r["source_station_id"] not in built]
+    merged = sorted(kept + records,
+                    key=lambda r: (r["name"], r["source_station_id"]))
+    return kept, merged
 
 
 def select(roster: list[dict], names: list[str] | None, missing: bool,
@@ -375,7 +397,7 @@ def main() -> int:
 
     # Completion order is arrival order under concurrency, so the file is
     # sorted here rather than left to record which station answered first.
-    records.sort(key=lambda record: record["name"])
+    records.sort(key=lambda record: (record["name"], record["source_station_id"]))
     payload = {
         "schema_version": SCHEMA_VERSION,
         "built": dt.date.today().isoformat(),
@@ -419,9 +441,8 @@ def main() -> int:
             return 1
         previous = (json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
                     if OUTPUT_PATH.exists() else {"reservoirs": []})
-        built = {record["name"] for record in records}
-        kept = [r for r in previous["reservoirs"] if r["name"] not in built]
-        payload["reservoirs"] = sorted(kept + records, key=lambda r: r["name"])
+        kept, payload["reservoirs"] = merged_reservoirs(
+            previous["reservoirs"], records)
         if merging:
             # The period and method belong to the whole file; a partial run
             # must not restate them from today's constants if the committed
@@ -436,7 +457,8 @@ def main() -> int:
         # able to see that a reservoir kept its normal without being asked
         # for one, and why.
         absent = sorted(r["name"] for r in kept
-                        if r["name"] not in {res["name"] for res in roster})
+                        if r["source_station_id"] not in
+                        {res["source_station_id"] for res in roster})
         if absent:
             print(f"kept {len(absent)} normal(s) for reservoirs not in today's "
                   f"payload: {', '.join(absent)}")

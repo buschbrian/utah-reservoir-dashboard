@@ -223,10 +223,19 @@ def main() -> int:
 
     item_id = args.item_id
     if args.name:
-        if args.name not in RESERVOIRS:
+        # RESERVOIRS is keyed by station id since ADR-066; the name rides in
+        # the value. Accept either spelling, and refuse a shared name rather
+        # than answer for one twin wearing the other's question.
+        matched = [station for station, (name, _lat, _lon) in RESERVOIRS.items()
+                   if name == args.name or station == args.name]
+        if not matched:
             print(f"unknown reservoir: {args.name}", file=sys.stderr)
             return 2
-        item_id = RESERVOIRS[args.name][0]
+        if len(matched) > 1:
+            print(f"{args.name} names {len(matched)} stations "
+                  f"({', '.join(matched)}); pass the station id", file=sys.stderr)
+            return 2
+        item_id = matched[0]
     if not item_id:
         print("need --item-id or --name", file=sys.stderr)
         return 2

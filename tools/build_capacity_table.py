@@ -268,10 +268,10 @@ def main() -> int:
         committed = (json.loads(CAPACITY_PATH.read_text(encoding="utf-8"))
                      .get("capacities") or {})
 
-    def keep_or_report(name: str, why: str) -> None:
-        kept = committed.get(name)
+    def keep_or_report(station: str, name: str, why: str) -> None:
+        kept = committed.get(station)
         if kept is not None:
-            table[name] = kept
+            table[station] = kept
             problems.append(f"{name}: {why}; kept the committed entry "
                             f"({kept.get('nid_dam_name')})")
         else:
@@ -279,7 +279,9 @@ def main() -> int:
 
     print(f"\n{'reservoir':<18} {'normal_af':>12} {'max_af':>12} {'nid_af':>12} "
           f"{'record max':>12}  dam")
-    for name, (_rise_id, lat, lon) in RESERVOIRS.items():
+    # By station id since ADR-066: the key is the identity, and the name
+    # rides along for matching and for the humans reading the report.
+    for station, (name, lat, lon) in RESERVOIRS.items():
         # The alias is what to match the name against, not a lookup key:
         # position is the primary evidence now, and the alias only carries
         # the far cases where the two agencies name different things.
@@ -290,20 +292,20 @@ def main() -> int:
         # pond 0.29 km away and its own dam 13.49 km away. This is the same
         # evidence the check below the match uses; applied before, it lets
         # the right dam be found instead of only reporting the wrong one.
-        floor = observed.get(name)
+        floor = observed.get(station)
         match = admission.find_dam(
             (lon, lat), ALIASES.get(name, name), located,
             plausible=lambda dam, floor=floor: admission.could_hold(dam, floor))
         if match is None:
             keep_or_report(
-                name,
+                station, name,
                 f"no dam within {admission.NEAR_RADIUS_KM} km, and none "
                 f"named the same within {admission.NAMED_RADIUS_KM} km")
             continue
         dam = match.dam["_row"]
         normal, maximum, nid = (storage(dam, "normal"), storage(dam, "max"),
                                 storage(dam, "nid"))
-        record_max = observed.get(name)
+        record_max = observed.get(station)
         print(f"{name:<18} {str(normal):>12} {str(maximum):>12} {str(nid):>12} "
               f"{str(record_max):>12}  {dam.get(name_field)}")
 
@@ -320,20 +322,21 @@ def main() -> int:
         basis = ("normal_storage" if normal else
                  "max_storage" if maximum else "nid_storage")
         if denominator is None:
-            keep_or_report(name, "no usable storage figure in the inventory")
+            keep_or_report(station, name, "no usable storage figure in the inventory")
             continue
         # The load-bearing check: we have observed this reservoir since 2015,
         # so a capacity below what we have already seen in it means the match
         # is wrong -- not that it overflowed for a decade.
         if record_max and denominator < record_max * 0.9:
             keep_or_report(
-                name,
+                station, name,
                 f"capacity {denominator:,.0f} af is below the observed "
                 f"record max {record_max:,.0f} af -- probably the wrong dam "
                 f"({dam.get(name_field)})")
             continue
 
-        table[name] = {
+        table[station] = {
+            "name": name,
             "capacity_af": round(denominator, 1),
             "capacity_basis": basis,
             "normal_storage_af": normal,
@@ -379,6 +382,10 @@ def main() -> int:
             "count": sum(1 for entry in table.values()
                          if entry.get("dam_lon") is not None),
         },
+        # The identity the table is keyed by (ADR-066). Stated in the file
+        # so a reader of the JSON does not have to know which side of the
+        # rekey it was written on.
+        "keyed_by": "source_station_id",
     }
 
     if args.dry_run:

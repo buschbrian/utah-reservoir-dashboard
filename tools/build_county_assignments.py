@@ -190,6 +190,9 @@ def main() -> int:
                 "Utah. Keyed on the five-digit FIPS code, because this "
                 "roster holds two Summit Counties in different states.",
         "counties": dict(sorted(assignments.items())),
+        # The identity the assignments are keyed by (ADR-066), stated in the
+        # file the way capacities.json states it.
+        "keyed_by": "source_station_id",
     }
 
     if args.dry_run:
