@@ -12,6 +12,8 @@
  * but *where* to go is a decision, and a decision is worth testing.
  */
 
+import type { DrainageArea, DrainageAreaBox } from "../data/boundaries";
+
 /**
  * The bounding box of the drainage areas that hold published reservoirs.
  *
@@ -51,6 +53,45 @@ export function expandBounds(
   const halfX = ((east - west) / 2) * factor;
   const halfY = ((north - south) / 2) * factor;
   return [[midX - halfX, midY - halfY], [midX + halfX, midY + halfY]];
+}
+
+/**
+ * The box that contains every one of a set of drainage areas' published
+ * boxes -- an opening view built from whichever areas a reader has chosen,
+ * rather than the fixed one every map opens on today.
+ *
+ * `HUC6_BOUNDS` above stays a constant pinned to the frozen oracle
+ * (ADR-044) and is not built from this: it is the roster scope's box today,
+ * and moving it is slice R1's job, gated on a chooser existing to make the
+ * wider box usable (`docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`). This
+ * function is what that chooser (S2) will call once it has narrowed the
+ * published areas down to the ones a reader's state, region, subregion or
+ * single-area choice actually means.
+ *
+ * An area with no box (`DrainageArea.box`, absent when `reference.json`
+ * published nothing usable for it -- see `parseDrainageUnits`) is skipped
+ * rather than failing the whole union: a reader who chose a state with
+ * thirteen areas and one broken box still gets a view built from the other
+ * twelve, not no view at all. `null` comes back only when *none* of the
+ * areas offered a box, which is the caller's signal to fall back to
+ * `MAP_BOUNDS` rather than opening on nothing.
+ */
+export function unionOfAreaBoxes(
+  areas: readonly DrainageArea[]
+): DrainageAreaBox | null {
+  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+  let found = false;
+  for (const area of areas) {
+    const box = area.box;
+    if (!box) continue;
+    const [[boxWest, boxSouth], [boxEast, boxNorth]] = box;
+    west = Math.min(west, boxWest);
+    south = Math.min(south, boxSouth);
+    east = Math.max(east, boxEast);
+    north = Math.max(north, boxNorth);
+    found = true;
+  }
+  return found ? [[west, south], [east, north]] : null;
 }
 
 /**

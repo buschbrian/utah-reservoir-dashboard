@@ -63,15 +63,69 @@ export type UtahBoundary = Ring[][];
  * -- the guarantee ADR-018 was written for, kept without shipping a megabyte
  * to keep it.
  */
+/**
+ * A drainage area's published box: west, south, east and north corners as
+ * one pair of coordinates each, in the shape `src/viz/extent.ts` already
+ * writes `HUC6_BOUNDS` and `MAP_BOUNDS` in.
+ *
+ * The wire format is the flat four-number `bbox` GeoJSON already uses for
+ * this; this is that array reshaped once, on the way in, so every caller
+ * downstream works with corners rather than remembering which index is
+ * which.
+ */
+export type DrainageAreaBox = readonly [readonly [number, number], readonly [number, number]];
+
+/**
+ * One drainage area in the published scope: which it is, what it is
+ * called, and roughly where it sits. No geometry.
+ *
+ * The outlines come from the hosted Watershed Boundary Dataset now, quantized
+ * to the view (`arcgis/watershed-layers.ts`), so what this file carries is
+ * the roster rather than the shapes. The codes are read out of the same
+ * committed GeoJSON the pipeline assigns reservoirs with, which is what keeps
+ * a drawn outline from disagreeing with the area a reservoir was assigned to
+ * -- the guarantee ADR-018 was written for, kept without shipping a megabyte
+ * to keep it.
+ *
+ * `box` is optional rather than required for the same reason `name` falls
+ * back to the code instead of failing the whole area: an area with a name
+ * and no usable box is still an area worth drawing and worth listing, just
+ * not one a chooser can open a map on by itself (`src/viz/extent.ts`).
+ */
 export interface DrainageArea {
   huc6: string;
   name: string;
   /** State codes as the national boundary dataset publishes them. */
   states: string;
+  /** West, south, east, north -- present when the export published a usable
+   * one for this area. */
+  box?: DrainageAreaBox;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Reshapes a published `[west, south, east, north]` array into the corner
+ * pair this codebase already writes boxes in, or returns `null` for
+ * anything that is not a usable box.
+ *
+ * Checked rather than trusted, the same way every other field arriving from
+ * `reference.json` is: four finite numbers, west no greater than east and
+ * south no greater than north. A box failing that last check is not a
+ * smaller area, it is a sign the four numbers do not describe a box at all
+ * -- worth dropping rather than handing a caller an inverted extent that
+ * silently contains everywhere except the area it names.
+ */
+function toBox(value: unknown): DrainageAreaBox | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  const [west, south, east, north] = value as unknown[];
+  if (typeof west !== "number" || typeof south !== "number"
+    || typeof east !== "number" || typeof north !== "number") return null;
+  if (![west, south, east, north].every(Number.isFinite)) return null;
+  if (west > east || south > north) return null;
+  return [[west, south], [east, north]];
 }
 
 function toRing(value: unknown): Ring | null {
@@ -240,11 +294,20 @@ export function parseDrainageUnits(value: unknown, level: number): DrainageArea[
     if (!isObject(entry)) continue;
     const code = entry[field];
     if (typeof code !== "string") continue;
-    areas.push({
+    const area: DrainageArea = {
       huc6: code,
       name: typeof entry.name === "string" && entry.name !== "" ? entry.name : code,
       states: typeof entry.states === "string" ? entry.states : ""
-    });
+    };
+    /* A missing or malformed box costs this area its box, and nothing else
+     * -- `toBox` returns `null` rather than throwing, and `box` stays
+     * `undefined` rather than being set to a value nothing downstream can
+     * trust. The area itself, and its 74 siblings, are unaffected either
+     * way: only a chooser that wants to open a map on this one area loses
+     * anything (`src/viz/extent.ts`). */
+    const box = toBox(entry.bbox);
+    if (box) area.box = box;
+    areas.push(area);
   }
   return areas;
 }

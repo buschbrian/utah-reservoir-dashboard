@@ -23,11 +23,17 @@ const read = (file: string): Promise<string> => readFile(resolve(root, file), "u
  * outlines to the hosted layer and ADR-048 stopped publishing them.
  *
  * `west-huc6.geojson` is the drawn scope's and the largest of them at 3.7 MB
- * (ADR-063); `huc6.geojson` is the roster scope's; `us-land.geojson` is the
- * mask the drought engine reads offline. Each would be 2 copies in every
- * deploy for nobody (ADR-048, ADR-049, ADR-059). */
+ * (ADR-063); `huc6.geojson` is the roster scope's; `west-huc2.geojson` is the
+ * region scope's, registered in S1
+ * (OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) so `reference.json` can publish
+ * the five region names -- its own polygons are exactly as unwanted in a
+ * deploy as the other two, since the region roster it feeds
+ * `build_watershed_sections` carries codes, names and boxes, never rings;
+ * `us-land.geojson` is the mask the drought engine reads offline. Each would
+ * be 2 copies in every deploy for nobody (ADR-048, ADR-049, ADR-059). */
 const COMMITTED_BUT_UNPUBLISHED = [
-  "huc6.geojson", "data/watersheds/west-huc6.geojson", "data/us-land.geojson"
+  "huc6.geojson", "data/watersheds/west-huc6.geojson",
+  "data/watersheds/west-huc2.geojson", "data/us-land.geojson"
 ];
 
 const RUNTIME_DATA = [

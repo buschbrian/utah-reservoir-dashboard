@@ -120,6 +120,49 @@ describe("the drainage-area roster", () => {
       .toEqual([]);
   });
 
+  /* S1 (OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) added a box per area. A
+   * reader who chose a state or a region loses nothing if one of its areas'
+   * boxes came back broken -- the area is still worth drawing and worth
+   * listing -- so the failure has to stop at that one area's `box` field and
+   * not spread to the area itself, the way a malformed whole entry already
+   * costs only that entry (`keeps the readable areas when one entry is
+   * malformed`, above). */
+  it("reads an area with no box as an area with no box, not a dropped area", () => {
+    const parsed = parseDrainageUnits([{ huc6: "160203", name: "No box" }], 6);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe("No box");
+    expect(parsed[0]?.box).toBeUndefined();
+  });
+
+  it.each([
+    ["not an array", { west: -112 }],
+    ["the wrong length", [-112, 40, -111]],
+    ["a non-numeric edge", [-112, 40, -111, "north"]],
+    ["a non-finite edge", [-112, 40, -111, Number.NaN]],
+    ["west east of east", [-111, 40, -112, 41]],
+    ["south north of north", [-112, 41, -111, 40]]
+  ])("drops a malformed box (%s) but keeps the area", (_label, bbox) => {
+    const parsed = parseDrainageUnits([{ huc6: "160203", name: "Bad box", bbox }], 6);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe("Bad box");
+    expect(parsed[0]?.box).toBeUndefined();
+  });
+
+  it("reshapes a valid published box into corner pairs", () => {
+    const parsed = parseDrainageUnits(
+      [{ huc6: "160203", name: "Bear River", bbox: [-112.5, 41.0, -111.5, 42.0] }], 6);
+    expect(parsed[0]?.box).toEqual([[-112.5, 41.0], [-111.5, 42.0]]);
+  });
+
+  it("keeps the one good box when its neighbour's is malformed", () => {
+    const parsed = parseDrainageUnits([
+      { huc6: "160203", name: "Good", bbox: [-112, 40, -111, 41] },
+      { huc6: "160204", name: "Bad", bbox: [1, 2] }
+    ], 6);
+    expect(parsed[0]?.box).toEqual([[-112, 40], [-111, 41]]);
+    expect(parsed[1]?.box).toBeUndefined();
+  });
+
   /* Every figure on this site -- storage banked in an area, drought coverage,
    * snow percent of normal -- exists at both offered levels (ADR-064), and at
    * no other. A scope drawn at a size no figure describes would put shapes on

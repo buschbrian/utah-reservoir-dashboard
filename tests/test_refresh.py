@@ -572,10 +572,18 @@ def test_the_export_publishes_the_committed_roster_unchanged():
         (root / "utah-boundary.geojson").read_text())
 
     def roster(path):
+        # Reuses `huc.units_from_collection` and `huc.outer_bbox` rather than
+        # reimplementing the bounds arithmetic here: this test is checking
+        # that the export repackages the committed file, not re-deriving a
+        # second answer for what a unit's box is and hoping it agrees.
+        boundaries = json.loads((root / path).read_text())
+        exact_bounds = {unit["huc6"]: unit["bounds"]
+                        for unit in huc.units_from_collection(boundaries)}
         return [{"huc6": feature["properties"]["huc6"],
                  "name": feature["properties"].get("name", ""),
-                 "states": feature["properties"].get("states", "")}
-                for feature in json.loads((root / path).read_text())["features"]]
+                 "states": feature["properties"].get("states", ""),
+                 "bbox": huc.outer_bbox(exact_bounds[feature["properties"]["huc6"]])}
+                for feature in boundaries["features"]]
 
     scopes = geography["watersheds"]["scopes"]
     assert scopes["utah-connected"]["units"] == roster("huc6.geojson")
@@ -614,9 +622,16 @@ def test_the_export_carries_no_polygons_but_the_state_outline():
     for name, scope in sections["geography"]["watersheds"]["scopes"].items():
         assert "boundaries" not in scope, f"{name} is publishing polygons again"
         # The code arrives under the attribute the level names, so a HUC-4
-        # scope publishes `huc4` (ADR-050). Nothing else may join it.
+        # scope publishes `huc4` (ADR-050). `bbox` joined the roster in S1
+        # (OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) -- four numbers, not a
+        # ring, and the length check below is what keeps it that way: a
+        # `bbox` that quietly grew into a polygon would restore the whole
+        # cost this test exists to keep out, under a name that reads as safe.
         field = f"huc{scope['level']}"
-        assert all(set(unit) == {field, "name", "states"} for unit in scope["units"])
+        assert all(set(unit) == {field, "name", "states", "bbox"} for unit in scope["units"])
+        assert all(len(unit["bbox"]) == 4
+                   and all(isinstance(value, float) for value in unit["bbox"])
+                   for unit in scope["units"])
 
     assert len(render(sections).encode("utf-8")) < 120_000
 
