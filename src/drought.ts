@@ -67,6 +67,7 @@ import { renderDroughtGap } from "./viz/drought-gap";
 import { renderDroughtSeverity } from "./viz/drought-severity";
 import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
+import { RESERVOIR_REFERENCE_LAYER_ID } from "./ui/layers";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { extentFromBox } from "./viz/extent";
@@ -795,6 +796,41 @@ function renderDrought(
         mapHost.append(mapStatusNote(
           "The preferred map background was unavailable. An alternate is shown."));
       }
+      /* The reservoir points are placed and hidden (see `drought-map.ts`).
+       * This is the reader's way to ask for them: the whole roster of labelled
+       * points over five broad classes is more ink than this map's one
+       * question asks for, and about three times more of it than when that
+       * balance was last judged -- but the join is still what the page is
+       * built around, so it is one click away rather than gone.
+       *
+       * Not a parameter and not stored. It changes what is drawn over the
+       * subject, not which subject is drawn, so it is not a scope and does
+       * not belong in a shared link beside `?state=` and `?area=`. */
+      const reservoirLayer = mapElement.map?.findLayerById(
+        RESERVOIR_REFERENCE_LAYER_ID);
+      /* A native checkbox, like the native selects it sits beside in this
+       * bar. A Calcite switch was tried first and axe-core refused it: the
+       * component's real control lives in a shadow root, so neither a
+       * wrapping `<label>` nor the component's own `label` attribute gave it
+       * an accessible name. The bar is already native, so this is the
+       * consistent answer as well as the working one. */
+      const reservoirToggle = document.createElement("label");
+      reservoirToggle.className = "filterbar-toggle";
+      const reservoirSwitch = document.createElement("input");
+      reservoirSwitch.type = "checkbox";
+      reservoirSwitch.id = "drought-show-reservoirs";
+      reservoirSwitch.checked = false;
+      reservoirSwitch.addEventListener("change", () => {
+        const shown = reservoirSwitch.checked;
+        if (reservoirLayer) reservoirLayer.visible = shown;
+        window.__droughtReady = {
+          ...(window.__droughtReady ?? {}), mapReservoirsShown: shown
+        } as NonNullable<typeof window.__droughtReady>;
+      });
+      reservoirToggle.htmlFor = reservoirSwitch.id;
+      reservoirToggle.append("Show reservoirs", reservoirSwitch);
+      content.querySelector(".filterbar-controls")?.append(reservoirToggle);
+
       window.__droughtReady = {
         ...(window.__droughtReady ?? {}),
         mapClassesDrawn: mapStatus.classesDrawn,
@@ -803,6 +839,7 @@ function renderDrought(
         mapAreaLabelsDeconflicted: mapStatus.areaLabelsDeconflicted,
         mapReservoirs: mapStatus.reservoirs,
         mapReservoirLabels: mapStatus.reservoirLabels,
+        mapReservoirsShown: mapStatus.reservoirsShown,
         mapStateBoundaries: mapStatus.stateBoundaries,
         mapCountyBoundaries: mapStatus.countyBoundaries,
         mapBasemap: mapStatus.basemap,
