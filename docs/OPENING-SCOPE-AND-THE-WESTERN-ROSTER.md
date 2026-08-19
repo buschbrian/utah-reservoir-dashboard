@@ -73,7 +73,11 @@ the only thing that makes it usable.
 | projected published roster | **~193** |
 
 Findings 1 and 2 of the admission review are built (ADR-065; the dedupe against
-the reviewed dam point). Finding 3 — the roster keyed by station rather than by
+the reviewed dam point). Finding 2 was built and then stopped working: the
+lookup went on reading a name after the roster was rekeyed by station, so all
+thirty reviewed dam points missed and the dedupe was silently dead from
+`5bc9b4f` until `d564015`. The measurement below found it by offering Lake
+Mead as a candidate for a roster that already publishes it. Finding 3 — the roster keyed by station rather than by
 name — is built as well (ADR-066, `5bc9b4f`): `RESERVOIRS`,
 `connected_reservoirs.json`, `capacities.json`, `counties.json` and
 `normals.json` are all keyed by the provider's identity now, and
@@ -420,3 +424,29 @@ What it may not do is publish before the storage map has somewhere to open.
    is most of R1's real cost.
 4. **Does `BASE_AWDB_RESERVOIRS` stay in Python once the reviewed file holds
    ~150 stations?** Two rosters in two formats was fine at 25 against 15.
+   Measured since: its 25 entries carry none of the dam evidence the reviewed
+   schema requires, so moving it means re-running the match against those 25
+   dams rather than reformatting a literal. Worth doing, and not worth
+   blocking the admission on.
+
+5. **What does a reservoir held above its conservation pool read as?**
+   Answered in part on 2026-08-19: not yet, and keep measuring. Five Pacific
+   Northwest flood-control dams in the candidate pool operate routinely at
+   1.31 to 2.89 times the denominator their capacity is taken from, so
+   percent-full reads above 100 on an ordinary day and `ReservoirViz.CLASSES`
+   has no class above full. None of the 69 published today exercises this,
+   which is why the colour table has never had to answer it. The decision is
+   deferred rather than taken, because R1's publishing half is gated on the
+   chooser regardless and a class added to that table touches every renderer,
+   legend, chart and filter generated from it, plus the frozen oracle's
+   parity test. It needs an ADR when the roster work starts, and refusing the
+   five is a real option that costs the Pacific Northwest five of the very few
+   reservoirs it would have.
+
+6. **Does ADR-065's ceiling survive one bad figure in the source record?**
+   The rule takes the largest of three inventory figures as the ceiling, so a
+   data-entry error widens the ceiling rather than tightening it. Lemon
+   Reservoir, Colorado publishes a maximum of 487,660 acre-feet against a
+   normal of 40,146 for a reservoir that holds about forty thousand. It
+   changed no outcome here. It is the failure mode the rule is exposed to and
+   the review found it on the first pool the rule was applied to at scale.
