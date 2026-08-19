@@ -19,6 +19,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+import huc
+
 ROOT = Path(__file__).resolve().parent
 INVENTORY_PATH = ROOT / "snow_sites.json"
 OUTPUT_PATH = ROOT / "snowpack.json"
@@ -292,6 +294,12 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         # stale, the other is a station that is not in the file.
         "missing_site_count": len(missing_sites),
         "rollups": rollups,
+        # The coarser grouping, for a reader who asks for subregions rather
+        # than basins (ADR-064). Names only: the codes are the first four
+        # digits of a code every site and rollup already carries, because
+        # hydrologic codes are fixed-width. Derived from the sites in this
+        # payload, so it can never name an area the payload does not cover.
+        "subregions": huc.subregion_roster(site["huc6"] for site in normalized),
         "sites": compact_sites,
     }
 

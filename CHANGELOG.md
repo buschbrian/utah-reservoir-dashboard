@@ -17,6 +17,15 @@ and is not listed here.
   tracing a full level and reviewing it, and that work is separate from
   drawing the ground (ADR-063).
 
+- **Choose how finely the ground is divided.** Every map now offers two area
+  sizes: 75 basins, which is what a map opens with, or 44 subregions. Each
+  subregion holds whole basins, so the choice splits nothing, and every figure
+  is measured again at the size chosen rather than averaged up from the
+  smaller one -- the drought shares are computed over the larger areas, the
+  reservoir totals are added over them, and the snow figures are the mean over
+  the same sites grouped differently (ADR-064). The choice travels in the
+  address, so a link carries it.
+
 - **Drought is measured over larger areas too.** The same weekly measurement
   is now published over the 44 subregions of the west as well as its 75
   basins, so the site can offer a reader the choice of how finely the ground

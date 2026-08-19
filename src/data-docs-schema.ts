@@ -194,6 +194,10 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
     f("normal_period", "object", "Standard climate comparison period."),
     f("units", "text", "Storage unit used by each site series."),
     f("site_series_fields", "array", "Meaning and order of values in each compact site-series row."),
+    f("subregions", "array",
+      "Names of the larger drainage areas the sites fall in, for a reader " +
+      "who asks for that grouping. Codes are the first four digits of each " +
+      "site's own drainage-area code."),
     f("series_dates", "array", "The water-year calendar the sites index into, ascending, written once."),
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),
@@ -371,6 +375,8 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
   { id: "reference-watersheds", title: "Drainage-area scopes", path: "geography.watersheds", fields: [
     f("default_scope", "identifier", "Scope the maps draw."),
     f("roster_scope", "identifier", "Scope the reservoir roster covers."),
+    f("drawn_scopes", "object",
+      "Scope drawn at each area size a reader may choose, keyed by the length of its codes."),
     f("scopes", "object", "Named scope entries.")
   ]},
   { id: "reference-scope", title: "Named scope", path: "geography.watersheds.scopes.<scope>", fields: [

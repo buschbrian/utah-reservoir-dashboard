@@ -6,6 +6,13 @@
  * Every field reports one fact, and fields are added, never removed. */
 interface DashboardReady {
   engine: string;
+  /** How finely the ground is divided, as the reader chose it (ADR-064).
+   * `drainageLevel` is the same number by a different route -- what the map
+   * drew -- and stays its own field. */
+  level?: number;
+  /** How many levels the reference export offers. One means the control is
+   * absent because there is nothing to choose. */
+  levelsOffered?: number;
   /** Reservoirs in the connected scope, as the data provided them. */
   reservoirs: number;
   /** Reservoirs the map actually drew. */
@@ -110,6 +117,10 @@ interface Window {
    * draws none of it. `area` is the drainage-area narrowing, or null for the
    * whole region. */
   __snowReady?: {
+    /** How finely the ground is divided on this page (ADR-064). */
+    level?: number;
+    /** How many levels the reference export offers. */
+    levelsOffered?: number;
     sites: number;
     late: number;
     basins: number;
@@ -149,6 +160,12 @@ interface Window {
   __droughtReady?: {
     units: number;
     rows: number;
+    /** How finely the ground is divided on this page: the digit count of the
+     * codes every figure here is keyed at (ADR-064). */
+    level?: number;
+    /** How many levels the reference export offers. One means the control is
+     * absent because there is nothing to choose. */
+    levelsOffered?: number;
     worstClass: string | null;
     mapDate: string;
     daysOld: number;

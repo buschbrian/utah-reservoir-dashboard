@@ -21,7 +21,7 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadReferenceBoundaries } from "./arcgis/reference-layers";
 
-import { loadDrainageScope } from "./data/boundaries";
+import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadReservoirs } from "./data/load";
 import { loadUsdmPolygons } from "./data/usdm-load";
@@ -48,6 +48,8 @@ import {
   writeDroughtUrl,
   type DroughtUrlState
 } from "./state/drought-url";
+import { levelFromSearch, writeLevel } from "./state/level";
+import { createLevelControl } from "./ui/level-control";
 import { renderDroughtScatter } from "./viz/drought-scatter";
 import { renderDroughtGap } from "./viz/drought-gap";
 import { renderDroughtSeverity } from "./viz/drought-severity";
@@ -414,6 +416,7 @@ function renderDrought(
       severityAreas,
       units: payload.unit_count,
       rows: ordered.length,
+      level,
       worstClass: worst ? worst.code : null,
       mapDate: payload.map_date,
       daysOld: age,
@@ -432,6 +435,34 @@ function renderDrought(
     writeDroughtUrl(state);
     draw();
   }
+
+  /* The level control arrives with the reference export rather than with the
+   * page, because which levels are on offer is the export's answer to give
+   * (ADR-064) and it is the same request the map below already makes. A
+   * reader who never waits for it sees the page they asked for. */
+  void loadOfferedLevels().then((offered) => {
+    const control = createLevelControl(offered, level, (chosen) => {
+      /* A full navigation rather than a re-render: the level changes which
+       * file this page fetches and every figure computed from it, so the
+       * honest implementation is the one a shared link already takes. Replace
+       * rather than push, like every other control here -- the back button
+       * leaves the site rather than unwinding filter changes one at a time. */
+      const params = new URLSearchParams(window.location.search);
+      writeLevel(params, chosen);
+      const query = params.toString();
+      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+      /* Large, because the native selects it sits beside are a third taller
+       * than a Calcite control at the default scale. */
+    }, { scale: "l" });
+    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    window.__droughtReady = {
+      ...(window.__droughtReady ?? {}), levelsOffered: offered.length || 1
+    } as NonNullable<typeof window.__droughtReady>;
+  }).catch((error: unknown) => {
+    /* No control rather than a broken one. The page is drawn at the level it
+     * was asked for either way. */
+    console.warn("The area-size control could not be built:", error);
+  });
 
   worseSelect?.addEventListener("change", () => {
     update({ worse: worseSelect.value === "" ? null : worseSelect.value });
@@ -473,7 +504,7 @@ function renderDrought(
        * throwing, so a slow or missing state layer costs outlines and never
        * the map. */
       const [scope, usdm, boundaries] = await Promise.all(
-        [loadDrainageScope(), loadUsdmPolygons(), loadReferenceBoundaries()]);
+        [loadDrainageScope(level), loadUsdmPolygons(), loadReferenceBoundaries()]);
       if (scope.areas.length === 0) throw new Error("no drainage boundaries");
       if (usdm.mapDate !== payload.map_date) {
         /* Two committed files describing two different weeks is a pipeline
@@ -520,8 +551,10 @@ function renderDrought(
   })();
 }
 
+const level = levelFromSearch(window.location.search);
+
 try {
-  const drought = await loadDroughtCoverage();
+  const drought = await loadDroughtCoverage(level);
   /* Storage is context, not the subject: if the reservoir payload cannot be
    * read the drought figures still render, each row saying the storage
    * comparison is missing rather than the page failing whole. */
@@ -529,7 +562,7 @@ try {
   let reservoirs: readonly Reservoir[] = [];
   try {
     reservoirs = (await loadReservoirs()).reservoirs;
-    storage = storageByArea(reservoirs);
+    storage = storageByArea(reservoirs, level);
   } catch (error) {
     console.warn("Reservoir storage could not be joined to the drought view:", error);
   }

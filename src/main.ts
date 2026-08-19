@@ -2,7 +2,7 @@ import "@esri/calcite-components/main.css";
 import { setAssetPath as setCalciteAssetPath } from "@esri/calcite-components";
 
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
-import { loadDrainageScope, loadUtahBoundary } from "./data/boundaries";
+import { loadDrainageScope, loadOfferedLevels, loadUtahBoundary } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { downloadCsv } from "./data/download";
 import {
@@ -46,7 +46,9 @@ import {
   connectSelectionToUrl, stateFromSearch, writeUrlState, type DashboardUrlState
 } from "./state/url";
 import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/baseline";
+import { levelFromSearch, writeLevel } from "./state/level";
 import { supportsDashboard } from "./state/shell";
+import { createLevelControl } from "./ui/level-control";
 import { renderLegend } from "./ui/legend";
 import { loadMap, type MapController } from "./ui/map";
 import {
@@ -199,10 +201,38 @@ function updateSummary(): void {
  * malformed file leaves the reservoirs exactly where they are. */
 async function loadContext(map: MapController): Promise<void> {
   try {
-    map.drawDrainageAreas(await loadDrainageScope());
+    map.drawDrainageAreas(await loadDrainageScope(level));
   } catch (error) {
     console.warn("Drainage-area boundaries are unavailable:", error);
   }
+}
+
+/**
+ * The control that picks how finely the ground is divided, built from what
+ * the reference export offers (ADR-064).
+ *
+ * Appended after the panel exists rather than written into the template: the
+ * levels are the export's answer to give, and a control listing one this site
+ * has stopped publishing a roster for would empty the map.
+ */
+async function wireLevelControl(): Promise<number> {
+  const offered = await loadOfferedLevels();
+  for (const host of document.querySelectorAll<HTMLElement>(".filters")) {
+    const control = createLevelControl(offered, level, (chosen) => {
+      /* A full navigation rather than a re-render: the level changes which
+       * areas the map draws and how every area figure is grouped, and it is
+       * the path a shared link already takes. Replaced, not pushed, like
+       * every other control on this page. */
+      const params = new URLSearchParams(window.location.search);
+      writeLevel(params, chosen);
+      const query = params.toString();
+      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+    });
+    /* Above the reservoir list, like every other control: the list scrolls
+     * inside its own box and anything after it is behind a nested scroller. */
+    if (control) host.append(control.element);
+  }
+  return offered.length || 1;
 }
 
 /**
@@ -212,6 +242,10 @@ async function loadContext(map: MapController): Promise<void> {
  * `FilterState`: the panel's sentence, the dimmed rows and the greyed
  * circles are three renderings of one answer, not three answers.
  */
+/** How finely the ground is divided on this page, from the address bar
+ * (ADR-064). Read once: changing it is a navigation. */
+const level = levelFromSearch(window.location.search);
+
 let filterState: FilterState = ALL_RESERVOIRS;
 let applyFilter: () => void = () => undefined;
 
@@ -741,6 +775,7 @@ if (!supportsDashboard(browserCapabilities())) {
   wireBaseline();
   applyBaseline();
   await loadContext(map);
+  const levelsOffered = await wireLevelControl();
 
   /* One fact per field, and fields are only ever added (never removed or
    * re-pointed at an expression another field already reads): two fields
@@ -767,6 +802,11 @@ if (!supportsDashboard(browserCapabilities())) {
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,
     drainageLabelsDeconflicted: map.status.drainageLabelsDeconflicted,
     drainageLevel: map.status.drainageLevel,
+    /* What the reader chose, and how many choices there were. Two facts, two
+     * fields -- `drainageLevel` is what the map drew, which is the same
+     * number by a different route and stays its own field (ADR-064). */
+    level,
+    levelsOffered,
     /* The chosen area, which is not `drainageAreas` -- that one counts the
      * boundaries the map drew. One fact per field. */
     areaFilter: filterStatus.drainageArea,

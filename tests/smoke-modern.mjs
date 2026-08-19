@@ -2779,6 +2779,140 @@ for (const failure of [
   await context.close();
 }
 
+/*
+ * The second area size, on all three maps.
+ *
+ * The control changes what every figure on a page counts, so the check is
+ * that each surface really is drawn over the coarser areas -- not that a
+ * select exists. Every expected number is derived from the committed payloads
+ * the way the client derives it: codes are fixed-width and nest, so a
+ * subregion is the first four digits of a basin code (ADR-064), and the
+ * morning refresh cannot turn this red on its own.
+ */
+{
+  const coarse = JSON.parse(
+    await readFile(path.join(REPO_ROOT, "data/drought/usdm-huc4.json"), "utf8"));
+  const snowPayload = JSON.parse(
+    await readFile(path.join(REPO_ROOT, "snowpack.json"), "utf8"));
+  const coarseScope = referenceWatersheds.scopes[referenceWatersheds.drawn_scopes["4"]];
+  const expectedCoarseAreas = JSON.parse(
+    await readFile(path.join(REPO_ROOT, coarseScope.source_file), "utf8")).features.length;
+  const coarseSnowBasins = new Set(
+    snowPayload.sites.map((site) => site.huc6.slice(0, 4))).size;
+  const coarseDroughtAreas = new Set(coarse.units.map((unit) => unit.huc4));
+  const coarseStorageJoined = new Set(payload.reservoirs
+    .map((reservoir) => reservoir.huc6?.slice(0, 4))
+    .filter((code) => typeof code === "string" && coarseDroughtAreas.has(code))).size;
+
+  const context = await browser.newContext({ viewport: VIEWPORTS[0] });
+  const tab = await context.newPage();
+  const errors = [];
+  tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+  tab.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+  });
+
+  const cases = [
+    {
+      label: "Storage map at subregions",
+      url: `${URL}?level=4`,
+      signal: "__dashboardReady",
+      /* The storage map publishes its readiness once, with the map already
+       * drawn, so the signal appearing is enough here. */
+      drawn: "drainageAreas",
+      check: (ready) => {
+        check(ready.level === 4,
+          `the storage map reports level ${ready.level}, expected 4`);
+        check(ready.drainageAreas === expectedCoarseAreas,
+          `the storage map drew ${ready.drainageAreas} areas, expected ${expectedCoarseAreas}`);
+        check(ready.drainageLevel === 4,
+          `the storage map drew level ${ready.drainageLevel}, expected 4`);
+        check(ready.reservoirs === expectedReservoirs,
+          `the storage map lost reservoirs at the coarser level: ${ready.reservoirs}`);
+      }
+    },
+    {
+      label: "Snowpack at subregions",
+      url: `${URL}snow.html?level=4`,
+      signal: "__snowReady",
+      /* The map starts after the figures are on screen by design, so its own
+       * fields arrive on a later publish than the page's. */
+      drawn: "mapBasins",
+      check: (ready) => {
+        check(ready.level === 4,
+          `the snow page reports level ${ready.level}, expected 4`);
+        check(ready.basins === coarseSnowBasins,
+          `the snow page grouped ${ready.basins} areas, expected ${coarseSnowBasins}`);
+        check(ready.mapBasins === coarseSnowBasins,
+          `the snow map drew ${ready.mapBasins} areas, expected ${coarseSnowBasins}`);
+        check(ready.sites === snowPayload.site_count,
+          `the snow page lost sites at the coarser level: ${ready.sites}`);
+      }
+    },
+    {
+      label: "Drought at subregions",
+      url: `${URL}drought.html?level=4`,
+      signal: "__droughtReady",
+      drawn: "mapOutlines",
+      check: (ready) => {
+        check(ready.level === 4,
+          `the drought page reports level ${ready.level}, expected 4`);
+        check(ready.units === coarse.unit_count && ready.rows === coarse.unit_count,
+          `the drought page read ${ready.units} areas, expected ${coarse.unit_count}`);
+        check(ready.storageJoined === coarseStorageJoined,
+          `storage joined ${ready.storageJoined} subregions, expected ${coarseStorageJoined}`);
+        check(ready.mapOutlines === coarse.unit_count,
+          `the drought map drew ${ready.mapOutlines} outlines, expected ${coarse.unit_count}`);
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    console.log(`
+=== ${scenario.label}`);
+    await tab.goto(scenario.url, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(
+      (key) => window[key] !== undefined, scenario.signal, { timeout: 90000 });
+    /* Two later publishes to wait for, both of which arrive after the figures
+     * are on screen by design: the control, which needs the reference export,
+     * and the map's own count of what it drew. */
+    await tab.waitForFunction(
+      ([key, field]) => window[key]?.levelsOffered !== undefined
+        && window[key]?.[field] !== undefined,
+      [scenario.signal, scenario.drawn], { timeout: 90000 });
+    const state = await tab.evaluate((key) => ({
+      ready: window[key],
+      control: document.querySelectorAll(".level-control calcite-select").length,
+      chosen: document.querySelector(".level-control calcite-select")?.value ?? null,
+      viewport: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth
+    }), scenario.signal);
+    console.log("  ready:", JSON.stringify({
+      level: state.ready?.level, levelsOffered: state.ready?.levelsOffered,
+      control: state.control, chosen: state.chosen
+    }));
+    scenario.check(state.ready ?? {});
+    check(state.ready?.levelsOffered === 2,
+      `${scenario.label}: reported ${state.ready?.levelsOffered} area sizes on offer`);
+    check(state.control >= 1,
+      `${scenario.label}: no area-size control was built`);
+    check(state.chosen === "4",
+      `${scenario.label}: the control shows ${state.chosen}, not the level in the address`);
+    check(state.scroll <= state.viewport + 1,
+      `${scenario.label}: the page scrolls sideways at the coarser level`);
+  }
+
+  /* The default is the absence of the parameter, so a page with no `?level=`
+   * must be the basins page it always was. */
+  await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 90000 });
+  const fallback = await tab.evaluate(() => window.__dashboardReady?.level);
+  check(fallback === 6, `the storage map opens at level ${fallback}, expected 6`);
+
+  for (const message of errors) failures.push(`Area size: ${message}`);
+  await context.close();
+}
+
 await browser.close();
 server.close();
 

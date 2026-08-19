@@ -94,16 +94,22 @@ export interface StorageContext {
  * counted -- this is context for land conditions, not the map's scoped
  * headline, so nothing is excluded. */
 export function storageByArea(
-  reservoirs: readonly StorageSource[]
+  reservoirs: readonly StorageSource[], level = 6
 ): Map<string, StorageContext> {
   const groups = new Map<string, { storage: number; capacity: number; count: number }>();
   for (const reservoir of reservoirs) {
     if (!reservoir.huc6) continue;
-    const group = groups.get(reservoir.huc6) ?? { storage: 0, capacity: 0, count: 0 };
+    /* Regrouping by a shorter code is exact rather than approximate:
+     * hydrologic codes are fixed-width and nest by construction, so a basin's
+     * first four digits *are* its subregion and every reservoir lands in
+     * exactly one of them at either level (ADR-064). It is a sum of
+     * acre-feet in both cases, not an average of percentages. */
+    const key = reservoir.huc6.slice(0, level);
+    const group = groups.get(key) ?? { storage: 0, capacity: 0, count: 0 };
     group.storage += reservoir.current_storage_af;
     group.capacity += reservoir.capacity_af ?? reservoir.record_max_af;
     group.count += 1;
-    groups.set(reservoir.huc6, group);
+    groups.set(key, group);
   }
   const contexts = new Map<string, StorageContext>();
   for (const [huc6, group] of groups) {

@@ -13,9 +13,9 @@ Two rules before any figure below is read:
 
 | file | raw | gzip |
 |---|---:|---:|
-| `snowpack.json` | 1,170 KB | **98.6 KB** |
+| `snowpack.json` | 1,170 KB | **98.8 KB** |
 | `reservoirs.json` | 360 KB | 43.1 KB |
-| `reference.json` | 27 KB | 6.7 KB |
+| `reference.json` | 30 KB | 7.2 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
 
@@ -29,8 +29,9 @@ scoping projected 4.8 KB for the coverage file and it came in at 2.9.
 `reservoirs.json` did not move: the roster is still 69 reservoirs in 14 of the
 75 areas, and the drainage codes it carries were already six digits.
 
-Offering a second level (ADR-064) added the 44-subregion coverage file and the
-HUC-4 roster: 2.0 KB and 0.9 KB gzipped, and nothing else. That is the whole
+Offering a second level (ADR-064) added the 44-subregion coverage file, the
+HUC-4 roster and eleven subregion names in the snow payload: 2.0 KB, 0.9 KB
+and 0.1 KB gzipped, and nothing else. That is the whole
 cost in this project's own files, and it is the measurement the scoping made
 before any of it was built -- the station payloads describe the same ground
 whatever size the areas they group into are, so `snowpack.json` and

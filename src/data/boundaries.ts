@@ -140,6 +140,9 @@ export const REFERENCE_SCHEMA_VERSION = 2;
 export interface ReferenceGeography {
   /** The state outline, in the collection shape `parseUtahBoundary` reads. */
   state: unknown;
+  /** The levels a reader may choose between, ascending. Empty when the export
+   * offers none, in which case the default scope's level is the only one. */
+  levels: number[];
   /** The published scope's hydrologic level, which decides both the service
    * layer the outlines come from and the attribute each code arrives in.
    * Read from the payload rather than assumed: which geography this site
@@ -160,18 +163,35 @@ export interface ReferenceGeography {
  * from a constant here would be a second place deciding the dashboard's
  * geography, and the two would eventually disagree.
  */
-export function referenceGeography(value: unknown): ReferenceGeography | null {
+export function referenceGeography(
+  value: unknown, wanted?: number
+): ReferenceGeography | null {
   if (!isObject(value) || value.schema_version !== REFERENCE_SCHEMA_VERSION) return null;
   const geography = isObject(value.geography) ? value.geography : null;
   if (!geography) return null;
   const watersheds = isObject(geography.watersheds) ? geography.watersheds : null;
   const scopes = watersheds && isObject(watersheds.scopes) ? watersheds.scopes : null;
-  const published = watersheds?.default_scope;
-  const scope = scopes && typeof published === "string" && isObject(scopes[published])
-    ? scopes[published]
+  /* Which scope is drawn at which level is the export's answer to give
+   * (ADR-064). A client scanning the scopes for one at the right level would
+   * find `utah-connected` or `west-huc6` by dictionary order, which is a
+   * geography chosen by accident. */
+  const offered = isObject(watersheds?.drawn_scopes) ? watersheds.drawn_scopes : {};
+  const levels = Object.entries(offered)
+    .filter(([key, name]) => typeof name === "string" && Number.isInteger(Number(key))
+      && !!scopes && isObject(scopes[name]))
+    .map(([key]) => Number(key))
+    .sort((a, b) => a - b);
+  /* The reader's level when the export offers it, and the default otherwise:
+   * a saved link to a level this site has stopped offering opens the map it
+   * has rather than an empty one. */
+  const name = wanted !== undefined && levels.includes(wanted)
+    ? offered[String(wanted)]
+    : watersheds?.default_scope;
+  const scope = scopes && typeof name === "string" && isObject(scopes[name])
+    ? scopes[name]
     : null;
   const level = scope && typeof scope.level === "number" ? scope.level : 0;
-  return { state: geography.state, drainage: scope ? scope.units : null, level };
+  return { state: geography.state, drainage: scope ? scope.units : null, level, levels };
 }
 
 /* One request, not one per caller. The mask and the outlines are loaded from
@@ -243,25 +263,49 @@ export interface DrainageScope {
 }
 
 /**
- * The level this site's figures are keyed at.
+ * The levels this site's figures exist at.
  *
- * Storage banked in an area, drought coverage, snow percent of normal and
- * every reservoir's own `huc6` are all six-digit facts. Drawing a scope at
- * another size would put shapes on the map that no figure describes, so
- * `loadDrainageScope` says so out loud rather than drawing areas whose
- * hover cards come back empty.
+ * Six is where every figure is keyed and where the maps open. Four is the
+ * other one a reader may choose (ADR-064), and it is on this list because the
+ * figures are *published* there -- drought coverage computed per level,
+ * storage regrouped on a code prefix, snow recomputed from its sites -- and
+ * not because the outlines can be drawn at it.
+ *
+ * That is the whole condition. Drawing a scope at a size no figure describes
+ * puts shapes on the map whose hover cards come back empty, so a level that
+ * is not on this list draws and says so out loud (ADR-050).
  */
-export const JOINABLE_LEVEL = 6;
+export const JOINABLE_LEVELS: readonly number[] = [4, 6];
 
-export async function loadDrainageScope(url = REFERENCE_URL): Promise<DrainageScope> {
-  const geography = referenceGeography(await loadReference(url));
-  const level = geography?.level ?? 0;
-  const areas = parseDrainageUnits(geography?.drainage, level);
-  if (level && level !== JOINABLE_LEVEL) {
+/** Where every map opens, and what a reader who chooses nothing gets. */
+export const DEFAULT_LEVEL = 6;
+
+export async function loadDrainageScope(
+  level?: number, url = REFERENCE_URL
+): Promise<DrainageScope> {
+  const geography = referenceGeography(await loadReference(url), level);
+  const drawn = geography?.level ?? 0;
+  const areas = parseDrainageUnits(geography?.drainage, drawn);
+  if (drawn && !JOINABLE_LEVELS.includes(drawn)) {
     console.warn(
-      `The published scope is at hydrologic level ${level}, and every figure ` +
-      `on this site is keyed at ${JOINABLE_LEVEL}. The areas will draw and ` +
-      "their numbers will not join.");
+      `The published scope is at hydrologic level ${drawn}, and this site's ` +
+      `figures exist at ${JOINABLE_LEVELS.join(" and ")}. The areas will draw ` +
+      "and their numbers will not join.");
   }
-  return { level, areas };
+  return { level: drawn, areas };
+}
+
+/**
+ * The levels the export offers, for a control to be built from.
+ *
+ * Never written down in the client: a level with no roster behind it is a
+ * control that empties the map, and which levels have one is the pipeline's
+ * answer. An export offering none leaves the reader with the default alone,
+ * which is the state this site was in before ADR-064.
+ */
+export async function loadOfferedLevels(url = REFERENCE_URL): Promise<number[]> {
+  const geography = referenceGeography(await loadReference(url));
+  const offered = (geography?.levels ?? []).filter(
+    (level) => JOINABLE_LEVELS.includes(level));
+  return offered.length > 1 ? offered : [];
 }

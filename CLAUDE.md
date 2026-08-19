@@ -114,6 +114,18 @@ changes the level fetches a different file. **The archive is one level**, and
 `merge_history` refuses a payload at another rather than joining two series on
 one set of codes.
 
+**`?level=` is one parameter across all three maps**, like `?area=`, and it
+carries the digit count rather than a word because that is what every payload
+states and `data.html` documents. Absent means basins; a link never carries
+`level=6`. Changing it is a **navigation**, not a re-render: the level changes
+which files a page fetches and every figure computed from them, so the control
+takes the path a shared link already takes -- `location.replace`, never push.
+The control is appended when `reference.json` resolves rather than written into
+a template, because which levels are on offer is the export's answer
+(`drawn_scopes`), and it is built at the Calcite scale of the controls beside
+it -- the filter bars hold native selects a third taller than a default-scale
+Calcite one.
+
 **The maps draw the level the payload declares** (ADR-050). No client file
 names a hydrologic level; it arrives as `DrainageScope { level, areas }` and
 the code is read from the attribute that level names. `JOINABLE_LEVEL` in
