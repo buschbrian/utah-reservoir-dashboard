@@ -102,7 +102,15 @@ export interface DrainageArea {
   box?: DrainageAreaBox;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+/**
+ * Exported so `data/opening-scope.ts` -- which walks this same
+ * `geography.watersheds.scopes` shape to reach the one scope
+ * `referenceGeography` cannot resolve for it (region, deliberately absent
+ * from `drawn_scopes`) -- checks a payload's shape the identical way this
+ * file does, rather than keeping a second, separately-maintained copy of
+ * the same guard that could silently drift from this one.
+ */
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
