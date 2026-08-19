@@ -222,6 +222,48 @@ export function orderUnits(
 }
 
 /* ------------------------------------------------------------------ */
+/* The opening scope: which units a reader's `?state=` and `?area=`     */
+/* selection means (slice S3c, docs/OPENING-SCOPE-AND-THE-WESTERN-      */
+/* ROSTER.md, `src/data/opening-scope.ts`)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The units an opening-scope selection actually means.
+ *
+ * `chosenCodes === null` reads as "no scope resolved" -- either the
+ * reference export could not be read, or a reader chose nothing at all --
+ * and returns every unit rather than guessing: a chooser that failed to
+ * load, or an ordinary scope-free visit, must cost a reader nothing. An
+ * empty set is a real, narrowed-to-nothing answer (a chosen state with no
+ * drainage area on this roster) and stays exactly that empty.
+ *
+ * The caller builds `chosenCodes` at whichever digit width this page is
+ * currently drawing (`?level=`, four or six) -- exact string membership
+ * rather than a prefix relationship, because a caller that already knows
+ * the page's own level owes this function codes at that level, not a
+ * mismatched width for it to reconcile (`src/data/opening-scope.ts`'s
+ * `areaAtLevel` is where that reconciliation belongs, once, rather than
+ * silently inside every membership check here).
+ *
+ * This is the one join every other figure on the drought page is built
+ * from once a reader has chosen a place -- the map, the bars, the table and
+ * every chart narrow from this single call so none of them can describe a
+ * different set of areas than the others. It only chooses which of the
+ * pipeline's own rows exist on the page; every field on a returned unit is
+ * untouched. There is deliberately nothing here that sums or averages a
+ * share across areas -- ADR-046 refuses a state-wide drought share
+ * anywhere on this site, and a selection function has nothing in it that
+ * could quietly become one.
+ */
+export function unitsInOpeningScope(
+  units: readonly DroughtUnit[],
+  chosenCodes: ReadonlySet<string> | null
+): DroughtUnit[] {
+  if (chosenCodes === null) return [...units];
+  return units.filter((unit) => chosenCodes.has(unit.huc6));
+}
+
+/* ------------------------------------------------------------------ */
 /* Land conditions against banked water                                */
 /* ------------------------------------------------------------------ */
 

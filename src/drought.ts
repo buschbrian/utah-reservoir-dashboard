@@ -21,10 +21,21 @@ import "@esri/calcite-components/components/calcite-navigation";
 import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadReferenceBoundaries } from "./arcgis/reference-layers";
 
-import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
+import { loadDrainageScope, loadOfferedLevels, type DrainageScope } from "./data/boundaries";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadReservoirs } from "./data/load";
 import { loadUsdmPolygons } from "./data/usdm-load";
+import {
+  areaAtLevel,
+  loadOpeningRosters,
+  openingSelectionFromSearch,
+  resolveOpeningScope,
+  withinOpeningArea,
+  type OpeningRosters,
+  type OpeningScope,
+  type OpeningSelection
+} from "./data/opening-scope";
+import { areaReachesState, stateName } from "./data/state-vocabulary";
 import {
   areasAtOrWorse,
   coverageSegments,
@@ -38,6 +49,7 @@ import {
   storageAgainstDrought,
   storageByArea,
   unitsAtOrWorse,
+  unitsInOpeningScope,
   worstClass,
   worstClassCounts,
   type DroughtSort,
@@ -57,6 +69,7 @@ import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
+import { extentFromBox } from "./viz/extent";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
@@ -83,6 +96,100 @@ root.innerHTML = `
   </main>`;
 wireTheme();
 
+/**
+ * What a reader's `?state=` and `?area=` selection resolved to (slice S3c,
+ * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
+ *
+ * `null` -- never an empty-but-present scope -- is how this page tells "the
+ * reference export could not be read" apart from "nothing was chosen":
+ * `unitsInOpeningScope` reads exactly that distinction, and the map, the
+ * bars, the table and every chart on this page all narrow from the one set
+ * of codes a resolved scope produces, so none of them can end up describing
+ * a different set of areas than the others.
+ */
+interface OpeningContext {
+  rosters: OpeningRosters;
+  scope: OpeningScope;
+}
+
+/**
+ * Fetches and resolves the opening scope for an already-read selection.
+ *
+ * Takes `selection` rather than reading `window.location.search` itself, so
+ * the caller holds the *requested* selection independently of whether this
+ * resolves -- a fetch failure must not cost a reader the fact that they
+ * asked for something, only the ability to act on it (a readiness field
+ * reports one fact, and "what was asked" and "could it be honoured" are two).
+ */
+async function resolveOpening(selection: OpeningSelection): Promise<OpeningContext | null> {
+  try {
+    const rosters = await loadOpeningRosters();
+    return { rosters, scope: resolveOpeningScope(selection, rosters) };
+  } catch (error) {
+    /* No narrowing rather than a broken page: a reader who asked for one
+     * state or area still gets every drainage area's figures, which is a
+     * smaller loss than the whole view failing over a chooser it did not
+     * ask to see. */
+    console.warn("The opening scope could not be resolved:", error);
+    return null;
+  }
+}
+
+/**
+ * The code widths a reader's `?area=` may resolve to: a region, a subregion
+ * or a basin. `opening-scope.ts` keeps its own `REGION_WIDTH`/
+ * `SUBREGION_WIDTH`/`AREA_WIDTH` private, so these are named again here
+ * rather than reached for as bare `2`/`4` literals -- the point of naming a
+ * width at all is that a reader of this file sees what it means without
+ * cross-referencing the other module's source.
+ */
+const REGION_CODE_WIDTH = 2;
+const SUBREGION_CODE_WIDTH = 4;
+
+/**
+ * The name of the region, subregion or basin a reader's `?area=` named, read
+ * from the unnarrowed roster so it is found regardless of what state
+ * narrowing left standing. Null when nothing was chosen or the code names
+ * nothing this site's registry has (a dead link, already resolved to `null`
+ * by `resolveOpeningScope` before this is ever called with it).
+ */
+function chosenAreaName(area: string | null, rosters: OpeningRosters): string | null {
+  if (area === null) return null;
+  const roster = area.length === REGION_CODE_WIDTH ? rosters.regions
+    : area.length === SUBREGION_CODE_WIDTH ? rosters.subregions
+    : rosters.areas;
+  return roster.find((candidate) => candidate.huc6 === area)?.name ?? null;
+}
+
+/**
+ * The sentence naming the chosen place, and -- only when a state is chosen
+ * -- the honesty constraint this page owes for one (docs/OPENING-SCOPE-AND-
+ * THE-WESTERN-ROSTER.md, "What a state selection is allowed to claim").
+ *
+ * A drainage area's `states` means "the water reaches this state", not
+ * "the water is only in this state": an area whose water reaches two states
+ * is drawn whole in both, because clipping to the state line needs polygon
+ * geometry in the browser and ADR-048/049 refuse it. This page has no
+ * points, only areas -- the reservoir map can say a point is "in" one state
+ * and mean it exactly, this map cannot -- so it is the one that has to
+ * print the inexact rule in words rather than let a reader assume a state
+ * line was drawn that was not. Null when nothing was chosen, so a caller
+ * renders no sentence rather than a wordy no-op.
+ */
+function openingScopeSentence(selection: OpeningScope["selection"], place: string | null): string | null {
+  const stateChosen = selection.state !== "all";
+  if (!stateChosen && place === null) return null;
+  const named = place && stateChosen ? `${place}, in ${stateName(selection.state)}`
+    : place ?? stateName(selection.state);
+  let sentence = `Showing the drainage areas for ${named}.`;
+  if (stateChosen) {
+    sentence += ` Each one shown here has water that reaches ${stateName(selection.state)}. ` +
+      "Some of them also reach other states, and each area is drawn whole here, not cut off " +
+      "at the state line.";
+  }
+  return sentence;
+}
+
 function renderDrought(
   payload: DroughtCoveragePayload,
   storage: Map<string, StorageContext> | null,
@@ -90,20 +197,84 @@ function renderDrought(
    * places and names each one, and the rollup has already thrown away where
    * they are. Empty when the payload could not be read, which the rows
    * below already say in words. */
-  reservoirs: readonly ReservoirReference[]
+  reservoirs: readonly ReservoirReference[],
+  opening: OpeningContext | null,
+  /* What the reader actually typed, independent of whether `opening`
+   * resolved -- a readiness field reports one fact, and "what was asked"
+   * and "could it be honoured" are two different ones (see `stateFilter`/
+   * `areaFilter`/`openingScopeResolved` below). */
+  requested: OpeningSelection
 ): void {
   const content = document.querySelector<HTMLElement>("#drought-content");
   if (!content) return;
 
+  /* The selection actually in force: the resolved, aliveness-checked one
+   * when the opening scope loaded (a dead area code has already fallen back
+   * to `null` there, by `resolveOpeningScope`'s own design -- a selection
+   * that cannot be honoured yields a wider one rather than filtering to
+   * nothing), or the raw request when it did not. Falling back to the raw
+   * request rather than "nothing chosen" is what keeps a `?state=CA` link
+   * from reporting itself as unscoped just because the reference export
+   * happened to fail to load this one time. */
+  const openingSelection = opening ? opening.scope.selection : requested;
+  /* Whether a reader actually asked for a place, as opposed to a scope that
+   * resolved but named nothing. Nothing on this page reads narrowed codes
+   * (or overrides the map's opening box) unless this is true, so a reader
+   * who chose nothing sees the page exactly as it drew before this slice --
+   * unfiltered by construction, not merely by a narrowing that happens not
+   * to remove anything. */
+  const scopeChosen = openingSelection.state !== "all" || openingSelection.area !== null;
+  /* `?area=` and `?level=` are independent parameters (a shared link from a
+   * six-digit-basin page can land on a four-digit-subregion one), so the
+   * selection is coarsened to what this page actually draws before it is
+   * used to filter or to highlight anything -- `areaAtLevel`'s own doc is
+   * the reasoning; left un-coarsened, a finer selection would silently
+   * match nothing at a coarser level rather than the subregion it nests in. */
+  const levelArea = scopeChosen ? areaAtLevel(openingSelection.area, level) : null;
+  /* The codes a reader's `?state=` and `?area=` selection actually means, at
+   * this page's own level (D4, D5): filters the page rather than only
+   * opening a row, now that there are 75 areas rather than the fourteen the
+   * old comment here was written against. Built from whichever published
+   * roster tier this page is drawing -- subregions at level four, basins at
+   * six -- rather than from `opening.scope.chosenAreas` (always the basin
+   * tier): `DroughtUnit` carries no `states` of its own, so `areaReachesState`
+   * has to run against the roster that does, at the width the units
+   * themselves are published at, or a level-four unit would need to be
+   * matched against six-digit codes it can never equal. `null` -- rather
+   * than every published code -- both when the opening scope itself could
+   * not be resolved and when nothing was chosen, which is what keeps
+   * `unitsInOpeningScope` from narrowing a broken chooser (or an ordinary,
+   * scope-free visit) into anything other than every published unit. */
+  const chosenCodesAtLevel: ReadonlySet<string> | null = opening && scopeChosen
+    ? new Set(
+        (level === SUBREGION_CODE_WIDTH ? opening.rosters.subregions : opening.rosters.areas)
+          .filter((area) => areaReachesState(area, openingSelection.state)
+            && withinOpeningArea(area.huc6, levelArea))
+          .map((area) => area.huc6))
+    : null;
+  /* Narrowed before the first line of markup is built below -- a reader who
+   * arrived asking for Arizona sees Arizona's rows, bars and table on first
+   * paint, never the full 75 first and then a correction. */
+  const scopedUnits = unitsInOpeningScope(payload.units, chosenCodesAtLevel);
+  const scopeSentence = opening
+    ? openingScopeSentence(openingSelection, chosenAreaName(openingSelection.area, opening.rosters))
+    /* The opening scope failed to load, but a reader still asked for a
+     * place -- said so honestly rather than silently showing every area
+     * with no explanation for why the choice did not take. */
+    : scopeChosen
+      ? "The chosen place could not be loaded right now. Showing every drainage area."
+      : null;
+
   const today = new Date();
   const age = daysOld(payload.release_date, today);
   const late = isLateRelease(payload.release_date, today);
-  const worst = regionWorst(payload.units);
-  const extremeAreas = areasAtOrWorse(payload.units, "d3");
+  const worst = regionWorst(scopedUnits);
+  const extremeAreas = areasAtOrWorse(scopedUnits, "d3");
 
   const dryness = DROUGHT_CLASSES.find((entry) => entry.key === DRYNESS_CLASS)!;
 
   content.innerHTML = `
+    ${scopeSentence ? `<p id="drought-scope-summary" class="filter-status">${scopeSentence}</p>` : ""}
     <section class="dashboard-filterbar" aria-labelledby="drought-filter-heading">
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Land conditions</p><h2 id="drought-filter-heading">Narrow the drainage areas</h2></div>
@@ -124,13 +295,13 @@ function renderDrought(
     <p id="drought-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Drought summary">
       <article class="overview-kpi overview-kpi-primary"><span>Worst conditions</span><strong>${worst ? worst.label : "None"}</strong><small>${worst ? `The most severe class with land in it (${worst.code})` : "No drainage area has land in a drought class"}</small></article>
-      <article class="overview-kpi"><span>Areas in extreme drought or worse</span><strong>${extremeAreas} of ${payload.unit_count}</strong><small>Any land at the extreme (D3) or exceptional (D4) class</small></article>
+      <article class="overview-kpi"><span>Areas in extreme drought or worse</span><strong>${extremeAreas} of ${scopedUnits.length}</strong><small>Any land at the extreme (D3) or exceptional (D4) class</small></article>
       <article class="overview-kpi"><span>Map week</span><strong>${formatDate(payload.map_date)}</strong><small>Published ${formatDate(payload.release_date)}</small></article>
       <article class="overview-kpi"><span>Map age</span><strong${late ? ' class="late-badge"' : ""}>${age} ${age === 1 ? "day" : "days"}</strong><small>${late ? "Late data: a new weekly map has been missed" : "A new map is published each Thursday"}</small></article>
     </section>
     <section class="overview-card" aria-labelledby="drought-map-heading">
       <div class="card-heading">
-        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${payload.unit_count} drainage areas the figures below describe. Drought does not stop at their edges, so the map draws the wider pattern too.</p></div>
+        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${scopedUnits.length} drainage areas the figures below describe. Drought does not stop at their edges, so the map draws the wider pattern too.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div id="drought-map-host" class="view-map-host has-inset-legend" aria-busy="true"
@@ -138,7 +309,7 @@ function renderDrought(
     </section>
     <section class="overview-card" aria-labelledby="drought-severity-heading">
       <div class="card-heading">
-        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse. This says where all ${payload.unit_count} sit, which is a different question. Nine clear areas and nine areas one class below the line give the same count, and they are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
+        <div><h2 id="drought-severity-heading">How the areas are divided</h2><p>Every drainage area counted once, at the most severe class with land in it. The tile above says how many are at extreme drought or worse. This says where all ${scopedUnits.length} sit, which is a different question. Nine clear areas and nine areas one class below the line give the same count, and they are not the same week. Levels with no areas in them are still drawn, so one week can be compared with another.</p></div>
       </div>
       <div id="drought-severity-host" class="drought-severity-host"></div>
       <ul class="overlay-key" id="drought-severity-key" aria-label="What each severity level is called"></ul>
@@ -229,7 +400,7 @@ function renderDrought(
    * filter another surface is no longer applying.
    */
   function draw(): void {
-    const chosen = unitsAtOrWorse(payload.units, state.worse as never);
+    const chosen = unitsAtOrWorse(scopedUnits, state.worse as never);
     const ordered = orderUnits(chosen, storage, state.sort);
 
     if (rows) {
@@ -338,7 +509,14 @@ function renderDrought(
         ariaLabel: `Each drainage area by how much of its land is in ` +
           `${dryness.label.toLowerCase()} or worse and how full its reservoirs ` +
           `are. The table below carries both numbers for every area.`,
-        highlight: state.area
+        /* D4: still opens the chosen row -- the emphasis a `?area=` naming
+         * exactly one basin already had before this slice filtered on it
+         * too. `levelArea` is already coarsened to this page's own level, so
+         * this reads as a no-op unless the value equals a real plotted
+         * point's own code -- exactly the areas `scopedUnits` already
+         * narrowed to, never one selected before that narrowing and then
+         * filtered away. */
+        highlight: levelArea
       });
       const missing = ordered.length - points.length;
       const note = document.createElement("p");
@@ -373,12 +551,13 @@ function renderDrought(
       }
     }
 
-    /* Counted over every published area, not the filtered view. This chart
-     * is the shape of the whole week; narrowing it to a chosen severity
-     * would make it a picture of the filter instead. */
+    /* Counted over every area in scope, not the `worse=` filtered view. This
+     * chart is the shape of the whole week for whichever place a reader
+     * chose; narrowing it further to a chosen severity would make it a
+     * picture of that filter instead. */
     let severityAreas = 0;
     if (severityHost) {
-      const counts = worstClassCounts(payload.units, NO_DROUGHT_LABEL);
+      const counts = worstClassCounts(scopedUnits, NO_DROUGHT_LABEL);
       severityAreas = renderDroughtSeverity(severityHost, counts,
         "How many drainage areas are at each drought severity, counted at the " +
         "most severe class with land in them.");
@@ -402,7 +581,7 @@ function renderDrought(
       const order = state.sort === "storage" ? "emptiest reservoirs first"
         : state.sort === "name" ? "by name" : "most severe first";
       statusLine.textContent = chosenClass
-        ? `${ordered.length} of ${payload.unit_count} drainage areas have land in ` +
+        ? `${ordered.length} of ${scopedUnits.length} drainage areas have land in ` +
           `${chosenClass.label.toLowerCase()} (${chosenClass.code}) or worse, ${order}.`
         : `All ${ordered.length} drainage areas, ${order}.`;
     }
@@ -411,12 +590,34 @@ function renderDrought(
       ...(window.__droughtReady ?? {}),
       /* Two facts, two fields. Rows in the ranked comparison is not areas in
        * the severity chart: the first counts areas with a reservoir reading,
-       * the second counts every published area. */
+       * the second counts every area in scope. */
       gapRows,
       severityAreas,
-      units: payload.unit_count,
+      /* The count this page is currently about -- narrowed by `?level=`
+       * already, and now also by `?state=`/`?area=` (D5). Equal to the
+       * published total exactly when nothing was chosen. */
+      units: scopedUnits.length,
       rows: ordered.length,
       level,
+      /* Added, not a replacement for `units`: which place, if any, narrowed
+       * this page, so a reader (or a test) can tell "75 because nothing was
+       * chosen" apart from "75 because the choice matched everything" --
+       * distinct facts `units` alone cannot carry. Always the *requested*
+       * selection, whether or not it could be resolved -- see the comment on
+       * `openingSelection` above -- so a `?state=CA` link never reports
+       * itself as "nothing was chosen" merely because the reference export
+       * failed to load. */
+      stateFilter: openingSelection.state,
+      areaFilter: openingSelection.area,
+      /* A third, distinct fact from the two above: whether the request
+       * *could* be acted on at all. `stateFilter`/`areaFilter` alone cannot
+       * tell a reader (or a test) "asked for California, got it" apart from
+       * "asked for California, got everything because the export never
+       * loaded" -- two very different pages that would otherwise report
+       * identically. A readiness field reports one fact each; this is the
+       * one those two do not carry, so it is its own field rather than
+       * folded into either. */
+      openingScopeResolved: opening !== null,
       worstClass: worst ? worst.code : null,
       mapDate: payload.map_date,
       daysOld: age,
@@ -506,9 +707,38 @@ function renderDrought(
        * -- they come from hosted services and resolve to null rather than
        * throwing, so a slow or missing state layer costs outlines and never
        * the map. */
-      const [scope, usdm, boundaries] = await Promise.all(
+      const [drainageScope, usdm, boundaries] = await Promise.all(
         [loadDrainageScope(level), loadUsdmPolygons(), loadReferenceBoundaries()]);
-      if (scope.areas.length === 0) throw new Error("no drainage boundaries");
+      /* A technical failure -- the export or the boundary service came back
+       * empty -- checked against the *unnarrowed* roster, before a chosen
+       * place ever gets a chance to explain an empty list honestly instead. */
+      if (drainageScope.areas.length === 0) throw new Error("no drainage boundaries");
+      /* D5: the drawn context follows the choice on drought -- the areas
+       * are the subject here, unlike the storage map's where they are
+       * context. `chosenCodesAtLevel` is already built at this page's own
+       * level (`renderDrought`, above), so this is exact membership against
+       * `drainageScope`'s own codes, not a prefix guess. */
+      const scope: DrainageScope = chosenCodesAtLevel === null ? drainageScope : {
+        level: drainageScope.level,
+        areas: drainageScope.areas.filter((area) => chosenCodesAtLevel.has(area.huc6))
+      };
+      if (scope.areas.length === 0) {
+        /* A resolved, narrowed-to-nothing answer -- a real state or area
+         * with no drainage area on this roster -- not the technical failure
+         * `failed()` describes below. Reported the same honest way the bars
+         * and table already are for the same case (an empty `scopedUnits`),
+         * rather than telling a reader the map "could not start" when
+         * nothing actually broke. */
+        mapHost.setAttribute("aria-busy", "false");
+        mapHost.replaceChildren(mapStatusNote(
+          "No drainage area matches the chosen place. The bars and table below say the same."));
+        legend.classList.remove("map-inset-legend");
+        mapHost.append(legend);
+        window.__droughtReady = {
+          ...(window.__droughtReady ?? {}), mapClassesDrawn: 0, mapOutlines: 0
+        } as NonNullable<typeof window.__droughtReady>;
+        return;
+      }
       if (usdm.mapDate !== payload.map_date) {
         /* Two committed files describing two different weeks is a pipeline
          * fault the reader must not have to notice on their own. */
@@ -521,9 +751,40 @@ function renderDrought(
         label: "A map of drought classes over the drainage areas and reservoirs",
         cardId: "drought-map-hover"
       });
+      /* The opening box, overriding what `createViewMap` just set from the
+       * fixed, unscoped `drainageExtent()` -- only when a reader actually
+       * chose a place. An unchosen page keeps the existing framing exactly,
+       * rather than every ordinary visit suddenly opening on the union of
+       * all 75 areas' boxes, which is a real, load-bearing behaviour change
+       * this slice does not own (the coupling section of docs/OPENING-
+       * SCOPE-AND-THE-WESTERN-ROSTER.md gates that on the roster and the
+       * chooser control landing together, not on this file alone).
+       *
+       * This is *not* the late-correction pattern CLAUDE.md warns a gutter
+       * against ("the measurement happens after the data loads, and the
+       * control sits under the card until then"). There is no `await`
+       * between `createViewMap` returning and this assignment -- both run in
+       * the same synchronous turn, so nothing (no paint, no microtask, no
+       * part of the component's own async view construction, which is what
+       * `viewReadyWithin` below exists to wait on in the first place) can
+       * observe the component's own default value in between. The reader's
+       * chosen extent is in place before the view the element eventually
+       * constructs is ever asked to go anywhere.
+       *
+       * Not expanded by an extra zoom-out level the way the storage map's
+       * `regionExtent` is: `drainageExtent()`'s own comment is why -- these
+       * cards are wide and short, an extent is a minimum, and asking a short
+       * box to contain that much latitude already pushes the view out past
+       * what an un-expanded box would on a full-height map. `extentFromBox`
+       * is the one conversion every fixed and chosen extent on this site
+       * goes through, so the corner order and spatial reference cannot drift
+       * between them. */
+      if (opening && scopeChosen) {
+        mapElement.extent = { type: "extent", ...extentFromBox(opening.scope.box) };
+      }
       const mapStatus = await createDroughtMap(
         mapElement, card, scope, usdm, reservoirs,
-        { units: payload.units, storage: storage ?? new Map() }, boundaries);
+        { units: scopedUnits, storage: storage ?? new Map() }, boundaries);
       // After the component has claimed the host, never before.
       mapHost.append(legend);
       mapHost.setAttribute("aria-busy", "false");
@@ -555,9 +816,25 @@ function renderDrought(
 }
 
 const level = levelFromSearch(window.location.search);
+/* Read once, here, rather than inside `resolveOpening`: this is the
+ * *requested* selection and stays available to `renderDrought` even when
+ * resolving it against the reference export fails, which is what lets the
+ * readiness fields and the on-page sentence tell "asked for nothing" apart
+ * from "asked for California, could not load it" (see `resolveOpening`'s and
+ * `renderDrought`'s own comments). */
+const requestedSelection = openingSelectionFromSearch(window.location.search);
 
 try {
-  const drought = await loadDroughtCoverage(level);
+  /* The opening scope is fetched alongside the coverage payload rather than
+   * after it: `resolveOpening` already swallows its own failure (returning
+   * `null`), so this can never be what fails the page, and there is no
+   * reason to make a reader who chose a place wait for two fetches in
+   * series when neither depends on the other. Both are awaited before
+   * `renderDrought` is ever called, so the very first paint of this page's
+   * content already reflects the reader's narrowed scope -- there is no
+   * intermediate render of all 75 areas for a chosen place to correct. */
+  const [drought, opening] = await Promise.all(
+    [loadDroughtCoverage(level), resolveOpening(requestedSelection)]);
   /* Storage is context, not the subject: if the reservoir payload cannot be
    * read the drought figures still render, each row saying the storage
    * comparison is missing rather than the page failing whole. */
@@ -569,7 +846,7 @@ try {
   } catch (error) {
     console.warn("Reservoir storage could not be joined to the drought view:", error);
   }
-  renderDrought(drought, storage, reservoirs);
+  renderDrought(drought, storage, reservoirs, opening, requestedSelection);
 } catch (error) {
   console.error("Drought view failed:", error);
   const content = document.querySelector<HTMLElement>("#drought-content");
