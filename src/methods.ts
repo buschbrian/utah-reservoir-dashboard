@@ -34,7 +34,7 @@ if (!root) throw new Error("Missing #methods-app root");
 root.innerHTML = `
   <calcite-navigation class="methods-nav" aria-label="Primary navigation">
     ${brandMarkup(2, "methods")}
-    ${pageLinksMarkup("methods")}
+    ${pageLinksMarkup("methods", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>

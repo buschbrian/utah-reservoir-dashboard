@@ -2957,7 +2957,12 @@ for (const failure of [
       control: document.querySelectorAll(".level-control calcite-select").length,
       chosen: document.querySelector(".level-control calcite-select")?.value ?? null,
       viewport: document.documentElement.clientWidth,
-      scroll: document.documentElement.scrollWidth
+      scroll: document.documentElement.scrollWidth,
+      /* Both renderings of the bar. They are generated from one table so
+       * they cannot offer different sets, and the hrefs are built now
+       * rather than written down, so both are read. */
+      navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+        .map((link) => link.getAttribute("href"))
     }), scenario.signal);
     console.log("  ready:", JSON.stringify({
       level: state.ready?.level, levelsOffered: state.ready?.levelsOffered,
@@ -2972,14 +2977,30 @@ for (const failure of [
       `${scenario.label}: the control shows ${state.chosen}, not the level in the address`);
     check(state.scroll <= state.viewport + 1,
       `${scenario.label}: the page scrolls sideways at the coarser level`);
+    /* The level is one parameter across all three maps, and the bar is where
+     * that promise was being broken: these hrefs were written down as
+     * constants, so every click dropped the reader's choice and landed them
+     * on a map drawn in basins. */
+    check(state.navHrefs.length > 0,
+      `${scenario.label}: the bar offers no page links to check`);
+    check(state.navHrefs.every((href) => /[?&]level=4(?:&|$)/.test(href ?? "")),
+      `${scenario.label}: the bar drops the level: ${state.navHrefs.join(", ")}`);
   }
 
   /* The default is the absence of the parameter, so a page with no `?level=`
    * must be the basins page it always was. */
   await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
   await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 90000 });
-  const fallback = await tab.evaluate(() => window.__dashboardReady?.level);
-  check(fallback === 6, `the storage map opens at level ${fallback}, expected 6`);
+  const fallback = await tab.evaluate(() => ({
+    level: window.__dashboardReady?.level,
+    navHrefs: [...document.querySelectorAll("#page-menu calcite-dropdown-item, .page-link")]
+      .map((link) => link.getAttribute("href"))
+  }));
+  check(fallback.level === 6, `the storage map opens at level ${fallback.level}, expected 6`);
+  /* And absence stays absence: a default is never written into a link, so an
+   * untouched dashboard still links to clean addresses. */
+  check(fallback.navHrefs.every((href) => !(href ?? "").includes("?")),
+    `the bar carries a query with nothing chosen: ${fallback.navHrefs.join(", ")}`);
 
   for (const message of errors) failures.push(`Area size: ${message}`);
   await context.close();

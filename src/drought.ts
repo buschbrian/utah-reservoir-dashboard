@@ -71,7 +71,7 @@ if (!root) throw new Error("Missing #drought-app root");
 root.innerHTML = `
   <calcite-navigation class="overview-nav" aria-label="Primary navigation">
     ${brandMarkup(1, "drought")}
-    ${pageLinksMarkup("drought")}
+    ${pageLinksMarkup("drought", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>

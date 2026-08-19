@@ -16,6 +16,7 @@ import "@esri/calcite-components/components/calcite-dropdown";
 import "@esri/calcite-components/components/calcite-dropdown-group";
 import "@esri/calcite-components/components/calcite-dropdown-item";
 import "@esri/calcite-components/components/calcite-icon";
+import { linkHref, portableSearch } from "../state/portable-url";
 
 export type PageId = "map" | "overview" | "snow" | "drought" | "methods" | "data";
 
@@ -163,14 +164,15 @@ export function brandMarkup(headingLevel: 1 | 2, current: PageId): string {
  * use than one that does not, and it carries aria-current there so the
  * reader is told which one they are on rather than left to notice a gap.
  */
-export function pageLinksMarkup(current: PageId): string {
+export function pageLinksMarkup(current: PageId, search: string = ""): string {
+  const carried = portableSearch(search);
   const others = PAGES.filter((page) => page.id !== current);
   const items = PAGES.map((page) => `
-        <calcite-dropdown-item id="menu-${page.id}-link" href="${page.href}"
+        <calcite-dropdown-item id="menu-${page.id}-link" href="${linkHref(page.href, carried)}"
           icon-start="${page.icon}"${page.id === current ? ' selected aria-current="page"' : ""}
           >${page.menuText}</calcite-dropdown-item>`).join("");
   const buttons = others.map((page) => `
-    <calcite-button id="${page.id}-link" class="page-link" slot="content-end" href="${page.href}"
+    <calcite-button id="${page.id}-link" class="page-link" slot="content-end" href="${linkHref(page.href, carried)}"
       appearance="transparent" kind="neutral" icon-start="${page.icon}"
       label="${page.label}"><span class="page-link-text">${page.text}</span></calcite-button>`).join("");
 
@@ -181,4 +183,26 @@ export function pageLinksMarkup(current: PageId): string {
       <calcite-dropdown-group group-title="Pages">${items}
       </calcite-dropdown-group>
     </calcite-dropdown>${buttons}`;
+}
+
+/**
+ * Brings the bar's links up to date with the address bar.
+ *
+ * The markup above is rendered once, and a reader who narrows the map after
+ * that is changing the address bar without reloading -- `writeUrlState` uses
+ * `replaceState` deliberately, so there is no navigation and no re-render to
+ * hang this on. Without this the bar would carry whatever was in the URL at
+ * first paint, which is worse than carrying nothing: a link that was right
+ * when the page opened and is quietly wrong by the time it is clicked.
+ *
+ * Reads the ids the markup writes rather than a class, so a link this does
+ * not know about is left alone instead of having a query appended to it.
+ */
+export function updatePageLinks(search: string): void {
+  const carried = portableSearch(search);
+  for (const page of PAGES) {
+    for (const id of [`${page.id}-link`, `menu-${page.id}-link`]) {
+      document.getElementById(id)?.setAttribute("href", linkHref(page.href, carried));
+    }
+  }
 }

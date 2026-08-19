@@ -23,7 +23,7 @@ const base = "https://buschbrian.github.io/utah-water-dashboard/api";
 root.innerHTML = `
   <calcite-navigation class="methods-nav" aria-label="Primary navigation">
     ${brandMarkup(2, "data")}
-    ${pageLinksMarkup("data")}
+    ${pageLinksMarkup("data", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>

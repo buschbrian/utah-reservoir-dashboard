@@ -76,7 +76,7 @@ root.innerHTML = `
          bar has to be the h1, or the page has none at all. The map shell
          has always done it this way. -->
     ${brandMarkup(1, "overview")}
-    ${pageLinksMarkup("overview")}
+    ${pageLinksMarkup("overview", window.location.search)}
     <calcite-action id="theme-toggle" slot="content-end" text="Theme: system"
       icon="brightness" label="Change color theme"></calcite-action>
   </calcite-navigation>
