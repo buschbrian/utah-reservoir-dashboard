@@ -241,10 +241,43 @@ function seriesOverSites(
  * because it has a measurement for all 75. Each map draws what it can say
  * something about.
  */
+/**
+ * Whether an area holds enough sites to ever publish a mean.
+ *
+ * One predicate, because the map, the basin picker and the `?basin=` link are
+ * three ways to the same card: an area offered by one and missing from
+ * another is a control that does nothing. Written twice it would eventually
+ * be two different rules.
+ */
+export function areaCanReport(
+  rollup: { site_count: number; minimum_reporting_sites: number }
+): boolean {
+  return rollup.site_count >= rollup.minimum_reporting_sites;
+}
+
 export function measuredScope(
   scope: DrainageScope, payload: SnowpackPayload
 ): DrainageScope {
-  const measured = new Set(payload.rollups.map((rollup) => rollup.huc6));
+  /* A rollup is not the same as something to say.
+   *
+   * The payload publishes a rollup for every area the network reaches, and
+   * an area holding fewer sites than its own reporting floor publishes no
+   * mean at all -- nothing rather than zero, which is the right way round.
+   * But it still has a rollup, so filtering on "has a rollup" drew it: an
+   * outline a reader can point at, hover, and get nothing back from. That is
+   * exactly what ADR-050 refuses -- a shape with no figure behind it is less
+   * information rather than more -- and it is the same rule that keeps the
+   * drought map to the areas its engine measures.
+   *
+   * Structural, not seasonal. This drops an area that can *never* meet its
+   * floor because it does not hold enough sites, which is a fact about the
+   * network rather than about today: San Joaquin and North Lahontan each
+   * hold one site against a floor of two. An area with enough sites that
+   * happen to be quiet today keeps its outline and reads as having no value
+   * today, which is a different statement and the true one. */
+  const measured = new Set(payload.rollups
+    .filter(areaCanReport)
+    .map((rollup) => rollup.huc6));
   return {
     level: scope.level,
     areas: scope.areas.filter((area) => measured.has(area.huc6))
@@ -252,7 +285,10 @@ export function measuredScope(
 }
 
 export function basinChoices(payload: SnowpackPayload): BasinChoice[] {
+  /* The same floor the map draws by. An area the map cannot draw must not be
+   * offered here either, or the picker holds a choice that changes nothing. */
   return payload.rollups
+    .filter(areaCanReport)
     .map((rollup) => ({
       code: rollup.huc6,
       label: rollup.huc6_name,

@@ -258,7 +258,12 @@ describe("the scope the map draws", () => {
 
   it("is the areas this payload measures, not every area drawn", () => {
     const scope = measuredScope(drawn(), payload);
-    const measured = new Set(payload.rollups.map((rollup) => rollup.huc6));
+    /* Every area the payload measures *and* can report on: a rollup below
+     * its own floor publishes no mean, so drawing it would be an outline
+     * with nothing behind it (ADR-050). */
+    const measured = new Set(payload.rollups
+      .filter((rollup) => rollup.site_count >= rollup.minimum_reporting_sites)
+      .map((rollup) => rollup.huc6));
 
     expect(scope.areas.length).toBe(measured.size);
     expect(scope.level).toBe(6);
@@ -290,13 +295,29 @@ describe("the scope the map draws", () => {
 });
 
 describe("basin choices", () => {
-  it("lists every published drainage area once, ordered by name", () => {
+  it("lists every drainage area that can report, once, ordered by name", () => {
     const choices = basinChoices(payload);
-    expect(choices.length).toBe(payload.rollups.length);
+    /* Every rollup that can meet its own floor -- not every rollup. An area
+     * holding fewer sites than its floor publishes no mean, so offering it
+     * would be a choice that leads to a card with nothing on it, and the map
+     * does not draw it either (`measuredScope`). The picker, the map and the
+     * `?basin=` link have to agree. */
+    const reportable = payload.rollups.filter(
+      (rollup) => rollup.site_count >= rollup.minimum_reporting_sites);
+    expect(choices.length).toBe(reportable.length);
+    expect(choices.length).toBeLessThan(payload.rollups.length);
+
     const labels = choices.map((choice) => choice.label);
     expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
+
+    /* The sites in the areas that can report, which is the payload's own
+     * total less the ones in areas too thin to speak for. Stated as the
+     * arithmetic rather than a literal, so it survives tomorrow's payload. */
     const totalSites = choices.reduce((sum, choice) => sum + choice.siteCount, 0);
-    expect(totalSites).toBe(payload.site_count);
+    const thin = payload.rollups
+      .filter((rollup) => rollup.site_count < rollup.minimum_reporting_sites)
+      .reduce((sum, rollup) => sum + rollup.site_count, 0);
+    expect(totalSites).toBe(payload.site_count - thin);
   });
 });
 
@@ -700,5 +721,60 @@ describe("how one day's readings are spread", () => {
     expect(spread.counts.every((count) => count === 0)).toBe(true);
     expect(spread.noValue).toBe(0);
     expect(spread.reporting).toBe(0);
+  });
+});
+
+describe("the areas the snow map draws", () => {
+  /* A rollup is not the same as something to say. An area holding fewer
+   * sites than its own floor publishes no mean, and drawing it anyway gives
+   * a reader an outline whose hover card comes back empty -- what ADR-050
+   * refuses. Both real cases are Californian, where the federal network is
+   * thin because the state runs its own. */
+  const area = (huc6: string) => ({ huc6, name: huc6, states: "CA" });
+
+  function payloadWith(
+    rollups: { huc6: string; site_count: number; minimum_reporting_sites: number }[]
+  ): SnowpackPayload {
+    return { ...readSnowpack(), rollups: rollups as never } as SnowpackPayload;
+  }
+
+  it("drops an area that cannot ever meet its own reporting floor", () => {
+    const scope = { level: 6, areas: [area("180400"), area("160501")] };
+    const narrowed = measuredScope(scope, payloadWith([
+      { huc6: "180400", site_count: 1, minimum_reporting_sites: 2 },
+      { huc6: "160501", site_count: 16, minimum_reporting_sites: 2 }
+    ]));
+    expect(narrowed.areas.map((a) => a.huc6)).toEqual(["160501"]);
+  });
+
+  it("keeps an area that holds enough sites, however quiet they are today", () => {
+    /* Structural, not seasonal: "enough sites to speak" and "speaking today"
+     * are different facts, and only the first decides whether to draw. */
+    const scope = { level: 6, areas: [area("170702")] };
+    const narrowed = measuredScope(scope, payloadWith([
+      { huc6: "170702", site_count: 3, minimum_reporting_sites: 2 }
+    ]));
+    expect(narrowed.areas.map((a) => a.huc6)).toEqual(["170702"]);
+  });
+
+  it("keeps an area sitting exactly on its floor", () => {
+    const scope = { level: 6, areas: [area("180200")] };
+    const narrowed = measuredScope(scope, payloadWith([
+      { huc6: "180200", site_count: 2, minimum_reporting_sites: 2 }
+    ]));
+    expect(narrowed.areas.map((a) => a.huc6)).toEqual(["180200"]);
+  });
+
+  it("drops both of the payload's real one-site areas and nothing else", () => {
+    const payload = readSnowpack();
+    const scope = {
+      level: 6,
+      areas: payload.rollups.map((rollup) => area(rollup.huc6))
+    };
+    const narrowed = measuredScope(scope, payload);
+    const dropped = payload.rollups
+      .map((rollup) => rollup.huc6)
+      .filter((huc6) => !narrowed.areas.some((a) => a.huc6 === huc6));
+    expect(dropped.sort()).toEqual(["180400", "180800"]);
   });
 });
