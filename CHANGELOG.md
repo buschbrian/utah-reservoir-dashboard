@@ -112,6 +112,14 @@ and is not listed here.
 
 ### Fixed
 
+- **The storage charts offer every drainage area again.** The subregion and
+  drainage-area controls were rebuilt from the reservoirs the reader's scope
+  had already narrowed to, so excluding Lake Powell -- which is what the page
+  opens with -- took four of the fourteen drainage areas off the list,
+  Lake Powell's own among them. Where a reader can go is a question about the
+  roster; what is in the total is a different question, and the controls now
+  answer only the first.
+
 - **One dead snow station no longer costs every other station's reading.** A
   station can be listed as active and answer with a whole winter of empty
   rows; the refresh treated that as a fault and published nothing. It is now

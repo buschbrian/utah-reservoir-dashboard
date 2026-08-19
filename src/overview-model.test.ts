@@ -5,10 +5,12 @@ import {
   countyOptions,
   distributionKeyLines,
   distributionStats,
+  geographicChoices,
   openingScopeSummary,
   reservoirInState,
   stateOptions,
   subregionOf,
+  subregionNames,
   subregionOptions,
   filterAndSort,
   filterOverview,
@@ -16,6 +18,7 @@ import {
   overviewScope,
   watershedOptions
 } from "./overview-model";
+import { isLakeMead, isLakePowell, WIDEST_SCOPE } from "./data/rollup";
 
 const base = readPayload().reservoirs[0]!;
 const reservoir = (overrides: Partial<typeof base>): typeof base => ({ ...base, ...overrides });
@@ -371,5 +374,74 @@ describe("the opening scope summary sentence", () => {
     // cannot silently start printing something else here.
     expect(openingScopeSummary(selection({ state: "ZZ" }), rosters))
       .toBe("Storage narrowed to reservoirs in ZZ.");
+  });
+});
+
+/* The geographic controls are one axis and the scope controls are another
+ * (ADR-011). These assert the two do not leak into each other: a reader who
+ * has not switched Lake Powell on -- which is everyone on first load, since
+ * ADR-062 makes excluded the default -- must still be offered every drainage
+ * area the roster holds, Lake Powell's own among them. */
+describe("the geographic controls against the scope controls", () => {
+  const payload = readPayload();
+  const names = subregionNames(payload);
+  const widest = overviewScope(payload.reservoirs, WIDEST_SCOPE);
+  const codes = (options: { code: string }[]): string[] =>
+    options.map((option) => option.code).sort();
+
+  const openControls = { state: "all", subregion: "all" };
+
+  it("offers every drainage area some published reservoir sits in", () => {
+    const offered = new Set(
+      codes(geographicChoices(widest, openControls, names).drainageAreas));
+    /* Reachability, not a count, the same way the scope test above is
+     * written: a morning that admits a reservoir in a new area cannot fail
+     * this, only a morning that admits one the control cannot reach. */
+    const held = payload.reservoirs
+      .map((item) => item.huc6).filter((code): code is string => Boolean(code));
+    expect(held.length).toBeGreaterThan(0);
+    expect(held.filter((code) => !offered.has(code))).toEqual([]);
+    /* Named rather than left to the sweep above: both dominant reservoirs
+     * are excluded by default (ADR-062), and their own basins disappearing
+     * from the control is the failure this describes. */
+    for (const dominant of payload.reservoirs.filter((item) =>
+      isLakePowell(item) || isLakeMead(item))) {
+      expect(offered.has(dominant.huc6!)).toBe(true);
+    }
+  });
+
+  /* The failure this pair exists to keep from coming back, stated as the
+   * measurement rather than as a description: narrowing the option source by
+   * the reader's scope loses areas, and the widest source does not. */
+  it("loses drainage areas when the option source follows the scope instead", () => {
+    const widestCodes = new Set(
+      codes(geographicChoices(widest, openControls, names).drainageAreas));
+    const defaultScope = overviewScope(payload.reservoirs,
+      { geography: "utah", lakePowell: "exclude", lakeMead: "exclude" });
+    const narrowed = codes(
+      geographicChoices(defaultScope, openControls, names).drainageAreas);
+    expect(narrowed.length).toBeLessThan(widestCodes.size);
+    for (const code of narrowed) expect(widestCodes.has(code)).toBe(true);
+  });
+
+  it("still narrows drainage areas to the chosen subregion", () => {
+    const everyArea = codes(
+      geographicChoices(widest, openControls, names).drainageAreas);
+    const subregion = everyArea[0]!.slice(0, 4);
+    const narrowed = codes(geographicChoices(widest,
+      { state: "all", subregion }, names).drainageAreas);
+    expect(narrowed.length).toBeGreaterThan(0);
+    for (const code of narrowed) expect(code.slice(0, 4)).toBe(subregion);
+    expect(narrowed.length).toBeLessThanOrEqual(everyArea.length);
+  });
+
+  /* The subregion list answers to the state above it and to nothing below
+   * it: picking a subregion narrows drainage areas, never the subregions on
+   * offer, or the control would drop every choice but the one just made. */
+  it("keeps the subregion list steady when a subregion is chosen", () => {
+    const all = codes(geographicChoices(widest, openControls, names).subregions);
+    expect(all.length).toBeGreaterThan(1);
+    expect(codes(geographicChoices(widest,
+      { state: "all", subregion: all[0]! }, names).subregions)).toEqual(all);
   });
 });
