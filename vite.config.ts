@@ -28,11 +28,12 @@ function preserveRuntimeDataAndRedirects(): Plugin {
       // `reference.json` is the capacity table and the geography in one
       // versioned payload (ADR-018), and it is what the typed stack fetches.
       //
-      // `huc6.geojson` is not here and that is deliberate (ADR-048). It is
-      // still the reviewed source the pipeline assigns every reservoir with,
-      // and it is still committed -- but no page has fetched it since the
-      // outlines became the hosted layer's, and publishing it put 1.3 MB in
-      // every deploy, twice, for nobody. It is reviewable in the repository
+      // No boundary polygon file is here and that is deliberate (ADR-048).
+      // `data/watersheds/west-huc6.geojson` is the drawn scope the pipeline
+      // assigns and measures against and `huc6.geojson` the roster scope the
+      // map opens on (ADR-063); both stay committed -- but no page has
+      // fetched a polygon file since the outlines became the hosted layer's,
+      // and publishing one put megabytes in every deploy, twice, for nobody. It is reviewable in the repository
       // like `normals.json`, which is the same arrangement for the same
       // reason. `utah-boundary.geojson` stays: the mask is still drawn from
       // the reviewed polygon, republished inside `reference.json`.

@@ -14,19 +14,28 @@ this is geometry with no series, no network and no pandas in it, so it can be
 tested on its own and reused by tools/probe_huc_points.py without dragging
 the whole data stack along.
 
-Boundaries come from `huc6.geojson`, written by tools/fetch_watershed_scope.py from
-the USGS Watershed Boundary Dataset and committed. Committed rather than
-fetched at refresh time for the same reason as capacities.json: an
-assignment that can change underneath you is not reproducible, and a
-reservoir that silently moves basin between two runs is the kind of error
-nobody would catch by looking.
+Boundaries come from the file the drawn scope names, written by
+tools/fetch_watershed_scope.py from the USGS Watershed Boundary Dataset and
+committed. Committed rather than fetched at refresh time for the same reason
+as capacities.json: an assignment that can change underneath you is not
+reproducible, and a reservoir that silently moves basin between two runs is
+the kind of error nobody would catch by looking.
+
+Which file that is comes from `watershed_scopes.DEFAULT_SCOPE` rather than
+being written here. It was `huc6.geojson` for as long as there was only one
+answer; publishing the west made it a second copy of a product decision, and
+the failure mode of a second copy is that the pipeline assigns reservoirs
+with one geography while every surface draws another.
 """
 
 import json
 import math
 from pathlib import Path
 
-BOUNDARY_PATH = Path(__file__).resolve().parent / "huc6.geojson"
+import watershed_scopes
+
+BOUNDARY_PATH = (watershed_scopes.ROOT
+                 / watershed_scopes.get_scope(watershed_scopes.DEFAULT_SCOPE).output)
 UTAH_BOUNDARY_PATH = Path(__file__).resolve().parent / "utah-boundary.geojson"
 
 # A provider point sits in exactly one state; a waterbody need not. These were

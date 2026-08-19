@@ -44,9 +44,47 @@ export function readDroughtCoverage(): DroughtCoveragePayload {
   return validateDroughtCoverage(JSON.parse(source) as unknown);
 }
 
+/**
+ * The committed boundaries of one named scope, found through the reference
+ * export rather than by file name.
+ *
+ * Which file holds which geography is a product decision that has moved once
+ * already (ADR-063) and will move again when the roster expands west. A test
+ * naming `huc6.geojson` was reading the drawn scope until the day it was not,
+ * and would have gone on passing against a geography nothing draws.
+ */
+function readScopeGeoJson(scope: string): unknown {
+  const reference = readReferenceExport() as {
+    geography: { watersheds: { scopes: Record<string, { source_file: string }> } };
+  };
+  const entry = reference.geography.watersheds.scopes[scope];
+  if (!entry) throw new Error(`reference.json publishes no scope named ${scope}`);
+  return JSON.parse(
+    readFileSync(new URL(`../../${entry.source_file}`, import.meta.url), "utf8")) as unknown;
+}
+
+function namedScope(key: "default_scope" | "roster_scope"): string {
+  const reference = readReferenceExport() as {
+    geography: { watersheds: Record<string, unknown> };
+  };
+  const name = reference.geography.watersheds[key];
+  if (typeof name !== "string") throw new Error(`reference.json names no ${key}`);
+  return name;
+}
+
+/** The boundaries of the scope the maps draw: 75 basins across the west. */
 export function readDrainageGeoJson(): unknown {
-  const source = readFileSync(new URL("../../huc6.geojson", import.meta.url), "utf8");
-  return JSON.parse(source) as unknown;
+  return readScopeGeoJson(namedScope("default_scope"));
+}
+
+/**
+ * The boundaries of the scope the reservoir roster was admitted from, which
+ * is what the storage map opens on. A subset of the drawn scope, and the same
+ * geometry area for area -- `tests/test_watershed_scopes.py` holds the two
+ * files to that.
+ */
+export function readRosterDrainageGeoJson(): unknown {
+  return readScopeGeoJson(namedScope("roster_scope"));
 }
 
 export function readUtahBoundaryGeoJson(): unknown {

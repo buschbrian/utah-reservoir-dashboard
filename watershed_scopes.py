@@ -1,12 +1,14 @@
 """Named watershed extraction scopes used by the data tools.
 
-The production dashboard scope remains the Colorado/Great Basin units that
-touch Utah. Broader research scopes write separate files and never replace
-``huc6.geojson`` unless a later product decision changes the dashboard's
-published geography.
+The dashboard draws ``west-huc6``: every HUC-6 basin draining to the Pacific
+or closed inside the west, which is 75 of them. It drew the fourteen that
+touch Utah until 2026-08-18, and that scope is still registered and still
+exported -- it is the geography the reservoir roster was admitted from, which
+is a different question from which areas are drawn and is named separately in
+``ROSTER_SCOPE``.
 
-A scope now carries the hydrologic level it is expressed at. Every scope here
-is still HUC-6, which is what the dashboard draws, but the level is a property
+A scope carries the hydrologic level it is expressed at. The drawn scope is
+HUC-6 and every figure on the site is keyed there, but the level is a property
 of the scope rather than an assumption of the code -- so a HUC-4 or HUC-8
 scope is a new entry in this table rather than an edit to every caller.
 
@@ -117,9 +119,11 @@ SCOPES = {
         region="14",
         expected_count=10,
     ),
-    # The western scopes. Not published by anything yet -- they exist so the
-    # geography can be fetched, measured and reviewed before any surface
-    # draws it, which is the same order the Utah scope was built in.
+    # The western scopes. `west-huc6` is what the dashboard draws; the other
+    # two are registered, fetched and measured and nothing draws them yet,
+    # which is the state all three were in until the coverage moved. That
+    # order -- fetch, measure, review, then draw -- is the one the Utah scope
+    # was built in.
     #
     # Scoped by hydrologic region rather than by a list of states. That is the
     # generalisation of ADR-010, which already scopes by region, and it never
@@ -137,7 +141,6 @@ SCOPES = {
         description="Every HUC6 basin draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc6"),
         output="data/watersheds/west-huc6.geojson",
-        published=False,
         # Measured 2026-08-18, after the scope narrowed to regions 14-18:
         # 75 basins (181 under the earlier longitude rule). Banded rather
         # than pinned because nine regions of the WBD are revised more often
@@ -173,7 +176,29 @@ SCOPES = {
 # than repeated at each call site: which geography is the accepted one is a
 # product decision (ADR-009), and a second copy of that decision is a second
 # thing to forget when it changes.
-DEFAULT_SCOPE = "utah-connected"
+DEFAULT_SCOPE = "west-huc6"
+
+# The scope the published reservoir roster was admitted from, which is not the
+# same question as which areas are drawn and stopped having the same answer on
+# 2026-08-18 (ADR-063).
+#
+# Coverage moved to the whole west; the roster did not move with it, because
+# admitting a reservoir means tracing a capacity and reviewing it, and the
+# western candidate pool has not been through that. So 61 of the 75 drawn
+# areas hold nothing, which is a state the payload already allows for
+# (ADR-056) and the maps already draw.
+#
+# What this name is *for* is the map's opening extent. The geography a reader
+# may pan over comes from the areas that hold reservoirs, not from every area
+# drawn -- otherwise admitting no reservoirs would still have opened the
+# storage map on 19 degrees of longitude with every reservoir in one corner of
+# it. `src/viz/extent.ts` holds the box, this names the file it is the box of,
+# and `reference.json` publishes the name so the two cannot drift.
+#
+# When the roster expands west, this moves to `DEFAULT_SCOPE` and the box
+# follows the reservoirs out. `tests/test_watershed_scopes.py` asserts every
+# roster point is inside this scope, so it cannot be forgotten.
+ROSTER_SCOPE = "utah-connected"
 
 
 def get_scope(name: str) -> WatershedScope:

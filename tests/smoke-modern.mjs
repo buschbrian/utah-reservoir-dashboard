@@ -128,8 +128,32 @@ const sharedFilter = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
       reservoir.huc6 === drainage && classOf(reservoir) === storageClass).length
   })))
   .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+/* The drawn scope's areas, found through the reference export rather than by
+ * file name: which file holds the drawn geography moved once already
+ * (ADR-063), and a count read from the roster scope's file would have gone on
+ * passing while the maps drew five times as many. */
+const referenceWatersheds = JSON.parse(
+  await readFile(path.join(REPO_ROOT, "reference.json"), "utf8"))
+  .geography.watersheds;
+const drawnScope = referenceWatersheds.scopes[referenceWatersheds.default_scope];
+if (!drawnScope) {
+  throw new Error(
+    `reference.json names ${referenceWatersheds.default_scope} and does not publish it`);
+}
 const expectedAreas = JSON.parse(
-  await readFile(path.join(REPO_ROOT, "huc6.geojson"), "utf8")).features.length;
+  await readFile(path.join(REPO_ROOT, drawnScope.source_file), "utf8")).features.length;
+/* The drainage areas the drought view can put a storage figure beside: the
+ * ones holding a published reservoir, which is 14 of the 75 drawn. Derived
+ * from the two committed payloads the way src/drought-model.ts derives it --
+ * `storageByArea` groups every published reservoir by its code and does not
+ * filter by scope -- so the morning refresh cannot turn this red, and a
+ * roster that expands west moves it on its own. */
+const droughtAreas = new Set(JSON.parse(
+  await readFile(path.join(REPO_ROOT, "data/drought/usdm-huc6.json"), "utf8"))
+  .units.map((unit) => unit.huc6));
+const expectedStorageJoined = new Set(payload.reservoirs
+  .map((reservoir) => reservoir.huc6)
+  .filter((huc6) => typeof huc6 === "string" && droughtAreas.has(huc6))).size;
 
 /* The geographic filters, derived the way src/overview-model.ts derives
  * them: a state means the water (ADR-060, waterbody_states falling back to
@@ -2169,8 +2193,10 @@ for (const viewport of VIEWPORTS) {
       `${label}: rendered ${state.rows} area rows, readiness reported ${state.ready?.rows}`);
     check(state.bars === state.rows && state.tableRows === state.rows,
       `${label}: ${state.bars} bars and ${state.tableRows} table rows for ${state.rows} areas`);
-    check(state.ready?.storageJoined === state.ready?.units,
-      `${label}: storage joined ${state.ready?.storageJoined} of ${state.ready?.units} areas`);
+    check(expectedStorageJoined > 0
+      && state.ready?.storageJoined === expectedStorageJoined,
+      `${label}: storage joined ${state.ready?.storageJoined} areas, expected `
+      + `${expectedStorageJoined} of ${state.ready?.units} drawn`);
     const badLink = state.areaLinks.find((href) =>
       !/^\.\/(snow\.html)?\?area=\d{6}$/.test(href));
     check(state.areaLinks.length === state.rows * 2 && badLink === undefined,

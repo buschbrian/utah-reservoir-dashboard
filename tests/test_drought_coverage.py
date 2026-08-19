@@ -28,6 +28,7 @@ from compute_drought_coverage import (  # noqa: E402
     segments_of,
     unit_coverage,
 )
+from watershed_scopes import DEFAULT_SCOPE, get_scope  # noqa: E402
 
 
 def square(west, south, east, north):
@@ -160,7 +161,10 @@ class TestCommittedOutput:
             .read_text(encoding="utf-8"))
 
     def test_every_published_drainage_area_is_covered(self, payload):
-        boundaries = json.loads((ROOT / "huc6.geojson").read_text(encoding="utf-8"))
+        # The drawn scope's file, which is what the engine reads: coverage is
+        # published for the areas the maps show (ADR-063).
+        boundaries = json.loads(
+            (ROOT / get_scope(DEFAULT_SCOPE).output).read_text(encoding="utf-8"))
         expected = sorted(f["properties"]["huc6"] for f in boundaries["features"])
         assert [unit["huc6"] for unit in payload["units"]] == expected
         assert payload["unit_count"] == len(expected)

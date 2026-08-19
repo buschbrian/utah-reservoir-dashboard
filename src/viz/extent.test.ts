@@ -86,10 +86,33 @@ describe("the navigable region", () => {
  * the primary source. HUC6_BOUNDS is written down because both engines need
  * their navigation constraint when the view is constructed, before any
  * boundary file has been fetched -- so the file it describes is read here
- * and the constant held against it. */
+ * and the constant held against it.
+ *
+ * Which file that is comes from the reference export rather than being named
+ * here: the areas drawn and the areas holding reservoirs stopped being one
+ * set when the coverage moved west (ADR-063), and the extent follows the
+ * roster. Naming `huc6.geojson` in this test would have pinned the box to the
+ * file that happens to be the roster's today, and the box would have silently
+ * stopped following the reservoirs the morning the roster expanded. */
 describe("the drainage-area extent the map is built from", () => {
+  const reference = JSON.parse(
+    readFileSync(new URL("../../reference.json", import.meta.url), "utf8")
+  ) as {
+    geography: {
+      watersheds: {
+        roster_scope: string;
+        scopes: Record<string, { source_file: string }>;
+      };
+    };
+  };
+  const watersheds = reference.geography.watersheds;
+  const rosterScope = watersheds.scopes[watersheds.roster_scope];
+  if (!rosterScope) {
+    throw new Error(
+      `reference.json names roster scope ${watersheds.roster_scope}, which it does not publish`);
+  }
   const huc6 = JSON.parse(
-    readFileSync(new URL("../../huc6.geojson", import.meta.url), "utf8")
+    readFileSync(new URL(`../../${rosterScope.source_file}`, import.meta.url), "utf8")
   ) as { features: { geometry: { coordinates: unknown } }[] };
 
   function boundsOf(features: typeof huc6.features): [[number, number], [number, number]] {
@@ -107,7 +130,7 @@ describe("the drainage-area extent the map is built from", () => {
     return [[west, south], [east, north]];
   }
 
-  it("matches the committed drainage-area polygons", () => {
+  it("matches the polygons of the areas that hold reservoirs", () => {
     const measured = boundsOf(huc6.features);
     // To the same three decimals the constant is written at: the file is
     // published to five, and rounding is what makes the constant readable.
@@ -117,7 +140,7 @@ describe("the drainage-area extent the map is built from", () => {
     expect(HUC6_BOUNDS[1][1]).toBeCloseTo(measured[1][1], 3);
   });
 
-  it("contains every drainage-area polygon", () => {
+  it("contains every polygon of the areas that hold reservoirs", () => {
     const measured = boundsOf(huc6.features);
     expect(HUC6_BOUNDS[0][0]).toBeLessThanOrEqual(measured[0][0] + 0.001);
     expect(HUC6_BOUNDS[0][1]).toBeLessThanOrEqual(measured[0][1] + 0.001);

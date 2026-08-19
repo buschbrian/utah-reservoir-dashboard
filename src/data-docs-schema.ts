@@ -288,8 +288,20 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
       "Absent when the drought monitor measures none of the area.", true),
     f("percent_of_area_at_least", "object",
       "Share of the measured land in each class or worse. " +
-      "Absent when the drought monitor measures none of the area.", true)
+      "Absent when the drought monitor measures none of the area.", true),
+    f("measured", "object",
+      "How much of the drainage area the shares above cover. " +
+      "Absent when the drought monitor measures all of it.", true)
   ]},
+  { id: "drought-measured", title: "Measured share of the area",
+    path: "units[].measured", fields: [
+      f("percent_of_area", "percent",
+        "Share of the whole drainage area the drought monitor covers. " +
+        "Kept apart from the class shares above, which divide by the " +
+        "measured land: the two have different denominators and must not " +
+        "be added or subtracted."),
+      f("basis", "text", "What the measured land is.")
+    ]},
   { id: "drought-shares", title: "Share in exactly each class",
     path: "units[].percent_of_area", fields: [
       f("none", "percent", "Land in no drought class."),
@@ -353,7 +365,8 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("type", "text", "GeoJSON collection type.")
   ]},
   { id: "reference-watersheds", title: "Drainage-area scopes", path: "geography.watersheds", fields: [
-    f("default_scope", "identifier", "Scope used by the dashboard."),
+    f("default_scope", "identifier", "Scope the maps draw."),
+    f("roster_scope", "identifier", "Scope the reservoir roster covers."),
     f("scopes", "object", "Named scope entries.")
   ]},
   { id: "reference-scope", title: "Named scope", path: "geography.watersheds.scopes.<scope>", fields: [

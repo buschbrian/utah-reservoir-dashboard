@@ -187,7 +187,7 @@ export function droughtAreaLines(
   ];
 }
 
-/** The national sweep outside the fourteen areas. The map draws it because
+/** The national sweep outside the drawn areas. The map draws it because
  * drought does not stop at a drainage-area edge; the card says that the
  * figures on the page below do. */
 export function droughtClassLines(code: string): string[] {

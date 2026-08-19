@@ -2112,6 +2112,47 @@ an error with a button on it. And every page carries a drawn favicon now,
 including the three redirects, which had none and left the browser to invent
 one.
 
+### Delivered 2026-08-18 -- the coverage moved west
+
+Step 1 of `docs/WESTERN-EXPANSION-SCOPING.md`, recorded as ADR-063. The maps
+draw 75 drainage areas instead of 14 -- regions 14 through 18, everything
+draining to the Pacific plus the Great Basin -- and the drought engine
+publishes coverage for all of them.
+
+**The roster did not move with the coverage, and that is what made this a
+decision rather than a flag.** Admitting a reservoir means tracing a full
+level and reviewing it, and whether the west's admission rate resembles Utah's
+63% is still an open measurement. So "which areas exist" and "which areas hold
+reservoirs" became two questions, and the map's opening extent had been
+derived from the first one. It follows the second now: `ROSTER_SCOPE` names
+the geography the roster was admitted from, `reference.json` publishes both
+names, and `HUC6_BOUNDS` is unchanged today and moves when the reservoirs do.
+Left alone, the storage map would have opened on 19 degrees of longitude with
+every one of its 69 reservoirs in a corner of it.
+
+**Each map now draws what it can say something about.** The drought map draws
+75 because it measures 75. The snow map draws 14 because the snow network
+reports in 14, which is `measuredScope` in `src/snow-model.ts` -- 61 outlines
+with no percent of normal behind them is the empty hover card ADR-050 already
+refuses. The storage map draws all 75, where the areas past the roster are
+context around the subject rather than the subject.
+
+**Two things the scoping had not predicted.** The western boundary file had
+been fetched at 100 metres, the ordinary tolerance for a research scope;
+publishing it made it the geometry every drought figure is measured against,
+and at that tolerance two of the fourteen areas published today moved by a
+tenth of a point. Refetched at 56 metres -- ADR-037's measured resolution --
+the fourteen shared areas are byte-for-byte identical to `huc6.geojson` and no
+published figure moved. And 21 of the 75 basins cross the Canadian or Mexican
+border, so ADR-059's `measured` block reached a published file for the first
+time and needed documenting in the data API.
+
+**The cost is not in this project's files.** `reference.json` went 5.5 to 6.7
+KB gzipped and the weekly coverage 0.9 to 2.9 KB. The hosted outlines went
+42.5 to 210.6 KB on the storage map and 60.4 to 241.2 KB on the drought map,
+which is where drawing five times the areas is actually paid, and the figure
+`docs/data-transfer.md` now tracks.
+
 ---
 
 ## 4. Risks and traps

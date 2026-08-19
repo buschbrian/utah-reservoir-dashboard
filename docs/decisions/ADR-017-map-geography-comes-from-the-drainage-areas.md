@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted. Narrowed by
+[ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md): the geography is
+the box of the drainage areas that *hold published reservoirs*, which was
+every drawn area until the coverage moved west and the roster stayed.
 
 ## Date
 

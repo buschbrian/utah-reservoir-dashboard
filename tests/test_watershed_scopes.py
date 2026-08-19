@@ -12,8 +12,12 @@ from tools.fetch_watershed_scope import (
     MAX_ALLOWABLE_OFFSET,
     normalize_collection,
 )
+import huc
+import refresh_reservoirs
 from watershed_scopes import (
+    DEFAULT_SCOPE,
     ROOT,
+    ROSTER_SCOPE,
     WBD_LAYER_BY_LEVEL,
     get_scope,
     huc_field,
@@ -31,24 +35,100 @@ def test_utah_connected_scope_preserves_the_published_dashboard_rule():
     assert scope.level == 6
 
 
-def test_the_western_scopes_are_defined_but_publish_nowhere_near_the_dashboard():
-    """They exist so the geography can be fetched and reviewed before any
-    surface draws it. None of them writes the file the dashboard reads."""
-    published = get_scope("utah-connected").output
+def test_the_dashboard_draws_the_western_huc6_scope():
+    """The coverage change, in the one place it is decided (ADR-063).
 
+    Level 6 is not incidental: every figure on this site -- storage banked in
+    an area, drought coverage, snow percent of normal -- is keyed at six
+    digits, so a scope drawn at another size would put shapes on the map that
+    no number describes.
+    """
+    assert DEFAULT_SCOPE == "west-huc6"
+
+    scope = get_scope(DEFAULT_SCOPE)
+    assert scope.published
+    assert scope.level == 6
+    assert scope.output == "data/watersheds/west-huc6.geojson"
+    # The pipeline assigns reservoirs with the file the maps draw, rather
+    # than with a file named separately in huc.py.
+    assert huc.BOUNDARY_PATH == ROOT / scope.output
+
+
+def test_the_finer_and_coarser_western_scopes_are_registered_and_draw_nothing():
+    """They exist so the geography can be fetched and reviewed before any
+    surface draws it, which is the state west-huc6 was in until it was
+    drawn. Neither is published, so the reference export skips both."""
     for name, level, output in (
         ("west-huc4", 4, "data/watersheds/west-huc4.geojson"),
-        ("west-huc6", 6, "data/watersheds/west-huc6.geojson"),
         ("west-huc8", 8, "data/watersheds/west-huc8.geojson"),
     ):
         scope = get_scope(name)
         assert scope.level == level
         assert scope.output == output
-        assert scope.output != published
+        assert not scope.published
+        assert scope.output != get_scope(DEFAULT_SCOPE).output
         # Banded rather than pinned: nine regions of the Watershed Boundary
         # Dataset are revised more often than one.
         assert scope.expected_count is None
         assert scope.expected_range is not None
+
+
+def test_every_roster_reservoir_sits_inside_the_roster_scope():
+    """The roster scope is the geography the reservoirs were admitted from,
+    and the map's opening extent is the box of it (ADR-063).
+
+    Read from the committed roster rather than from reservoirs.json: a
+    reservoir whose feed goes quiet is withdrawn from the payload (ADR-056),
+    and a payload-driven assertion would retire itself on the morning that
+    happened rather than failing.
+
+    What this catches is a reservoir admitted outside the roster scope while
+    the scope name stays behind. The map would still open on the old box and
+    the new reservoir would sit outside it, which is not a visible failure --
+    it is a reservoir the reader can select and then cannot pan to.
+    """
+    scope = get_scope(ROSTER_SCOPE)
+    units = load_scope_units(ROSTER_SCOPE)
+    dams = refresh_reservoirs.dam_points()
+
+    points = {name: (lon, lat) for name, (_, lat, lon)
+              in refresh_reservoirs.RESERVOIRS.items()}
+    points.update({name: (lon, lat) for name, (_, lat, lon, _, _)
+                   in refresh_reservoirs.AWDB_RESERVOIRS.items()})
+    # The assignment point, not the published one, wherever there is a
+    # reviewed dam: a drainage area is where the stored water leaves.
+    points.update(dams)
+    assert len(points) >= 69
+
+    outside = sorted(name for name, point in points.items()
+                     if huc.assign_huc(point, units) is None)
+    assert outside == [], (
+        f"{outside} are outside the {ROSTER_SCOPE} scope the map opens on; "
+        f"move ROSTER_SCOPE to the geography they were admitted from")
+    assert scope.published, "the extent is derived from this scope's roster"
+
+
+def test_the_roster_scopes_areas_are_the_drawn_scopes_own_geometry():
+    """The two committed files must agree, area for area, about the fourteen
+    they share.
+
+    They are fetched separately and could be fetched at different
+    generalizations, and the difference is not cosmetic: at 100 metres against
+    56, two drought figures moved by a tenth of a point -- one rounding step at
+    the precision this site publishes -- with no weather behind it. The
+    reservoir assignment and the map's extent are read from one file and the
+    drought shares from the other, so a disagreement here is two geographies
+    wearing one set of codes.
+    """
+    drawn = {unit["huc6"]: unit for unit in load_scope_units(DEFAULT_SCOPE)}
+    roster = load_scope_units(ROSTER_SCOPE)
+
+    assert {unit["huc6"] for unit in roster} <= set(drawn)
+    for unit in roster:
+        assert unit["polygons"] == drawn[unit["huc6"]]["polygons"], (
+            f"{unit['huc6']} {unit['name']} has different geometry in "
+            f"{get_scope(ROSTER_SCOPE).output} and "
+            f"{get_scope(DEFAULT_SCOPE).output}")
 
     # Regions 14 through 18, as a range on the leading two digits rather than
     # five LIKE clauses. Region 19 is Alaska and is out.

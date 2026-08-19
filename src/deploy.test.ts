@@ -17,14 +17,18 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (file: string): Promise<string> => readFile(resolve(root, file), "utf8");
 
-/* What the build publishes. `huc6.geojson` is deliberately absent: it is the
- * reviewed source the pipeline assigns every reservoir with, and it stays
- * committed, but no page has fetched it since ADR-047 moved the outlines to
- * the hosted layer and ADR-048 stopped publishing it. */
-/* Committed and deliberately not published, for the reason `huc6.geojson` is
- * not: the drought engine reads the mask offline and no browser has a use for
- * it. 142 KB in every deploy, twice, for nobody (ADR-048, ADR-059). */
-const COMMITTED_BUT_UNPUBLISHED = ["huc6.geojson", "data/us-land.geojson"];
+/* What the build publishes. No boundary polygon file is in it, deliberately:
+ * they are the reviewed sources the pipeline assigns and measures with, they
+ * stay committed, and no page has fetched one since ADR-047 moved the
+ * outlines to the hosted layer and ADR-048 stopped publishing them.
+ *
+ * `west-huc6.geojson` is the drawn scope's and the largest of them at 3.7 MB
+ * (ADR-063); `huc6.geojson` is the roster scope's; `us-land.geojson` is the
+ * mask the drought engine reads offline. Each would be 2 copies in every
+ * deploy for nobody (ADR-048, ADR-049, ADR-059). */
+const COMMITTED_BUT_UNPUBLISHED = [
+  "huc6.geojson", "data/watersheds/west-huc6.geojson", "data/us-land.geojson"
+];
 
 const RUNTIME_DATA = [
   "reservoirs.json", "snow_sites.json", "snowpack.json",

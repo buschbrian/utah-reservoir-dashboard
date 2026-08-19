@@ -489,7 +489,9 @@ def test_one_export_contains_capacity_and_every_visualization_geography():
     geography = sections["geography"]
     assert geography["state"]["features"][0]["properties"]["name"] == "Utah"
     watersheds = geography["watersheds"]
-    assert watersheds["default_scope"] == "utah-connected"
+    assert watersheds["default_scope"] == "west-huc6"
+    assert watersheds["roster_scope"] == "utah-connected"
+    assert watersheds["scopes"]["west-huc6"]["unit_count"] == 75
     assert watersheds["scopes"]["utah-connected"]["unit_count"] == 14
     assert watersheds["scopes"]["upper-colorado"]["unit_count"] == 10
 
@@ -540,6 +542,20 @@ def test_the_export_publishes_the_committed_roster_unchanged():
     assert scopes["utah-connected"]["units"] == roster("huc6.geojson")
     assert scopes["upper-colorado"]["units"] == roster(
         "data/watersheds/upper-colorado-huc6.geojson")
+    assert scopes["west-huc6"]["units"] == roster(
+        "data/watersheds/west-huc6.geojson")
+
+    # Two scopes are named, and they stopped being the same name when the
+    # coverage moved west (ADR-063): the maps draw 75 basins, the reservoir
+    # roster was admitted from the fourteen that touch Utah, and the storage
+    # map opens on the second. Both must be scopes this file publishes, or a
+    # client following either name has nothing to follow.
+    watersheds = geography["watersheds"]
+    assert watersheds["default_scope"] == "west-huc6"
+    assert watersheds["roster_scope"] == "utah-connected"
+    assert set(scopes) >= {watersheds["default_scope"], watersheds["roster_scope"]}
+    assert scopes["west-huc6"]["unit_count"] == 75
+    assert scopes["utah-connected"]["unit_count"] == 14
 
 
 def test_the_export_carries_no_polygons_but_the_state_outline():
@@ -572,7 +588,7 @@ def test_every_record_gets_a_watershed_and_the_summary_agrees():
     # Deer Creek has a dam in the National Inventory of Dams and Bear Lake
     # does not, so exactly one of the two is assigned by its dam -- and each
     # record says which kind of point produced it.
-    assert summary == {"unit_count": 14, "assigned": 2, "unassigned": 0,
+    assert summary == {"unit_count": 75, "assigned": 2, "unassigned": 0,
                        "assigned_by_dam": 1}
     assert records[0]["huc6"] == "160202" and records[0]["in_utah"] is True
     assert records[0]["huc_assignment_source"] == "nid_dam_point"

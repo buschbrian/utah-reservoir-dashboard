@@ -1,8 +1,8 @@
 """Compute weekly drought coverage for each published drainage area.
 
-Reads the committed U.S. Drought Monitor polygons, the committed HUC-6
-boundaries and the committed land mask, and writes the percent of each
-drainage area's *measured* land in each intensity class. The downloaded
+Reads the committed U.S. Drought Monitor polygons, the committed boundaries
+of the drawn scope and the committed land mask, and writes the percent of
+each drainage area's *measured* land in each intensity class. The downloaded
 polygons are *exclusive*: each feature covers exactly its class, verified by
 probing interior points, so "D1 or worse" is a sum of disjoint areas rather
 than a union.
@@ -63,8 +63,15 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+import watershed_scopes  # noqa: E402
+
 DROUGHT_PATH = ROOT / "data" / "drought" / "usdm-current.geojson"
-BOUNDARIES_PATH = ROOT / "huc6.geojson"
+# The drawn scope's file, not a file named here: the coverage rows are joined
+# to the areas the maps draw, so a second copy of that decision would publish
+# shares for a geography nothing shows (ADR-063).
+BOUNDARIES_PATH = (
+    ROOT / watershed_scopes.get_scope(watershed_scopes.DEFAULT_SCOPE).output)
 LAND_PATH = ROOT / "data" / "us-land.geojson"
 OUTPUT_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
 HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"

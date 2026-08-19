@@ -71,6 +71,7 @@ supersedes the old one — the history is the point.
 | [ADR-060](ADR-060-three-questions-about-a-state.md) | Three questions about a state | Accepted |
 | [ADR-061](ADR-061-reference-geometry-over-continuous-data-only.md) | Reference geometry may sit over continuous data, never over discrete | Accepted |
 | [ADR-062](ADR-062-admit-lake-mead-and-generalize-the-dominant-reservoir-control.md) | Admit Lake Mead, and generalize the dominant-reservoir control | Accepted |
+| [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md) | Draw the whole west, and open on the areas that hold reservoirs | Accepted |
 
 ## Relationship to the modernization plan
 

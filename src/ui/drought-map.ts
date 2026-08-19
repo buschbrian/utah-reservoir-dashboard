@@ -1,6 +1,6 @@
 /*
  * The drought map: the U.S. Drought Monitor's national polygons in the
- * monitor's own palette, under the fourteen drainage-area outlines.
+ * monitor's own palette, under the drainage-area outlines.
  *
  * This map lives on the drought view, never on the reservoir map, keeping
  * one colour language per map. The polygons are the committed weekly

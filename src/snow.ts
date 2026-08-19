@@ -33,6 +33,7 @@ import {
   newestHeadline,
   normalPeriodLabel,
   observedPeak,
+  measuredScope,
   percentOfNormal,
   regionCurve,
   seasonHighPoint,
@@ -820,7 +821,9 @@ function renderSnow(payload: SnowpackPayload): void {
   void (async () => {
     try {
       installAnonymousAuthPolicy();
-      const scope = await loadDrainageScope();
+      /* The areas this payload has snow for, not every area drawn: see
+       * `measuredScope`. */
+      const scope = measuredScope(await loadDrainageScope(), payload);
       if (scope.areas.length === 0) throw new Error("no drainage boundaries");
       /* Framed, controlled and constrained exactly like the storage map,
        * with the hover card already beside it in the host. */

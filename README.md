@@ -126,10 +126,12 @@ python refresh_reservoirs.py --dry-run
 
 The version ranges match CI and the scheduled refresh workflow.
 
-Broader watershed research uses named scopes so it cannot silently replace
-the accepted Utah-connected production geography. `utah-connected` retains
-the 14 published units; `upper-colorado` selects the 10 HUC6 codes beginning
-with region 14 and writes `data/watersheds/upper-colorado-huc6.geojson`.
+Watershed geography is chosen by named scope, so it cannot change by accident.
+`west-huc6` is what the maps draw and what reservoirs are assigned against;
+`utah-connected` retains the 14 units the roster was admitted from and is what
+the storage map opens on; `upper-colorado` selects the 10 HUC6 codes beginning
+with region 14 and writes `data/watersheds/upper-colorado-huc6.geojson`. The
+HUC4 and HUC8 western scopes are registered, fetched and drawn by nothing.
 
 The watershed fetcher uses the public ArcGIS REST query API by default. To
 exercise the ArcGIS API for Python `FeatureLayer` query path, use Python
@@ -166,7 +168,11 @@ The measured scope and current candidate baseline are recorded in
   [`capacities.json`](capacities.json). AWDB sites use the provider's reservoir
   metadata.
 - Six-digit drainage areas come from the U.S. Geological Survey Watershed
-  Boundary Dataset and are committed in [`huc6.geojson`](huc6.geojson).
+  Boundary Dataset. The maps draw the 75 basins of the west, committed in
+  [`west-huc6.geojson`](data/watersheds/west-huc6.geojson); the fourteen the
+  reservoir roster was admitted from stay committed in
+  [`huc6.geojson`](huc6.geojson) and are what the storage map opens on
+  ([ADR-063](docs/decisions/ADR-063-draw-the-west-and-open-on-the-roster.md)).
 - The state outline comes from the Utah Geospatial Resource Center's
   maintained Utah State Boundary and is committed in
   [`utah-boundary.geojson`](utah-boundary.geojson). It drives both the map
