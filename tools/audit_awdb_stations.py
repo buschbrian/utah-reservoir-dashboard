@@ -69,10 +69,36 @@ def get_json(url: str, params: dict):
         return None
 
 
-def select_candidates(stations, payload, units):
-    """Apply the canonical point-in-polygon scope rule without network I/O."""
+def tracked_points(reservoir, dam_points):
+    """Every position a published reservoir is known at.
+
+    Its own published point, and its reviewed dam point where there is one.
+    A gauge is installed at the dam or at the water, and which of the two a
+    provider publishes is that provider's choice rather than a fact about the
+    reservoir.
+    """
+    points = [(reservoir["lon"], reservoir["lat"])]
+    dam = dam_points.get(reservoir["name"])
+    if dam:
+        points.append(dam)
+    return points
+
+
+def select_candidates(stations, payload, units, dam_points=None):
+    """Apply the canonical point-in-polygon scope rule without network I/O.
+
+    `dam_points` maps a published reservoir's name to its reviewed dam
+    coordinate. A reservoir is tracked at whichever point its provider
+    publishes, and the two providers do not publish the same one: RISE gives
+    Lake Mead as the water at Temple Bar and AWDB gives it as the gauge at
+    Hoover Dam, 41.9 km apart (ADR-062). Comparing only against the published
+    point therefore offered Lake Mead as a candidate for a roster it is
+    already on, and admitting it would have added 28.3 million acre-feet to
+    every total that already contains it.
+    """
     ours = {unit["huc6"]: unit["name"] for unit in units}
     tracked_ids = {str(r.get("source_station_id") or "") for r in payload["reservoirs"]}
+    dam_points = dam_points or {}
     tracked_by_name = {}
     for reservoir in payload["reservoirs"]:
         tracked_by_name.setdefault(normalize(reservoir["name"]), []).append(reservoir)
@@ -101,7 +127,8 @@ def select_candidates(stations, payload, units):
         # alone is not identity; distinct reservoirs can share one.
         same_named = tracked_by_name.get(normalize(name), [])
         if point and any(
-            distance_km(point, (reservoir["lon"], reservoir["lat"])) <= NAMED_RADIUS_KM
+            any(distance_km(point, known) <= NAMED_RADIUS_KM
+                for known in tracked_points(reservoir, dam_points))
             for reservoir in same_named
         ):
             already += 1
@@ -140,6 +167,15 @@ def find_candidates(units=None):
     """
     units = units or load_units()
     payload = json.loads((ROOT / "reservoirs.json").read_text())
+    #: The reviewed dam coordinates, read straight from the committed table
+    #: rather than through `refresh_reservoirs`, which would pull pandas into
+    #: a tool that needs none of it.
+    catalog = json.loads((ROOT / "capacities.json").read_text())
+    dam_points = {
+        name: (entry["dam_lon"], entry["dam_lat"])
+        for name, entry in catalog["capacities"].items()
+        if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None
+    }
 
     stations = get_json(AWDB_STATIONS, {
         "stateCds": "UT", "elements": "RESC", "activeOnly": "true"})
@@ -147,7 +183,8 @@ def find_candidates(units=None):
         return None, {"units": units, "payload": payload, "stations": 0,
                       "tracked": 0, "outside": 0}
 
-    candidates, already, outside = select_candidates(stations, payload, units)
+    candidates, already, outside = select_candidates(
+        stations, payload, units, dam_points)
     return candidates, {"units": units, "payload": payload, "stations": len(stations),
                         "tracked": already, "outside": outside}
 

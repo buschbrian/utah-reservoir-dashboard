@@ -50,3 +50,41 @@ def test_identifier_then_name_and_position_exclude_tracked_sites():
     assert [candidate["station"] for candidate in candidates] == ["far"]
     assert candidates[0]["tracked_name_match"] is True
     assert already == 2 and outside == 0
+
+
+def test_a_reservoir_tracked_at_its_dam_is_not_offered_again_at_its_water():
+    """The Lake Mead case, and the reason a position dedupe needs both points.
+
+    RISE publishes Mead as the water at Temple Bar and AWDB as the gauge at
+    Hoover Dam, 41.9 km apart -- further than any name-and-position rule will
+    reach (ADR-062). Comparing against the reviewed dam point as well is what
+    keeps a reservoir already on the roster from being admitted a second time,
+    which would have added 28.3 million acre-feet to every total that already
+    contained it.
+    """
+    payload = {"reservoirs": [{"name": "Big Lake", "source_station_id": "rise-1",
+                               "lon": -109.1, "lat": 38.9}]}
+    # The station sits at the dam, well outside the 25 km the name rule uses.
+    far_dam = station("awdb-1", "140600123456", -109.6, 38.2, "Big Lake")
+
+    without = select_candidates([far_dam], payload, UNITS)
+    assert [c["station"] for c in without[0]] == ["awdb-1"]
+
+    with_dam = select_candidates([far_dam], payload, UNITS,
+                                 {"Big Lake": (-109.6, 38.2)})
+    assert with_dam[0] == []
+    assert with_dam[1] == 1
+
+
+def test_a_dam_point_does_not_excuse_a_different_reservoir():
+    """The dam point widens where a *name match* may be, and nothing else. Two
+    reservoirs with different names near one dam stay two reservoirs."""
+    payload = {"reservoirs": [{"name": "Big Lake", "source_station_id": "rise-1",
+                               "lon": -109.1, "lat": 38.9}]}
+    other = station("awdb-2", "140600123456", -109.6, 38.2, "Little Lake")
+
+    candidates, already, _ = select_candidates(
+        [other], payload, UNITS, {"Big Lake": (-109.6, 38.2)})
+
+    assert [c["station"] for c in candidates] == ["awdb-2"]
+    assert already == 0
