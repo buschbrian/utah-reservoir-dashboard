@@ -152,7 +152,6 @@ SCOPES = {
         description="Every HUC4 subregion draining to the Pacific or closed inside the west",
         where=WEST_REGION_WHERE.format(field="huc4"),
         output="data/watersheds/west-huc4.geojson",
-        published=False,
         level=4,
         # Measured 2026-08-18, regions 14-18: 44 subregions.
         expected_range=(40, 50),

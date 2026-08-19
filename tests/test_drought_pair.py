@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from check_drought_pair import (  # noqa: E402
+    coverage_paths,
     LATE_AFTER_DAYS,
     check_pair,
     days_since,
@@ -92,17 +93,30 @@ def test_the_late_threshold_matches_the_one_the_page_shows():
 
 
 class TestCommittedFiles:
-    def test_the_two_committed_files_describe_the_same_week(self):
+    def test_every_committed_coverage_file_describes_the_same_week(self):
         """The state the workflow exists to preserve, asserted on what is
         actually in the repository. The coverage suite checks this too, from
-        the other direction; this is the one that names the tool to run."""
+        the other direction; this is the one that names the tool to run.
+
+        Every offered level, not just the one the map opens at: a reader who
+        changes the level fetches a different file (ADR-064), and one left
+        behind would put them on another week with nothing said.
+        """
         polygons = json.loads(
             (ROOT / "data" / "drought" / "usdm-current.geojson")
             .read_text(encoding="utf-8"))
-        coverage = json.loads(
-            (ROOT / "data" / "drought" / "usdm-huc6.json")
-            .read_text(encoding="utf-8"))
+        published = coverage_paths()
 
-        assert check_pair(polygons, coverage) == [], (
-            "the committed drought files describe different weeks; "
-            "run tools/compute_drought_coverage.py")
+        assert [path.name for path in published] == [
+            "usdm-huc4.json", "usdm-huc6.json"]
+        for path in published:
+            coverage = json.loads(path.read_text(encoding="utf-8"))
+            assert check_pair(polygons, coverage) == [], (
+                f"{path.name} describes a different week from the polygons; "
+                "run tools/compute_drought_coverage.py")
+
+    def test_the_archive_is_not_mistaken_for_a_week(self):
+        """It is a series of weeks, not one, and has no `map_date` to agree
+        on -- so a glob that swept it in would report a permanent mismatch."""
+        assert not any(path.name.endswith("-history.json")
+                       for path in coverage_paths())

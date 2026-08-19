@@ -234,6 +234,27 @@ def land_mask_segments(land: dict | None) -> list[np.ndarray] | None:
     return parts
 
 
+def unit_field(boundaries: dict) -> str:
+    """The attribute this boundary collection publishes its code in.
+
+    Hydrologic codes are fixed-width, so the level *is* the digit count and
+    the attribute is named after it (ADR-050). Read from the file rather than
+    written down here: this engine measures whichever scope it is pointed at,
+    and reading a fixed `huc6` is what refused a HUC-4 file with a KeyError.
+    """
+    features = boundaries.get("features") or []
+    if not features:
+        raise ValueError("the boundary collection carries no features")
+    properties = features[0]["properties"]
+    fields = sorted(f"huc{level}" for level in watershed_scopes.WBD_LAYER_BY_LEVEL
+                    if isinstance(properties.get(f"huc{level}"), str))
+    if len(fields) != 1:
+        raise ValueError(
+            "a boundary collection must carry exactly one hydrologic code per "
+            f"feature; this one carries {fields or 'none'}")
+    return fields[0]
+
+
 def build_payload(drought: dict, boundaries: dict, step: float,
                   land: dict | None = None) -> dict:
     drought_segments = {}
@@ -247,9 +268,11 @@ def build_payload(drought: dict, boundaries: dict, step: float,
 
     land_segments = land_mask_segments(land)
 
+    field = unit_field(boundaries)
+    name_field = f"{field}_name"
     units = []
     for feature in sorted(boundaries["features"],
-                          key=lambda item: item["properties"]["huc6"]):
+                          key=lambda item: item["properties"][field]):
         raw, measured = unit_coverage(
             segments_of(feature["geometry"]), drought_segments, step, land_segments)
         if measured == 0.0:
@@ -257,8 +280,8 @@ def build_payload(drought: dict, boundaries: dict, step: float,
             # (ADR-059) -- a "none" of 100 here would publish "not measured"
             # as "no drought". The measured block alone says why.
             units.append({
-                "huc6": feature["properties"]["huc6"],
-                "huc6_name": feature["properties"]["name"],
+                field: feature["properties"][field],
+                name_field: feature["properties"]["name"],
                 "measured": {
                     "percent_of_area": 0.0,
                     "basis": "land the drought monitor maps; "
@@ -280,8 +303,8 @@ def build_payload(drought: dict, boundaries: dict, step: float,
             running += exclusive[key]
             at_least[key] = round(running, 1)
         unit = {
-            "huc6": feature["properties"]["huc6"],
-            "huc6_name": feature["properties"]["name"],
+            field: feature["properties"][field],
+            name_field: feature["properties"]["name"],
             # Shares of the area the monitor measures. "none" is measured land
             # with no drought on it, and never land the monitor cannot see.
             "percent_of_area": {
@@ -317,11 +340,25 @@ def build_payload(drought: dict, boundaries: dict, step: float,
         },
         # The size of the drainage areas, as the length of their code. The
         # boundary file decides it; this reports it so a reader never has to
-        # infer the level by measuring a code.
-        "level": len(units[0]["huc6"]) if units else None,
+        # infer the level by measuring a code -- and so a client knows which
+        # attribute to read each unit's code from, which is `huc` and this
+        # number (ADR-050).
+        "level": int(field.removeprefix("huc")),
         "unit_count": len(units),
         "units": units,
     }
+
+
+def payload_field(payload: dict) -> str:
+    """The attribute a computed payload carries its codes in.
+
+    The payload states its own level, so nothing downstream has to measure a
+    code to know what it is reading.
+    """
+    level = payload.get("level")
+    if level not in watershed_scopes.WBD_LAYER_BY_LEVEL:
+        raise ValueError(f"payload declares no usable hydrologic level: {level!r}")
+    return f"huc{level}"
 
 
 def history_entry(payload: dict) -> dict:
@@ -337,6 +374,7 @@ def history_entry(payload: dict) -> dict:
     and to the current week's payload; a history that carried its own copy
     would be a second place for a name to be wrong.
     """
+    field = payload_field(payload)
     return {
         "map_date": payload["map_date"],
         "release_date": payload["release_date"],
@@ -344,7 +382,7 @@ def history_entry(payload: dict) -> dict:
         # carries a copy of the one before it stores every week twice and
         # doubles again on the next release.
         "units": [
-            {"huc6": unit["huc6"],
+            {field: unit[field],
              "percent_of_area_at_least": dict(unit["percent_of_area_at_least"])}
             for unit in payload["units"]
             # An unmeasured area has no share to compare between weeks.
@@ -353,7 +391,8 @@ def history_entry(payload: dict) -> dict:
     }
 
 
-def previous_week(history: dict | None, map_date: str) -> dict | None:
+def previous_week(history: dict | None, map_date: str,
+                  field: str = "huc6") -> dict | None:
     """The newest week in the history older than this one, or None.
 
     Strictly older, so re-running for a week already in the history compares
@@ -370,7 +409,7 @@ def previous_week(history: dict | None, map_date: str) -> dict | None:
         "map_date": newest["map_date"],
         "release_date": newest.get("release_date"),
         "units": [
-            {"huc6": unit["huc6"],
+            {field: unit[field],
              "percent_of_area_at_least": dict(unit["percent_of_area_at_least"])}
             for unit in newest["units"]
         ],
@@ -389,6 +428,17 @@ def merge_history(previous: dict | None, payload: dict,
     Weeks are held oldest first, so a reader can take the last entry without
     knowing how long the file is.
     """
+    level = payload_field(payload)
+    kept_level = (previous or {}).get("level")
+    if kept_level is not None and f"huc{kept_level}" != level:
+        # The archive joins its weeks on their codes, so a file holding two
+        # levels is two series wearing one name -- and the join would silently
+        # find nothing rather than fail. The archive is published at one level
+        # on purpose (ADR-063): it grows with the area count, and at HUC-8 it
+        # would reach 30 MB against 3.9 at HUC-6.
+        raise ValueError(
+            f"the archive holds HUC-{kept_level} weeks and this payload is "
+            f"HUC-{payload['level']}; publish the finer level with --no-history")
     weeks = list((previous or {}).get("weeks") or [])
     entry = history_entry(payload)
     weeks = [week for week in weeks if week.get("map_date") != entry["map_date"]]
@@ -399,6 +449,9 @@ def merge_history(previous: dict | None, payload: dict,
         "schema_version": 1,
         "source": payload["source"],
         "attribution": payload["attribution"],
+        # The size of the areas every week in here is keyed at. One archive,
+        # one level: see the refusal above.
+        "level": payload["level"],
         "method": {
             **payload["method"],
             "history": (
@@ -431,11 +484,27 @@ def write_atomic(path: Path, payload: dict) -> bool:
     return True
 
 
+def coverage_path(level: int) -> Path:
+    """Where a level's weekly coverage is published.
+
+    Named for the level rather than for the scope, because the level is what a
+    reader of the file needs and what the client asks for. Only one scope is
+    ever drawn at a level, so this cannot collide.
+    """
+    return ROOT / "data" / "drought" / f"usdm-huc{level}.json"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--drought", type=Path, default=DROUGHT_PATH)
-    parser.add_argument("--boundaries", type=Path, default=BOUNDARIES_PATH)
-    parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--scope", default=watershed_scopes.DEFAULT_SCOPE,
+                        choices=tuple(sorted(watershed_scopes.SCOPES)),
+                        help="which registered scope to measure; its level "
+                             "decides the boundary file and the output name")
+    parser.add_argument("--boundaries", type=Path, default=None,
+                        help="override the scope's committed boundary file")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="override the output path the level implies")
     parser.add_argument("--history", type=Path, default=HISTORY_PATH)
     parser.add_argument("--land", type=Path, default=LAND_PATH,
                         help="the land mask the monitor's extent follows")
@@ -444,8 +513,11 @@ def main() -> int:
     parser.add_argument("--step", type=float, default=DEFAULT_STEP)
     args = parser.parse_args()
 
+    scope = watershed_scopes.get_scope(args.scope)
+    boundaries_path = args.boundaries or (ROOT / scope.output)
+    output_path = args.output or coverage_path(scope.level)
     drought = json.loads(args.drought.read_text(encoding="utf-8"))
-    boundaries = json.loads(args.boundaries.read_text(encoding="utf-8"))
+    boundaries = json.loads(boundaries_path.read_text(encoding="utf-8"))
     # A missing mask is fatal rather than ignored. Running without it does not
     # fail -- it quietly reports every border basin's Canadian or Mexican half
     # as land with no drought on it, which is the whole defect this exists to
@@ -469,25 +541,28 @@ def main() -> int:
         # every page wanting a single change would fetch a decade to find one
         # subtraction. This block is about a kilobyte and needs no extra
         # request. The archive stays for work that genuinely wants a series.
-        payload["previous"] = previous_week(previous_history, payload["map_date"])
+        payload["previous"] = previous_week(
+            previous_history, payload["map_date"], payload_field(payload))
 
-    changed = write_atomic(args.output, payload)
+    changed = write_atomic(output_path, payload)
     if not args.no_history:
         history = merge_history(previous_history, payload)
         history_changed = write_atomic(args.history, history)
 
+    field = payload_field(payload)
     for unit in payload["units"]:
         if "percent_of_area" not in unit:
-            print(f"{unit['huc6']} {unit['huc6_name']}: no measured land, "
+            print(f"{unit[field]} {unit[f'{field}_name']}: no measured land, "
                   "no share published")
             continue
         worst = next((key for key in reversed(LEVELS)
                       if unit["percent_of_area"][key] > 0), "none")
-        print(f"{unit['huc6']} {unit['huc6_name']}: "
+        print(f"{unit[field]} {unit[f'{field}_name']}: "
               f"{unit['percent_of_area_at_least']['d0']}% in drought or unusually "
               f"dry, worst class {worst}")
-    print(f"{payload['unit_count']} drainage areas for {payload['map_date']}; "
-          f"{args.output} {'written' if changed else 'unchanged'}.")
+    print(f"{payload['unit_count']} drainage areas for {payload['map_date']} "
+          f"at HUC-{payload['level']}; "
+          f"{output_path} {'written' if changed else 'unchanged'}.")
     if history is not None:
         print(f"{history['week_count']} weeks kept "
               f"({history['first_map_date']} to {history['last_map_date']}); "

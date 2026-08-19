@@ -574,7 +574,10 @@ def test_the_export_carries_no_polygons_but_the_state_outline():
     sections = R.build_export_sections()
     for name, scope in sections["geography"]["watersheds"]["scopes"].items():
         assert "boundaries" not in scope, f"{name} is publishing polygons again"
-        assert all(set(unit) == {"huc6", "name", "states"} for unit in scope["units"])
+        # The code arrives under the attribute the level names, so a HUC-4
+        # scope publishes `huc4` (ADR-050). Nothing else may join it.
+        field = f"huc{scope['level']}"
+        assert all(set(unit) == {field, "name", "states"} for unit in scope["units"])
 
     assert len(render(sections).encode("utf-8")) < 120_000
 

@@ -1816,6 +1816,10 @@ for (const viewport of VIEWPORTS) {
       "./api/snowpack.json", "./snow.html",
       "./data/drought/usdm-huc6.json", "./drought.html",
       "./data/drought/usdm-current.geojson",
+      // The same week over larger areas, published because the reader can
+      // choose the level (ADR-064). Named on the page rather than left to be
+      // guessed at from the other file's name.
+      "./data/drought/usdm-huc4.json",
       "./api/reference.json"
     ]), `${label}: file card links are ${JSON.stringify(state.links)}`);
     check(state.text.includes("Access-Control-Allow-Origin: *"),

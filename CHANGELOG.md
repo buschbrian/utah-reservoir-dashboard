@@ -17,6 +17,14 @@ and is not listed here.
   tracing a full level and reviewing it, and that work is separate from
   drawing the ground (ADR-063).
 
+- **Drought is measured over larger areas too.** The same weekly measurement
+  is now published over the 44 subregions of the west as well as its 75
+  basins, so the site can offer a reader the choice of how finely the ground
+  is divided. Nothing else about the data changed: the same snow sites and the
+  same reservoirs, grouped differently (ADR-064). The engine reads and writes
+  each area's code under the name its size implies, which is what it had
+  always asked of the maps and never of itself.
+
 - **The storage map still opens where the reservoirs are.** Where a reader may
   pan now comes from the areas that hold reservoirs rather than from every
   area drawn, so covering the west did not open the map on 19 degrees of

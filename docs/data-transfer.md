@@ -17,6 +17,7 @@ Two rules before any figure below is read:
 | `reservoirs.json` | 360 KB | 43.1 KB |
 | `reference.json` | 27 KB | 6.7 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
+| `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
 
 Re-measured 2026-08-18, after the coverage moved to the whole west (ADR-063).
 The two files that carry a row per drainage area went from 14 rows to 75:
@@ -27,6 +28,14 @@ scoping projected 4.8 KB for the coverage file and it came in at 2.9.
 
 `reservoirs.json` did not move: the roster is still 69 reservoirs in 14 of the
 75 areas, and the drainage codes it carries were already six digits.
+
+Offering a second level (ADR-064) added the 44-subregion coverage file and the
+HUC-4 roster: 2.0 KB and 0.9 KB gzipped, and nothing else. That is the whole
+cost in this project's own files, and it is the measurement the scoping made
+before any of it was built -- the station payloads describe the same ground
+whatever size the areas they group into are, so `snowpack.json` and
+`reservoirs.json` are byte-identical at either level. A reader who never
+changes the level pays none of it.
 
 Measured 2026-08-18 before that, after Lake Mead joined the roster (ADR-062)
 and the county and state fields joined every record (ADR-058, ADR-060):

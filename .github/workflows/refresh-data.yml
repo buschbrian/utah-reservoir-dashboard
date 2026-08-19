@@ -88,13 +88,21 @@ jobs:
       # the broken pair would go live and CI would only turn red afterwards.
       #
       # The recompute is deterministic, carries no timestamps and takes about
-      # two seconds for all fourteen units, so it runs every day rather than
-      # only when the download reports a change: a coverage file that somehow
-      # fell behind is then repaired by the next run instead of waiting for
-      # someone to notice.
+      # ten seconds for all 75 units, so it runs every day rather than only
+      # when the download reports a change: a coverage file that somehow fell
+      # behind is then repaired by the next run instead of waiting for someone
+      # to notice.
+      #
+      # Once per offered level (ADR-064). Both files are computed from the one
+      # download, so either failing means both are suspect and the polygons go
+      # back -- a reader who changes the level must never cross a week
+      # boundary doing it. The archive is HUC-6 only, which is what
+      # `--no-history` says here and what `merge_history` refuses to have
+      # otherwise (ADR-063).
       - name: Recompute drought coverage by drainage area
         run: |
-          if ! python tools/compute_drought_coverage.py; then
+          if ! python tools/compute_drought_coverage.py \
+            || ! python tools/compute_drought_coverage.py --scope west-huc4 --no-history; then
             echo "::warning title=Coverage failed::Reverting the polygons so the pair stays on one week"
             git checkout -- data/drought/usdm-current.geojson
           fi
@@ -106,8 +114,9 @@ jobs:
       - name: Refuse to publish two different drought weeks
         run: |
           if ! python tools/check_drought_pair.py; then
-            echo "::warning title=Drought pair mismatched::Restoring both files from the last commit"
-            git checkout -- data/drought/usdm-current.geojson data/drought/usdm-huc6.json
+            echo "::warning title=Drought files mismatched::Restoring all of them from the last commit"
+            git checkout -- data/drought/usdm-current.geojson \
+              data/drought/usdm-huc6.json data/drought/usdm-huc4.json
           fi
 
       # Snow measurements have their own payload and failure mode. The

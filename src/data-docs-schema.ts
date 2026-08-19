@@ -281,8 +281,12 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
     f("classes", "text", "How the drought classes relate to each other.")
   ]},
   { id: "drought-unit", title: "Drainage-area record", path: "units[]", fields: [
-    f("huc6", "identifier", "Six-digit drainage-area code."),
-    f("huc6_name", "text", "Six-digit drainage-area name."),
+    f("huc6", "identifier",
+      "Six-digit drainage-area code. Present in the file at that level.", true),
+    f("huc6_name", "text", "Six-digit drainage-area name.", true),
+    f("huc4", "identifier",
+      "Four-digit drainage-area code. Present in the file at that level.", true),
+    f("huc4_name", "text", "Four-digit drainage-area name.", true),
     f("percent_of_area", "object",
       "Share of the measured land in exactly each class. " +
       "Absent when the drought monitor measures none of the area.", true),
@@ -371,7 +375,10 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
   ]},
   { id: "reference-scope", title: "Named scope", path: "geography.watersheds.scopes.<scope>", fields: [
     f("description", "text", "Scope inclusion rule."),
-    f("huc6", "array", "Six-digit drainage-area codes."),
+    f("huc6", "array",
+      "Six-digit drainage-area codes. Present in a scope at that level.", true),
+    f("huc4", "array",
+      "Four-digit drainage-area codes. Present in a scope at that level.", true),
     f("name", "identifier", "Stable scope name."),
     f("source_file", "file name", "Reviewed boundary source file."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
@@ -379,7 +386,10 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("units", "array", "Drainage areas in the scope, by code and name.")
   ]},
   { id: "reference-scope-unit", title: "Drainage area", path: "geography.watersheds.scopes.<scope>.units[]", fields: [
-    f("huc6", "identifier", "Six-digit drainage-area code."),
+    f("huc6", "identifier",
+      "Six-digit drainage-area code. Present in a scope at that level.", true),
+    f("huc4", "identifier",
+      "Four-digit drainage-area code. Present in a scope at that level.", true),
     f("name", "text", "Drainage-area name."),
     f("states", "text", "States touched by the drainage area.")
   ]},

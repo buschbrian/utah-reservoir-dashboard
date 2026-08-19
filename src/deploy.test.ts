@@ -158,16 +158,32 @@ describe("a data-only commit deploys on its own", () => {
     expect(line).toContain("data/drought/usdm-huc6.json");
   });
 
-  it("checks the pair before the commit and can put both files back", async () => {
+  it("checks the week before the commit and can put every file back", async () => {
     const refresh = await read(".github/workflows/refresh-data.yml");
     const check = refresh.indexOf("tools/check_drought_pair.py");
     const commit = refresh.indexOf("git add reservoirs.json");
 
     expect(check).toBeGreaterThanOrEqual(0);
-    expect(check, "the pair is checked while both files can still be restored")
+    expect(check, "the week is checked while every file can still be restored")
       .toBeLessThan(commit);
-    expect(refresh).toContain(
-      "git checkout -- data/drought/usdm-current.geojson data/drought/usdm-huc6.json");
+    /* One coverage file per offered level (ADR-064), and the restore has to
+     * name all of them: a reader who changes the level fetches a different
+     * file, so leaving one behind puts them on another week silently. */
+    for (const file of ["data/drought/usdm-current.geojson",
+      "data/drought/usdm-huc6.json", "data/drought/usdm-huc4.json"]) {
+      expect(refresh, `${file} is not restored when the week disagrees`)
+        .toContain(file);
+    }
+  });
+
+  it("recomputes the coverage at every level the site offers", async () => {
+    const refresh = await read(".github/workflows/refresh-data.yml");
+    /* Both from the one download. Either failing means both are suspect,
+     * which is why they share a revert. */
+    expect(refresh).toContain("tools/compute_drought_coverage.py --scope west-huc4");
+    /* The archive is one level (ADR-063); `merge_history` refuses otherwise,
+     * and this is the caller saying so out loud. */
+    expect(refresh).toContain("--scope west-huc4 --no-history");
   });
 
   it("copies the runtime data into the published output instead of bundling it", async () => {

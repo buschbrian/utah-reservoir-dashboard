@@ -72,6 +72,7 @@ supersedes the old one — the history is the point.
 | [ADR-061](ADR-061-reference-geometry-over-continuous-data-only.md) | Reference geometry may sit over continuous data, never over discrete | Accepted |
 | [ADR-062](ADR-062-admit-lake-mead-and-generalize-the-dominant-reservoir-control.md) | Admit Lake Mead, and generalize the dominant-reservoir control | Accepted |
 | [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md) | Draw the whole west, and open on the areas that hold reservoirs | Accepted |
+| [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md) | Offer two hydrologic levels, and let the reader choose | Accepted |
 
 ## Relationship to the modernization plan
 
