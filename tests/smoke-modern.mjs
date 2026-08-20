@@ -1635,6 +1635,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
 
     const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
       sort: chart.model?.getSortOrder(),
+      categoryFormat: chart.model?.getAxisValueFormat(0),
       order: [...(chart.model?.orderByList ?? [])],
       source: chart.layer?.source?.toArray()
         ?.map((graphic) => graphic.attributes?.label) ?? []
@@ -1643,6 +1644,41 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the reservoir chart overrides the selected rank with ${rankedChart.sort}`);
     check(JSON.stringify(rankedChart.order) === JSON.stringify(rankedChart.source),
       `${label}: the reservoir chart did not preserve its selected rank`);
+    check(rankedChart.categoryFormat?.type === "category"
+      && rankedChart.categoryFormat?.characterLimit === null,
+    `${label}: the reservoir chart still shortens category names`);
+
+    /* The category charts carry many more names than the trend, scatter and
+     * histogram. Their hosts grow with those names, and the box plot turns
+     * sideways so every category reads as a row instead of a clipped,
+     * diagonal fragment. The count comes from each chart's own source, not
+     * from today's payload. */
+    const categoryCharts = await tab.evaluate(() =>
+      ["capacity-chart", "watershed-chart", "spread-chart"].map((id) => {
+        const host = document.getElementById(id);
+        const chart = host?.querySelector("arcgis-chart");
+        const source = chart?.layer?.source?.toArray() ?? [];
+        const categories = new Set(source.map((graphic) => id === "spread-chart"
+          ? graphic.attributes?.grouping : graphic.attributes?.label));
+        return {
+          id,
+          expectedRows: categories.size,
+          rows: Number(host?.style.getPropertyValue("--chart-category-count") ?? 0),
+          height: host?.getBoundingClientRect().height ?? 0,
+          format: chart?.model?.getAxisValueFormat(0),
+          rotated: chart?.model?.rotatedState
+        };
+      }));
+    for (const chart of categoryCharts) {
+      check(chart.rows === chart.expectedRows && chart.rows > 0,
+        `${label}: #${chart.id} sized for ${chart.rows} of ${chart.expectedRows} categories`);
+      check(chart.height >= chart.rows * 16,
+        `${label}: #${chart.id} gives ${chart.height}px to ${chart.rows} category rows`);
+      check(chart.format?.type === "category" && chart.format?.characterLimit === null,
+        `${label}: #${chart.id} still shortens category names`);
+      check(chart.rotated === true,
+        `${label}: #${chart.id} does not put categories into readable rows`);
+    }
     for (const host of ["#capacity-chart", "#trend-chart", "#normal-chart",
       "#distribution-chart", "#spread-chart"]) {
       check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>

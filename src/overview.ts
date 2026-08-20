@@ -311,7 +311,7 @@ async function renderOverview(
       </div>
     </section>
     <div class="overview-chart-grid">
-      <section class="overview-card" aria-labelledby="capacity-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="capacity-heading">
         <div class="card-heading">
           <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Your choice appears in the search box above, and clearing it brings the rest back.</p></div>
           <span class="sdk-badge">Bar chart</span>
@@ -319,7 +319,7 @@ async function renderOverview(
         <div id="capacity-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
-      <section class="overview-card" aria-labelledby="watershed-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="watershed-heading">
         <div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each area. Click a bar to filter to it.</p></div><span class="sdk-badge">Bar chart</span></div>
         <div id="watershed-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
@@ -333,7 +333,7 @@ async function renderOverview(
         <div id="normal-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
-      <section class="overview-card" aria-labelledby="distribution-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="distribution-heading">
         <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">Histogram</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
         <!-- Under the chart, not beside it. The histogram is the widest thing
@@ -343,7 +343,7 @@ async function renderOverview(
         <ul class="overlay-key" id="distribution-key"
           aria-label="What the lines across the histogram mean"></ul>
       </section>
-      <section class="overview-card" aria-labelledby="spread-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="spread-heading">
         <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">Box plot</span></div>
         <div id="spread-chart" class="chart-host" aria-busy="true"></div>
       </section>

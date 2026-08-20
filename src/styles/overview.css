@@ -220,9 +220,11 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
   gap: .75rem;
 }
-/* The two charts that read as a ranked list keep the wider column when the
- * grid has room for an odd one out. */
-.overview-chart-grid > :first-child { grid-column: span 1; }
+/* The category-heavy charts need enough room for complete names, and the
+ * histogram's key needs the same full row so it does not leave a half-row
+ * beside the following wide chart. The two compact comparison charts still
+ * share a row on larger screens. */
+.overview-card-wide { grid-column: 1 / -1; }
 
 /* One row owns chart display settings. Keeping it outside the first card
  * prevents the shared measure from reading as a setting for one chart, and
@@ -296,6 +298,11 @@ body {
   text-transform: uppercase;
 }
 .chart-host { position: relative; min-height: 27rem; height: 27rem; overflow: hidden; }
+#capacity-chart,
+#watershed-chart,
+#spread-chart {
+  height: max(27rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+}
 .chart-host arcgis-chart {
   display: flex;
   position: relative;
@@ -517,6 +524,11 @@ body {
   .table-actions calcite-button { flex: 1 1 auto; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
+  #capacity-chart,
+  #watershed-chart,
+  #spread-chart {
+    height: max(23rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+  }
 }
 
 /* The chart legend, built from the storage class table so the bars, the map

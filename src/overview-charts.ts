@@ -470,6 +470,7 @@ export async function renderArcgisBarChart(
   options: BarChartOptions = {}
 ): Promise<void> {
   host.replaceChildren();
+  host.style.setProperty("--chart-category-count", String(records.length));
   if (records.length === 0) {
     showEmpty(host, "No reservoirs match these filters.");
     return;
@@ -493,6 +494,10 @@ export async function renderArcgisBarChart(
   model.setSortOrder(SerialChartDataSortingKinds.customSort,
     records.map((record) => record.label));
   model.setAxisTitleText(options.categoryTitle ?? "Name", 0);
+  model.setAxisValueFormat(0, {
+    type: WebChartTypes.CategoryAxisFormat,
+    characterLimit: null
+  });
 
   if (options.measure === "storage") {
     /* Acre-feet have no fixed ceiling, so the axis has to scale itself here.
@@ -987,6 +992,7 @@ export async function renderArcgisSpreadChart(
 ): Promise<void> {
   host.replaceChildren();
   const groups = new Set(values.map((entry) => entry.group));
+  host.style.setProperty("--chart-category-count", String(groups.size));
   if (values.length < 3 || groups.size === 0) {
     showEmpty(host, "Too few reservoirs in view to show a spread.");
     return;
@@ -998,6 +1004,7 @@ export async function renderArcgisSpreadChart(
   if (!isCurrent()) return;
   model.category = "grouping";
   model.numericFields = ["value"];
+  model.rotatedState = true;
   model.chartTitleVisibility = false;
   model.legendVisibility = false;
   /* Outliers are the point of this chart rather than noise on it: a single
@@ -1022,6 +1029,10 @@ export async function renderArcgisSpreadChart(
    * already answers the question the field name was trying to. */
   model.setSeriesName("Percent full", 0);
   model.setAxisTitleText("Drainage area", 0);
+  model.setAxisValueFormat(0, {
+    type: WebChartTypes.CategoryAxisFormat,
+    characterLimit: null
+  });
   model.setAxisTitleText("Percent full", VALUE_AXIS);
   model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
   model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);
