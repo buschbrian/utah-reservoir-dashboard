@@ -26,7 +26,6 @@ import {
   areaAtLevel,
   DEFAULT_OPENING_SELECTION,
   loadOpeningRosters,
-  openingSelectionFromSearch,
   resolveOpeningScope,
   withinOpeningArea,
   type OpeningRosters,
@@ -34,6 +33,7 @@ import {
   type OpeningSelection,
   EMPTY_OPENING_ROSTERS
 } from "./data/opening-scope";
+import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
 import { stateName } from "./data/state-vocabulary";
 import { loadSnowpack } from "./data/snow-load";
 import {
@@ -256,11 +256,11 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
   const host = document.querySelector<HTMLElement>("#snow-content .filterbar-controls");
   if (!host) return;
   const control = createWhereControl(rosters, current, (selection) => {
-    const params = new URLSearchParams(window.location.search);
-    if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
-    if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
-    const query = params.toString();
-    window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+      /* `searchWithPlace` remembers the choice and writes "everywhere" out
+       * loud rather than as an absent parameter -- see its own note for why
+       * a cleared filter must not become a link that means "no answer". */
+      const query = searchWithPlace(window.location.search, selection);
+      window.location.replace(`${window.location.pathname}${query}`);
     /* Large, because the native selects it sits beside are a third taller
      * than a Calcite control at the default scale. */
   }, { scale: "l" });
@@ -1199,7 +1199,7 @@ try {
    * for and none of them has to know a level exists (ADR-064). */
   const levelPayload = payloadAtLevel(rawSnowpack, level);
   let openingScope = resolveOpeningScope(
-    openingSelectionFromSearch(window.location.search), rosters);
+    resolveOpeningPlace(window.location.search, readStoredPlace()).selection, rosters);
 
   /*
    * A linked measurement site outranks the opening scope. `?site=` names one

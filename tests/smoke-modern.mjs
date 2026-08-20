@@ -438,6 +438,21 @@ async function checkAccessibility(tab, check, label) {
     console.log(`  axe: clean (${violations.length} exception(s) allowed)`);
   }
 }
+/* Every page in this suite is opened with no `?state=`, no stored place and
+ * a fresh profile, which is exactly the condition the first-visit splash
+ * exists for -- so without this it opens over every one of them and its
+ * modal backdrop swallows the clicks these tests make. Seeded as dismissed
+ * so the suite tests the pages; the splash has its own case below, which
+ * clears the key first and is the only place it is exercised. */
+const SPLASH_DISMISSED_KEY = "utah-reservoir-dashboard-splash-dismissed";
+async function newPageContext(browser, viewport) {
+  const context = await browser.newContext({ viewport });
+  await context.addInitScript((key) => {
+    try { localStorage.setItem(key, "1"); } catch { /* storage refused */ }
+  }, SPLASH_DISMISSED_KEY);
+  return context;
+}
+
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -496,7 +511,7 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
   : {});
 
 for (const viewport of VIEWPORTS) {
-  const context = await browser.newContext({ viewport });
+  const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
@@ -1426,7 +1441,7 @@ for (const viewport of VIEWPORTS) {
 }
 
 for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
-  const context = await browser.newContext({ viewport });
+  const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
   const errors = [];
   /* One vendor teardown race is accepted here, like AXE_EXCEPTIONS and for
@@ -1912,7 +1927,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
  * Its readiness counts protect against a page that paints the shared shell
  * but silently loses one file or a section of field documentation. */
 for (const viewport of VIEWPORTS) {
-  const context = await browser.newContext({ viewport });
+  const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
@@ -2149,7 +2164,7 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
  * because in the first days of October no day has met the reporting floor
  * yet and an empty chart with an explanation is the correct page. */
 for (const viewport of VIEWPORTS) {
-  const context = await browser.newContext({ viewport });
+  const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
@@ -2299,7 +2314,7 @@ for (const viewport of VIEWPORTS) {
  * separately because it is allowed to fail without failing the page, and a
  * silent join failure would quietly remove the page's whole point. */
 for (const viewport of VIEWPORTS) {
-  const context = await browser.newContext({ viewport });
+  const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
   const errors = [];
   tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
@@ -3369,7 +3384,7 @@ for (const failure of [
   // one, and a control that clips or widens the page there is exactly the
   // failure `.filterbar-controls`'s own `min-width: 0` rules exist to catch.
   for (const viewport of VIEWPORTS) {
-    const context = await browser.newContext({ viewport });
+    const context = await newPageContext(browser, viewport);
     const tab = await context.newPage();
     const errors = [];
     tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));

@@ -15,7 +15,6 @@ import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/month
 import {
   DEFAULT_OPENING_SELECTION,
   loadOpeningRosters,
-  openingSelectionFromSearch,
   resolveOpeningScope,
   type OpeningRosters,
   type OpeningScope,
@@ -23,6 +22,9 @@ import {
   EMPTY_OPENING_ROSTERS,
   isOpeningScopeChosen
 } from "./data/opening-scope";
+import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
+import { offeredStates } from "./data/state-vocabulary";
+import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
 import { isLate, statewideRollup } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
@@ -315,11 +317,11 @@ async function wireLevelControl(): Promise<number> {
 function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
   for (const host of document.querySelectorAll<HTMLElement>(".filters")) {
     const control = createWhereControl(rosters, current, (selection) => {
-      const params = new URLSearchParams(window.location.search);
-      if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
-      if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
-      const query = params.toString();
-      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+      /* `searchWithPlace` remembers the choice and writes "everywhere" out
+       * loud rather than as an absent parameter -- see its own note for why
+       * a cleared filter must not become a link that means "no answer". */
+      const query = searchWithPlace(window.location.search, selection);
+      window.location.replace(`${window.location.pathname}${query}`);
     });
     if (control) host.append(control.element);
   }
@@ -849,7 +851,12 @@ if (!supportsDashboard(browserCapabilities())) {
    * own drainage-area filter, same as always -- just never the drawn
    * boundaries.
    */
-  const openingSelection = openingSelectionFromSearch(window.location.search);
+  /* The address bar wins where it answered, the reader's remembered place
+   * otherwise, and everywhere when neither did (`resolveOpeningPlace`). The
+   * stored choice is never written back into the address bar: what a reader
+   * copies should be what they are looking at, not what they prefer. */
+  const openingPlace = resolveOpeningPlace(window.location.search, readStoredPlace());
+  const openingSelection = openingPlace.selection;
   const scopeChosen = isOpeningScopeChosen(openingSelection);
   // Module-level (declared beside `scope`, above): `applyScope` and
   // `wireFilters`'s `apply` both read it, and a local shadow here would
@@ -1096,6 +1103,22 @@ if (!supportsDashboard(browserCapabilities())) {
   await loadContext(map);
   const levelsOffered = await wireLevelControl();
   wireWhereControl(openingRosters, openingScope.selection);
+  /* The splash asks only when nothing else answered -- never over a shared
+   * link, never over a remembered place, never twice. Built from the rosters
+   * already fetched, so it costs no request and cannot arrive late. */
+  if (shouldAskWhere(openingPlace.source, wasDismissed(), window.location.search)) {
+    const splash = createOpeningSplash({
+      states: offeredStates({
+        reservoirStates: published.map((reservoir) => reservoir.waterbody_states ?? reservoir.state),
+        drainageAreaStates: openingRosters.areas.map((area) => area.states)
+      }).map((option) => option.code),
+      regions: openingRosters.regions
+    });
+    if (splash) {
+      document.body.append(splash.element);
+      splash.open();
+    }
+  }
 
   /* One fact per field, and fields are only ever added (never removed or
    * re-pointed at an expression another field already reads): two fields

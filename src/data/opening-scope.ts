@@ -163,6 +163,41 @@ export function isOpeningScopeChosen(selection: OpeningSelection): boolean {
   return selection.state !== "all" || selection.area !== null;
 }
 
+/**
+ * The token that means "everywhere", written out.
+ *
+ * Absence is what a default normally looks like on this site, and for
+ * `?state=` it stopped being enough. Once a reader's choice is remembered
+ * (S5), a page with no `state=` on it has two possible meanings -- "this
+ * reader has not chosen" and "this reader chose everywhere" -- and only the
+ * second should survive being shared. So "everywhere" is writable: a link
+ * carrying `state=all` says so out loud and overrides whatever the person
+ * opening it has stored, while a link carrying nothing lets their own choice
+ * stand.
+ *
+ * A deliberate exception to defaults-as-absence, and the only one. `?area=`
+ * needs no equivalent: an area is never the default, so absence there has
+ * only ever meant one thing.
+ */
+export const EVERYWHERE = "all";
+
+/**
+ * Whether the address bar answered the question at all.
+ *
+ * Distinct from what it answered. `openingSelectionFromSearch` folds a
+ * missing `state=` and an unreadable one into `all`, which is right for a
+ * page that just wants a selection, and wrong for deciding whether to
+ * consult a stored choice -- the reader who has never chosen and the reader
+ * who explicitly asked for everywhere must not be told apart by a fallback.
+ */
+export function openingSearchAnswered(search: string | null | undefined): boolean {
+  const params = new URLSearchParams(String(search ?? "").replace(/^\?+/, ""));
+  const state = params.get("state");
+  const area = params.get("area");
+  return (state !== null && (state === EVERYWHERE || isUsStateCode(state)))
+    || (area !== null && isOpeningAreaCode(area));
+}
+
 export function openingSelectionFromSearch(search: string | null | undefined): OpeningSelection {
   // `+`, not `^\?`: a search string built by prefixing "?" onto something
   // that already had one -- unlikely by hand, easy by string concatenation

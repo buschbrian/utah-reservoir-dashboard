@@ -28,7 +28,6 @@ import { loadUsdmPolygons } from "./data/usdm-load";
 import {
   areaAtLevel,
   loadOpeningRosters,
-  openingSelectionFromSearch,
   resolveOpeningScope,
   withinOpeningArea,
   type OpeningRosters,
@@ -36,6 +35,7 @@ import {
   type OpeningSelection,
   isOpeningScopeChosen
 } from "./data/opening-scope";
+import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
 import { areaReachesState, stateName } from "./data/state-vocabulary";
 import {
   areasAtOrWorse,
@@ -692,11 +692,11 @@ function renderDrought(
    */
   if (opening) {
     const control = createWhereControl(opening.rosters, openingSelection, (selection) => {
-      const params = new URLSearchParams(window.location.search);
-      if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
-      if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
-      const query = params.toString();
-      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+      /* `searchWithPlace` remembers the choice and writes "everywhere" out
+       * loud rather than as an absent parameter -- see its own note for why
+       * a cleared filter must not become a link that means "no answer". */
+      const query = searchWithPlace(window.location.search, selection);
+      window.location.replace(`${window.location.pathname}${query}`);
     }, { scale: "l" });
     if (control) content.querySelector(".filterbar-controls")?.append(control.element);
   }
@@ -891,7 +891,12 @@ const level = levelFromSearch(window.location.search);
  * readiness fields and the on-page sentence tell "asked for nothing" apart
  * from "asked for California, could not load it" (see `resolveOpening`'s and
  * `renderDrought`'s own comments). */
-const requestedSelection = openingSelectionFromSearch(window.location.search);
+/* The address bar wins where it answered, the reader's remembered place
+   * otherwise, and everywhere when neither did (`resolveOpeningPlace`). The
+   * stored choice is never written back into the address bar: what a reader
+   * copies should be what they are looking at, not what they prefer. */
+const requestedPlace = resolveOpeningPlace(window.location.search, readStoredPlace());
+const requestedSelection = requestedPlace.selection;
 
 try {
   /* The opening scope is fetched alongside the coverage payload rather than

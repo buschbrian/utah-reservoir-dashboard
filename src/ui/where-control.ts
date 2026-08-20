@@ -146,7 +146,13 @@ export function createWhereControl(
   options: WhereControlOptions = {}
 ): WhereControl | null {
   const gate = whereControlView(rosters, NOTHING_CHOSEN);
-  if (gate.state.options.length <= 1 && gate.region.options.length <= 1) return null;
+  /* Nothing to choose on *any* axis, not just the two coarsest. Checking
+   * state and region alone would build no control for a payload that offers
+   * subregions or drainage areas without them -- which is what a scope
+   * narrowed to one state looks like. */
+  const nothingOffered = (axis: WhereAxis): boolean => axis.options.length <= 1;
+  if (nothingOffered(gate.state) && nothingOffered(gate.region)
+    && nothingOffered(gate.subregion) && nothingOffered(gate.area)) return null;
 
   const view = whereControlView(rosters, current);
 
