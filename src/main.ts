@@ -12,10 +12,20 @@ import {
   tableCsv
 } from "./data/export";
 import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
+import {
+  DEFAULT_OPENING_SELECTION,
+  loadOpeningRosters,
+  openingSelectionFromSearch,
+  resolveOpeningScope,
+  type OpeningRosters,
+  type OpeningScope
+} from "./data/opening-scope";
 import { isLate, statewideRollup } from "./data/rollup";
+import { stateName } from "./data/state-vocabulary";
 import {
   DEFAULT_SCOPE,
   overviewScope,
+  reservoirInState,
   subregionNames,
   watershedOptions,
   type ScopeChoice
@@ -113,6 +123,19 @@ const filterStatus: { filtered: boolean; shown: number; drainageArea: string | n
  * one. */
 let deepLink: Reservoir | null = null;
 
+/**
+ * The two cases the opening-scope rosters degrade to on this page: nothing
+ * fetched yet (the placeholder `openingScope` below is built from it before
+ * the real fetch has even started), and the fetch having failed (the
+ * `.catch()` further down). Both mean the same thing to `resolveOpeningScope`
+ * -- no rosters to narrow or name anything with -- and a shared constant is
+ * what keeps them from drifting into two different empty shapes if
+ * `OpeningRosters` ever grows a field. Local to this file rather than
+ * exported from `data/opening-scope.ts`: that module is shared with the
+ * other three surfaces, and this slice owns only `main.ts`.
+ */
+const EMPTY_OPENING_ROSTERS: OpeningRosters = { regions: [], subregions: [], areas: [] };
+
 /** Everything published, before the scope control narrows it. */
 let published: readonly Reservoir[] = [];
 /** Everything the map is currently drawing. */
@@ -135,6 +158,21 @@ let openingArea: string | null = null;
  * by the refresh every morning, connected to Utah by drainage but never
  * touching it -- were published and drawn nowhere. */
 let scope: ScopeChoice = { ...DEFAULT_SCOPE };
+
+/* `?state=` and `?area=`, resolved once at load (S3a,
+ * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md). Module-level, like `scope`
+ * above, because both `applyScope` (a nested closure) and `wireFilters`'s
+ * `apply` (a top-level function with no access to that closure) read it --
+ * a parameter, not a second copy, would leave the two free to disagree.
+ * The placeholder default resolves against no rosters and no selection, the
+ * same empty state `resolveOpeningScope` degrades to when the rosters fetch
+ * fails; the real value replaces it before the first draw. */
+let openingScope: OpeningScope = resolveOpeningScope(
+  DEFAULT_OPENING_SELECTION, EMPTY_OPENING_ROSTERS);
+/* The reservoir a `?state=` narrowing was widened back for, because the
+ * link also named it (see the widening logic below). Null when no widening
+ * happened -- most loads. */
+let widenedForReservoir: Reservoir | null = null;
 
 /* Which month the map is showing. Every month the payload carries, oldest
  * first, with the newest published reading one position past the end -- that
@@ -494,6 +532,38 @@ function drainageAreaName(): string | null {
   return drainageAreaChoices().find((area) => area.value === chosen)?.label ?? null;
 }
 
+/**
+ * The place a reader's `?state=` opened this map on, in Simplified Technical
+ * English (ADR-006) -- the summary sentence S3a owes
+ * (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md), prefixed onto the
+ * existing filter-panel sentence below rather than given a second live
+ * region: `[data-filter="summary"]` already reports what changed the view,
+ * and a state choice is one more reason it did.
+ *
+ * `?area=` names no place here on purpose. The area already has its own
+ * sentence, from this page's pre-existing drainage-area filter
+ * (`describeFilter`, right below) -- naming it a second time in front of
+ * that would be the same claim twice, in two different words.
+ */
+function openingPlaceSummary(): string {
+  if (widenedForReservoir !== null) {
+    /* Qualified against `inScope`, not `published`, the same set the list,
+     * the selection store and the table already qualify a name against
+     * (ADR-066). `published` is the wider, unnarrowed roster: a reservoir
+     * whose name is shared by another only somewhere outside `inScope`
+     * would read here as "Lost Creek, OR" while the list beside it plainly
+     * says "Lost Creek" -- one reservoir, two names, on one page. Safe to
+     * read here because widening has already run by the time this is
+     * called: `inScope` is rebuilt by `applyScope` before `wireFilters`'s
+     * `apply` (this function's only caller) is ever invoked with the
+     * widened scope in effect. */
+    return `Showing every state so the linked reservoir, ` +
+      `${reservoirLabel(widenedForReservoir, inScope)}, is included. `;
+  }
+  const state = openingScope.selection.state;
+  return state === "all" ? "" : `Narrowed to reservoirs in ${stateName(state)}. `;
+}
+
 function wireFilters(map: MapController): void {
   const apply = (): void => {
     // Reads the current scope rather than the one that existed when the
@@ -506,7 +576,8 @@ function wireFilters(map: MapController): void {
       { storage: String(filterState.storageClass ?? "all"),
         reporting: filterState.reporting,
         drainage: filterState.drainageArea ?? "all" },
-      describeFilter(filterState, shown.length, inScope.length, drainageAreaName()),
+      openingPlaceSummary() +
+        describeFilter(filterState, shown.length, inScope.length, drainageAreaName()),
       isFiltered(filterState)
     );
     filterStatus.filtered = isFiltered(filterState);
@@ -700,7 +771,113 @@ if (!supportsDashboard(browserCapabilities())) {
    * looking at the loading state can already read what the map will mean. */
   document.querySelectorAll<HTMLElement>("[data-legend]").forEach(renderLegend);
 
-  const [reservoirs, map] = await Promise.all([loadData(), loadMap(selection)]);
+  /* The opening-scope rosters are fetched alongside the reservoir payload
+   * and the map itself, not after either -- the owner's requirement is that
+   * the filters are "super good on the initialization", which means the
+   * narrowing below has to be ready before the first draw, never corrected
+   * once a fetch resolves after it (CLAUDE.md's "a gutter cannot be late",
+   * applied here to a filter and an opening extent). A rosters fetch that
+   * fails costs the reader the state narrowing's box and name, not the page:
+   * `resolveOpeningScope` against an empty roster still applies `state`
+   * (`state` is never checked against the rosters, only `area`'s aliveness
+   * is) and falls back to the wide default box. */
+  const [reservoirs, map, openingRosters] = await Promise.all([
+    loadData(),
+    loadMap(selection),
+    loadOpeningRosters().catch((error: unknown): OpeningRosters => {
+      console.warn("The opening-scope rosters could not load; the map opens " +
+        "with no state narrowing.", error);
+      return EMPTY_OPENING_ROSTERS;
+    })
+  ]);
+
+  /*
+   * S3a (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md): `?state=` and
+   * `?area=` together, resolved once before anything below reads either.
+   *
+   * `?area=` is deliberately left alone here. This page already has its own
+   * drainage-area filter (`filterState.drainageArea`, read from the same
+   * `drainage=`/`area=` alias in `state/url.ts`, and already prefix-matched
+   * through `matchesFilter`/`filterWhere` below) -- the snow slice's own
+   * finding is that applying the opening scope on top of a filter a page
+   * already handles exactly collapses that filter's own "N of M" total and
+   * removes the reader's way to clear it. So only `state` is new on this
+   * page: `applyScope` above narrows `inScope` by it (ADR-060,
+   * `reservoirInState`), and `openingScope.selection.area` is read only for
+   * the box below -- never for a second reservoir filter.
+   *
+   * Decision D5 is the other half of why this page differs from the other
+   * three: the drainage areas are context here, not the subject, so nothing
+   * below narrows which of the 75 `loadContext` draws. `?area=` still
+   * narrows the opening view (through `openingScope.box`) and the reader's
+   * own drainage-area filter, same as always -- just never the drawn
+   * boundaries.
+   */
+  const openingSelection = openingSelectionFromSearch(window.location.search);
+  const scopeChosen = openingSelection.state !== "all" || openingSelection.area !== null;
+  // Module-level (declared beside `scope`, above): `applyScope` and
+  // `wireFilters`'s `apply` both read it, and a local shadow here would
+  // leave that second reader looking at the placeholder default forever.
+  openingScope = resolveOpeningScope(openingSelection, openingRosters);
+
+  /*
+   * A linked reservoir outranks a state choice -- the same rule the snow
+   * slice applies to a linked measurement site. `?reservoir=` names one
+   * specific waterbody, a stronger and narrower signal than `?state=`, and a
+   * state link paired with a reservoir outside it must not silently drop the
+   * reservoir the link was actually for.
+   *
+   * Checked once, against a trial geography-scoped set, before `applyScope`
+   * (and before the extent override just below) ever runs -- not discovered
+   * after a narrow paint and corrected with a second one. `findReservoir` is
+   * what does the matching, and it never resolves a bare name two
+   * reservoirs share (ADR-066: the roster now holds two Lost Creeks and two
+   * Clear Lakes) -- only a station id or a qualified label, or a bare name
+   * that happens to be unique. Widening falls all the way back to "all"
+   * rather than trying to keep half the reader's choice: a summary that said
+   * "narrowed to Idaho" while the map plainly held an Oregon reservoir too
+   * would be worse than naming the whole region and saying why.
+   */
+  const wanted = stateFromSearch(window.location.search);
+  /* Set here, once, rather than rebuilt as a second literal for this check
+   * and a third time below for the scope the map actually draws with: the
+   * widening decision has to be made against the same geography scope the
+   * reader ends up looking at, or a field `ScopeChoice` gains later could go
+   * into one copy and not the other, and the two would disagree about
+   * whether a linked reservoir survives. `wireFilters`, `applyScope` and
+   * everything else below already read the module-level `scope`, so setting
+   * it here rather than after this check is what lets this check use it
+   * too, instead of a fourth hand-built copy. */
+  scope = { geography: wanted.geography, lakePowell: wanted.lakePowell, lakeMead: wanted.lakeMead };
+  if (reservoirs && openingScope.selection.state !== "all" && wanted.reservoir !== null) {
+    const geographyScoped = overviewScope(reservoirs, scope);
+    const linked = findReservoir(geographyScoped, wanted.reservoir);
+    if (linked && !reservoirInState(linked, openingScope.selection.state)) {
+      widenedForReservoir = linked;
+      openingScope = resolveOpeningScope(
+        { state: "all", area: openingSelection.area }, openingRosters);
+    }
+  }
+
+  /*
+   * The opening view follows the chosen scope (S3a, item 2), overriding the
+   * fixed `regionExtent()` `loadMap` already set the map to a moment ago --
+   * only when a reader actually asked for a place. `scopeChosen` is read
+   * from the raw selection rather than the possibly-widened `openingScope`
+   * above, the same gate the drought slice uses: an unchosen page keeps its
+   * existing framing exactly, rather than every ordinary visit suddenly
+   * opening on a box a widening decision just changed.
+   *
+   * `MapController.setOpeningExtent` (`ui/map.ts`) is what does the actual
+   * assignment, so this file never reaches past the controller for the
+   * element it wraps. No `await` separates `loadMap` resolving from this
+   * call (`Promise.all` above is the only one), so both run in the same
+   * synchronous turn: nothing -- no paint, no part of the component's own
+   * async view construction -- can observe the element's default extent in
+   * between.
+   */
+  if (scopeChosen) map.setOpeningExtent(openingScope.box);
+
   if (reservoirs) {
     published = reservoirs;
 
@@ -714,7 +891,17 @@ if (!supportsDashboard(browserCapabilities())) {
      * panel describing something nobody can see.
      */
     const applyScope = (): void => {
-      inScope = overviewScope(published, scope);
+      /* `openingScope.selection.state` narrows here, the water-touches rule
+       * ADR-060 already names (`reservoirInState`). `?area=` deliberately
+       * does not narrow `inScope` a second time -- see the comment where
+       * `openingScope` is resolved, below: this page's own `drainageArea`
+       * filter already reads the same parameter and already prefix-matches
+       * it, through `matchesFilter`/`filterWhere` further down. Narrowing
+       * `inScope` by area as well would double-filter the one axis this
+       * page already had, and would collapse "N of M" to the narrowed
+       * count with no way for a reader to see the wider total again. */
+      inScope = overviewScope(published, scope)
+        .filter((reservoir) => reservoirInState(reservoir, openingScope.selection.state));
       updateSummary();
       renderReservoirList();
       map.drawReservoirs(inScope, percentShown);
@@ -824,13 +1011,10 @@ if (!supportsDashboard(browserCapabilities())) {
 
     /* Restore the whole view a link describes, not just its selection: a
      * filtered, Lake-Powell-included link that opened on an unfiltered
-     * dashboard would show numbers that do not match the words around it. */
-    const wanted = stateFromSearch(window.location.search);
-    scope = {
-      geography: wanted.geography,
-      lakePowell: wanted.lakePowell,
-      lakeMead: wanted.lakeMead
-    };
+     * dashboard would show numbers that do not match the words around it.
+     * `wanted` and `scope` were both already read and set above -- before
+     * the opening scope and the deep-link widening it feeds -- rather than
+     * a second time here. */
     filterState = {
       storageClass: wanted.storageClass,
       reporting: wanted.reporting,
@@ -940,6 +1124,19 @@ if (!supportsDashboard(browserCapabilities())) {
     navigationBounds: map.status.navigationBounds,
     minZoom: map.status.minZoom,
     deepLink: deepLink?.name ?? null,
-    selected: selection.get()
+    selected: selection.get(),
+    /* S3a. Always the *requested* state, whether or not it could be
+     * honoured -- distinct from `openingScope.selection.state` above, which
+     * may have been widened back to "all" for a linked reservoir, and
+     * distinct from `openingScopeResolved` below, which is "could this be
+     * acted on at all" rather than "what was asked for". Not `?area=`: this
+     * page's own `areaFilter`, right above, already answers that question,
+     * and a second field reading a value close to but not quite the same as
+     * the first is worse than no second field. */
+    stateFilter: openingSelection.state,
+    /* Whether the opening-scope roster actually loaded roster data, as
+     * opposed to the empty fallback a failed fetch leaves `state` narrowing
+     * to run against with no boxes or place names behind it. */
+    openingScopeResolved: openingRosters.areas.length > 0
   };
 }

@@ -103,6 +103,21 @@ interface DashboardReady {
   /** The month on screen, or null while the map shows the newest reading. */
   month: string | null;
   selected: string | null;
+  /** `?state=`, exactly as requested (S3a,
+   * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) -- "all", or a USPS code,
+   * whether or not it could be honoured. A linked reservoir outside the
+   * requested state widens the map's own narrowing back to "all" (see
+   * `openingScopeResolved`'s comment for why this field does not follow
+   * that widening), so this is the one place a test can tell "asked for
+   * Idaho and got it" apart from "asked for Idaho, widened for a link". Not
+   * `areaFilter` above: that is this page's own pre-existing drainage-area
+   * filter, a different mechanism reading the same `?area=` parameter, and
+   * this page's opening scope does not narrow by area a second time. */
+  stateFilter?: string;
+  /** Whether the opening-scope roster actually loaded roster data, as
+   * opposed to the empty fallback a failed fetch leaves `stateFilter`
+   * narrowing to run against with no boxes or place names behind it. */
+  openingScopeResolved?: boolean;
 }
 
 interface Window {
@@ -182,6 +197,20 @@ interface Window {
     daysOld: number;
     lateData: boolean;
     storageJoined: number;
+    /** `?state=`, exactly as requested, whether or not it could be resolved
+     * (docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md). "all", or a USPS
+     * code -- distinct from `openingScopeResolved` below, which is "could
+     * this be acted on at all" rather than "what was asked for". */
+    stateFilter?: string;
+    /** `?area=`, the same way: a region, subregion or basin code, or null,
+     * exactly as requested. Not `severityFilter` below, which is a
+     * different axis entirely (drought class, not place). */
+    areaFilter?: string | null;
+    /** Whether the opening-scope roster and reference export actually
+     * resolved, as opposed to the degraded state a failed fetch leaves
+     * `stateFilter`/`areaFilter` narrowing to run against with no boxes or
+     * place names behind them. */
+    openingScopeResolved?: boolean;
     /** The drought class the reader narrowed to, or null for every area.
      * Not `units`, which counts what the file carried. */
     severityFilter?: string | null;
