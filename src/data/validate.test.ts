@@ -112,6 +112,32 @@ describe("reservoir payload validation", () => {
     expect(() => validateReservoirPayload(other)).toThrow("normal window metadata");
   });
 
+  /* The details panel formats these into a sentence, and `formatDate` echoes
+   * back anything it cannot parse -- so a number here reaches a reader as
+   * ", since 20250810" rather than being refused at load. Absent still
+   * passes: they arrive with the pipeline, and a payload written before they
+   * did is a valid payload. */
+  it("rejects a change reference date that is not a date", () => {
+    for (const field of ["change_7d_reference_date", "change_30d_reference_date",
+      "change_365d_reference_date"]) {
+      const payload = validPayload();
+      const record = (payload.reservoirs as Record<string, unknown>[])[0]!;
+      record[field] = 20_250_810;
+      expect(() => validateReservoirPayload(payload), field)
+        .toThrow("Invalid reservoir record at index 0 (Testwater)");
+    }
+  });
+
+  it("accepts a payload generated before the change reference dates existed", () => {
+    const payload = validPayload();
+    const record = (payload.reservoirs as Record<string, unknown>[])[0]!;
+    for (const field of ["change_7d_reference_date", "change_30d_reference_date",
+      "change_365d_reference_date"]) {
+      delete record[field];
+    }
+    expect(validateReservoirPayload(payload).reservoir_count).toBe(1);
+  });
+
   it("rejects a non-integer structure version", () => {
     const payload = validPayload();
     payload.schema_version = 1.5;

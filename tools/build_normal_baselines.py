@@ -136,8 +136,11 @@ SCHEMA_VERSION = 2
 #: what came before it, the median over every reading in the window, which let
 #: a densely-reported year outvote a sparsely-reported one. "-2" adds the
 #: canonical calendar: the table is built and read at the same position, where
-#: it used to be built over a leap year and read by `dayofyear`.
-METHOD_VERSION = "storage-normal-annual-2"
+#: it used to be built over a leap year and read by `dayofyear`. "-3"
+#: attributes each reading the year-end wrap keeps to the window instance it
+#: is evidence about, so positions 1-7 and 359-365 are each a median over
+#: single winters rather than over calendar years holding two.
+METHOD_VERSION = "storage-normal-annual-3"
 
 #: How many reservoirs to fetch at once. See `build_many` for why it is small.
 DEFAULT_WORKERS = 6
@@ -525,14 +528,37 @@ def main() -> int:
                     if OUTPUT_PATH.exists() else {"reservoirs": []})
         kept, payload["reservoirs"] = merged_reservoirs(
             previous["reservoirs"], records)
+        # A merge must not mix estimators into one file, and *every* path
+        # here is a merge -- a completed full run included, because `kept`
+        # holds the reservoirs absent from today's payload (an ADR-056
+        # withdrawal), and those records are whatever estimator the committed
+        # file was built by.
+        #
+        # The fields keep their names when the statistic under them changes,
+        # so merging a reservoir built one way into a file built the other
+        # produces a file that looks entirely consistent and is not. What to
+        # do about it depends on which kind of merge this is.
+        built_under = previous.get("method_version")
+        if not merging and kept and built_under != METHOD_VERSION:
+            # A completed full run against a file built by another estimator.
+            # The header is stamped with today's METHOD_VERSION, so keeping
+            # the old-method records would publish the exact mix the
+            # partial-run refusal below exists to stop -- while claiming one
+            # method, which is worse, because `load_normals`' warning is
+            # keyed on the header and could then never fire. Same policy as
+            # the interrupted run: keep what this run built, say what was
+            # dropped, and each dropped reservoir is rebuilt the day its
+            # feed returns and `--missing` can reach it.
+            names = ", ".join(sorted(r["name"] for r in kept))
+            print(f"WARNING: {OUTPUT_PATH.name} was built by "
+                  f"{built_under or 'an unversioned method'}; dropping "
+                  f"{len(kept)} normal(s) kept for reservoirs not in today's "
+                  f"payload ({names}) rather than mixing them into a "
+                  f"{METHOD_VERSION} file.", file=sys.stderr)
+            kept = []
+            payload["reservoirs"] = sorted(
+                records, key=lambda r: (r["name"], r["source_station_id"]))
         if merging:
-            # A merge must not mix estimators into one file.
-            #
-            # The fields keep their names when the statistic under them
-            # changes, so merging a reservoir built one way into a file built
-            # the other produces a file that looks entirely consistent and is
-            # not. What to do about it depends on which kind of merge this is.
-            built_under = previous.get("method_version")
             if built_under != METHOD_VERSION and not interrupted:
                 # A run that asked to be partial. Refusing is cheap -- a full
                 # build is a few minutes -- and mixing is not recoverable by

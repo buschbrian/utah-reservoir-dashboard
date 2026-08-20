@@ -71,6 +71,27 @@ made the statistic a fact about reporting density. The history rank ranks the
 same annual values, and the details panel leads with the ordinal — "3rd-lowest
 of 12" carries its own sample size and a percentile does not.
 
+**A vote is one window instance, not one calendar year** (review of
+2026-08-20). Away from 1 January the two are the same thing. At the year end
+the window wraps, and grouping the wrapped readings by their own calendar year
+put a year's early-January readings — the winter before — and its
+late-December ones — the winter after — in a single vote describing neither,
+about 360 days apart. Each reading votes with the instance whose reference
+date it is days from, and `prior_annual_seasonal_values` cuts on the *vote's*
+year: cutting on the reading's admitted the current winter's December as
+"prior" evidence and split a finished winter across two votes. The seam is
+also why fourteen days of `normals.json` count 31 years against a thirty-year
+period and that is the honest count, not a rounding error — a winter spans two
+calendar years, so a period bounded by them cuts its first and last winters in
+half, and both halves really did vote.
+
+**A tie is not below** (review of 2026-08-20). `seasonal_rank` counts the
+years strictly below the current reading, so `seasonal_percentile` must too:
+the two are one comparison printed in one row, and counting ties as
+at-or-below on one side only published "1st-lowest of 12" beside a percentile
+of 9.1 for four reservoirs in a committed payload. Lowest ever, tied or not,
+reads 0, and 100 arrives exactly when the rank reads highest.
+
 **A method version is not a schema version** (review of 2026-08-20). A field
 can keep its name, type and units while the estimator under it changes, and
 `schema_version` cannot see that. `METHOD_VERSION` can, and three places
@@ -80,6 +101,17 @@ committed normals disagree, and `merge_history` refuses a drought week
 measured by another method exactly as it already refused one at another level.
 An interrupted full normals build is the single exception — it keeps its
 fetches and drops the rest, because it has already paid for them.
+
+**Every normals run is a merge, a completed full one included.** A full run
+keeps the records of reservoirs absent from today's payload — the ADR-056
+withdrawal the merge exists to protect — so after a method change it would
+otherwise write old-estimator records under a header stamped with the new
+version. That is worse than a plain mix: `load_normals` reads the header, so a
+file claiming one method could never warn. A full run therefore drops those
+records, names them, and leaves `--missing` to rebuild each one when its feed
+returns. Every published drought coverage file states its `method.version`
+too, and a test holds both levels to it — the HUC-4 file is written with
+`--no-history` and so never passes `merge_history`'s gate.
 
 **Long-lived reference data carries the date it was checked.**
 `tools/check_reference_freshness.py` reads each committed reference file's own

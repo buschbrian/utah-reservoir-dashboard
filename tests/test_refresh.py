@@ -986,8 +986,7 @@ def test_the_sample_size_is_years_not_readings():
     frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
     record = R.summarize("Daily", 994, 40.0, -111.0, frame, TODAY)
 
-    prior = R.annual_seasonal_values(
-        R.prior_years(series, TODAY), TODAY)
+    prior = R.prior_annual_seasonal_values(series, TODAY)
     assert record["seasonal_sample_years"] == len(prior)
     assert record["seasonal_sample_years"] == TODAY.year - 2015
 
@@ -1040,6 +1039,66 @@ def test_the_rank_and_the_percentile_agree_about_direction():
         # Both count the same prior years, so the highest rank and a
         # percentile of 100 have to arrive together.
         assert (rank == of) == (percentile == 100.0)
+
+
+def test_a_tie_reads_the_same_in_both_forms():
+    """A year at exactly the current value counts as not-below in both.
+
+    The percentile counted ties as at-or-below while the rank counted
+    strictly below, so a reading that tied the lowest year on record
+    published "lowest of 12" beside a percentile of 9.1 -- one comparison,
+    two answers, printed in one details-panel row. Thief Valley did exactly
+    that in a committed payload.
+    """
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    values = np.where(index.year < TODAY.year,
+                      (index.year - 2014) * 100.0, 100.0)
+    series = pd.Series(values, index=index)
+    prior_count = TODAY.year - 2015
+
+    # Current ties the lowest prior year: lowest ever, and a true zero.
+    assert R.seasonal_rank(series, TODAY, 100.0) == (1, prior_count + 1)
+    assert R.seasonal_percentile(series, TODAY, 100.0) == 0.0
+
+    # Current ties the highest prior year: not above it, so not the highest
+    # rank and not the hundredth percentile.
+    highest = prior_count * 100.0
+    rank, of = R.seasonal_rank(series, TODAY, highest)
+    assert rank == of - 1
+    assert R.seasonal_percentile(series, TODAY, highest) < 100.0
+
+
+def test_a_vote_near_the_new_year_is_one_winter():
+    """The wrapped window groups by instance, not by calendar year.
+
+    Grouping by calendar year medianed a year's early-January readings --
+    the winter before -- with its late-December ones -- the winter after --
+    into one vote, and counted the current winter's December as "prior"
+    evidence. Each winter here sits at its own constant level, so a vote
+    that blends two of them is visible immediately.
+    """
+    index = pd.date_range("2020-12-01", "2026-01-05", freq="D")
+    # Winter W runs December W through January W+1 and holds 1000 + 100*W-ish;
+    # the current winter (December 2025 into January 2026) collapses to 55.
+    winter = np.where(index.month == 12, index.year, index.year - 1)
+    values = np.where(winter == 2025, 55.0, (winter - 2020) * 100.0 + 1000.0)
+    series = pd.Series(values, index=index)
+    ref = pd.Timestamp("2026-01-02")
+
+    yearly = R.annual_seasonal_values(series, ref)
+    # Each instance, labelled by its January year, is exactly its winter's
+    # level -- nothing blended from the winter before or after.
+    for year, level in ((2021, 1000.0), (2022, 1100.0), (2023, 1200.0),
+                        (2024, 1300.0), (2025, 1400.0), (2026, 55.0)):
+        assert yearly[year] == level
+
+    # The current winter's December is current-winter evidence, not a prior
+    # year, so it is excluded whole -- December half included.
+    prior = R.prior_annual_seasonal_values(series, ref)
+    assert list(prior.index) == [2021, 2022, 2023, 2024, 2025]
+    assert 55.0 not in set(prior.to_numpy())
+    assert R.seasonal_rank(series, ref, 55.0) == (1, 6)
+    assert R.seasonal_percentile(series, ref, 55.0) == 0.0
 
 
 def test_the_pipeline_publishes_the_estimator_it_used():

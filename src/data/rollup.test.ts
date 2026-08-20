@@ -464,11 +464,31 @@ describe("which period the combined comparison uses", () => {
     expect(climate.normalAf).toBeCloseTo(normalFor(withClimate, "climate"), 6);
   });
 
-  /* The whole reason the period has to travel with the number. */
+  /* The whole reason the period has to travel with the number. Fixed
+   * baselines rather than the live aggregates: the property is that the two
+   * periods *can* answer differently and the rollup keeps them apart, and
+   * asserting today's aggregates differ would turn the build red on a
+   * morning the two happened to converge -- with no code change, which is
+   * the class of test this repository forbids. */
   it("gives a different answer for the two periods", () => {
-    const recent = statewideRollup(withClimate, optionsFor("recent"));
-    const climate = statewideRollup(withClimate, optionsFor("climate"));
-    expect(recent.percentOfNormal).not.toBeCloseTo(climate.percentOfNormal ?? 0, 1);
+    const twoPeriods = reservoir({
+      current_storage_af: 500,
+      baselines: {
+        recent: {
+          normal_af: 1000, pct_of_normal: 50, sample_years: minimumYears + 1,
+          covers_full_period: false, first_obs: "2015-01-01"
+        },
+        climate: {
+          normal_af: 2000, pct_of_normal: 25, sample_years: 30,
+          covers_full_period: true, first_obs: "1991-01-01"
+        },
+        default: "recent"
+      }
+    });
+    const recent = statewideRollup([twoPeriods], optionsFor("recent"));
+    const climate = statewideRollup([twoPeriods], optionsFor("climate"));
+    expect(recent.percentOfNormal).toBeCloseTo(50, 6);
+    expect(climate.percentOfNormal).toBeCloseTo(25, 6);
   });
 
   it("uses the same minimum number of years as the reservoir details", () => {

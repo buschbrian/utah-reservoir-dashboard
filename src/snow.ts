@@ -44,8 +44,8 @@ import {
   headlineFloor,
   mapDayValues,
   monthReadings,
+  newestFloored,
   newestHeadline,
-  newestReading,
   normalPeriodLabel,
   observedPeak,
   measuredScope,
@@ -755,7 +755,10 @@ function renderSnow(
       reading.className = "snow-site-reading";
       const parts: string[] = [];
       const latest = newestHeadline(points, floor);
-      const newest = latest ?? newestReading(points);
+      /* The fallback holds the same reporting floor (`newestFloored`), so
+       * when it answers, the denominator is the only reason the percentage
+       * was refused -- which is what the sentence below says. */
+      const newest = latest ?? newestFloored(points, floor);
       if (latest) {
         parts.push(`Newest value: ${formatPercent(latest.percent)} of normal ` +
           `on ${formatDate(latest.date)}, from ${latest.reportingSites} of ` +
@@ -864,8 +867,10 @@ function renderSnow(
      * a mean normal of a quarter inch. Where the comparison cannot carry a
      * headline, the depth does -- the number that still means something when
      * the ratio does not. The curve below keeps drawing the ratio either
-     * way (`MEANINGFUL_NORMAL_INCHES`). */
-    const reading = latest ?? newestReading(curve);
+     * way (`MEANINGFUL_NORMAL_INCHES`). The fallback holds the same
+     * reporting floor (`newestFloored`), so the note's claim about the
+     * denominator is true when it appears; too few sites is its own message. */
+    const reading = latest ?? newestFloored(curve, floor);
     setKpi("now", latest ? formatPercent(latest.percent)
       : reading?.meanInches !== null && reading?.meanInches !== undefined
         ? `${reading.meanInches.toFixed(1)} in`

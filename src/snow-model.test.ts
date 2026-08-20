@@ -12,6 +12,7 @@ import {
   measuredScope,
   monthReadings,
   payloadAtLevel,
+  newestFloored,
   newestHeadline,
   newestReading,
   percentIsMeaningful,
@@ -446,6 +447,34 @@ describe("headline readings", () => {
     expect(newestHeadline(points, 200)).toBeNull();
   });
 
+  /* The depth fallback says "there is too little normal snow to compare
+   * against", so it may only appear when that is the reason. Both fixtures
+   * below are early-season curves, where no day carries a headline at all --
+   * which is when the page reaches for the fallback. */
+  it("offers no depth fallback when the reporting floor is what failed", () => {
+    // Five stations reporting against a healthy normal: the ratio is fine
+    // and the crowd is not. Falling back here put five stations' mean depth
+    // in the page's largest type under a note blaming the normal.
+    const thinCrowd: CurvePoint[] = [
+      { date: "2026-10-20", percent: 96, reportingSites: 5, normalInches: 6.2 },
+      { date: "2026-10-21", percent: 98, reportingSites: 5, normalInches: 6.4 }
+    ];
+    expect(newestHeadline(thinCrowd, 100)).toBeNull();
+    expect(newestFloored(thinCrowd, 100)).toBeNull();
+    // The unfloored reading is still reachable for anything that wants it.
+    expect(newestReading(thinCrowd)?.date).toBe("2026-10-21");
+  });
+
+  it("offers the depth fallback when the denominator is what failed", () => {
+    const thinNormal: CurvePoint[] = [
+      { date: "2026-10-26", percent: 240, reportingSites: 147, normalInches: 0.21 },
+      { date: "2026-10-27", percent: 266, reportingSites: 147, normalInches: 0.24 }
+    ];
+    expect(newestHeadline(thinNormal, 100)).toBeNull();
+    // Plenty of sites, too little normal: this is the case the note describes.
+    expect(newestFloored(thinNormal, 100)?.date).toBe("2026-10-27");
+  });
+
   it("finds a headline in the committed payload", () => {
     const region = regionCurve(payload);
     const floor = headlineFloor(payload.site_count, 2);
@@ -830,15 +859,27 @@ describe("the denominator floor", () => {
 
   /* The curve keeps drawing the ratio either way: a hole cut in October and
    * again at melt-out would hide the shape of the season, which is what the
-   * curve is for. */
+   * curve is for.
+   *
+   * Synthetic sites, not today's payload: on the first mornings of a water
+   * year the committed file holds only days whose normals are all zero, so
+   * asserting the live curve contains a thin-but-positive day would turn
+   * the build red with no code change. The property under test is the
+   * code's -- a day below the headline's denominator floor keeps its
+   * percentage on the curve. */
   it("does not remove the percentage from the published curve", () => {
-    const curve = regionCurve(payload);
-    const thin = curve.filter((entry) =>
-      entry.normalInches !== null && entry.normalInches !== undefined
-      && entry.normalInches < MEANINGFUL_NORMAL_INCHES
-      && entry.reportingSites >= 10);
-    expect(thin.length).toBeGreaterThan(0);
-    expect(thin.some((entry) => entry.percent !== null)).toBe(true);
+    const octoberSites = Array.from({ length: 12 }, (_, index) => ({
+      ...payload.sites[0]!,
+      station: `thin-${index}`,
+      series: [["2026-10-27", 0.5, 0.2]] as SnowpackPayload["sites"][number]["series"]
+    }));
+    const curve = regionCurve({ ...payload, sites: octoberSites });
+    expect(curve).toHaveLength(1);
+    const day = curve[0]!;
+    expect(day.reportingSites).toBe(12);
+    expect(day.normalInches).not.toBeNull();
+    expect(day.normalInches!).toBeLessThan(MEANINGFUL_NORMAL_INCHES);
+    expect(day.percent).not.toBeNull();
   });
 
   /* The normal and the percentage must describe one set of stations: a site

@@ -220,7 +220,24 @@ def storage_history(stations: list[dict]) -> dict[str, list[float]]:
         body = get(CDEC_DATA, {
             "Stations": ",".join(chunk), "SensorNums": "15",
             "dur_code": "M", "Start": START_DATE, "End": end})
-        for row in json.loads(body):
+        # The same guard `fetch_cdec_series` holds in the daily pipeline: the
+        # servlet answers an error with an object, and iterating that yields
+        # its keys, so `row.get` raises and takes the whole audit down --
+        # every chunk already fetched, and a second of sleep paid for each.
+        # A chunk that will not parse is reported and the run goes on; the
+        # stations in it simply have no readings to screen on.
+        try:
+            rows = json.loads(body)
+        except ValueError:
+            rows = None
+        if not isinstance(rows, list):
+            print(f"  CDEC did not answer with readings for {len(chunk)} "
+                  f"stations starting {chunk[0]}; skipped", file=sys.stderr)
+            time.sleep(1)
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
             value = usable(row.get("value"))
             if value is None:
                 continue
