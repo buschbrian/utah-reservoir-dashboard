@@ -514,6 +514,59 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
   : {});
 
+/* The first-visit chooser is the only surface the ordinary page contexts
+ * deliberately skip. Exercise it in the system state that exposed two
+ * independent failures: dark text tokens on a white fallback card, and a
+ * closed native dialog left visible by the class's `display: flex` rule. */
+{
+  const context = await browser.newContext({
+    viewport: VIEWPORTS[2], colorScheme: "dark"
+  });
+  const tab = await context.newPage();
+  const label = "First-visit chooser (dark, small-phone)";
+  console.log(`\n=== ${label}`);
+  await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await tab.waitForSelector("dialog.opening-splash[open]", { timeout: 90000 });
+
+  const opened = await tab.locator("dialog.opening-splash").evaluate((dialog) => {
+    const style = getComputedStyle(dialog);
+    const luminance = (colour) => {
+      const channels = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      const linear = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
+    };
+    const foreground = luminance(style.color);
+    const background = luminance(style.backgroundColor);
+    const contrast = (Math.max(foreground, background) + .05)
+      / (Math.min(foreground, background) + .05);
+    return {
+      contrast, display: style.display, open: dialog.hasAttribute("open"),
+      theme: document.documentElement.dataset.theme
+    };
+  });
+  console.log("  opened:", JSON.stringify(opened));
+  check(opened.theme === "dark", `${label}: the dark preference was not applied`);
+  check(opened.open && opened.display === "flex", `${label}: the chooser did not open`);
+  check(opened.contrast >= 4.5,
+    `${label}: text contrast is ${opened.contrast.toFixed(2)}:1, expected at least 4.5:1`);
+
+  await tab.getByRole("button", { name: "Show the whole west" }).click();
+  await tab.waitForFunction(() =>
+    !document.querySelector("dialog.opening-splash")?.hasAttribute("open"));
+  const closed = await tab.locator("dialog.opening-splash").evaluate((dialog) => ({
+    display: getComputedStyle(dialog).display,
+    rectangles: dialog.getClientRects().length
+  }));
+  console.log("  closed:", JSON.stringify(closed));
+  check(closed.display === "none" && closed.rectangles === 0,
+    `${label}: the closed chooser remains visible (${closed.display}, `
+      + `${closed.rectangles} layout rectangle(s))`);
+  await context.close();
+}
+
 for (const viewport of VIEWPORTS) {
   const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
@@ -3427,6 +3480,14 @@ for (const failure of [
           '.where-control calcite-select[label="Which subregion to show"]').length,
         areaSelects: document.querySelectorAll(
           '.where-control calcite-select[label="Which drainage area to show"]').length,
+        filterbar: (() => {
+          const bar = document.querySelector(".dashboard-filterbar");
+          const where = bar?.querySelector(".where-control");
+          return bar && where ? {
+            height: Math.round(bar.getBoundingClientRect().height),
+            whereDisplay: getComputedStyle(where).display
+          } : null;
+        })(),
         viewport: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth
       }));
@@ -3447,6 +3508,12 @@ for (const failure of [
         `subregion ${state.subregionSelects}, drainage area ${state.areaSelects})`);
       check(state.scroll <= state.viewport + 1,
         `${label}: the page scrolls sideways with the where control carrying a link`);
+      if (viewport.name === "desktop" && scenario.label !== "Storage map") {
+        check(state.filterbar?.whereDisplay === "contents",
+          `${label}: the four place selects still occupy one stacked grid cell`);
+        check((state.filterbar?.height ?? Infinity) < 320,
+          `${label}: the filter card is ${state.filterbar?.height}px tall, expected under 320px`);
+      }
       await checkAccessibility(tab, check, label);
     }
 
