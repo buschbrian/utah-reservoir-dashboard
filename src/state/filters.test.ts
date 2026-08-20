@@ -11,6 +11,7 @@ import { headlinePercent } from "../viz/symbols";
 import {
   ALL_RESERVOIRS,
   classIndexOf,
+  coversDrainageArea,
   describeFilter,
   filterBounds,
   filterWhere,
@@ -240,5 +241,56 @@ describe("what the panel says", () => {
       describeFilter(ALL_RESERVOIRS, 51, 51)
     ].join(" ");
     expect(copy).not.toMatch(retired);
+  });
+});
+
+/* The prefix test the predicate uses is exported, because the storage map
+ * asks the same question about a different subject: `applyScope` has to
+ * decide whether the areas the map now draws still hold the reader's choice.
+ * It compared for equality against six-digit basins, so a shared link
+ * carrying `?area=1401` was reset to "all drainage areas" before it ever
+ * reached the predicate below, and the page answered a subregion link with
+ * the whole roster. */
+describe("the prefix test both the predicate and the storage map's scope use", () => {
+  it("holds a basin inside its own subregion and region, and nothing else", () => {
+    for (const code of basinCodes) {
+      expect(coversDrainageArea(code, code), code).toBe(true);
+      expect(coversDrainageArea(code.slice(0, 4), code), code).toBe(true);
+      expect(coversDrainageArea(code.slice(0, 2), code), code).toBe(true);
+      // The other direction is not a containment: a basin does not hold the
+      // subregion it sits in, and that asymmetry is the whole point of the
+      // argument order.
+      expect(coversDrainageArea(code, code.slice(0, 4)), code).toBe(false);
+    }
+    const [first, second] = basinCodes;
+    if (first !== undefined && second !== undefined && first !== second) {
+      expect(coversDrainageArea(first, second)).toBe(false);
+    }
+  });
+
+  /* Validated here rather than by the caller, for the reason the clause
+   * validates rather than quoting: five digits is not a level, so it is no
+   * filter -- but it prefix-matches a six-digit basin quite happily, and a
+   * caller that trusted the raw string would offer the reader an area that
+   * filters nothing. */
+  it("refuses a code of a width the levels never come in", () => {
+    const code = basinCodes[0] ?? "140600";
+    expect(coversDrainageArea(code.slice(0, 5), code)).toBe(false);
+    for (const bad of ["", "14 06", "14o6", "1406000000000", "' OR 1=1 --"]) {
+      expect(coversDrainageArea(bad, code), bad).toBe(false);
+    }
+  });
+
+  it("agrees with the predicate at every width a reader can choose", () => {
+    for (const drainageArea of everyArea) {
+      if (drainageArea === null) continue;
+      const state: FilterState = { storageClass: null, reporting: "all", drainageArea };
+      for (const reservoir of reservoirs) {
+        expect(
+          coversDrainageArea(drainageArea, reservoir.huc6 ?? ""),
+          `${reservoir.name} at ${drainageArea}`
+        ).toBe(matchesFilter(reservoir, state));
+      }
+    }
   });
 });

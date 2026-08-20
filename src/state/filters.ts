@@ -68,7 +68,7 @@ export function matchesFilter(reservoir: Reservoir, state: FilterState): boolean
    * disagree on a code of an odd width: the clause dropped it and greyed
    * nothing, while this prefix-matched five characters and dimmed the list. */
   const code = drainageAreaCode(state);
-  if (code !== null && reservoir.huc6?.slice(0, code.length) !== code) {
+  if (code !== null && !coversDrainageArea(code, reservoir.huc6 ?? "")) {
     return false;
   }
   if (state.storageClass === null) return true;
@@ -130,6 +130,27 @@ function drainageAreaCode(state: FilterState): string | null {
   return state.drainageArea !== null && DRAINAGE_AREA_CODE.test(state.drainageArea)
     ? state.drainageArea
     : null;
+}
+
+/**
+ * Whether a full-width drainage-area code sits inside the one the reader
+ * chose.
+ *
+ * The single prefix test, exported because three surfaces need the same
+ * answer and had begun to write it out separately: this module's predicate,
+ * the storage map's "is this choice still on the map" check, and the list of
+ * areas its control offers. `applyScope` was comparing for equality against a
+ * list of six-digit basins, so a shared link carrying a region or a subregion
+ * (`?area=14`, `?area=1401`) was widened back to the whole roster before it
+ * ever reached `matchesFilter`, which prefix-matches perfectly well.
+ *
+ * Validated here rather than by the caller, for the reason `drainageAreaCode`
+ * is: a code of an odd width is not a narrower filter, it is no filter, and it
+ * has to be no filter to every reading of it. A five-digit typo prefix-matches
+ * a six-digit basin quite happily and would otherwise pass this.
+ */
+export function coversDrainageArea(chosen: string, code: string): boolean {
+  return DRAINAGE_AREA_CODE.test(chosen) && code.slice(0, chosen.length) === chosen;
 }
 
 /** The layer field the clause reads. Exported so `layers.ts` builds the
