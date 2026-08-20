@@ -57,6 +57,22 @@ export interface MonthlyRollup {
   storageAf: number;
   capacityAf: number;
   percentFull: number | null;
+  /**
+   * The population the month was drawn from, and what share of it answered.
+   *
+   * A twelve-month series built this way can change population between one
+   * month and the next, so a rise in the line can be a rise in storage, a
+   * change in who reported, or both. The ratio itself stays honest -- only
+   * reporting reservoirs are on either side of it -- but a reader comparing
+   * two months is comparing two populations unless this is published beside
+   * it. Reported by combined full level as well as by count, because a month
+   * missing thirty small reservoirs and a month missing Lake Powell give very
+   * different counts and very different totals.
+   */
+  scopeCount: number;
+  scopeCapacityAf: number;
+  /** Share of the scope's combined full level that reported this month. */
+  percentCapacityReporting: number | null;
 }
 
 /**
@@ -73,7 +89,9 @@ export function monthlyRollup(
   let storageAf = 0;
   let capacityAf = 0;
   let reporting = 0;
+  let scopeCapacityAf = 0;
   for (const reservoir of reservoirs) {
+    scopeCapacityAf += sizeBasis(reservoir);
     const entry = reservoir.monthly.find((record) => record.month === month);
     const mean = entry?.mean_af;
     if (mean === null || mean === undefined || !Number.isFinite(mean)) continue;
@@ -87,7 +105,11 @@ export function monthlyRollup(
     reporting,
     storageAf,
     capacityAf,
-    percentFull: capacityAf > 0 ? (storageAf / capacityAf) * 100 : null
+    percentFull: capacityAf > 0 ? (storageAf / capacityAf) * 100 : null,
+    scopeCount: reservoirs.length,
+    scopeCapacityAf,
+    percentCapacityReporting: scopeCapacityAf > 0
+      ? (capacityAf / scopeCapacityAf) * 100 : null
   };
 }
 

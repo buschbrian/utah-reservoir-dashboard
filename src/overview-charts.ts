@@ -208,7 +208,7 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
     }
   }));
   return new FeatureLayer({
-    title: "Filtered Utah reservoir conditions",
+    title: "Filtered reservoir conditions",
     source,
     /* Named so the chart's own tooltip has a title: without it, every field
      * the tooltip lists -- including the reservoir's own name -- is shown
@@ -369,18 +369,33 @@ function barTooltipFormatter(measure: ChartMeasure): TooltipFormatter {
 function trendTooltipFormatter(
   points: readonly TrendPoint[], measure: ChartMeasure
 ): TooltipFormatter {
-  const labels = new Map(points.map((point) => [point.axisLabel, point.label]));
+  const byLabel = new Map(points.map((point) => [point.axisLabel, point]));
   return ((props: {
     statValue?: number;
     xValue?: Date | number | string;
   }): string => {
     const key = String(props.xValue ?? "");
-    return chartTooltip(labels.get(key) ?? key, [{
+    const point = byLabel.get(key);
+    /* The population, on every point rather than only the thin ones. A
+     * caveat that appears on some months and not others reads as a warning
+     * about those months; the fact a reader needs is that each point has a
+     * population at all, and that they are not all the same. */
+    const rows = [{
       label: measure === "storage" ? "Combined storage" : "Percent full",
       value: measure === "storage"
         ? `${formatAcreFeet(props.statValue ?? null)} acre-feet`
         : formatPercent(props.statValue ?? null)
-    }]);
+    }];
+    if (point) {
+      rows.push({
+        label: "Reservoirs reporting",
+        value: point.percentCapacityReporting === null
+          ? `${point.reporting} of ${point.scopeCount}`
+          : `${point.reporting} of ${point.scopeCount}, `
+            + `${formatPercent(point.percentCapacityReporting)} of the full level`
+      });
+    }
+    return chartTooltip(point?.label ?? key, rows);
   }) as TooltipFormatter;
 }
 
@@ -743,10 +758,10 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
  * The question this answers is the one percent-full cannot: a reservoir at
  * 60% in April and one at 60% in September are not the same news.
  *
- * WHY THE HORIZONTAL AXIS IS LOGARITHMIC. Utah's reservoirs run from Flaming
- * Gorge at millions of acre-feet to Lost Lake at a few hundred -- more than
- * four orders of magnitude. Spread linearly, the two largest set the range
- * and every other reservoir in the state collapsed into one smudge against
+ * WHY THE HORIZONTAL AXIS IS LOGARITHMIC. The tracked reservoirs run from
+ * Lake Mead at 28 million acre-feet to Lost Lake at a few hundred -- more than
+ * five orders of magnitude. Spread linearly, the two largest set the range
+ * and every other reservoir collapsed into one smudge against
  * the origin, so a chart whose whole purpose is per-reservoir comparison
  * could be read for no reservoir except the biggest. A logarithmic axis
  * spends the same width on each tenfold step, which is the only arrangement

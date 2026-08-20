@@ -175,6 +175,91 @@ describe("user text", () => {
     }
   });
 
+  /*
+   * The roster went from 69 reservoirs connected to Utah to 198 across the
+   * west, and the methods page went on describing the old rule for weeks: it
+   * told readers that areas draining to the Columbia River system were left
+   * out while 82 of the published reservoirs sat in them. Prose does not know
+   * when the data changes, so the rules stay as prose and every count about
+   * the data is read from the payload.
+   */
+  it("does not restore the retired reservoir inclusion rule", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+
+    // The admission rule that stopped being true.
+    expect(methods).not.toMatch(/drainage area must touch Utah/);
+    expect(methods).not.toMatch(/Columbia River system are left out/);
+    // And the counts that were written as words and went stale as words.
+    expect(methods).not.toMatch(/sixty-nine reservoirs/i);
+    expect(methods).not.toMatch(/Four reservoirs are measured against a maximum/);
+  });
+
+  /*
+   * Every count about the published data is a slot the payload fills. A test
+   * on the slots rather than on the numbers, because the numbers are the
+   * thing that is allowed to change.
+   */
+  it("reads its counts from the payload rather than stating them", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    for (const slot of ["scope-counts", "basis-mix", "climate-coverage"]) {
+      expect(methods, `${slot} must stay a payload-filled slot`)
+        .toContain(`data-live="${slot}"`);
+    }
+    expect(methods).toContain("function fillLiveCounts");
+  });
+
+  /*
+   * Three claims about what the sources are, each of which a reader needs in
+   * order to read the numbers as what they are rather than as what the rest
+   * of the page's framing implies.
+   */
+  it("keeps the source and denominator caveats a reader needs", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+
+    // The outlet area is not the land that fills the reservoir.
+    expect(methods).toContain("outlet drainage area");
+    expect(methods).toMatch(/not the land that fills the reservoir/i);
+    // The drought map is a judgement, and its first class is not drought.
+    expect(methods).toMatch(/judgement, not a reading/i);
+    expect(methods).toContain("D0 means abnormally dry");
+    expect(methods).toMatch(/D1 to D4 are the drought classes/);
+    // A combined figure spans dates, and divides by mixed full levels.
+    expect(methods).toMatch(/not all taken on the same day/i);
+    expect(methods).toMatch(/do not all mean the same thing/i);
+    // The snow figure is about the sites, not the land.
+    expect(methods).toMatch(/every site counts once/i);
+    expect(methods).toMatch(/not a measure of the snow lying across the whole area/i);
+    // The colours are display bands rather than operating thresholds.
+    expect(methods).toMatch(/display bands, not thresholds/i);
+    // And the refresh time is not stated as one fixed mountain clock time.
+    expect(methods).not.toMatch(/runs at 5 in the morning/);
+    expect(methods).toContain("mountain daylight time");
+  });
+
+  /*
+   * The snow page draws a choropleth from a station average, which is the one
+   * place a reader is most likely to read it as a measure of the whole area.
+   */
+  it("says the snow map's areas are averages of their sites", async () => {
+    const snow = await readFile(resolve(root, "src/snow.ts"), "utf8");
+    expect(snow).toMatch(/plain average of the sites reporting/i);
+    expect(snow).toMatch(/not a measure of the snow lying across the whole area/i);
+    // Snow is a source of inflow, not next summer's storage by itself.
+    expect(snow).not.toMatch(/this winter's snow is next summer's storage/);
+    expect(snow).toMatch(/Not all of it gets there/);
+  });
+
+  /*
+   * The Drought Monitor considers water-supply conditions when it is drawn,
+   * so a chart of storage against drought class is not a test of one against
+   * the other and must not be described as one.
+   */
+  it("describes drought against storage as contextual", async () => {
+    const drought = await readFile(resolve(root, "src/drought.ts"), "utf8");
+    expect(drought).toMatch(/related pictures rather than independent measurements/i);
+    expect(drought).toMatch(/not a test of one against the other/i);
+  });
+
   it("keeps the glossary the retired overview used to carry", async () => {
     // explore.html defined these before it became a redirect. The definitions
     // moved here; this test is what notices if they are dropped again.

@@ -95,7 +95,7 @@ root.innerHTML = `
   </calcite-navigation>
   <main class="overview-main">
     <header class="overview-intro">
-      <p>How dry the land is, area by area, from the U.S. Drought Monitor's weekly national map. Each drainage area also shows its reservoir storage, because the two can disagree. A full reservoir in a dry basin is a region that draws on saved water.</p>
+      <p>How dry the land is, area by area, from the U.S. Drought Monitor's weekly national map. That map is a weekly expert judgement rather than a single instrument reading: its authors weigh many kinds of evidence together, including water-supply records. Each drainage area also shows its reservoir storage, because the two can disagree. Storage and drought are related pictures rather than independent measurements. They diverge for ordinary reasons. A reservoir holds water that arrived in earlier years. It collects that water from land far upstream. It is filled and emptied by decisions as well as by weather.</p>
     </header>
     <section id="drought-content" aria-live="polite"><calcite-loader label="Loading drought conditions"></calcite-loader></section>
   </main>`;
@@ -321,7 +321,7 @@ function renderDrought(
     </section>
     <section class="overview-card" aria-labelledby="drought-join-heading">
       <div class="card-heading">
-        <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point. How much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse goes across the bottom. How full its reservoirs are goes up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point. An area far to the right and high up draws on water banked in better years. One far to the right and low has neither the rain nor the savings.</p></div>
+        <div><h2 id="drought-join-heading">Dry land against banked water</h2><p>Each drainage area is one point. How much of its land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse goes across the bottom. How full its reservoirs are goes up the side. The colour is the most severe class with land in it. The two do not have to agree, and where they disagree is the point. An area far to the right and high up draws on water banked in better years. One far to the right and low has neither the rain nor the savings. Read this as a description of how the two line up. It is not a test of one against the other. The Drought Monitor already weighs water supply conditions. And a reservoir is placed here by the area holding its dam, not by the land that fills it.</p></div>
       </div>
       <div id="drought-scatter-host" class="drought-scatter-host"></div>
     </section>

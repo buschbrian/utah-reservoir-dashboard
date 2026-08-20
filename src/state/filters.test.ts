@@ -84,15 +84,32 @@ function boundsAccept(
 }
 
 describe("the two forms of one filter", () => {
+  /*
+   * Every control state against every reservoir, which is a quarter of a
+   * million comparisons and grew with the roster.
+   *
+   * Collected into one assertion rather than asserted one at a time. The
+   * per-comparison form built its failure message -- a `JSON.stringify` of
+   * the state -- on every pass as well as every failure, so the cost of
+   * describing a failure was paid 267,000 times to describe none. The test
+   * ran for three seconds of a five-second budget and timed out whenever the
+   * suite was under load, which on this project means a red build on a
+   * morning nothing changed, and a red build freezes the published numbers.
+   *
+   * The coverage is identical and so is the diagnostic: a disagreement still
+   * names the reservoir and the state it disagreed under.
+   */
   it("agree on every reservoir, in every state the controls can reach", () => {
+    const disagreed: string[] = [];
     for (const state of everyState) {
       for (const reservoir of reservoirs) {
-        expect(
-          boundsAccept(featureAttributes(reservoir), state),
-          `${reservoir.name} disagreed under ${JSON.stringify(state)}`
-        ).toBe(matchesFilter(reservoir, state));
+        if (boundsAccept(featureAttributes(reservoir), state)
+          !== matchesFilter(reservoir, state)) {
+          disagreed.push(`${reservoir.name} under ${JSON.stringify(state)}`);
+        }
       }
     }
+    expect(disagreed).toEqual([]);
   });
 
   it("covers every reservoir exactly once across the storage classes", () => {

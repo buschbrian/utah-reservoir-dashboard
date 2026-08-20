@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { reservoirSymbol, sizeDomain } from "../viz/symbols";
 import {
-  isLakeMead, isLakePowell, percentFull, isLate, reservoirInScope, sizeBasis,
-  statewideRollup
+  isLakeMead, isLakePowell, percentFull, isLate, RECORD_MAX_BASIS, reservoirInScope,
+  sizeBasis, statewideRollup
 } from "./rollup";
 import type { Reservoir } from "../types";
 import { validateReservoirPayload } from "./validate";
@@ -355,5 +355,135 @@ describe("the dominant-reservoir controls", () => {
     expect(reservoirInScope(mead(), {
       geography: "utah", lakePowell: "include", lakeMead: "include"
     })).toBe(false);
+  });
+});
+
+/*
+ * What a combined figure is made of, beyond the figure itself.
+ *
+ * Each of these was invisible until it was published: the total spanned
+ * seven weeks of observation dates and said "Observation dates vary by
+ * reservoir"; it divided by three different definitions of full and said
+ * "percent full"; and it compared against 2015-2025 whatever period the
+ * reader had chosen, under the words "the usual storage for this date".
+ *
+ * Asserted against the payload's own arithmetic rather than against today's
+ * numbers, so a morning's refresh cannot turn the build red.
+ */
+describe("what a combined figure is made of", () => {
+  const all = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+
+  it("reports the span of observation dates behind the total", () => {
+    const dates = payload.reservoirs.map((reservoir) => reservoir.as_of).sort();
+    expect(all.coverage.earliestDate).toBe(dates[0]);
+    expect(all.coverage.latestDate).toBe(dates[dates.length - 1]);
+  });
+
+  it("splits freshness by combined full level, not only by count", () => {
+    expect(all.coverage.currentCount + all.coverage.lateCount).toBe(all.count);
+    expect(all.coverage.currentCapacityAf + all.coverage.lateCapacityAf)
+      .toBeCloseTo(all.capacityAf, 6);
+    /* The reason this exists: ten small late reservoirs and one enormous
+     * late reservoir give the same count and are not the same warning. */
+    expect(all.coverage.percentCapacityCurrent)
+      .toBeCloseTo(all.coverage.currentCapacityAf / all.capacityAf * 100, 6);
+  });
+
+  it("reports how the reservoirs divide by reporting schedule", () => {
+    expect(all.coverage.dailyCount + all.coverage.monthlyCount).toBe(all.count);
+  });
+
+  it("names every kind of full level the denominator is made of", () => {
+    const summed = all.basisShares.reduce((total, share) => total + share.capacityAf, 0);
+    const counted = all.basisShares.reduce((total, share) => total + share.count, 0);
+    expect(summed).toBeCloseTo(all.capacityAf, 6);
+    expect(counted).toBe(all.count);
+    // Largest share first, so a caller naming only the first names the biggest.
+    const shares = all.basisShares.map((share) => share.capacityAf);
+    expect([...shares].sort((a, b) => b - a)).toEqual(shares);
+    // And every one of them is named in words, never left as a source field.
+    for (const share of all.basisShares) {
+      expect(share.label).not.toBe(share.basis);
+      expect(share.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  /*
+   * A reservoir with no traceable capacity falls back to its highest recorded
+   * storage, which is a floor and not a capacity. `sizeBasis` has always made
+   * that substitution; what is new is that it can no longer make it silently
+   * inside a regional denominator.
+   */
+  it("reports the record-high fallback as its own kind of full level", () => {
+    const fallback: Reservoir = {
+      ...(payload.reservoirs[0] as Reservoir),
+      name: "No traceable capacity",
+      rise_item_id: -1,
+      capacity_af: null,
+      capacity_basis: null,
+      record_max_af: 1000
+    };
+    const rollup = statewideRollup([fallback], CONNECTED_WITH_LAKE_POWELL);
+    expect(rollup.basisShares).toHaveLength(1);
+    expect(rollup.basisShares[0]?.basis).toBe(RECORD_MAX_BASIS);
+    expect(rollup.basisShares[0]?.label).toBe("Highest recorded storage");
+    expect(rollup.capacityAf).toBe(1000);
+  });
+});
+
+/*
+ * The combined comparison used to read `seasonal_normal_af` whatever the
+ * reader had selected, and that field is the recent period. So the storage
+ * charts printed a 2015-2025 figure while the map beside them opened on
+ * 1991-2020, and both were labelled "normal".
+ */
+describe("which period the combined comparison uses", () => {
+  const withClimate = payload.reservoirs.filter((reservoir) =>
+    reservoir.baselines?.climate);
+
+  it("measures against the period it was asked for", () => {
+    const recent = statewideRollup(withClimate,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "recent" });
+    const climate = statewideRollup(withClimate,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+
+    expect(recent.normalBaseline).toBe("recent");
+    expect(climate.normalBaseline).toBe("climate");
+    expect(recent.normalAf).toBeCloseTo(withClimate.reduce((total, reservoir) =>
+      total + (reservoir.baselines?.recent?.normal_af ?? 0), 0), 6);
+    expect(climate.normalAf).toBeCloseTo(withClimate.reduce((total, reservoir) =>
+      total + (reservoir.baselines?.climate?.normal_af ?? 0), 0), 6);
+  });
+
+  /* The whole reason the period has to travel with the number. */
+  it("gives a different answer for the two periods", () => {
+    const recent = statewideRollup(withClimate,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "recent" });
+    const climate = statewideRollup(withClimate,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+    expect(recent.percentOfNormal).not.toBeCloseTo(climate.percentOfNormal ?? 0, 1);
+  });
+
+  it("defaults to the recent period, which is what every caller had", () => {
+    const asked = statewideRollup(payload.reservoirs,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "recent" });
+    const unasked = statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+    expect(unasked.normalBaseline).toBe("recent");
+    expect(unasked.percentOfNormal).toBe(asked.percentOfNormal);
+  });
+
+  /*
+   * How much of the total the comparison actually covers, by volume and not
+   * only by count. The standard period exists for 69 of 198 reservoirs and
+   * those 69 hold most of the water, so the two numbers tell very different
+   * stories and the count alone is the more alarming one.
+   */
+  it("reports baseline coverage by combined full level as well as by count", () => {
+    const climate = statewideRollup(payload.reservoirs,
+      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+    expect(climate.normalCovers).toBe(withClimate.length);
+    expect(climate.normalCoversCapacityAf)
+      .toBeCloseTo(withClimate.reduce((total, row) => total + sizeBasis(row), 0), 6);
+    expect(climate.normalCoversCapacityAf).toBeLessThanOrEqual(climate.capacityAf);
   });
 });

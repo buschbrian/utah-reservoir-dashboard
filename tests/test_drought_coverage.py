@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from compute_drought_coverage import (  # noqa: E402
+    DEFAULT_STEP,
     HISTORY_WEEKS_KEPT,
     LEVELS,
     build_payload,
@@ -173,6 +174,30 @@ class TestCommittedOutput:
     def test_dates_match_the_polygon_file(self, payload, source):
         assert payload["map_date"] == source["map_date"]
         assert payload["release_date"] == source["release_date"]
+
+    def test_every_published_file_states_the_step_it_was_sampled_at(self):
+        """A published tenth is only worth its last digit at a fine enough step.
+
+        The engine samples cell centres, so the step is its dominant error
+        term: at 0.01 degrees, 59 of the 844 shares it publishes would round
+        to a different tenth than a fine reference gives, which is a published
+        figure moving with no weather behind it.
+        `tools/measure_drought_convergence.py` is the measurement and takes
+        minutes; this is the cheap half of it, and the half that catches a
+        committed file left behind by a step change. Every coverage file and
+        the archive must have been written by the current default -- a file
+        recomputed at one step beside an archive built at another is two
+        methods in one series.
+        """
+        directory = ROOT / "data" / "drought"
+        files = sorted(directory.glob("usdm-huc*.json"))
+        assert files, "no committed drought coverage files"
+        for path in files:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            step = payload["method"]["grid_step_degrees"]
+            assert step == DEFAULT_STEP, (
+                f"{path.name} was sampled at {step} and the engine now "
+                f"defaults to {DEFAULT_STEP}; recompute it")
 
     def test_percentages_are_complete_and_sum_to_the_whole(self, payload):
         for unit in payload["units"]:

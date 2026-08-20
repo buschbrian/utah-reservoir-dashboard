@@ -471,6 +471,20 @@ export interface TrendPoint {
   storageAf: number;
   /** Reservoirs that reported anything for this month. */
   reporting: number;
+  /**
+   * The scope the month was drawn from, and the share of its combined full
+   * level that reported.
+   *
+   * The twelve points are not twelve measurements of one population. The
+   * newest month is the one this matters most for: monthly providers publish
+   * at month end, so the current month holds only the daily reservoirs until
+   * they do. Measured on the payload of 2026-08-19, eleven of the twelve
+   * points covered about 100% of the combined full level and the twelfth
+   * covered 79% -- and the fall from July to August read four points steeper
+   * than the same reservoirs measured across both months.
+   */
+  scopeCount: number;
+  percentCapacityReporting: number | null;
 }
 
 /**
@@ -499,7 +513,9 @@ export function monthlyTrend(reservoirs: readonly Reservoir[]): TrendPoint[] {
       axisLabel: month,
       percent: Number((rollup.percentFull ?? 0).toFixed(1)),
       storageAf: rollup.storageAf,
-      reporting: rollup.reporting
+      reporting: rollup.reporting,
+      scopeCount: rollup.scopeCount,
+      percentCapacityReporting: rollup.percentCapacityReporting
     };
   });
 }

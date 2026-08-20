@@ -181,6 +181,7 @@ describe("the rest of the view in the link", () => {
   });
 
   it("survives a round trip in every combination the controls can reach", () => {
+    const broken: string[] = [];
     for (const storageClass of CLASSES) {
       for (const reporting of ["all", "late", "current"] as const) {
         for (const drainageArea of AREAS) {
@@ -202,7 +203,16 @@ describe("the rest of the view in the link", () => {
                    * no parameter. The two real values round trip below. */
                   baseline: null
                 };
-                expect(stateFromSearch(searchWithState(state))).toEqual(state);
+                /* Compared as text and asserted once at the end, for the
+                 * reason `state/filters.test.ts` explains: this loop runs a
+                 * six-figure number of round trips, and a deep `toEqual` on
+                 * every one of them spends the whole cost of describing a
+                 * failure on the passes. */
+                const back = stateFromSearch(searchWithState(state));
+                if (JSON.stringify(back) !== JSON.stringify(state)) {
+                  broken.push(`${JSON.stringify(state)} came back as ` +
+                    JSON.stringify(back));
+                }
               }
             }
             }
@@ -210,6 +220,7 @@ describe("the rest of the view in the link", () => {
         }
       }
     }
+    expect(broken).toEqual([]);
   });
 
   it("carries the table's open state and its order as separate facts", () => {
