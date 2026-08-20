@@ -21,10 +21,17 @@ import {
 } from "../arcgis/watershed-layers";
 import { followBasemapReference } from "../arcgis/basemap-reference";
 import { THEME_CHANGE_EVENT, effectiveThemeNow } from "./theme";
-import type { DrainageScope } from "../data/boundaries";
+import type { DrainageAreaBox, DrainageScope } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
-import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, navigableExtent, regionExtent, selectionTarget } from "../viz/extent";
+import {
+  extentFromBox,
+  MAP_MAX_ZOOM,
+  MAP_MIN_ZOOM,
+  navigableExtent,
+  regionExtent,
+  selectionTarget
+} from "../viz/extent";
 import { storageByArea } from "../drought-model";
 import { elementById } from "./dom";
 import { drainageAreaLines, storageReservoirLines } from "./hover-content";
@@ -108,6 +115,21 @@ export interface MapController {
    * changing *which* reservoirs there are.
    */
   setPercents(percentOf: (reservoir: Reservoir) => NullableNumber): void;
+  /**
+   * Overrides the opening extent this map was constructed with
+   * (`regionExtent()`, set internally below) -- for a reader who has chosen
+   * an opening scope (`?state=`/`?area=`,
+   * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md, S3a). `main.ts` is the
+   * only caller: `loadMap` has no other one, so this stays the one place
+   * that knows the element's own extent property exists at all, rather than
+   * a second, private copy of `MapElement`'s shape reached for from outside.
+   *
+   * Call this before anything asynchronous has had a chance to let the view
+   * start resolving -- the same "set before the view resolves" contract
+   * `regionExtent()` itself already fulfills, stated in full on this
+   * function's caller.
+   */
+  setOpeningExtent(box: DrainageAreaBox): void;
 }
 
 /** What excluded reservoirs look like: present, readable, clearly not chosen. */
@@ -705,6 +727,12 @@ export async function loadMap(
       status.drainageAreas = areas.length;
       status.drainageLabels = areas.length;
       syncDrainageLabelOrder();
+    },
+    setOpeningExtent(box) {
+      // The same conversion `regionExtent()`'s own assignment above went
+      // through, so the corner order and spatial reference cannot drift
+      // between the fixed default and a reader's chosen override.
+      element.extent = { type: "extent", ...extentFromBox(box) };
     }
   };
 }
