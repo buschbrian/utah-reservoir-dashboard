@@ -244,13 +244,21 @@ def test_committed_capacity_table_covers_every_reservoir():
 
 def test_awdb_inventory_has_traceable_capacity_and_cadence():
     assert len(R.BASE_AWDB_RESERVOIRS) == 25
-    assert len(R.ADMITTED_RESERVOIRS) == 15
-    assert len(R.AWDB_RESERVOIRS) == 40
+    # 15 before R1; +133 admitted from the AWDB-west pool (137 the rules
+    # admitted, minus Lake Mead -- a tool bug, already published -- Lemon
+    # Reservoir CO -- D10, self-contradicting source record -- Eden WY and
+    # Fruitland Reservoir CO -- both excluded dam matches -- minus Elkhead
+    # Reservoir, already on the roster and not a new admission).
+    assert len(R.ADMITTED_RESERVOIRS) == 148
+    assert len(R.AWDB_RESERVOIRS) == 173
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
     for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
         assert triplet.count(":") == 2
-        assert 36 <= lat <= 43 and -115 <= lon <= -105
+        # west-huc6's own box (`DRAWN_BOUNDS`, src/viz/extent.ts), not the
+        # narrower Utah-connected one this bound used before R1: the AWDB
+        # west pool reaches Puget Sound and the Upper Sacramento.
+        assert 29.5 <= lat <= 53 and -125 <= lon <= -105
         assert capacity > 0
         assert cadence in {"daily", "monthly"}
 
@@ -271,15 +279,37 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
         }
 
 
-def test_connected_inventory_fills_exactly_the_previously_empty_areas():
-    by_huc = {}
+def test_admitted_inventory_lands_at_its_reviewed_dam_point():
+    """Every admitted station's stored drainage area has to match where its
+    reviewed dam point actually sits -- a roster entry with the wrong huc6
+    is a reservoir the map opens away from (`src/viz/extent.ts`), and the
+    only way to notice is to check the geography directly rather than trust
+    a hand-copied field. San Carlos Reservoir (AZ) is why this checks the
+    raw assignment rather than `describe()`'s divide-aware one: its dam
+    point sits 66 m from the Upper Gila/Middle Gila line, inside `huc.
+    MIN_ASSIGNMENT_MARGIN_KM`, and its published point is too close to the
+    same line for the fallback to resolve it either -- see BOUNDARY_MARGIN_
+    EXCEPTIONS in tests/test_huc.py.
+
+    Before R1 this fit in one dict: three areas, fifteen reservoirs, matching
+    the admission review word for word (ADR-023). R1's AWDB-west pool spans
+    dozens of areas across five hydrologic regions, so a literal count per
+    area would just be a second copy of the roster -- the per-row assignment
+    check above is what actually catches a wrong huc6, and the area count
+    below is a loose regression guard rather than a re-statement of the
+    roster.
+    """
     units = R.huc.load_units()
+    seen_areas = set()
     for row in R.ADMITTED_RESERVOIRS.values():
-        by_huc[row["huc6"]] = by_huc.get(row["huc6"], 0) + 1
         capacity = row["capacity"]
         assigned = R.huc.assign_huc((capacity["dam_lon"], capacity["dam_lat"]), units)
         assert assigned and assigned["huc6"] == row["huc6"], row["name"]
-    assert by_huc == {"140100": 10, "140500": 4, "140802": 1}
+        seen_areas.add(row["huc6"])
+    # 3 areas before R1; 36 after, well above this bound -- a drop back
+    # toward the old count would mean the admitted pool stopped being
+    # western, not that the roster shrank a little.
+    assert len(seen_areas) >= 30
 
 
 # --- degenerate inputs ----------------------------------------------------
@@ -532,7 +562,10 @@ def test_one_export_contains_capacity_and_every_visualization_geography():
     assert set(geography) == {"watersheds"}
     watersheds = geography["watersheds"]
     assert watersheds["default_scope"] == "west-huc6"
-    assert watersheds["roster_scope"] == "utah-connected"
+    # R1 moved the roster scope to the whole west (ADR-063's supersession):
+    # admitting the AWDB west means the box the storage map opens on has to
+    # follow the reservoirs out past the fourteen Utah-connected areas.
+    assert watersheds["roster_scope"] == "west-huc6"
     assert watersheds["scopes"]["west-huc6"]["unit_count"] == 75
     assert watersheds["scopes"]["utah-connected"]["unit_count"] == 14
     assert watersheds["scopes"]["upper-colorado"]["unit_count"] == 10
@@ -597,14 +630,16 @@ def test_the_export_publishes_the_committed_roster_unchanged():
     assert scopes["west-huc6"]["units"] == roster(
         "data/watersheds/west-huc6.geojson")
 
-    # Two scopes are named, and they stopped being the same name when the
-    # coverage moved west (ADR-063): the maps draw 75 basins, the reservoir
-    # roster was admitted from the fourteen that touch Utah, and the storage
-    # map opens on the second. Both must be scopes this file publishes, or a
-    # client following either name has nothing to follow.
+    # Two scopes are named. They stopped being the same name when the
+    # coverage moved west (ADR-063) and started being the same name again
+    # when R1 admitted the AWDB west and moved the roster scope to match the
+    # drawn one. Both must still be scopes this file publishes, or a client
+    # following either name has nothing to follow -- and `utah-connected`
+    # stays published in its own right: 16 of the 137 R1 candidates land
+    # inside it, and an old link naming it must keep resolving.
     watersheds = geography["watersheds"]
     assert watersheds["default_scope"] == "west-huc6"
-    assert watersheds["roster_scope"] == "utah-connected"
+    assert watersheds["roster_scope"] == "west-huc6"
     assert set(scopes) >= {watersheds["default_scope"], watersheds["roster_scope"]}
     assert scopes["west-huc6"]["unit_count"] == 75
     assert scopes["utah-connected"]["unit_count"] == 14

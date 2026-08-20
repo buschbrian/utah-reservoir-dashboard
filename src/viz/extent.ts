@@ -19,11 +19,11 @@ import type { DrainageArea, DrainageAreaBox } from "../data/boundaries";
  *
  * The drainage areas are the primary source, so the map's geography comes
  * from them -- but from the ones with reservoirs in them, not from every area
- * drawn. Those were the same fourteen areas until the coverage moved west
- * (ADR-063), and 75 areas with 69 reservoirs in a corner of them is a wider
- * map rather than a fuller one: the box would have grown from 10 degrees of
- * longitude to 19 without one more reservoir to look at. So the extent
- * follows the roster and grows when the roster does.
+ * drawn. That was the same fourteen areas from ADR-063 until R1
+ * (admit-awdb-west) moved `ROSTER_SCOPE` to `west-huc6`, which is why this
+ * box now reads as the whole west rather than as Utah's corner of it: the
+ * roster was admitted from that scope now, so this is the box of it. So the
+ * extent follows the roster and grows when the roster does.
  *
  * A constant rather than a computation because the navigation constraint is
  * needed when the view is constructed, before any boundary file has been
@@ -38,8 +38,33 @@ import type { DrainageArea, DrainageAreaBox } from "../data/boundaries";
  * *contain* every polygon. The values moved by about a hundred metres when
  * the boundaries were refetched at 56 metres (ADR-037): finer geometry finds
  * the true extremes that a 500-metre generalization had cut the corners off.
+ *
+ * **No longer what `MAP_BOUNDS` below is built from.** Before R1 the two
+ * questions -- where does the map open, and where was the roster admitted
+ * from -- had one answer, so one constant answered both. R1 gave them
+ * different answers on purpose: the storage map still has to open on
+ * something sane for a reader who has chosen no scope (ADR-044's contract
+ * with the retired routes' saved links), while this box is free to move with
+ * the roster, including all the way out to the whole west. Collapsing them
+ * back into one constant here would have dragged `MAP_BOUNDS` out to 19
+ * degrees of longitude the same morning ROSTER_SCOPE moved -- exactly the
+ * load the chooser (`src/data/opening-scope.ts`) exists to carry instead.
  */
 export const HUC6_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
+  [[-124.90222, 29.83863], [-105.62642, 52.88066]];
+
+/**
+ * The roster scope's box on the day it was still `utah-connected` -- the
+ * fourteen areas ADR-063 admitted the original roster from, frozen here as a
+ * private literal so `MAP_BOUNDS` below can be built from it without being
+ * built from the (now western) `HUC6_BOUNDS` above.
+ *
+ * Equal to `shared/reservoir-viz.js`'s own `HUC6_BOUNDS`, which is why
+ * `MAP_BOUNDS` computed from it still equals the frozen oracle's -- see
+ * `extent.test.ts`. Never exported and never meant to grow a second use: its
+ * only job is being the one number `MAP_BOUNDS` is pinned to.
+ */
+const OPENING_SCOPE_HUC6_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
   [[-115.70611, 35.1088], [-105.62642, 43.45212]];
 
 /** A bounding box scaled about its own centre. Two is one zoom level. */
@@ -95,30 +120,37 @@ export function unionOfAreaBoxes(
 }
 
 /**
- * Where the map opens, and the furthest out it goes -- the same box, one
- * zoom level out from the drainage areas. Opening on the polygons exactly
- * puts them against the edges of the canvas; one level out gives them the
- * middle of it with the surrounding geography for context, and there is
- * nothing useful further out than that for a dashboard about these
- * drainage areas. Since the coverage moved west there is context in the
- * literal sense too: the areas beyond the roster's are drawn, and this box
- * reaches into them.
+ * Where the map opens when a reader has chosen no scope, and the furthest
+ * out that default view goes -- one zoom level out from the fourteen areas
+ * the original roster was admitted from.
+ *
+ * Built from `OPENING_SCOPE_HUC6_BOUNDS` above, not from `HUC6_BOUNDS`: the
+ * two constants answered the same question until R1 moved `ROSTER_SCOPE` to
+ * `west-huc6`, and answering it with the (now much wider) roster box would
+ * have opened every map on 19 degrees of longitude the same morning, which
+ * is the load `src/data/opening-scope.ts` exists to carry instead --
+ * `unionOfAreaBoxes` over whatever a reader's chosen state, region or area
+ * actually means, falling back to this constant only when they have chosen
+ * nothing at all. `MAP_BOUNDS` stays pinned to its value on the day the
+ * roster was still Utah-connected (ADR-044): it is a contract with the
+ * saved links the retired routes translate, not a measurement that should
+ * track the roster the way `HUC6_BOUNDS` does. `extent.test.ts` holds it to
+ * the frozen oracle's own `MAP_BOUNDS`, and that assertion is unaffected by
+ * where the roster goes from here.
  */
 export const MAP_BOUNDS: readonly [readonly [number, number], readonly [number, number]] =
-  expandBounds(HUC6_BOUNDS, 2);
+  expandBounds(OPENING_SCOPE_HUC6_BOUNDS, 2);
 
 /**
- * The box of every drainage area the maps draw -- all 75, not the fourteen
- * the roster was admitted from.
+ * The box of every drainage area the maps draw -- all 75.
  *
- * `HUC6_BOUNDS` above answers "where should the map open"; this answers
- * "where may a reader go". ADR-063 made one constant do both, which was
- * true while the two questions had one answer and stopped being true the
- * moment a reader could choose a place. Eight of the eleven states this site
- * covers -- Arizona, California, Idaho, Montana, New Mexico, Nevada, Oregon
- * and Washington -- lie partly outside the roster's box, so a chooser built
- * against it would have answered "showing Oregon" over a view the SDK had
- * quietly dragged back toward Utah.
+ * `MAP_BOUNDS` above answers "where should the storage map open when a
+ * reader has chosen nothing"; this answers "where may a reader go". ADR-063
+ * made one constant do both, which was true while the two questions had one
+ * answer and stopped being true the moment a reader could choose a place --
+ * pinning `MAP_BOUNDS` to a fixed default (ADR-044) while letting a reader
+ * pan anywhere drawn needed the split kept even after R1 moved
+ * `ROSTER_SCOPE` to the same 75 areas this box already covered.
  *
  * Measured from the boxes the drawn scope publishes, and asserted against
  * them in `extent.test.ts` the same way `HUC6_BOUNDS` is asserted against
@@ -222,7 +254,8 @@ export function extentFromBox(
   return { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } };
 }
 
-/** Where the storage map opens: the roster's box, one zoom level out. */
+/** Where the storage map opens when a reader has chosen no scope: the box
+ * pinned by ADR-044, one zoom level out. */
 export function regionExtent(): Extent {
   return extentFromBox(MAP_BOUNDS);
 }

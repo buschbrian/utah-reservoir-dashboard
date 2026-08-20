@@ -204,26 +204,25 @@ SCOPES = {
 DEFAULT_SCOPE = "west-huc6"
 
 # The scope the published reservoir roster was admitted from, which is not the
-# same question as which areas are drawn and stopped having the same answer on
-# 2026-08-18 (ADR-063).
-#
-# Coverage moved to the whole west; the roster did not move with it, because
-# admitting a reservoir means tracing a capacity and reviewing it, and the
-# western candidate pool has not been through that. So 61 of the 75 drawn
-# areas hold nothing, which is a state the payload already allows for
-# (ADR-056) and the maps already draw.
+# same question as which areas are drawn -- it stopped having the same answer
+# on 2026-08-18 (ADR-063) and started having it again on 2026-08-19, when R1
+# admitted the AWDB west and moved this to `DEFAULT_SCOPE`.
 #
 # What this name is *for* is the map's opening extent. The geography a reader
 # may pan over comes from the areas that hold reservoirs, not from every area
-# drawn -- otherwise admitting no reservoirs would still have opened the
+# drawn -- otherwise a still-unadmitted pool would still have opened the
 # storage map on 19 degrees of longitude with every reservoir in one corner of
 # it. `src/viz/extent.ts` holds the box, this names the file it is the box of,
 # and `reference.json` publishes the name so the two cannot drift.
 #
-# When the roster expands west, this moves to `DEFAULT_SCOPE` and the box
-# follows the reservoirs out. `tests/test_watershed_scopes.py` asserts every
-# roster point is inside this scope, so it cannot be forgotten.
-ROSTER_SCOPE = "utah-connected"
+# Between ADR-063 and R1 this was `"utah-connected"`, the fourteen areas the
+# original roster was admitted from -- kept registered and published, because
+# 16 of the 137 R1 candidates still land inside it and a reader with an old
+# link to one of those areas must keep resolving. `tests/test_watershed_
+# scopes.py` asserts every roster point is inside whichever scope this names,
+# so a future admission that outgrows `west-huc6` cannot move the roster
+# without moving this too.
+ROSTER_SCOPE = DEFAULT_SCOPE
 
 # The levels a reader may choose between, and the scope drawn at each
 # (ADR-064). `DEFAULT_SCOPE` must be one of them, and is what a reader who

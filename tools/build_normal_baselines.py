@@ -70,7 +70,49 @@ from refresh_reservoirs import (  # noqa: E402
 )
 
 ROSTER_PATH = ROOT / "reservoirs.json"
+#: The committed, reviewed roster. Consulted for reservoirs the payload does
+#: not hold, which is a real state rather than an odd one: a reservoir
+#: admitted to the roster whose feed is already quiet past
+#: ``WITHDRAW_AFTER_DAYS`` is withdrawn on its very first refresh (ADR-056),
+#: so it never appears in ``reservoirs.json`` and could never be given a
+#: normal. Montpelier Reservoir arrived in exactly that state.
+#:
+#: A withdrawal notice cannot stand in for this. It carries a name and a
+#: reason and deliberately no measurement, so it has no station to fetch
+#: with -- the roster is where that lives.
+ADMITTED_PATH = ROOT / "admitted_reservoirs.json"
 OUTPUT_PATH = ROOT / "normals.json"
+
+
+def roster_records() -> list[dict]:
+    """Every reservoir that exists, published or withdrawn.
+
+    The payload's own records first, because they carry the provider's answer
+    for this morning. Then any roster entry the payload does not hold, mapped
+    into the same shape: a station triplet is a ``source_station_id`` and a
+    cadence is a ``data_frequency``, and every reviewed entry is an AWDB
+    station. A thirty-year median is a fact about a reservoir rather than
+    about whether its gauge reported this week, so a quiet feed must not be
+    what decides it can never have one.
+    """
+    published = json.loads(ROSTER_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    known = {str(record.get("source_station_id")) for record in published}
+    records = list(published)
+    if not ADMITTED_PATH.exists():
+        return records
+    admitted = json.loads(ADMITTED_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    for station, entry in admitted.items():
+        if str(station) in known:
+            continue
+        records.append({
+            "name": entry["name"],
+            "source_key": "awdb",
+            "source_station_id": entry.get("station_triplet", station),
+            "data_frequency": entry["cadence"],
+            "lat": entry["lat"],
+            "lon": entry["lon"],
+        })
+    return records
 
 # The standard climate normal period. 1991-2020 is what the World
 # Meteorological Organization defines and what the snowpack payload already
@@ -333,7 +375,7 @@ def main() -> int:
                         help="how many reservoirs to fetch at once")
     args = parser.parse_args()
 
-    roster = json.loads(ROSTER_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    roster = roster_records()
     existing = already_built()
     if args.only and args.missing:
         print("ERROR: --only names the reservoirs and --missing works them out; "

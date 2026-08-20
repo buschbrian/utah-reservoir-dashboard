@@ -1,6 +1,8 @@
 # ADR-063: Draw the whole west, and open on the areas that hold reservoirs
 
-- Status: Accepted
+- Status: Accepted; narrowed by [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md)
+  (`ROSTER_SCOPE` moved to `DEFAULT_SCOPE` and `MAP_BOUNDS` no longer derives
+  from `HUC6_BOUNDS`) -- everything else here still holds
 - Date: 2026-08-18
 
 ## Context
