@@ -182,7 +182,25 @@ const filterState = [...new Set(inScope.flatMap(statesOf))].sort()
 const stateRows = filterState
   ? inScope.filter((reservoir) => statesOf(reservoir).includes(filterState.code))
   : [];
-const expectedStateSubregions = [...new Set(stateRows
+/* From the whole roster narrowed by the state, not from `inScope`.
+ *
+ * The charts page builds its subregion and drainage-area lists from the
+ * widest scope on purpose: those controls answer "where can a reader go",
+ * which is a question about the roster, while the geography select and the
+ * two dominant-reservoir switches answer "what is in the total". A list
+ * built from the narrowed set changes shape under the very switch it is
+ * meant to be steady beneath -- at the default load that lost four drainage
+ * areas including Lake Powell's own. The state and county lists have always
+ * been built from the whole roster, so this makes the four agree.
+ *
+ * It only became visible when the roster went west: while every reservoir
+ * touched Utah the two sets were the same, and `inScope` was an accidental
+ * synonym for the roster rather than a narrowing. */
+const stateRowsWidest = filterState
+  ? payload.reservoirs.filter((reservoir) =>
+    statesOf(reservoir).includes(filterState.code))
+  : [];
+const expectedStateSubregions = [...new Set(stateRowsWidest
   .filter((reservoir) => typeof reservoir.huc6 === "string")
   .map((reservoir) => reservoir.huc6.slice(0, 4)))].sort();
 const subregionCandidates = expectedStateSubregions.map((code) => ({

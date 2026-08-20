@@ -155,10 +155,15 @@ describe("the drainage-area extent the map is built from", () => {
     expect(HUC6_BOUNDS[1][1]).toBeGreaterThanOrEqual(measured[1][1] - 0.001);
   });
 
-  it("is the shared module's, so the three maps use one geography", () => {
-    expect(HUC6_BOUNDS.map((corner) => [...corner]))
-      .toEqual(legacy.HUC6_BOUNDS.map((corner) => [...corner]));
-  });
+  /* Retired by R1 (admit-awdb-west), which is ADR-044's own rule applied to
+   * itself: that parity was a contract with `shared/reservoir-viz.js`'s
+   * frozen `HUC6_BOUNDS`, and the frozen module draws nothing and never
+   * runs -- its `HUC6_BOUNDS` is a snapshot of the roster scope the day it
+   * was `utah-connected`, not a page still running that a reader can save a
+   * link into. `MAP_BOUNDS` below is the constant with that kind of
+   * contract, and it keeps its own parity test. `HUC6_BOUNDS` here is a
+   * measurement of the *current* roster scope, and a roster scope that
+   * moved is the whole point of R1. */
 
   /* S1 published a box per unit (`bbox`, `huc.outer_bbox`) so a future
    * chooser can build an opening view from whatever areas a reader picks,
@@ -233,16 +238,45 @@ describe("one zoom level out", () => {
     expect(expandBounds([[-3, -4], [5, 6]], 1)).toEqual([[-3, -4], [5, 6]]);
   });
 
-  it("is what the opening extent is, measured from the drainage areas", () => {
+  /* Before R1 (admit-awdb-west) `MAP_BOUNDS` was expandBounds(HUC6_BOUNDS,
+   * 2) -- one constant answering both "where does the roster's own box sit"
+   * and "where does the map open by default". R1 moved `ROSTER_SCOPE` to
+   * `west-huc6`, which is `HUC6_BOUNDS`'s job now; `MAP_BOUNDS` stays
+   * pinned to the frozen oracle's box (ADR-044) instead, so this asserts it
+   * against *that* rather than against the (now western) `HUC6_BOUNDS`. */
+  it("is what the opening extent is, measured from the frozen oracle's roster box", () => {
     expect(MAP_BOUNDS.map((corner) => [...corner]))
-      .toEqual(expandBounds(HUC6_BOUNDS, 2).map((corner) => [...corner]));
+      .toEqual(expandBounds(legacy.HUC6_BOUNDS.map((c) => [...c]) as
+        [[number, number], [number, number]], 2).map((corner) => [...corner]));
   });
 
   it("contains the drainage areas it was expanded from", () => {
-    expect(MAP_BOUNDS[0][0]).toBeLessThan(HUC6_BOUNDS[0][0]);
-    expect(MAP_BOUNDS[0][1]).toBeLessThan(HUC6_BOUNDS[0][1]);
-    expect(MAP_BOUNDS[1][0]).toBeGreaterThan(HUC6_BOUNDS[1][0]);
-    expect(MAP_BOUNDS[1][1]).toBeGreaterThan(HUC6_BOUNDS[1][1]);
+    const oracleHuc6 = legacy.HUC6_BOUNDS.map((c) => [...c]) as [[number, number], [number, number]];
+    expect(MAP_BOUNDS[0][0]).toBeLessThan(oracleHuc6[0][0]);
+    expect(MAP_BOUNDS[0][1]).toBeLessThan(oracleHuc6[0][1]);
+    expect(MAP_BOUNDS[1][0]).toBeGreaterThan(oracleHuc6[1][0]);
+    expect(MAP_BOUNDS[1][1]).toBeGreaterThan(oracleHuc6[1][1]);
+  });
+
+  /* The decoupling itself: `HUC6_BOUNDS` moved out to the whole west with
+   * the roster (R1) while `MAP_BOUNDS` stayed put, so `MAP_BOUNDS` no longer
+   * contains it -- west, south and north all reach further in `HUC6_BOUNDS`
+   * now. Not the east edge: the drawn scope's own east edge stops at the
+   * same line the old Utah-connected box did (-105.6, the Front Range), and
+   * `MAP_BOUNDS`, expanded two zoom levels out from a narrower box, reaches
+   * a little past it into territory `NAVIGABLE_BOUNDS` already named as "the
+   * old region" above -- so this is a partial overlap, not a containment
+   * either direction, and neither `it` below asserts one. A regression back
+   * to the pre-R1 coupling would collapse west/south/north back to
+   * equality. */
+  it("reaches further west, south and north than MAP_BOUNDS -- the roster's box outgrew it there", () => {
+    expect(HUC6_BOUNDS[0][0]).toBeLessThan(MAP_BOUNDS[0][0]);
+    expect(HUC6_BOUNDS[0][1]).toBeLessThan(MAP_BOUNDS[0][1]);
+    expect(HUC6_BOUNDS[1][1]).toBeGreaterThan(MAP_BOUNDS[1][1]);
+  });
+
+  it("does not reach as far east as MAP_BOUNDS, which the drawn scope's own boundary explains", () => {
+    expect(HUC6_BOUNDS[1][0]).toBeLessThan(MAP_BOUNDS[1][0]);
   });
 
   it("still contains every reservoir the map draws", () => {

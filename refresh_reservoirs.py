@@ -49,7 +49,7 @@ START_DATE = "20150101"
 SEASONAL_WINDOW_DAYS = 7
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
-CONNECTED_RESERVOIRS_PATH = Path(__file__).parent / "connected_reservoirs.json"
+ADMITTED_RESERVOIRS_PATH = Path(__file__).parent / "admitted_reservoirs.json"
 NORMALS_PATH = Path(__file__).parent / "normals.json"
 COUNTIES_PATH = Path(__file__).parent / "counties.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
@@ -231,8 +231,8 @@ BASE_AWDB_RESERVOIRS = {
 }
 
 
-def load_connected_reservoirs(path: Path = CONNECTED_RESERVOIRS_PATH) -> dict[str, dict]:
-    """Load the reviewed out-of-state stations that fill empty drainage areas.
+def load_admitted_reservoirs(path: Path = ADMITTED_RESERVOIRS_PATH) -> dict[str, dict]:
+    """Load the reviewed AWDB stations admitted onto the roster.
 
     Candidate discovery remains live and read-only. Publication is a separate,
     reviewable decision, so the selected station, update frequency and capacity
@@ -276,7 +276,7 @@ def load_connected_reservoirs(path: Path = CONNECTED_RESERVOIRS_PATH) -> dict[st
     return rows
 
 
-CONNECTED_RESERVOIRS = load_connected_reservoirs()
+ADMITTED_RESERVOIRS = load_admitted_reservoirs()
 AWDB_RESERVOIRS = {
     **BASE_AWDB_RESERVOIRS,
     **{
@@ -284,7 +284,7 @@ AWDB_RESERVOIRS = {
             row["name"], row["lat"], row["lon"],
             row["capacity"]["capacity_af"], row["cadence"],
         )
-        for station, row in CONNECTED_RESERVOIRS.items()
+        for station, row in ADMITTED_RESERVOIRS.items()
     },
 }
 
@@ -334,8 +334,8 @@ def load_capacities() -> dict[str, dict]:
     is a wrong percentage that nothing fails on.
 
     The original Reclamation table is built by tools/build_capacity_table.py.
-    Reviewed connected-site evidence lives beside its station configuration
-    in connected_reservoirs.json. Both are committed rather than fetched at
+    Reviewed admitted-site evidence lives beside its station configuration
+    in admitted_reservoirs.json. Both are committed rather than fetched at
     refresh time because a denominator must not change silently.
     """
     capacities = {}
@@ -347,7 +347,7 @@ def load_capacities() -> dict[str, dict]:
               "its percent-full values will be omitted")
     return {
         **capacities,
-        **{station: row["capacity"] for station, row in CONNECTED_RESERVOIRS.items()},
+        **{station: row["capacity"] for station, row in ADMITTED_RESERVOIRS.items()},
     }
 
 
@@ -1062,7 +1062,7 @@ def load_capacity_catalog() -> dict:
     # key that looks like a name for 30 of them and a triplet for the rest
     # (ADR-066).
     catalog["keyed_by"] = "source_station_id"
-    catalog["connected_reservoirs"] = CONNECTED_RESERVOIRS_PATH.name
+    catalog["admitted_reservoirs"] = ADMITTED_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)
@@ -1355,7 +1355,7 @@ def main() -> int:
               f"reservoirs, {period.get('start_year')} through {period.get('end_year')} "
               f"(built {normals.get('built')})")
     print(f"NID capacity records available: {len(capacities)} "
-          f"({len(RESERVOIRS)} Reclamation, {len(CONNECTED_RESERVOIRS)} connected)")
+          f"({len(RESERVOIRS)} Reclamation, {len(ADMITTED_RESERVOIRS)} admitted)")
 
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
@@ -1423,7 +1423,7 @@ def main() -> int:
 
         stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
                        if cadence == "monthly" else STALE_AFTER_DAYS)
-        capacity = (CONNECTED_RESERVOIRS.get(station_triplet) or {}).get("capacity") or {
+        capacity = (ADMITTED_RESERVOIRS.get(station_triplet) or {}).get("capacity") or {
             "capacity_af": capacity_af,
             "capacity_basis": "awdb_reservoir_metadata",
         }

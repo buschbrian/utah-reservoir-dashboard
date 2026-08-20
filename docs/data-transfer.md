@@ -14,7 +14,7 @@ Two rules before any figure below is read:
 | file | raw | gzip |
 |---|---:|---:|
 | `snowpack.json` | 3,607 KB | **322 KB** |
-| `reservoirs.json` | 360 KB | 43.1 KB |
+| `reservoirs.json` | 1004 KB | 104.5 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
 | `reference.json` | 30.1 KB | 6.5 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
@@ -262,3 +262,19 @@ it since the outlines became the hosted layer's. ADR-049 stopped publishing
 it: `dist/` went from 38 MB to 37 MB, and because nothing fetched either copy,
 no figure above moves. The file stays committed and stays the pipeline's
 assignment source.
+
+## The roster goes west (2026-08-19)
+
+R1 admitted the AWDB western candidates, so `reservoirs.json` carries 198
+published reservoirs and 5 withdrawn rather than 69. On the wire it went from
+**41.0 KB to 104.5 KB gzipped** -- measured with `gzip -9`, not projected, and
+close to the 95 KB the scoping estimated.
+
+That is the largest single move any payload on this site has made, and it is
+paid on every surface that fetches the roster. It buys **40 of the 75 drawn
+drainage areas holding a reservoir**, against 14 before: the storage map stops
+being a Utah map with western context around it.
+
+`reference.json` is 12.8 KB gzipped, up from 6.5 KB, because `ROSTER_SCOPE`
+moved to `west-huc6` and the export now publishes the drawn scope's roster as
+the roster scope's as well.

@@ -1,16 +1,214 @@
 {
   "source": "Esri Living Atlas, USA Census Counties (U.S. Census Bureau 2020 boundaries)",
   "source_layer": "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Counties/FeatureServer/0",
-  "retrieved": "2026-08-18",
+  "retrieved": "2026-08-19",
   "assignment_point": "published_point",
   "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
   "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
   "counties": {
-    "10055500:ID:BOR": {
-      "name": "Bear Lake",
-      "county_fips": "16007",
-      "county_name": "Bear Lake County",
-      "state": "ID"
+    "09009010:CO:BOR": {
+      "name": "Blue Mesa Reservoir",
+      "county_fips": "08051",
+      "county_name": "Gunnison County",
+      "state": "CO"
+    },
+    "09009020:CO:BOR": {
+      "name": "Dillon Reservoir",
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "state": "CO"
+    },
+    "09009030:CO:BOR": {
+      "name": "Green Mountain Reservoir",
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "state": "CO"
+    },
+    "09009040:CO:BOR": {
+      "name": "Homestake Reservoir",
+      "county_fips": "08037",
+      "county_name": "Eagle County",
+      "state": "CO"
+    },
+    "09009050:CO:BOR": {
+      "name": "Jackson Gulch Reservoir",
+      "county_fips": "08083",
+      "county_name": "Montezuma County",
+      "state": "CO"
+    },
+    "09009060:CO:BOR": {
+      "name": "Lake Granby",
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "state": "CO"
+    },
+    "09009080:CO:BOR": {
+      "name": "Morrow Point Reservoir",
+      "county_fips": "08085",
+      "county_name": "Montrose County",
+      "state": "CO"
+    },
+    "09009100:CO:BOR": {
+      "name": "Paonia Reservoir",
+      "county_fips": "08051",
+      "county_name": "Gunnison County",
+      "state": "CO"
+    },
+    "09009110:CO:BOR": {
+      "name": "Ruedi Reservoir",
+      "county_fips": "08097",
+      "county_name": "Pitkin County",
+      "state": "CO"
+    },
+    "09009120:CO:BOR": {
+      "name": "Taylor Park Reservoir",
+      "county_fips": "08051",
+      "county_name": "Gunnison County",
+      "state": "CO"
+    },
+    "09009130:CO:BOR": {
+      "name": "Vallecito Reservoir",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
+    },
+    "09009140:CO:BOR": {
+      "name": "Vega Reservoir",
+      "county_fips": "08077",
+      "county_name": "Mesa County",
+      "state": "CO"
+    },
+    "09009150:CO:BOR": {
+      "name": "Williams Fork Reservoir",
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "state": "CO"
+    },
+    "09009160:CO:BOR": {
+      "name": "Willow Creek Reservoir",
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "state": "CO"
+    },
+    "09009170:CO:BOR": {
+      "name": "Groundhog Reservoir",
+      "county_fips": "08033",
+      "county_name": "Dolores County",
+      "state": "CO"
+    },
+    "09009320:CO:BOR": {
+      "name": "Fruitgrowers Reservoir",
+      "county_fips": "08029",
+      "county_name": "Delta County",
+      "state": "CO"
+    },
+    "09009340:CO:BOR": {
+      "name": "Crawford Reservoir",
+      "county_fips": "08029",
+      "county_name": "Delta County",
+      "state": "CO"
+    },
+    "09009350:CO:BOR": {
+      "name": "Narraguinnep Reservoir",
+      "county_fips": "08083",
+      "county_name": "Montezuma County",
+      "state": "CO"
+    },
+    "09014500:CO:BOR": {
+      "name": "Shadow Mountain Reservoir",
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "state": "CO"
+    },
+    "09041395:CO:BOR": {
+      "name": "Wolford Mountain Reservoir",
+      "county_fips": "08049",
+      "county_name": "Grand County",
+      "state": "CO"
+    },
+    "09109090:NM:BOR": {
+      "name": "Navajo Reservoir",
+      "county_fips": "35045",
+      "county_name": "San Juan County",
+      "state": "NM"
+    },
+    "09116500:CO:BOR": {
+      "name": "Vouga Reservoir",
+      "county_fips": "08109",
+      "county_name": "Saguache County",
+      "state": "CO"
+    },
+    "09125800:CO:BOR": {
+      "name": "Silverjack Reservoir",
+      "county_fips": "08051",
+      "county_name": "Gunnison County",
+      "state": "CO"
+    },
+    "09126000:CO:BOR": {
+      "name": "Crystal Reservoir",
+      "county_fips": "08085",
+      "county_name": "Montrose County",
+      "state": "CO"
+    },
+    "09147022:CO:BOR": {
+      "name": "Ridgway Reservoir",
+      "county_fips": "08091",
+      "county_name": "Ouray County",
+      "state": "CO"
+    },
+    "09213700:WY:BOR": {
+      "name": "Big Sandy",
+      "county_fips": "56037",
+      "county_name": "Sweetwater County",
+      "state": "WY"
+    },
+    "09223100:WY:BOR": {
+      "name": "Viva Naughton Res",
+      "county_fips": "56023",
+      "county_name": "Lincoln County",
+      "state": "WY"
+    },
+    "09237495:CO:BOR": {
+      "name": "Stagecoach Reservoir nr Oak Creek",
+      "county_fips": "08107",
+      "county_name": "Routt County",
+      "state": "CO"
+    },
+    "09246300:CO:BOR": {
+      "name": "Elkhead Reservoir",
+      "county_fips": "08081",
+      "county_name": "Moffat County",
+      "state": "CO"
+    },
+    "09255450:WY:BOR": {
+      "name": "High Savery Reservoir",
+      "county_fips": "56007",
+      "county_name": "Carbon County",
+      "state": "WY"
+    },
+    "09385500:AZ:BOR": {
+      "name": "Lyman Reservoir",
+      "county_fips": "04001",
+      "county_name": "Apache County",
+      "state": "AZ"
+    },
+    "09398300:AZ:BOR": {
+      "name": "Cragin Dam Reservoir",
+      "county_fips": "04005",
+      "county_name": "Coconino County",
+      "state": "AZ"
+    },
+    "09469000:AZ:BOR": {
+      "name": "San Carlos Reservoir",
+      "county_fips": "04007",
+      "county_name": "Gila County",
+      "state": "AZ"
+    },
+    "09UTBRWN:UT:BOR": {
+      "name": "Browns Draw",
+      "county_fips": "49013",
+      "county_name": "Duchesne County",
+      "state": "UT"
     },
     "09UTBSWR:UT:BOR": {
       "name": "Big Sand Wash",
@@ -18,16 +216,820 @@
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "219": {
-      "name": "Causey",
-      "county_fips": "49057",
-      "county_name": "Weber County",
-      "state": "UT"
-    },
     "09UTCLEV:UT:BOR": {
       "name": "Cleveland",
       "county_fips": "49015",
       "county_name": "Emery County",
+      "state": "UT"
+    },
+    "09UTDMAD:UT:BOR": {
+      "name": "DMAD",
+      "county_fips": "49027",
+      "county_name": "Millard County",
+      "state": "UT"
+    },
+    "09UTELLK:UT:BOR": {
+      "name": "Electric Lake",
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "state": "UT"
+    },
+    "09UTGNBN:UT:BOR": {
+      "name": "Gunnison Bend",
+      "county_fips": "49027",
+      "county_name": "Millard County",
+      "state": "UT"
+    },
+    "09UTGUNL:UT:BOR": {
+      "name": "Gunlock",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "09UTHNTN:UT:BOR": {
+      "name": "Huntington",
+      "county_fips": "49039",
+      "county_name": "Sanpete County",
+      "state": "UT"
+    },
+    "09UTIVIN:UT:BOR": {
+      "name": "Ivins",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "09UTJACK:UT:BOR": {
+      "name": "Jackson Flat",
+      "county_fips": "49025",
+      "county_name": "Kane County",
+      "state": "UT"
+    },
+    "09UTKENS:UT:BOR": {
+      "name": "Ken's Lake",
+      "county_fips": "49037",
+      "county_name": "San Juan County",
+      "state": "UT"
+    },
+    "09UTKOLB:UT:BOR": {
+      "name": "Kolob Reservoir",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "09UTMILF:UT:BOR": {
+      "name": "Miller Flat",
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "state": "UT"
+    },
+    "09UTMILL:UT:BOR": {
+      "name": "Millsite",
+      "county_fips": "49015",
+      "county_name": "Emery County",
+      "state": "UT"
+    },
+    "09UTQUAI:UT:BOR": {
+      "name": "Quail Creek",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "09UTRKYF:UT:BOR": {
+      "name": "Rocky Ford",
+      "county_fips": "49041",
+      "county_name": "Sevier County",
+      "state": "UT"
+    },
+    "09UTSAND:UT:BOR": {
+      "name": "Sand Hollow",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "09UTWTNY:UT:BOR": {
+      "name": "Whitney",
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "state": "UT"
+    },
+    "10020200:WY:BOR": {
+      "name": "Woodruff Narrows",
+      "county_fips": "56041",
+      "county_name": "Uinta County",
+      "state": "WY"
+    },
+    "10055500:ID:BOR": {
+      "name": "Bear Lake",
+      "county_fips": "16007",
+      "county_name": "Bear Lake County",
+      "state": "ID"
+    },
+    "10069500:ID:BOR": {
+      "name": "Montpelier Reservoir",
+      "county_fips": "16007",
+      "county_name": "Bear Lake County",
+      "state": "ID"
+    },
+    "10105200:UT:BOR": {
+      "name": "Porcupine",
+      "county_fips": "49005",
+      "county_name": "Cache County",
+      "state": "UT"
+    },
+    "10128000:UT:BOR": {
+      "name": "Smith and Morehouse",
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "state": "UT"
+    },
+    "10166500:UT:BOR": {
+      "name": "Utah Lake",
+      "county_fips": "49049",
+      "county_name": "Utah County",
+      "state": "UT"
+    },
+    "10188000:UT:BOR": {
+      "name": "Otter Creek",
+      "county_fips": "49031",
+      "county_name": "Piute County",
+      "state": "UT"
+    },
+    "10191000:UT:BOR": {
+      "name": "Piute",
+      "county_fips": "49031",
+      "county_name": "Piute County",
+      "state": "UT"
+    },
+    "10216200:UT:BOR": {
+      "name": "Gunnison",
+      "county_fips": "49039",
+      "county_name": "Sanpete County",
+      "state": "UT"
+    },
+    "10218500:UT:BOR": {
+      "name": "Yuba",
+      "county_fips": "49023",
+      "county_name": "Juab County",
+      "state": "UT"
+    },
+    "10238500:UT:BOR": {
+      "name": "Minersville",
+      "county_fips": "49001",
+      "county_name": "Beaver County",
+      "state": "UT"
+    },
+    "10292500:CA:BOR": {
+      "name": "Bridgeport Reservoir",
+      "county_fips": "06051",
+      "county_name": "Mono County",
+      "state": "CA"
+    },
+    "10312100:NV:BOR": {
+      "name": "Lahontan Reservoir",
+      "county_fips": "32001",
+      "county_name": "Churchill County",
+      "state": "NV"
+    },
+    "10334500:NV:BOR": {
+      "name": "Rye Patch Re nr Rye Patch, NV",
+      "county_fips": "32027",
+      "county_name": "Pershing County",
+      "state": "NV"
+    },
+    "10336710:NV:BOR": {
+      "name": "Marlette Lk nr Carson City",
+      "county_fips": "32031",
+      "county_name": "Washoe County",
+      "state": "NV"
+    },
+    "10337000:CA:BOR": {
+      "name": "Lake Tahoe",
+      "county_fips": "06061",
+      "county_name": "Placer County",
+      "state": "CA"
+    },
+    "10338400:CA:BOR": {
+      "name": "Donner Lake",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "10340300:CA:BOR": {
+      "name": "Prosser Reservoir",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "10342900:CA:BOR": {
+      "name": "Independence Lake",
+      "county_fips": "06091",
+      "county_name": "Sierra County",
+      "state": "CA"
+    },
+    "10344300:CA:BOR": {
+      "name": "Stampede Reservoir",
+      "county_fips": "06091",
+      "county_name": "Sierra County",
+      "state": "CA"
+    },
+    "10344490:CA:BOR": {
+      "name": "Boca Reservoir",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "10UT03JJ:UT:BOR": {
+      "name": "Settlement Canyon",
+      "county_fips": "49045",
+      "county_name": "Tooele County",
+      "state": "UT"
+    },
+    "10UTENTL:UT:BOR": {
+      "name": "Lower Enterprise",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "10UTENTU:UT:BOR": {
+      "name": "Upper Enterprise",
+      "county_fips": "49053",
+      "county_name": "Washington County",
+      "state": "UT"
+    },
+    "10UTGTVL:UT:BOR": {
+      "name": "Grantsville",
+      "county_fips": "49045",
+      "county_name": "Tooele County",
+      "state": "UT"
+    },
+    "10UTPANG:UT:BOR": {
+      "name": "Panguitch",
+      "county_fips": "49017",
+      "county_name": "Garfield County",
+      "state": "UT"
+    },
+    "10UTWOOD:UT:BOR": {
+      "name": "Woodruff Creek",
+      "county_fips": "49033",
+      "county_name": "Rich County",
+      "state": "UT"
+    },
+    "11338500:OR:BOR": {
+      "name": "Drews",
+      "county_fips": "41037",
+      "county_name": "Lake County",
+      "state": "OR"
+    },
+    "11340000:OR:BOR": {
+      "name": "Cottonwood",
+      "county_fips": "41037",
+      "county_name": "Lake County",
+      "state": "OR"
+    },
+    "11470001:CA:BOR": {
+      "name": "Clear Lake",
+      "county_fips": "06049",
+      "county_name": "Modoc County",
+      "state": "CA"
+    },
+    "11483400:OR:BOR": {
+      "name": "Gerber",
+      "county_fips": "41035",
+      "county_name": "Klamath County",
+      "state": "OR"
+    },
+    "11504500:OR:BOR": {
+      "name": "Fourmile Lake",
+      "county_fips": "41035",
+      "county_name": "Klamath County",
+      "state": "OR"
+    },
+    "11507001:OR:BOR": {
+      "name": "Upper Klamath Lake",
+      "county_fips": "41035",
+      "county_name": "Klamath County",
+      "state": "OR"
+    },
+    "11512900:OR:BOR": {
+      "name": "Howard Prairie",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "11514000:OR:BOR": {
+      "name": "Hyatt Prairie",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "12105800:WA:BOR": {
+      "name": "Howard Hansen",
+      "county_fips": "53033",
+      "county_name": "King County",
+      "state": "WA"
+    },
+    "12175000:WA:BOR": {
+      "name": "Ross",
+      "county_fips": "53073",
+      "county_name": "Whatcom County",
+      "state": "WA"
+    },
+    "12191600:WA:BOR": {
+      "name": "Upper Baker",
+      "county_fips": "53073",
+      "county_name": "Whatcom County",
+      "state": "WA"
+    },
+    "12193000:WA:BOR": {
+      "name": "Lake Shannon",
+      "county_fips": "53057",
+      "county_name": "Skagit County",
+      "state": "WA"
+    },
+    "12301920:MT:BOR": {
+      "name": "Lake Koocanusa",
+      "county_fips": "30053",
+      "county_name": "Lincoln County",
+      "state": "MT"
+    },
+    "12325000:MT:BOR": {
+      "name": "Georgetown Lake",
+      "county_fips": "30023",
+      "county_name": "Deer Lodge County",
+      "state": "MT"
+    },
+    "12330800:MT:BOR": {
+      "name": "Lower Willow Creek Reservoir",
+      "county_fips": "30039",
+      "county_name": "Granite County",
+      "state": "MT"
+    },
+    "12336500:MT:BOR": {
+      "name": "Nevada Creek Res",
+      "county_fips": "30077",
+      "county_name": "Powell County",
+      "state": "MT"
+    },
+    "12342000:MT:BOR": {
+      "name": "Painted Rocks Lake",
+      "county_fips": "30081",
+      "county_name": "Ravalli County",
+      "state": "MT"
+    },
+    "12344500:MT:BOR": {
+      "name": "Lake Como",
+      "county_fips": "30081",
+      "county_name": "Ravalli County",
+      "state": "MT"
+    },
+    "12362000:MT:BOR": {
+      "name": "Hungry Horse Lake",
+      "county_fips": "30029",
+      "county_name": "Flathead County",
+      "state": "MT"
+    },
+    "12371550:MT:BOR": {
+      "name": "Flathead Lake",
+      "county_fips": "30047",
+      "county_name": "Lake County",
+      "state": "MT"
+    },
+    "12380500:MT:BOR": {
+      "name": "Lower Jocko Lake",
+      "county_fips": "30063",
+      "county_name": "Missoula County",
+      "state": "MT"
+    },
+    "12390000:MT:BOR": {
+      "name": "Thompson Falls Res",
+      "county_fips": "30089",
+      "county_name": "Sanders County",
+      "state": "MT"
+    },
+    "12391300:MT:BOR": {
+      "name": "Noxon Rapids Reservoir",
+      "county_fips": "30089",
+      "county_name": "Sanders County",
+      "state": "MT"
+    },
+    "12446453:WA:BOR": {
+      "name": "Conconully Lake Salmon Lake Dam",
+      "county_fips": "53047",
+      "county_name": "Okanogan County",
+      "state": "WA"
+    },
+    "12446480:WA:BOR": {
+      "name": "Conconully Reservoir",
+      "county_fips": "53047",
+      "county_name": "Okanogan County",
+      "state": "WA"
+    },
+    "12452000:WA:BOR": {
+      "name": "Lake Chelan",
+      "county_fips": "53007",
+      "county_name": "Chelan County",
+      "state": "WA"
+    },
+    "12474000:WA:BOR": {
+      "name": "Keechelus",
+      "county_fips": "53037",
+      "county_name": "Kittitas County",
+      "state": "WA"
+    },
+    "12475500:WA:BOR": {
+      "name": "Kachess",
+      "county_fips": "53037",
+      "county_name": "Kittitas County",
+      "state": "WA"
+    },
+    "12478500:WA:BOR": {
+      "name": "Cle Elum",
+      "county_fips": "53037",
+      "county_name": "Kittitas County",
+      "state": "WA"
+    },
+    "12487500:WA:BOR": {
+      "name": "Bumping Lake",
+      "county_fips": "53077",
+      "county_name": "Yakima County",
+      "state": "WA"
+    },
+    "12491000:WA:BOR": {
+      "name": "Rimrock",
+      "county_fips": "53077",
+      "county_name": "Yakima County",
+      "state": "WA"
+    },
+    "13010500:WY:BOR": {
+      "name": "Jackson Lake",
+      "county_fips": "56039",
+      "county_name": "Teton County",
+      "state": "WY"
+    },
+    "13032450:ID:BOR": {
+      "name": "Palisades Reservoir",
+      "county_fips": "16019",
+      "county_name": "Bonneville County",
+      "state": "ID"
+    },
+    "13042000:ID:BOR": {
+      "name": "Island Park Reservoir",
+      "county_fips": "16043",
+      "county_name": "Fremont County",
+      "state": "ID"
+    },
+    "13046500:WY:BOR": {
+      "name": "Grassy Lake",
+      "county_fips": "56039",
+      "county_name": "Teton County",
+      "state": "WY"
+    },
+    "13057950:ID:BOR": {
+      "name": "Ririe Reservoir",
+      "county_fips": "16019",
+      "county_name": "Bonneville County",
+      "state": "ID"
+    },
+    "13065000:ID:BOR": {
+      "name": "Blackfoot Reservoir",
+      "county_fips": "16029",
+      "county_name": "Caribou County",
+      "state": "ID"
+    },
+    "13076500:ID:BOR": {
+      "name": "American Falls Reservoir",
+      "county_fips": "16077",
+      "county_name": "Power County",
+      "state": "ID"
+    },
+    "13083500:ID:BOR": {
+      "name": "Oakley Reservoir",
+      "county_fips": "16031",
+      "county_name": "Cassia County",
+      "state": "ID"
+    },
+    "13106500:ID:BOR": {
+      "name": "Salmon Falls Reservoir",
+      "county_fips": "16083",
+      "county_name": "Twin Falls County",
+      "state": "ID"
+    },
+    "13126000:ID:BOR": {
+      "name": "Mackay Reservoir",
+      "county_fips": "16037",
+      "county_name": "Custer County",
+      "state": "ID"
+    },
+    "13142000:ID:BOR": {
+      "name": "Magic Reservoir",
+      "county_fips": "16013",
+      "county_name": "Blaine County",
+      "state": "ID"
+    },
+    "13148200:ID:BOR": {
+      "name": "Little Wood Reservoir",
+      "county_fips": "16013",
+      "county_name": "Blaine County",
+      "state": "ID"
+    },
+    "13174000:NV:BOR": {
+      "name": "Wild Horse Reservoir",
+      "county_fips": "32007",
+      "county_name": "Elko County",
+      "state": "NV"
+    },
+    "13182500:OR:BOR": {
+      "name": "Lake Owyhee",
+      "county_fips": "41045",
+      "county_name": "Malheur County",
+      "state": "OR"
+    },
+    "13190000:ID:BOR": {
+      "name": "Anderson Ranch Reservoir",
+      "county_fips": "16039",
+      "county_name": "Elmore County",
+      "state": "ID"
+    },
+    "13194000:ID:BOR": {
+      "name": "Arrowrock Reservoir",
+      "county_fips": "16039",
+      "county_name": "Elmore County",
+      "state": "ID"
+    },
+    "13201500:ID:BOR": {
+      "name": "Lucky Peak Reservoir",
+      "county_fips": "16001",
+      "county_name": "Ada County",
+      "state": "ID"
+    },
+    "13203500:ID:BOR": {
+      "name": "Lake Lowell",
+      "county_fips": "16027",
+      "county_name": "Canyon County",
+      "state": "ID"
+    },
+    "13214500:OR:BOR": {
+      "name": "Warm Springs",
+      "county_fips": "41045",
+      "county_name": "Malheur County",
+      "state": "OR"
+    },
+    "13217000:OR:BOR": {
+      "name": "Beulah",
+      "county_fips": "41045",
+      "county_name": "Malheur County",
+      "state": "OR"
+    },
+    "13226800:OR:BOR": {
+      "name": "Bully Creek",
+      "county_fips": "41045",
+      "county_name": "Malheur County",
+      "state": "OR"
+    },
+    "13236000:ID:BOR": {
+      "name": "Deadwood Reservoir",
+      "county_fips": "16085",
+      "county_name": "Valley County",
+      "state": "ID"
+    },
+    "13238500:ID:BOR": {
+      "name": "Payette Lake",
+      "county_fips": "16085",
+      "county_name": "Valley County",
+      "state": "ID"
+    },
+    "13244500:ID:BOR": {
+      "name": "Cascade Reservoir",
+      "county_fips": "16085",
+      "county_name": "Valley County",
+      "state": "ID"
+    },
+    "13266900:ID:BOR": {
+      "name": "Mann Creek Reservoir",
+      "county_fips": "16087",
+      "county_name": "Washington County",
+      "state": "ID"
+    },
+    "13272500:OR:BOR": {
+      "name": "Unity",
+      "county_fips": "41001",
+      "county_name": "Baker County",
+      "state": "OR"
+    },
+    "13275292:OR:BOR": {
+      "name": "Phillips Lake",
+      "county_fips": "41001",
+      "county_name": "Baker County",
+      "state": "OR"
+    },
+    "13283600:OR:BOR": {
+      "name": "Wolf Creek",
+      "county_fips": "41061",
+      "county_name": "Union County",
+      "state": "OR"
+    },
+    "13285000:OR:BOR": {
+      "name": "Thief Valley",
+      "county_fips": "41061",
+      "county_name": "Union County",
+      "state": "OR"
+    },
+    "13289700:ID:BOR": {
+      "name": "Brownlee Reservoir",
+      "county_fips": "16087",
+      "county_name": "Washington County",
+      "state": "ID"
+    },
+    "13326000:OR:BOR": {
+      "name": "Wallowa Lake",
+      "county_fips": "41063",
+      "county_name": "Wallowa County",
+      "state": "OR"
+    },
+    "13340950:ID:BOR": {
+      "name": "Dworshak Reservoir",
+      "county_fips": "16035",
+      "county_name": "Clearwater County",
+      "state": "ID"
+    },
+    "14019151:OR:BOR": {
+      "name": "Cold Springs",
+      "county_fips": "41059",
+      "county_name": "Umatilla County",
+      "state": "OR"
+    },
+    "14023000:OR:BOR": {
+      "name": "Mckay",
+      "county_fips": "41059",
+      "county_name": "Umatilla County",
+      "state": "OR"
+    },
+    "14034490:OR:BOR": {
+      "name": "Willow Creek",
+      "county_fips": "41049",
+      "county_name": "Morrow County",
+      "state": "OR"
+    },
+    "14053500:OR:BOR": {
+      "name": "Crane Prairie",
+      "county_fips": "41017",
+      "county_name": "Deschutes County",
+      "state": "OR"
+    },
+    "14056000:OR:BOR": {
+      "name": "Wickiup",
+      "county_fips": "41017",
+      "county_name": "Deschutes County",
+      "state": "OR"
+    },
+    "14059500:OR:BOR": {
+      "name": "Crescent Lake",
+      "county_fips": "41035",
+      "county_name": "Klamath County",
+      "state": "OR"
+    },
+    "14080400:OR:BOR": {
+      "name": "Prineville",
+      "county_fips": "41013",
+      "county_name": "Crook County",
+      "state": "OR"
+    },
+    "14085100:OR:BOR": {
+      "name": "Ochoco",
+      "county_fips": "41013",
+      "county_name": "Crook County",
+      "state": "OR"
+    },
+    "14097310:OR:BOR": {
+      "name": "Clear Lake",
+      "county_fips": "41065",
+      "county_name": "Wasco County",
+      "state": "OR"
+    },
+    "14145100:OR:BOR": {
+      "name": "Hills Creek",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14149000:OR:BOR": {
+      "name": "Lookout Point",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14149150:OR:BOR": {
+      "name": "Dexter",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14150900:OR:BOR": {
+      "name": "Fall Creek",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14153000:OR:BOR": {
+      "name": "Cottage Grove",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14155000:OR:BOR": {
+      "name": "Dorena",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14159400:OR:BOR": {
+      "name": "Cougar",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14162100:OR:BOR": {
+      "name": "Blue River",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14168000:OR:BOR": {
+      "name": "Fern Ridge",
+      "county_fips": "41039",
+      "county_name": "Lane County",
+      "state": "OR"
+    },
+    "14180500:OR:BOR": {
+      "name": "Detroit",
+      "county_fips": "41047",
+      "county_name": "Marion County",
+      "state": "OR"
+    },
+    "14186100:OR:BOR": {
+      "name": "Green Peter",
+      "county_fips": "41043",
+      "county_name": "Linn County",
+      "state": "OR"
+    },
+    "14186600:OR:BOR": {
+      "name": "Foster",
+      "county_fips": "41043",
+      "county_name": "Linn County",
+      "state": "OR"
+    },
+    "14202965:OR:BOR": {
+      "name": "Henry Hagg Lake",
+      "county_fips": "41067",
+      "county_name": "Washington County",
+      "state": "OR"
+    },
+    "14208600:OR:BOR": {
+      "name": "Timothy Lake",
+      "county_fips": "41005",
+      "county_name": "Clackamas County",
+      "state": "OR"
+    },
+    "14234800:WA:BOR": {
+      "name": "Mossyrock Dam (Riffe Lk)",
+      "county_fips": "53041",
+      "county_name": "Lewis County",
+      "state": "WA"
+    },
+    "14237800:WA:BOR": {
+      "name": "Mayfield",
+      "county_fips": "53041",
+      "county_name": "Lewis County",
+      "state": "WA"
+    },
+    "14335040:OR:BOR": {
+      "name": "Lost Creek",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "14342000:OR:BOR": {
+      "name": "Fish Lake",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "14349000:OR:BOR": {
+      "name": "Emigrant Lake",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "14361900:OR:BOR": {
+      "name": "Applegate",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "219": {
+      "name": "Causey",
+      "county_fips": "49057",
+      "county_name": "Weber County",
       "state": "UT"
     },
     "278": {
@@ -42,12 +1044,6 @@
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "09009020:CO:BOR": {
-      "name": "Dillon Reservoir",
-      "county_fips": "08117",
-      "county_name": "Summit County",
-      "state": "CO"
-    },
     "310": {
       "name": "East Canyon",
       "county_fips": "49029",
@@ -59,12 +1055,6 @@
       "county_fips": "49043",
       "county_name": "Summit County",
       "state": "UT"
-    },
-    "09246300:CO:BOR": {
-      "name": "Elkhead Reservoir",
-      "county_fips": "08081",
-      "county_name": "Moffat County",
-      "state": "CO"
     },
     "337": {
       "name": "Flaming Gorge",
@@ -78,42 +1068,6 @@
       "county_name": "Lincoln County",
       "state": "WY"
     },
-    "10UTGTVL:UT:BOR": {
-      "name": "Grantsville",
-      "county_fips": "49045",
-      "county_name": "Tooele County",
-      "state": "UT"
-    },
-    "09009030:CO:BOR": {
-      "name": "Green Mountain Reservoir",
-      "county_fips": "08117",
-      "county_name": "Summit County",
-      "state": "CO"
-    },
-    "09UTGUNL:UT:BOR": {
-      "name": "Gunlock",
-      "county_fips": "49053",
-      "county_name": "Washington County",
-      "state": "UT"
-    },
-    "10216200:UT:BOR": {
-      "name": "Gunnison",
-      "county_fips": "49039",
-      "county_name": "Sanpete County",
-      "state": "UT"
-    },
-    "09255450:WY:BOR": {
-      "name": "High Savery Reservoir",
-      "county_fips": "56007",
-      "county_name": "Carbon County",
-      "state": "WY"
-    },
-    "09009040:CO:BOR": {
-      "name": "Homestake Reservoir",
-      "county_fips": "08037",
-      "county_name": "Eagle County",
-      "state": "CO"
-    },
     "432": {
       "name": "Huntington North",
       "county_fips": "49015",
@@ -126,10 +1080,22 @@
       "county_name": "Cache County",
       "state": "UT"
     },
-    "09UTJACK:UT:BOR": {
-      "name": "Jackson Flat",
-      "county_fips": "49025",
-      "county_name": "Kane County",
+    "4516": {
+      "name": "Trial Lake",
+      "county_fips": "49043",
+      "county_name": "Summit County",
+      "state": "UT"
+    },
+    "4523": {
+      "name": "Lost Lake",
+      "county_fips": "49051",
+      "county_name": "Wasatch County",
+      "state": "UT"
+    },
+    "4530": {
+      "name": "Washington Lake",
+      "county_fips": "49043",
+      "county_name": "Summit County",
       "state": "UT"
     },
     "463": {
@@ -144,24 +1110,6 @@
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "09UTKENS:UT:BOR": {
-      "name": "Ken's Lake",
-      "county_fips": "49037",
-      "county_name": "San Juan County",
-      "state": "UT"
-    },
-    "09009060:CO:BOR": {
-      "name": "Lake Granby",
-      "county_fips": "08049",
-      "county_name": "Grand County",
-      "state": "CO"
-    },
-    "6124": {
-      "name": "Lake Mead",
-      "county_fips": "32003",
-      "county_name": "Clark County",
-      "state": "NV"
-    },
     "509": {
       "name": "Lake Powell",
       "county_fips": "49037",
@@ -174,41 +1122,11 @@
       "county_name": "Morgan County",
       "state": "UT"
     },
-    "4523": {
-      "name": "Lost Lake",
-      "county_fips": "49051",
-      "county_name": "Wasatch County",
-      "state": "UT"
-    },
-    "10UTENTL:UT:BOR": {
-      "name": "Lower Enterprise",
-      "county_fips": "49053",
-      "county_name": "Washington County",
-      "state": "UT"
-    },
     "574": {
       "name": "Meeks Cabin",
       "county_fips": "56041",
       "county_name": "Uinta County",
       "state": "WY"
-    },
-    "09UTMILF:UT:BOR": {
-      "name": "Miller Flat",
-      "county_fips": "49015",
-      "county_name": "Emery County",
-      "state": "UT"
-    },
-    "09UTMILL:UT:BOR": {
-      "name": "Millsite",
-      "county_fips": "49015",
-      "county_name": "Emery County",
-      "state": "UT"
-    },
-    "10238500:UT:BOR": {
-      "name": "Minersville",
-      "county_fips": "49001",
-      "county_name": "Beaver County",
-      "state": "UT"
     },
     "587": {
       "name": "Moon Lake",
@@ -216,11 +1134,11 @@
       "county_name": "Duchesne County",
       "state": "UT"
     },
-    "09009350:CO:BOR": {
-      "name": "Narraguinnep Reservoir",
-      "county_fips": "08083",
-      "county_name": "Montezuma County",
-      "state": "CO"
+    "6124": {
+      "name": "Lake Mead",
+      "county_fips": "32003",
+      "county_name": "Clark County",
+      "state": "NV"
     },
     "623": {
       "name": "Newton",
@@ -228,40 +1146,10 @@
       "county_name": "Cache County",
       "state": "UT"
     },
-    "10188000:UT:BOR": {
-      "name": "Otter Creek",
-      "county_fips": "49031",
-      "county_name": "Piute County",
-      "state": "UT"
-    },
-    "10UTPANG:UT:BOR": {
-      "name": "Panguitch",
-      "county_fips": "49017",
-      "county_name": "Garfield County",
-      "state": "UT"
-    },
     "652": {
       "name": "Pineview",
       "county_fips": "49057",
       "county_name": "Weber County",
-      "state": "UT"
-    },
-    "10191000:UT:BOR": {
-      "name": "Piute",
-      "county_fips": "49031",
-      "county_name": "Piute County",
-      "state": "UT"
-    },
-    "10105200:UT:BOR": {
-      "name": "Porcupine",
-      "county_fips": "49005",
-      "county_name": "Cache County",
-      "state": "UT"
-    },
-    "09UTQUAI:UT:BOR": {
-      "name": "Quail Creek",
-      "county_fips": "49053",
-      "county_name": "Washington County",
       "state": "UT"
     },
     "685": {
@@ -276,47 +1164,11 @@
       "county_name": "Summit County",
       "state": "UT"
     },
-    "09009110:CO:BOR": {
-      "name": "Ruedi Reservoir",
-      "county_fips": "08097",
-      "county_name": "Pitkin County",
-      "state": "CO"
-    },
-    "09UTSAND:UT:BOR": {
-      "name": "Sand Hollow",
-      "county_fips": "49053",
-      "county_name": "Washington County",
-      "state": "UT"
-    },
     "727": {
       "name": "Scofield",
       "county_fips": "49007",
       "county_name": "Carbon County",
       "state": "UT"
-    },
-    "10UT03JJ:UT:BOR": {
-      "name": "Settlement Canyon",
-      "county_fips": "49045",
-      "county_name": "Tooele County",
-      "state": "UT"
-    },
-    "09014500:CO:BOR": {
-      "name": "Shadow Mountain Reservoir",
-      "county_fips": "08049",
-      "county_name": "Grand County",
-      "state": "CO"
-    },
-    "10128000:UT:BOR": {
-      "name": "Smith and Morehouse",
-      "county_fips": "49043",
-      "county_name": "Summit County",
-      "state": "UT"
-    },
-    "09237495:CO:BOR": {
-      "name": "Stagecoach Reservoir nr Oak Creek",
-      "county_fips": "08107",
-      "county_name": "Routt County",
-      "state": "CO"
     },
     "764": {
       "name": "Starvation",
@@ -342,40 +1194,10 @@
       "county_name": "Wasatch County",
       "state": "UT"
     },
-    "4516": {
-      "name": "Trial Lake",
-      "county_fips": "49043",
-      "county_name": "Summit County",
-      "state": "UT"
-    },
-    "10UTENTU:UT:BOR": {
-      "name": "Upper Enterprise",
-      "county_fips": "49053",
-      "county_name": "Washington County",
-      "state": "UT"
-    },
     "826": {
       "name": "Upper Stillwater",
       "county_fips": "49013",
       "county_name": "Duchesne County",
-      "state": "UT"
-    },
-    "10166500:UT:BOR": {
-      "name": "Utah Lake",
-      "county_fips": "49049",
-      "county_name": "Utah County",
-      "state": "UT"
-    },
-    "09009140:CO:BOR": {
-      "name": "Vega Reservoir",
-      "county_fips": "08077",
-      "county_name": "Mesa County",
-      "state": "CO"
-    },
-    "4530": {
-      "name": "Washington Lake",
-      "county_fips": "49043",
-      "county_name": "Summit County",
       "state": "UT"
     },
     "866": {
@@ -384,47 +1206,23 @@
       "county_name": "Box Elder County",
       "state": "UT"
     },
-    "09009150:CO:BOR": {
-      "name": "Williams Fork Reservoir",
-      "county_fips": "08049",
-      "county_name": "Grand County",
+    "CHIMNEYC:NV:BOR": {
+      "name": "Chimney Creek Reservoir",
+      "county_fips": "32013",
+      "county_name": "Humboldt County",
+      "state": "NV"
+    },
+    "MPHC2000:CO:BOR": {
+      "name": "Mcphee Reservoir",
+      "county_fips": "08083",
+      "county_name": "Montezuma County",
       "state": "CO"
-    },
-    "09009160:CO:BOR": {
-      "name": "Willow Creek Reservoir",
-      "county_fips": "08049",
-      "county_name": "Grand County",
-      "state": "CO"
-    },
-    "09041395:CO:BOR": {
-      "name": "Wolford Mountain Reservoir",
-      "county_fips": "08049",
-      "county_name": "Grand County",
-      "state": "CO"
-    },
-    "10UTWOOD:UT:BOR": {
-      "name": "Woodruff Creek",
-      "county_fips": "49033",
-      "county_name": "Rich County",
-      "state": "UT"
-    },
-    "10020200:WY:BOR": {
-      "name": "Woodruff Narrows",
-      "county_fips": "56041",
-      "county_name": "Uinta County",
-      "state": "WY"
     },
     "YAMRESCO:CO:BOR": {
       "name": "Yamcolo Reservoir",
       "county_fips": "08045",
       "county_name": "Garfield County",
       "state": "CO"
-    },
-    "10218500:UT:BOR": {
-      "name": "Yuba",
-      "county_fips": "49023",
-      "county_name": "Juab County",
-      "state": "UT"
     }
   },
   "keyed_by": "source_station_id"

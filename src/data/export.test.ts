@@ -41,8 +41,18 @@ describe("CSV serialization", () => {
 
     expect(lines[0]).toBe(TABLE_COLUMNS.map((column) => column.header).join(","));
     expect(lines.slice(1)).toHaveLength(rows.length);
-    expect(lines.slice(1).map((line) => line.split(",")[0]?.replace(/^"|"$/g, "")))
-      .toEqual(rows.map((row) => row.name));
+    /* The first field, parsed rather than split on the first comma. A
+     * qualified label carries one -- "Lost Creek, UT", which ADR-066 gives a
+     * reservoir whose name is shared -- so it is written as a quoted field
+     * and a naive split cuts it in half. The serializer was always right;
+     * this assertion was reading it wrongly, and only a roster holding two
+     * Lost Creeks made that visible. */
+    const firstField = (line: string): string => {
+      if (!line.startsWith("\"")) return line.split(",")[0] ?? "";
+      const end = line.indexOf("\"", 1);
+      return line.slice(1, end === -1 ? undefined : end);
+    };
+    expect(lines.slice(1).map(firstField)).toEqual(rows.map((row) => row.name));
     // Raw numbers, not the formatted ones the cells show.
     const first = rows[0];
     if (first?.storageAf !== null && first?.storageAf !== undefined) {

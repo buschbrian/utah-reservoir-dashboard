@@ -73,7 +73,7 @@ describe("the authoritative source inventory", () => {
      * credited the retired layer while already holding the owner service's
      * values, which is the failure mode a URL constant in a tool cannot catch:
      * the provenance was wrong in the file, not in the code. */
-    for (const file of ["capacities.json", "reference.json", "connected_reservoirs.json"]) {
+    for (const file of ["capacities.json", "reference.json", "admitted_reservoirs.json"]) {
       const source = await read(file);
       expect(source, `${file} still credits the retired hosted layer`)
         .not.toContain(OLD_DAM_SERVICE);

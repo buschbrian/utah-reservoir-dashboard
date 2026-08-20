@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { readPayload } from "../data/payload-fixture";
+import { reservoirLabel } from "./selection";
 import { headlinePercent } from "../viz/symbols";
 import { ALL_RESERVOIRS, matchesFilter, type FilterState } from "./filters";
 import {
@@ -42,7 +43,12 @@ describe("the table's rows", () => {
 
   it("takes its percentage from the same function the map draws from", () => {
     for (const row of rowsFor()) {
-      const reservoir = reservoirs.find((candidate) => candidate.name === row.name);
+      /* By the label the row actually carries, not by the raw name. The
+       * western roster holds two Lost Creeks and two Clear Lakes, and the
+       * table qualifies a shared name with its state (ADR-066) -- so a raw
+       * name matches neither of them and this looked up `undefined`. */
+      const reservoir = reservoirs.find(
+        (candidate) => reservoirLabel(candidate, reservoirs) === row.name);
       expect(row.percent).toBe(headlinePercent(reservoir as Reservoir));
     }
   });
@@ -61,7 +67,8 @@ describe("the table's rows", () => {
     expect(rows.every((row) => row.percent === 42)).toBe(true);
     expect(rows.every((row) => row.reading === month)).toBe(true);
     for (const row of rows) {
-      const reservoir = reservoirs.find((candidate) => candidate.name === row.name) as Reservoir;
+      const reservoir = reservoirs.find(
+        (candidate) => reservoirLabel(candidate, reservoirs) === row.name) as Reservoir;
       const record = reservoir.monthly.find((entry) => entry.month === month);
       expect(row.storageAf).toBe(record?.mean_af ?? null);
     }
@@ -69,7 +76,8 @@ describe("the table's rows", () => {
 
   it("reports the newest reading's own date when no month is chosen", () => {
     for (const row of rowsFor()) {
-      const reservoir = reservoirs.find((candidate) => candidate.name === row.name) as Reservoir;
+      const reservoir = reservoirs.find(
+        (candidate) => reservoirLabel(candidate, reservoirs) === row.name) as Reservoir;
       expect(row.reading).toBe(reservoir.as_of);
       expect(row.storageAf).toBe(reservoir.current_storage_af);
     }
