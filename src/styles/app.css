@@ -459,6 +459,29 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
  * from font metrics, and would otherwise widen the panel and the page. */
 .filters calcite-label { min-width: 0; margin-block-start: .5rem; }
 .filters calcite-select { min-width: 0; width: 100%; }
+.filters .large-reservoirs {
+  display: grid;
+  gap: .5rem;
+  min-width: 0;
+  margin: .875rem 0 0;
+  padding: .75rem;
+  border: 1px solid var(--app-border);
+  border-radius: .4rem;
+}
+.filters .large-reservoirs legend {
+  padding-inline: .25rem;
+  font-size: .8125rem;
+  font-weight: 700;
+}
+.filters .large-reservoirs p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.filters .large-reservoirs calcite-label { margin-block-start: 0; }
+.filters .large-reservoirs[hidden],
+.filters [data-large-reservoir][hidden] { display: none; }
 .filter-summary { margin: .75rem 0 .5rem; }
 /* Calcite sets its own `display` on the host, which wins over the user-agent
  * `[hidden] { display: none }` -- so the reset button needs to be hidden by a

@@ -96,7 +96,13 @@ function syncResponsiveShell(): void {
   if (mobileQuery.matches) {
     setOpen(startPanel, false);
     setOpen(detailPanel, false);
-    setOpen(startSheet, true);
+    /* A phone opens on the map, which is the page's primary task. The
+     * storage sheet is 82% of the viewport and modal; opening it here made a
+     * map link arrive as a full-screen form with only a narrow strip of map
+     * behind it. The header action remains the explicit way to open the
+     * summary, and crossing back to phone width closes it rather than
+     * covering the map during a rotation. */
+    setOpen(startSheet, false);
   } else {
     setOpen(startSheet, false);
     setOpen(detailSheet, false);
@@ -544,6 +550,31 @@ export function setScopeValue(scope: ScopeControls): void {
     .forEach((toggle) => { toggle.checked = scope.lakePowell; });
   document.querySelectorAll<CalciteSwitch>('[data-scope="mead"]')
     .forEach((toggle) => { toggle.checked = scope.lakeMead; });
+}
+
+export interface LargeReservoirAvailability {
+  lakePowell: boolean;
+  lakeMead: boolean;
+}
+
+/**
+ * Shows only the very large reservoirs that can be part of this place.
+ *
+ * A reader looking at Oregon should not be asked whether an Arizona and Utah
+ * reservoir belongs in the total. Both panel copies follow the same state,
+ * and the whole group leaves when the current place contains neither lake.
+ */
+export function setLargeReservoirAvailability(
+  availability: LargeReservoirAvailability
+): void {
+  document.querySelectorAll<HTMLElement>('[data-large-reservoir="powell"]')
+    .forEach((element) => { element.hidden = !availability.lakePowell; });
+  document.querySelectorAll<HTMLElement>('[data-large-reservoir="mead"]')
+    .forEach((element) => { element.hidden = !availability.lakeMead; });
+  document.querySelectorAll<HTMLElement>("[data-large-reservoirs]")
+    .forEach((element) => {
+      element.hidden = !availability.lakePowell && !availability.lakeMead;
+    });
 }
 
 type CalciteSlider = HTMLElement & { value: number; max: number };

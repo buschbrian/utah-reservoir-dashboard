@@ -105,10 +105,10 @@ const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"
  * It was the waterbodies touching Utah until the roster went west. That
  * default was hiding two thirds of the site's own subject, and the geography
  * control still offers the narrower reading one choice away. */
-const inScope = payload.reservoirs.filter((reservoir) =>
-  reservoir.rise_item_id !== 509 &&
-  reservoir.name.trim().toLowerCase() !== "lake powell" &&
-  reservoir.name.trim().toLowerCase() !== "lake mead");
+const isDominantReservoir = (reservoir) =>
+  [509, 6124].includes(reservoir.rise_item_id) ||
+  ["lake powell", "lake mead"].includes(reservoir.name.trim().toLowerCase());
+const inScope = payload.reservoirs.filter((reservoir) => !isDominantReservoir(reservoir));
 const expectedReservoirs = inScope.length;
 /* The reservoirs the ranking chart can rank: those with a readable headline
  * percentage, computed the way src/viz/symbols.ts computes it. Derived from
@@ -226,9 +226,12 @@ const filterState = [...new Set(inScope.flatMap(statesOf))].sort()
 const storageState = [...new Set(inScope.flatMap(statesOf))].sort()
   .map((code) => ({
     code,
-    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length
+    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length,
+    hasDominantReservoir: payload.reservoirs.some((reservoir) =>
+      isDominantReservoir(reservoir) && statesOf(reservoir).includes(code))
   }))
-  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length
+    && !candidate.hasDominantReservoir);
 const outsideStorageState = storageState
   ? inScope.find((reservoir) => !statesOf(reservoir).includes(storageState.code))
   : null;
@@ -813,8 +816,39 @@ for (const viewport of VIEWPORTS) {
     // change on the hidden desktop panel would make the phone run meaningless.
     const mobile = viewport.width < 768;
     const controls = mobile ? "#start-sheet" : "#start-panel";
+    if (mobile) {
+      /* The phone's primary task is the map. The storage sheet is modal and
+       * 82% of the viewport, so opening it automatically turns a map link
+       * into a full-screen form. Prove the page opens on the map, then open
+       * the real control before exercising the sheet below. */
+      const openingSurface = await tab.evaluate(() => {
+        const sheet = document.querySelector("#start-sheet");
+        const toggle = document.querySelector("#controls-toggle");
+        const map = document.querySelector(".map-stage")?.getBoundingClientRect();
+        return {
+          opened: sheet?.hasAttribute("opened") ?? false,
+          togglePressed: toggle?.getAttribute("aria-pressed"),
+          mapHeight: map?.height ?? 0
+        };
+      });
+      check(openingSurface.opened === false,
+        `${label}: the modal storage summary covers the map on first load`);
+      check(openingSurface.togglePressed === "false",
+        `${label}: the storage-summary action reports open on first load`);
+      check(openingSurface.mapHeight > viewport.height / 2,
+        `${label}: the opening map is only ${openingSurface.mapHeight}px tall`);
+      await tab.locator("#controls-toggle").click();
+      await tab.waitForFunction(
+        "document.querySelector('#start-sheet')?.hasAttribute('opened')",
+        { timeout: 5000 });
+    }
     check(await tab.locator(`${controls} [data-filter="storage"]`).isVisible(),
       `${label}: the storage level filter is not visible`);
+    check(await tab.locator(`${controls} [data-large-reservoirs]`).isVisible(),
+      `${label}: the whole-West view hides the very large reservoir controls`);
+    check(await tab.locator(`${controls} [data-large-reservoir="powell"]`).isVisible()
+      && await tab.locator(`${controls} [data-large-reservoir="mead"]`).isVisible(),
+    `${label}: the whole-West view does not offer both large reservoirs`);
     /* Both of ADR-011's dimensions are the reader's to choose. The map opens
      * on every published reservoir now, so the dimension to exercise is the
      * *narrowing* one -- Utah's waterbodies alone. It was the other way round
@@ -3025,6 +3059,9 @@ for (const viewport of VIEWPORTS) {
     const byState = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      scope: document.querySelector('#start-panel [data-value="scope"]')?.textContent ?? "",
+      largeReservoirGroups: [...document.querySelectorAll('[data-large-reservoirs]')]
+        .map((group) => group.hidden),
       listShown: document.querySelectorAll(
         '#start-panel .list-btn:not(.list-btn-excluded)').length
     }));
@@ -3037,6 +3074,11 @@ for (const viewport of VIEWPORTS) {
     check(byState.listShown === byState.ready.shown,
       `${label}: the list showed ${byState.listShown}, the map reported ` +
       `${byState.ready.shown}`);
+    check(byState.largeReservoirGroups.length >= 2
+      && byState.largeReservoirGroups.every(Boolean),
+      `${label}: a state with neither large reservoir still shows its lake controls`);
+    check(!byState.scope.includes("Lake Powell") && !byState.scope.includes("Lake Mead"),
+      `${label}: a state with neither lake has the scope text "${byState.scope}"`);
     /* D5: on this surface the drainage areas are context, so a state choice
      * narrows the reservoirs and draws every area regardless. The snow and
      * drought maps do the opposite, and that difference is deliberate. */
