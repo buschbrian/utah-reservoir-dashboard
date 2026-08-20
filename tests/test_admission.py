@@ -20,9 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from admission import (  # noqa: E402
-    NAMED_RADIUS_KM, NEAR_RADIUS_KM, SURCHARGE_ALLOWANCE, admit, admit_all,
-    capacity_of, could_hold, distance_km, find_dam, holds_more_than_the_dam,
-    largest_published_pool,
+    NAMED_RADIUS_KM, NEAR_RADIUS_KM, SURCHARGE_ALLOWANCE, Decision, admit,
+    admit_all, capacity_of, could_hold, discrepancies, distance_km, find_dam,
+    holds_more_than_the_dam, largest_published_pool,
     normalize_name,
 )
 
@@ -316,6 +316,121 @@ class TestWholeDecisions:
         decisions = admit_all(candidates, [MCPHEE, TROUT_LAKE])
         assert [d.name for d in decisions] == [c["name"] for c in candidates]
         assert [d.admitted for d in decisions] == [True, False]
+
+
+class TestTheDisagreementScreens:
+    """`discrepancies` -- the second question, asked after the dam is found.
+
+    Every fixture is a California candidate measured on 2026-08-20, written
+    down as literal numbers for the same reason the rest of this file is.
+    """
+
+    def clean(self, capacity=100000.0, basis="normal_storage"):
+        return Decision("Somewhere", True, "confirmed by name and position",
+                        None, capacity, basis)
+
+    def test_a_candidate_nothing_disagrees_about_is_reported_clean(self):
+        # Shasta: the inventory's 4,552,090 against the service's 4,552,000,
+        # and 4,476,827 observed under both.
+        decision = self.clean(4552090.0)
+        assert discrepancies(decision,
+                             highest_readings=[4476827, 4470000, 4460000],
+                             service_capacity_af=4552000.0) == []
+
+    def test_a_refusal_is_itself_a_disagreement(self):
+        decision = Decision("San Luis Reservoir", False,
+                            "no dam close enough to confirm")
+        screens = [screen for screen, _ in discrepancies(decision)]
+        assert screens == ["no confirmed dam"]
+
+    def test_one_extreme_reading_is_read_as_a_spike(self):
+        # O'Neill Forebay: 443,348 once, and 55,049 the next time.
+        decision = self.clean(2094900.0)
+        found = dict(discrepancies(decision,
+                                   highest_readings=[443348, 55049, 54535]))
+        assert "unstable maximum" in found
+        assert "443,348" in found["unstable maximum"]
+
+    def test_two_spikes_do_not_agree_with_each_other(self):
+        # Lake Havasu carries two, so a rule reading the second highest would
+        # have found them in agreement and published a ten-fold error.
+        decision = self.clean(619400.0)
+        screens = dict(discrepancies(decision,
+                                     highest_readings=[5913000, 5775421, 601300]))
+        assert "unstable maximum" in screens
+
+    def test_a_flood_is_not_a_spike(self):
+        # Terminus: a flood-control reservoir's high readings come in runs.
+        decision = self.clean(185600.0)
+        found = dict(discrepancies(decision,
+                                   highest_readings=[185801, 178000, 176000],
+                                   service_capacity_af=185600.0))
+        assert "unstable maximum" not in found
+
+    def test_a_series_too_short_to_judge_is_not_judged(self):
+        decision = self.clean(100000.0)
+        found = dict(discrepancies(decision, highest_readings=[90000, 10000]))
+        assert "unstable maximum" not in found
+
+    def test_the_two_capacity_sources_are_compared(self):
+        # Keswick: 7,470 against 23,772, the widest disagreement measured.
+        decision = self.clean(7470.0)
+        found = dict(discrepancies(decision, highest_readings=[22928, 22000, 21000],
+                                   service_capacity_af=23772.0))
+        assert "the two capacity sources disagree" in found
+        assert "-69%" in found["the two capacity sources disagree"]
+
+    def test_capacity_sources_inside_the_allowance_agree(self):
+        # Folsom: 894,000 against 977,000, 8.5% apart.
+        decision = self.clean(894000.0)
+        found = dict(discrepancies(decision, highest_readings=[854601, 850000, 840000],
+                                   service_capacity_af=977000.0))
+        assert "the two capacity sources disagree" not in found
+
+    def test_a_provider_with_no_full_level_is_not_reported_as_disagreeing(self):
+        decision = self.clean(100000.0)
+        found = dict(discrepancies(decision, highest_readings=[90000, 89000, 88000],
+                                   service_capacity_af=None))
+        assert "the two capacity sources disagree" not in found
+
+    def test_water_above_the_denominator_is_a_disagreement(self):
+        # San Gabriel: the right dam, and a conservation pool of 3,378 that
+        # the reservoir has stood twelve times above.
+        decision = self.clean(3378.0)
+        found = dict(discrepancies(decision, highest_readings=[41978, 40000, 39000]))
+        assert "seen above the capacity it would be divided by" in found
+
+    def test_a_reservoir_run_a_little_full_is_not_one(self):
+        # Drews at 6% over is the case SURCHARGE_ALLOWANCE was measured for.
+        decision = self.clean(100000.0)
+        found = dict(discrepancies(decision, highest_readings=[106000, 105000, 104000]))
+        assert "seen above the capacity it would be divided by" not in found
+
+    def test_a_reservoir_never_seen_a_third_full_is_referred(self):
+        # Martis Creek, a flood-control dam operated empty, and O'Neill
+        # Forebay, whose denominator belongs to San Luis Reservoir. The screen
+        # cannot tell them apart, which is why it refers rather than decides.
+        decision = self.clean(22000.0)
+        found = dict(discrepancies(decision, highest_readings=[1136, 1070, 1050]))
+        assert "never seen a third full" in found
+
+    def test_the_two_capacity_screens_cannot_both_fire(self):
+        decision = self.clean(100000.0)
+        for readings in ([200000, 190000, 180000], [1000, 900, 800]):
+            screens = [screen for screen, _ in discrepancies(
+                decision, highest_readings=readings)]
+            assert len(set(screens) & {"seen above the capacity it would be divided by",
+                                       "never seen a third full"}) == 1
+
+    def test_nothing_is_repaired(self):
+        # The screen reports; it never rewrites the decision it read. A
+        # correction here would be a guess about which source is wrong.
+        decision = self.clean(7470.0)
+        discrepancies(decision, highest_readings=[22928, 22000, 21000],
+                      service_capacity_af=23772.0)
+        assert decision.admitted is True
+        assert decision.capacity_af == 7470.0
+        assert decision.reason == "confirmed by name and position"
 
 
 if __name__ == "__main__":

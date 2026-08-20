@@ -18,8 +18,10 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from admission import Decision, Match  # noqa: E402
 from tools.audit_cdec_stations import (  # noqa: E402
-    AGGREGATE_NAME, already_tracked, parse_station_table, simple_name, usable,
+    AGGREGATE_NAME, already_tracked, parse_station_table, review, simple_name,
+    usable,
 )
 
 
@@ -167,3 +169,59 @@ def test_a_coordinate_outside_the_state_is_a_parse_fault_not_a_station():
         f"{row('SHA', 'SHASTA', -122.417, 40.718)}"
         f"{row('BAD', 'ELSEWHERE', 1000, 2000)}</table>")
     assert [s["station"] for s in stations] == ["SHA"]
+
+
+# --- what a roster builder is allowed to read -----------------------------
+
+
+def candidate(station, name, highest, observed=None):
+    return {"station": station, "name": name, "lon": -121.0, "lat": 37.0,
+            "state": "CA", "huc6": "180400", "huc6_name": "San Joaquin",
+            "operator": "Department of Water Resources",
+            "observed_max_af": observed if observed is not None else highest[0],
+            "highest_readings": highest, "readings": len(highest)}
+
+
+def test_a_candidate_nothing_disagrees_about_is_publishable():
+    decision = Decision("Shasta Dam", True, "confirmed by name and position",
+                        None, 4552090.0, "normal_storage")
+    row = review(candidate("SHA", "Shasta Dam", [4476827, 4470000, 4460000]),
+                 decision, 4552000.0)
+    assert row["publishable"] is True
+    assert row["discrepancies"] == []
+
+
+def test_a_matched_dam_the_service_disagrees_with_is_held_not_published():
+    # Keswick: matched at 0.03 km, and two sources 69% apart on what full is.
+    decision = Decision("Keswick Reservoir", True, "confirmed by name and position",
+                        None, 7470.0, "normal_storage")
+    row = review(candidate("KES", "Keswick Reservoir", [22928, 22000, 21000]),
+                 decision, 23772.0)
+    assert row["admitted"] is True, "the dam match itself still stands"
+    assert row["publishable"] is False
+    assert {found["screen"] for found in row["discrepancies"]} == {
+        "the two capacity sources disagree",
+        "seen above the capacity it would be divided by"}
+
+
+def test_a_refusal_is_never_publishable():
+    decision = Decision("San Luis Reservoir", False, "no dam close enough to confirm")
+    row = review(candidate("SNL", "San Luis Reservoir", [2028217, 2018313, 2014762]),
+                 decision, 2041000.0)
+    assert row["publishable"] is False
+    assert row["discrepancies"][0]["screen"] == "no confirmed dam"
+
+
+def test_the_evidence_row_states_the_service_figure_beside_the_inventory_one():
+    # Neither is chosen here. The roster builder decides, and it cannot decide
+    # from a row that carries only one of them.
+    match = Match({"name": "Loon Lake Auxiliary", "lon": -120.33, "lat": 38.98,
+                   "normal_storage_af": 51000.0, "max_storage_af": 69309.0,
+                   "nid_storage_af": 69309.0, "nid_id": "CA00820"},
+                  0.977, "position")
+    decision = Decision("Loon Lake", True, "confirmed by position",
+                        match, 51000.0, "normal_storage")
+    row = review(candidate("LON", "Loon Lake (Smud)", [67977, 67600, 67460]),
+                 decision, 69306.0)
+    assert row["capacity_af"] == 51000.0
+    assert row["service_capacity_af"] == 69306.0

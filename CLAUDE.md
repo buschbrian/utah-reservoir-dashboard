@@ -302,6 +302,25 @@ a default of include would have every existing caller silently start adding
 28 million acre-feet. `shared/reservoir-viz.js` predates Mead, so oracle
 parity is only meaningful with both controls open.
 
+**A dam match is not the whole question** (review of 2026-08-20). `admit`
+asks whether the inventory holds the right dam and answers from the inventory
+alone. `discrepancies` asks whether everything else known about the same
+reservoir agrees with it: whether the provider's own full level and the
+inventory's differ, whether the water has stood above the capacity it would be
+divided by, whether it has ever stood a third of the way up it, and whether one
+reading sits far above the rest of the series. All four reuse the measured
+`SURCHARGE_ALLOWANCE` rather than a new number. Of 169 California candidates
+the inventory admitted 162 and the screens hold 36 — Keswick's conservation
+pool of 7,470 acre-feet against the service's 23,772, and O'Neill Forebay
+matched to a dam 1.18 km away and carrying San Luis Reservoir's 2,094,900,
+thirty-seven times its own. The spike screen reads the **third** highest
+reading, because Lake Havasu carries two and a rule reading the second would
+have called them agreement. **Nothing is repaired**: every correction available
+is a guess about which source is wrong, so the screen reports and a person
+decides ([#25](https://github.com/buschbrian/western-water-dashboard/issues/25)).
+`publishable` is the field a roster builder reads and it is deliberately
+narrower than `admitted`, which still states that the dam match itself stands.
+
 **A roster addition needs a refresh in the same change.** `tests/test_refresh.py`
 asserts every roster name is either published or withdrawn, and there is no
 "pending" state on purpose: a name on the roster and absent from the payload is

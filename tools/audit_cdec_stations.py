@@ -49,7 +49,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from admission import admit_all, distance_km  # noqa: E402
+from admission import admit_all, discrepancies, distance_km  # noqa: E402
 from huc import assign_huc, load_units  # noqa: E402
 from tools.audit_candidate_capacity import (  # noqa: E402
     dam_states, fetch_dams, find_dam_layer,
@@ -335,6 +335,13 @@ def find_candidates(units=None) -> tuple[list[dict], dict]:
             "huc6": unit["huc6"],
             "huc6_name": unit["name"],
             "observed_max_af": max(seen),
+            # The top of the series rather than its maximum alone. A wrong dam
+            # is wrong in every reading and a bad reading is wrong once, and
+            # the second is only visible from the readings either side of it:
+            # see `admission.SPIKE_RATIO`. Three, because that is what the
+            # screen reads and a whole series in the evidence file would be
+            # a hundred and thirty numbers per station saying nothing.
+            "highest_readings": sorted(seen, reverse=True)[:3],
             "readings": len(seen),
         })
 
@@ -348,6 +355,38 @@ def find_candidates(units=None) -> tuple[list[dict], dict]:
         "_already": already,
         "_aggregates": aggregates,
     }
+
+
+def review(candidate: dict, decision, service_capacity_af: float | None) -> dict:
+    """One candidate's evidence row: the dam match, and what disagrees with it.
+
+    `publishable` is the only field a roster builder should read, and it is
+    deliberately narrower than `admitted`. A dam match answers one question;
+    the service's own full level and the shape of the series answer others,
+    and where any of them disagree the candidate is held for a person rather
+    than published over. See `admission.discrepancies`.
+    """
+    evidence = dict(decision.evidence(),
+                    station=candidate["station"],
+                    state=candidate["state"],
+                    huc6=candidate["huc6"],
+                    huc6_name=candidate["huc6_name"],
+                    lat=candidate["lat"], lon=candidate["lon"],
+                    operator=candidate["operator"],
+                    observed_max_af=candidate["observed_max_af"],
+                    readings=candidate["readings"])
+    # The service's own figure, where it has one, beside the inventory's. Not
+    # substituted for it: which becomes the denominator is a decision for the
+    # roster builder, and this tool only shows what exists.
+    evidence["service_capacity_af"] = service_capacity_af
+    evidence["discrepancies"] = [
+        {"screen": screen, "detail": detail}
+        for screen, detail in discrepancies(
+            decision,
+            highest_readings=candidate.get("highest_readings"),
+            service_capacity_af=service_capacity_af)]
+    evidence["publishable"] = evidence["admitted"] and not evidence["discrepancies"]
+    return evidence
 
 
 def main() -> int:
@@ -399,22 +438,8 @@ def main() -> int:
     print(f"  {len(dams)} dams with coordinates\n", file=sys.stderr)
 
     decisions = admit_all(candidates, dams)
-    rows = []
-    for candidate, decision in zip(candidates, decisions):
-        evidence = dict(decision.evidence(),
-                        station=candidate["station"],
-                        state=candidate["state"],
-                        huc6=candidate["huc6"],
-                        huc6_name=candidate["huc6_name"],
-                        lat=candidate["lat"], lon=candidate["lon"],
-                        operator=candidate["operator"],
-                        observed_max_af=candidate["observed_max_af"],
-                        readings=candidate["readings"])
-        # The service's own figure, where it has one, beside the inventory's.
-        # Not substituted for it: which becomes the denominator is a decision
-        # for the roster builder, and this tool only shows what exists.
-        evidence["service_capacity_af"] = published.get(candidate["station"])
-        rows.append(evidence)
+    rows = [review(candidate, decision, published.get(candidate["station"]))
+            for candidate, decision in zip(candidates, decisions)]
 
     if args.json:
         print(json.dumps(rows, indent=1))
@@ -432,16 +457,27 @@ def main() -> int:
         service = (f"{row['service_capacity_af']:,.0f}"
                    if row.get("service_capacity_af") else "-")
         observed = f"{row['observed_max_af']:,.0f}"
-        mark = "admit " if row["admitted"] else "REFUSE"
+        mark = ("admit " if row["publishable"]
+                else "HOLD  " if row["admitted"] else "REFUSE")
         print(f"{row['name'][:29]:<30} {row['station']:<4} "
               f"{row['huc6_name'][:25]:<26} {inventory:>11} {service:>10} "
-              f"{observed:>11} {distance:>6}  {mark} {row['reason']}")
+              f"{observed:>11} {distance:>6}  {mark} "
+              f"{'; '.join(d['screen'] for d in row['discrepancies']) or row['reason']}")
 
     admitted = sum(1 for row in rows if row["admitted"])
+    publishable = sum(1 for row in rows if row["publishable"])
     with_service = sum(1 for row in rows
                        if not row["admitted"] and row.get("service_capacity_af"))
     print(f"\n{admitted} of {len(rows)} candidates are capacity-admissible "
           "against the dam inventory.")
+    print(f"{publishable} of those {admitted} carry no disagreement and could "
+          f"be published; {admitted - publishable} are held for review.")
+    held = {}
+    for row in rows:
+        for found in row["discrepancies"]:
+            held.setdefault(found["screen"], []).append(row["station"])
+    for screen, stations in sorted(held.items(), key=lambda pair: -len(pair[1])):
+        print(f"  {len(stations):>3}  {screen}: {', '.join(sorted(stations))}")
     if with_service:
         print(f"{with_service} more carry a full level from the service itself "
               "and no confirmed dam; each needs review by hand.")
