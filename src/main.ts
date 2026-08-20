@@ -28,7 +28,8 @@ import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/o
 import { offeredStates } from "./data/state-vocabulary";
 import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
 import {
-  isLakeMead, isLakePowell, isLate, statewideRollup, type RollupCoverage
+  isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
+  type RollupCoverage
 } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
@@ -261,12 +262,22 @@ function updateSummary(): void {
    * the map draws last November is the page saying two things at once, and
    * the map is the louder one. */
   const current = month === null ? statewideRollup(inScope, {
-    geography: "utah",
-    // `inScope` already answered the Lake Powell question; asking it twice
-    // here would make the control unable to add the reservoir back.
-    lakePowell: "include",
-    // The reader's own period, so the total and the details panel below it
-    // cannot disagree about which years "normal" means (ADR-041).
+    /* `inScope` has already answered every scope question -- geography,
+     * Lake Powell and Lake Mead -- so this must not ask any of them a
+     * second time. WIDEST_SCOPE is how a caller says that, and how the
+     * storage charts have said it since ADR-062.
+     *
+     * Two of the three were asked twice here, and both answers were wrong.
+     * `geography` was pinned to `utah`, so the headline counted the
+     * reservoirs whose water touches Utah under a card reading "Every
+     * reservoir": 59 of them, above a map drawing 196. `lakeMead` was
+     * absent, and absent means excluded, so the reader's own switch could
+     * not put Mead into a total the map had already drawn it into.
+     *
+     * The reader's baseline period and its minimum still travel, so the
+     * total and the details panel below it cannot disagree about which
+     * years "normal" means (ADR-041). */
+    ...WIDEST_SCOPE,
     baseline: activeBaselineId,
     minimumBaselineYears: baselineMinimumYears
   }) : null;

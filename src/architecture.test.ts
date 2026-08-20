@@ -132,6 +132,33 @@ describe("SDK architecture boundaries", () => {
     await expect(Promise.all(paths.map((path) => access(path)))).resolves.toBeDefined();
   });
 
+  /*
+   * The headline is made from the reservoirs the map drew, and from no
+   * other set.
+   *
+   * `inScope` has already applied all three of ADR-011's and ADR-062's
+   * scope dimensions. `updateSummary` passed its own literal options in
+   * with `geography` pinned to `utah` and `lakeMead` left absent, so
+   * `reservoirInScope` ran a second time and narrowed a set that was
+   * already narrowed: the card read "Every reservoir" above 59 of the 196
+   * the map had drawn, and the reader's Lake Mead switch could not move it.
+   *
+   * A source check rather than a behavioural one, because `main.ts` is the
+   * entry point and this call sits inside it. The property being held is
+   * that the call spreads WIDEST_SCOPE -- the way a caller says "already
+   * scoped" -- instead of naming a scope dimension of its own.
+   */
+  it("builds the storage headline from the scope the map already applied", async () => {
+    const source = await readFile(resolve(root, "src/main.ts"), "utf8");
+    const call = source.slice(source.indexOf("statewideRollup(inScope, {"));
+    const options = call.slice(0, call.indexOf("})"));
+
+    expect(options).toContain("...WIDEST_SCOPE");
+    for (const dimension of ["geography:", "lakePowell:", "lakeMead:"]) {
+      expect(options).not.toContain(dimension);
+    }
+  });
+
   it("keeps exact optional property checking enabled", async () => {
     const config = JSON.parse(await readFile(resolve(root, "tsconfig.json"), "utf8")) as {
       compilerOptions?: { exactOptionalPropertyTypes?: boolean };
