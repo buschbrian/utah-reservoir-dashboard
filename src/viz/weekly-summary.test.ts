@@ -8,7 +8,8 @@
 import { describe, expect, it } from "vitest";
 import type { WeeklyMove, WeeklyStorage } from "../weekly-model";
 import {
-  describeDrought, describeMove, describeMovers, describeSnow, describeStorage
+  describeDrought, describeMove, describeMovers, describeSnow, describeStorage,
+  describeWeek
 } from "./weekly-summary";
 
 const move = (over: Partial<WeeklyMove>): WeeklyMove => ({
@@ -167,5 +168,49 @@ describe("the sections that have nothing to report", () => {
 
     expect(lines).toContain("1 area gained");
     expect(lines).not.toContain("1 areas");
+  });
+});
+
+/*
+ * Three indicators, three geographies, one page. Storage follows the
+ * reservoir scope the reader chose, snow is every site that reported, and
+ * drought is every area the monitor measures -- and a reader skimming four
+ * headings absorbs them as one statement about one place unless each says
+ * what it is about.
+ */
+describe("what each digest section says it is about", () => {
+  it("names the population in the heading", () => {
+    /* A mover, so the movers section has lines: `describeWeek` drops a
+     * section with nothing to say rather than printing an empty heading. */
+    const sections = describeWeek({
+      storage: storage({ published: 196, biggestFall: move({ changeAf: -500 }) }),
+      snow: { day: "2026-03-01", previousDay: "2026-02-22", percentNow: 88,
+        percentBefore: 84, reporting: 83 },
+      drought: null
+    } as never);
+    expect(sections.map((section) => section.heading)).toEqual([
+      "Reservoir storage — 196 reservoirs",
+      "The week's movers, same reservoirs",
+      "Mountain snow — 83 reporting sites",
+      // Nothing to count, so nothing claimed.
+      "Drought"
+    ]);
+  });
+
+  /* In August every snow site has melted out, so the count is a true zero --
+   * and "0 reporting sites" reads as a broken feed rather than as summer. */
+  it("says nothing rather than zero when there is nothing to count", () => {
+    const sections = describeWeek({
+      storage: storage({ published: 1 }),
+      snow: { day: "2026-08-19", previousDay: null, percentNow: null,
+        percentBefore: null, reporting: 0 },
+      drought: null
+    } as never);
+    const headings = sections.map((section) => section.heading);
+    expect(headings).toContain("Reservoir storage — 1 reservoir");
+    // Not "Mountain snow — 0 reporting sites", which reads as a broken feed.
+    expect(headings).toContain("Mountain snow");
+    expect(headings.some((heading) => heading.startsWith("Mountain snow —")))
+      .toBe(false);
   });
 });

@@ -31,6 +31,16 @@ export interface CurvePoint {
   /** Mean percent of the normal median, or null below the reporting floor. */
   percent: number | null;
   reportingSites: number;
+  /**
+   * The mean normal the percentage divides by, in inches.
+   *
+   * Published so a reader of the percentage can see what it is a percentage
+   * *of*. Null on a day nothing reported, or for a curve built before this
+   * carried it.
+   */
+  normalInches?: number | null;
+  /** The mean depth itself, which is the number with meaning in October. */
+  meanInches?: number | null;
 }
 
 export interface SiteRow {
@@ -303,11 +313,48 @@ export function basinCurve(
 ): CurvePoint[] | null {
   const rollup = payload.rollups.find((entry) => entry.huc6 === huc6);
   if (!rollup) return null;
+  /* The percentage stays the pipeline's own answer, so the curve and the map
+   * cannot disagree. The normal beside it is computed here from this area's
+   * sites, because the rollup does not publish what its own figure divides
+   * by -- and rebuilding from sites is the rule anyway (ADR-064). */
+  const normals = meanNormalsByDate(
+    payload.sites.filter((site) => site.huc6 === huc6));
   return rollup.series.map((day) => ({
     date: day.date,
     percent: day.mean_percent_of_normal_median,
-    reportingSites: day.reporting_site_count
+    reportingSites: day.reporting_site_count,
+    normalInches: normals.get(day.date)?.normal ?? null,
+    meanInches: normals.get(day.date)?.depth ?? null
   }));
+}
+
+/**
+ * The mean normal for each day, over the sites that reported that day.
+ *
+ * The same population the percentage is a mean over: a site with no reading
+ * contributes to neither, so the two describe one set of stations. Averaging
+ * every site's normal instead would divide one day's reporting sites by
+ * another day's whole network.
+ */
+function meanNormalsByDate(
+  sites: readonly SnowpackPayload["sites"][number][]
+): Map<string, { normal: number; depth: number }> {
+  const totals = new Map<string, { normal: number; depth: number; count: number }>();
+  for (const site of sites) {
+    for (const [date, value, median] of site.series) {
+      if (value === null || median === null) continue;
+      const bucket = totals.get(date);
+      if (bucket) {
+        bucket.normal += median; bucket.depth += value; bucket.count += 1;
+      } else {
+        totals.set(date, { normal: median, depth: value, count: 1 });
+      }
+    }
+  }
+  return new Map([...totals].map(([date, { normal, depth, count }]) =>
+    [date, count > 0
+      ? { normal: normal / count, depth: depth / count }
+      : { normal: 0, depth: 0 }]));
 }
 
 /**
@@ -328,6 +375,7 @@ export function regionCurve(payload: SnowpackPayload): CurvePoint[] {
       else byDate.set(date, [percent]);
     }
   }
+  const normals = meanNormalsByDate(payload.sites);
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, percents]) => ({
@@ -335,7 +383,9 @@ export function regionCurve(payload: SnowpackPayload): CurvePoint[] {
       reportingSites: percents.length,
       percent: percents.length >= floor
         ? roundTenth(percents.reduce((sum, value) => sum + value, 0) / percents.length)
-        : null
+        : null,
+      normalInches: normals.get(date)?.normal ?? null,
+      meanInches: normals.get(date)?.depth ?? null
     }));
 }
 
@@ -385,6 +435,40 @@ export function normalPeriodLabel(payload: SnowpackPayload): string {
 }
 
 /*
+ * The denominator floor, which the reporting floor below cannot supply.
+ *
+ * A ratio needs a denominator worth dividing by, and in October there is not
+ * one. Measured on the 2026 water year: on 27 October, 147 sites reported --
+ * far past any count floor -- and produced 266% of normal against a mean
+ * normal of 0.24 inches. There was almost no snow and almost no normal, and
+ * the page's largest number of the season described neither. 68 of the 287
+ * days in that record have a mean normal under an inch.
+ *
+ * One inch is where a tenth of an inch of snow stops moving the figure by ten
+ * points or more, which is the arithmetic the instability is made of rather
+ * than a judgement about what counts as a real snowpack. Below it the
+ * percentage is still computed and still drawn -- the curve is where a reader
+ * goes to see the shape of a season, and cutting a hole in it would hide the
+ * melt-out -- but nothing promotes it to a headline. The absolute depth takes
+ * that place, because in October that is the number with meaning in it.
+ */
+export const MEANINGFUL_NORMAL_INCHES = 1;
+
+/**
+ * Whether a day's percentage is worth promoting, denominator and all.
+ *
+ * A point with no published normal passes: curves built before the normal
+ * travelled with them are judged on the reporting floor alone, exactly as
+ * they were.
+ */
+export function percentIsMeaningful(point: CurvePoint): boolean {
+  if (point.percent === null) return false;
+  const normal = point.normalInches;
+  return normal === null || normal === undefined
+    || normal >= MEANINGFUL_NORMAL_INCHES;
+}
+
+/*
  * The KPI floor. The published curve only needs two reporting sites for a
  * fair *daily mean*, but a single number promoted to a headline needs more:
  * in mid-October a handful of high stations divide small readings by small
@@ -398,13 +482,22 @@ export function headlineFloor(siteCount: number, publishedFloor: number): number
   return Math.max(publishedFloor, Math.ceil(siteCount / 2));
 }
 
-/** The newest day that meets the floor, or null when none does. */
+/** The newest day that meets both floors, or null when none does. */
 export function newestHeadline(
   points: readonly CurvePoint[], floor: number
 ): CurvePoint | null {
   for (let index = points.length - 1; index >= 0; index -= 1) {
     const point = points[index]!;
-    if (point.percent !== null && point.reportingSites >= floor) return point;
+    if (point.reportingSites >= floor && percentIsMeaningful(point)) return point;
+  }
+  return null;
+}
+
+/** The newest day anything reported, whatever its percentage is worth. */
+export function newestReading(points: readonly CurvePoint[]): CurvePoint | null {
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index]!;
+    if (point.reportingSites > 0) return point;
   }
   return null;
 }

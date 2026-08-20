@@ -53,6 +53,58 @@ when no code changed — and a red build freezes the published numbers. Compare
 against `shared/reservoir-viz.js` in a `node:vm` sandbox instead; see
 `src/data/legacy-harness.ts`.
 
+**A calendar date is one position in every year.** `canonical_day` in
+`refresh_reservoirs.py` maps a date into a 365-day year where 29 February
+shares 28 February's place; `seasonal_window`, the climate normal table and
+its lookup all match on it. Never reach for `dayofyear` again: it makes 19
+August day 231 in an ordinary year and 232 in a leap year, so a window centred
+on 19 August was centred on 18 August for every leap year in the record, and
+the normals table was built over a leap year while being read by ordinary-year
+numbers. The wrap at the year end is a flat 365 for every year, which is what
+the per-year length here used to be working around.
+
+**Every year gets one vote.** A seasonal normal is the median of one
+representative value per year (`annual_seasonal_values`), never a median over
+the pooled readings: a reservoir reported daily brings about 450 readings to a
+thirty-year window and one reported at month end brings about 15, so pooling
+made the statistic a fact about reporting density. The history rank ranks the
+same annual values, and the details panel leads with the ordinal — "3rd-lowest
+of 12" carries its own sample size and a percentile does not.
+
+**A method version is not a schema version** (review of 2026-08-20). A field
+can keep its name, type and units while the estimator under it changes, and
+`schema_version` cannot see that. `METHOD_VERSION` can, and three places
+refuse to mix: `build_normal_baselines.py` stops a partial run against a file
+built by another estimator, `load_normals` warns when the payload and the
+committed normals disagree, and `merge_history` refuses a drought week
+measured by another method exactly as it already refused one at another level.
+An interrupted full normals build is the single exception — it keeps its
+fetches and drops the rest, because it has already paid for them.
+
+**Long-lived reference data carries the date it was checked.**
+`tools/check_reference_freshness.py` reads each committed reference file's own
+date field against a review interval and reports what is due. It is a tool and
+**must never become a test**: a test that fails when a date passes turns the
+build red on a morning when no code changed, and a red build freezes the
+published numbers. What is tested is that every file carries a date and a
+policy at all. The generators stamp `retrieved` themselves, so a re-fetch
+carries its own provenance.
+
+**These reservoirs are not one population.** No fitted normal curve, no
+standard deviation as an interpretive frame: they differ by size, purpose,
+hydrology, operating rules and flood-control duty, so a flood-control
+reservoir held deliberately low in spring sits in the same histogram bins as a
+supply reservoir kept full. `distributionStats` publishes the mean, the median
+and the middle half. The SDK's histogram offers no quantile overlay, so the
+key states the middle half rather than drawing it.
+
+**A change names the reading it is a change from.** "30-day change" is the
+date the pipeline asks for; the reading it gets is the nearest one inside a
+tolerance of ten days for a daily feed and forty-five for a month-end one, so
+"change in 1 year" has covered 320 days to 410. `change_*_reference_date` and
+`change_*_elapsed_days` publish the interval, and the details panel prints the
+measured one whenever it differs from the name.
+
 **A normal names the years it came from** (ADR-041). Two comparison periods
 are published per reservoir and the reader picks; `normals.json` holds the
 standard 1991-2020 one and is rebuilt by `tools/build_normal_baselines.py`, not
@@ -250,6 +302,25 @@ a default of include would have every existing caller silently start adding
 28 million acre-feet. `shared/reservoir-viz.js` predates Mead, so oracle
 parity is only meaningful with both controls open.
 
+**A dam match is not the whole question** (review of 2026-08-20). `admit`
+asks whether the inventory holds the right dam and answers from the inventory
+alone. `discrepancies` asks whether everything else known about the same
+reservoir agrees with it: whether the provider's own full level and the
+inventory's differ, whether the water has stood above the capacity it would be
+divided by, whether it has ever stood a third of the way up it, and whether one
+reading sits far above the rest of the series. All four reuse the measured
+`SURCHARGE_ALLOWANCE` rather than a new number. Of 169 California candidates
+the inventory admitted 162 and the screens hold 36 — Keswick's conservation
+pool of 7,470 acre-feet against the service's 23,772, and O'Neill Forebay
+matched to a dam 1.18 km away and carrying San Luis Reservoir's 2,094,900,
+thirty-seven times its own. The spike screen reads the **third** highest
+reading, because Lake Havasu carries two and a rule reading the second would
+have called them agreement. **Nothing is repaired**: every correction available
+is a guess about which source is wrong, so the screen reports and a person
+decides ([#25](https://github.com/buschbrian/western-water-dashboard/issues/25)).
+`publishable` is the field a roster builder reads and it is deliberately
+narrower than `admitted`, which still states that the dam match itself stands.
+
 **A roster addition needs a refresh in the same change.** `tests/test_refresh.py`
 asserts every roster name is either published or withdrawn, and there is no
 "pending" state on purpose: a name on the roster and absent from the payload is
@@ -384,8 +455,10 @@ On demand, not part of the build and not runnable in CI:
 ```bash
 node tools/profile-symbols.mjs   # needs a real, visible browser window
 node tools/audit-transfer.mjs    # needs a built dist/ and Playwright Chromium
-python tools/build_normal_baselines.py            # ~1.6 min for 69 reservoirs
+python tools/build_normal_baselines.py           # ~4.5 min for 203 reservoirs
 python tools/build_normal_baselines.py --missing # only what has no normal yet
+python tools/check_reference_freshness.py        # what is due to be re-checked
+python tools/measure_drought_convergence.py      # what the sampling step is worth
 ```
 
 `build_normal_baselines.py` fetches thirty years of readings for every
@@ -396,9 +469,8 @@ becomes standard in 2031) or when a reservoir joins the roster.
 **It is network-bound, not slow.** One reservoir is 12.2 seconds of wall clock
 for 0.8 seconds of processor, so it fetches `--workers` at a time (six by
 default, kept small because both providers are public services this project
-does not pay for). Sixty-nine reservoirs take 1.6 minutes rather than
-fourteen, and the same run at western coverage projects to about four and a
-half.
+does not pay for). Two hundred and three reservoirs take about four and a half
+minutes rather than forty.
 
 **Every run merges; none replaces.** `--only "A" "B"` builds those,
 `--missing` builds what the committed file has no usable normal for — which is

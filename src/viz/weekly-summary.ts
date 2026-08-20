@@ -141,6 +141,28 @@ export function describeSnow(snow: WeeklySnow): string[] {
   ];
 }
 
+/**
+ * "196 reservoirs", or nothing at all when there is nothing to count.
+ *
+ * Zero is the case worth handling. In August every snow site has melted out,
+ * so no site has a value to compare against normal and the count is a true
+ * zero -- and "Mountain snow — 0 reporting sites" reads as a network failure
+ * rather than as summer. The section's own lines already explain melt-out;
+ * the heading falls back to the plain name rather than asserting a number
+ * that means something else to a reader than it does to the code.
+ */
+function countOf(value: number | null | undefined, noun: string): string | null {
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return `${value} ${noun}${value === 1 ? "" : "s"}`;
+}
+
+/** "Mountain snow — 83 reporting sites", or "Mountain snow". */
+function headingWith(name: string, count: string | null): string {
+  return count ? `${name} — ${count}` : name;
+}
+
 export function describeDrought(drought: WeeklyDrought | null): string[] {
   if (!drought) {
     return ["The drought figures could not be read for this week."];
@@ -199,9 +221,25 @@ export interface WeeklySection {
  * moved, then the two contexts. */
 export function describeWeek(summary: WeeklySummary): WeeklySection[] {
   return [
-    { heading: "Reservoir storage", lines: describeStorage(summary.storage) },
-    { heading: "The week's movers", lines: describeMovers(summary.storage) },
-    { heading: "Mountain snow", lines: describeSnow(summary.snow) },
-    { heading: "Drought", lines: describeDrought(summary.drought) }
+    /* Each heading names the population its section is about.
+     *
+     * The three sections do not share a geography and cannot: storage follows
+     * the reservoir scope the reader chose, snow is every site that reported,
+     * and drought is every area the monitor measures. Each said so in its own
+     * lines, and a reader skimming four headings on one page still absorbs
+     * them as one statement about one place. The heading is where that
+     * impression forms, so it is where the population belongs.
+     */
+    { heading: headingWith("Reservoir storage",
+        countOf(summary.storage?.published, "reservoir")),
+      lines: describeStorage(summary.storage) },
+    { heading: "The week's movers, same reservoirs",
+      lines: describeMovers(summary.storage) },
+    { heading: headingWith("Mountain snow",
+        countOf(summary.snow?.reporting, "reporting site")),
+      lines: describeSnow(summary.snow) },
+    { heading: headingWith("Drought",
+        countOf(summary.drought?.units, "drainage area")),
+      lines: describeDrought(summary.drought) }
   ].filter((section) => section.lines.length > 0);
 }

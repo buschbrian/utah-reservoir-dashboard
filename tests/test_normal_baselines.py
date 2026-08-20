@@ -37,12 +37,20 @@ def climate_series(start: str = "1991-01-01", end: str = "2020-12-31",
 
 
 def test_every_day_of_the_year_gets_a_normal_and_a_year_count():
+    """365 positions, not 366.
+
+    The table is indexed by canonical position, where a year never has a 29
+    February and every year is the same length. It used to be built over a
+    leap year and read by `dayofyear`, which put the table one day off the
+    lookup for every date after February.
+    """
     table = B.day_of_year_normals(climate_series())
-    assert len(table["median_af"]) == 367
+    assert len(table["median_af"]) == R.CANONICAL_YEAR_DAYS + 1
     # Slot 0 is unused by construction and must stay null, or an off-by-one in
     # the reader would silently read a real value from the wrong day.
     assert table["median_af"][0] is None
-    assert all(table["median_af"][day] == 1000.0 for day in range(1, 367))
+    assert all(table["median_af"][day] == 1000.0
+               for day in range(1, R.CANONICAL_YEAR_DAYS + 1))
 
 
 def test_a_window_that_wraps_the_new_year_draws_on_the_whole_period():
@@ -51,10 +59,85 @@ def test_a_window_that_wraps_the_new_year_draws_on_the_whole_period():
     Day 1's window reaches back to day 359, and it reaches day 359 of *every*
     year in the period, because the window matches on day of the year rather
     than on adjacency in time. Adding 1990 and 2021 to "protect" the seam once
-    added two extra calendar years to all 366 days.
+    added two extra calendar years to all 365 days.
     """
     table = B.day_of_year_normals(climate_series())
     assert set(table["years"][1:]) == {30}
+
+
+def test_the_file_carries_the_method_that_built_it():
+    """A schema version cannot see an estimator change; a method version can.
+
+    Not a date-dependent assertion: it asserts that the constants exist and
+    agree, which is a fact about the code. Whether the *committed* file was
+    built by the current method is checked separately, by the test that
+    compares it against its own builder.
+    """
+    assert B.METHOD_VERSION
+    assert B.METHOD_VERSION == R.METHOD_VERSION, (
+        "the daily pipeline and the committed normals are published to be "
+        "compared with each other, so they must share an estimator")
+
+
+def _canned_run(tmp_path, monkeypatch, committed_method, argv):
+    """A build of one reservoir against a committed file we control.
+
+    Every network call is replaced. What is under test is the merge decision,
+    which is the part that can quietly produce a file holding two estimators.
+    """
+    stale = tmp_path / "normals.json"
+    stale.write_text(json.dumps({
+        "schema_version": B.SCHEMA_VERSION,
+        "method_version": committed_method,
+        "period": {"start_year": 1991, "end_year": 2020},
+        "reservoirs": [
+            {"name": "Already Built", "source_station_id": "old-1",
+             "source_key": "rise", "available": False,
+             "reason": "no readings in the period"},
+        ],
+    }), encoding="utf-8")
+    # The shape `build_many` yields, which the progress line reads from.
+    fresh = {"name": "Newly Built", "source_station_id": "new-1",
+             "source_key": "rise", "available": False,
+             "reason": "no readings in the period", "n_obs": 0,
+             "covers_full_period": False, "years_in_period": 0,
+             "first_obs": None, "day_of_year": None, "month": None}
+
+    monkeypatch.setattr(B, "OUTPUT_PATH", stale)
+    monkeypatch.setattr(B, "roster_records", lambda: [fresh])
+    monkeypatch.setattr(B, "already_built", lambda *a, **k: {})
+    monkeypatch.setattr(B, "select", lambda *a, **k: [fresh])
+    monkeypatch.setattr(B, "build_many", lambda *a, **k: iter([(fresh, None)]))
+    monkeypatch.setattr(sys, "argv", ["build_normal_baselines.py", *argv])
+    return stale, B.main()
+
+
+def test_a_partial_run_refuses_to_mix_estimators(tmp_path, monkeypatch, capsys):
+    """Merging one reservoir built one way into a file built the other makes a
+    file that looks entirely consistent and is not.
+
+    Refusing costs a full rebuild, which is a few minutes. Mixing cannot be
+    detected by looking at the result.
+    """
+    stale, code = _canned_run(
+        tmp_path, monkeypatch, "storage-normal-pooled-0", ["--missing"])
+
+    assert code == 1
+    assert "would mix the two" in capsys.readouterr().err
+    # And nothing was written: the committed file still holds only its own.
+    kept = json.loads(stale.read_text(encoding="utf-8"))
+    assert [r["name"] for r in kept["reservoirs"]] == ["Already Built"]
+
+
+def test_a_partial_run_merges_when_the_estimators_agree(tmp_path, monkeypatch):
+    """The guard is about mixing, not about partial runs."""
+    stale, code = _canned_run(
+        tmp_path, monkeypatch, B.METHOD_VERSION, ["--missing"])
+
+    assert code == 0
+    kept = json.loads(stale.read_text(encoding="utf-8"))
+    assert sorted(r["name"] for r in kept["reservoirs"]) == [
+        "Already Built", "Newly Built"]
 
 
 def test_month_normals_take_the_median_of_monthly_means():

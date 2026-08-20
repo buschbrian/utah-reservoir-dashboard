@@ -61,6 +61,79 @@ EXPORT_PATH = Path(__file__).parent / "reference.json"
 STALE_AFTER_DAYS = 2
 AWDB_MONTHLY_STALE_AFTER_DAYS = 45
 
+#: What this site does not read, state by state.
+#:
+#: Two federal programmes cover the large federal projects well and cover
+#: everything else unevenly, so "the reservoirs this site tracks" and "the
+#: stored water in this state" are different quantities -- in Colorado and
+#: California they are very different. A dashboard that shows the first and
+#: lets a reader take it for the second is not wrong in any single number and
+#: is misleading as a whole.
+#:
+#: The counts beside these come from the payload itself; this is the part a
+#: payload cannot know. Reviewed in `docs/WESTERN-SOURCE-CANDIDATES.md`, where
+#: every endpoint below was fetched live rather than taken from documentation,
+#: and re-reviewed when a provider is added. `status` is one of:
+#:
+#:   "more to add"        a usable public feed exists and is not read yet
+#:   "not machine readable"  the data is published, but not in a usable form
+#:   "none found"         the review looked for another source and found none
+#:
+#: "none found" is not "complete". It is the honest limit of a search.
+SOURCE_COVERAGE_REVIEWED = "2026-08-19"
+SOURCE_COVERAGE = {
+    "CO": {"status": "more to add",
+           "source": "Colorado Division of Water Resources",
+           "url": "https://dwr.state.co.us/rest/get/help",
+           "adds_about": 110,
+           "note": "Publishes current storage for 128 reservoirs, most of "
+                   "which this site does not read."},
+    "CA": {"status": "more to add",
+           "source": "California Data Exchange Center",
+           "url": "https://cdec.water.ca.gov/",
+           "adds_about": 140,
+           "note": "Publishes current storage for 154 reservoirs, most of "
+                   "which this site does not read."},
+    "MT": {"status": "more to add",
+           "source": "U.S. Army Corps of Engineers water management",
+           "url": "https://water.usace.army.mil/",
+           "adds_about": None,
+           "note": "Covers the large Missouri River reservoirs. The state's "
+                   "own 22 dams publish no combined feed."},
+    "AZ": {"status": "not machine readable",
+           "source": "Salt River Project daily water report",
+           "url": "https://streamflow.watershedconnection.com/dwr",
+           "adds_about": 6,
+           "note": "Six reservoirs are published as a web page only, and for "
+                   "several of them it is the only current source."},
+    "UT": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "No other public source of current storage was found."},
+    "WY": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "The state water service was found to republish federal "
+                   "readings rather than add its own."},
+    "ID": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "The state water department points every reservoir at a "
+                   "federal source."},
+    "OR": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "The state water department publishes no feed a program "
+                   "can read."},
+    "WA": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "No independent state source was found."},
+    "NV": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "No state source of reservoir storage was found. The "
+                   "search was not exhaustive."},
+    "NM": {"status": "none found", "source": None, "url": None,
+           "adds_about": None,
+           "note": "The state water office publishes stream measurements "
+                   "rather than reservoir storage."},
+}
+
 # A reservoir whose newest observation is older than this many days is
 # withdrawn from the payload entirely rather than published as stale.
 #
@@ -120,6 +193,18 @@ MIN_BASELINE_YEARS = 10
 # handed a payload that silently stopped carrying one.
 EXPORT_SCHEMA_VERSION = 4
 RESERVOIR_SCHEMA_VERSION = 1
+
+#: The estimator behind the derived numbers, separate from the shape of the
+#: file carrying them. `tools/build_normal_baselines.py` publishes the same
+#: string for the committed climate normals, and the two must agree: the
+#: whole point of publishing both baselines is that a reader can compare them,
+#: and two medians taken different ways are not a comparison.
+#:
+#: "-1" was the same annual estimator on `dayofyear`, where a calendar date
+#: took two different positions depending on whether its year was a leap year.
+#: "-2" matches on `canonical_day`, so a window centred on 19 August holds
+#: every 19 August.
+METHOD_VERSION = "storage-normal-annual-2"
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -498,28 +583,172 @@ def fetch_awdb_series(station_triplet: str, cadence: str,
               [["date", "storage_af"]].reset_index(drop=True))
 
 
+#: California's own service. The station id and sensor number are the identity
+#: (ADR-066); sensor 15 is reservoir storage, published in acre-feet.
+CDEC_DATA_URL = "https://cdec.water.ca.gov/dynamicapp/req/JSONDataServlet"
+CDEC_STORAGE_SENSOR = 15
+
+#: The value this service writes where it has no reading.
+#:
+#: It is a number rather than a null, which makes it the most dangerous fact
+#: about this source: a reader of `value` that treats it as a measurement
+#: subtracts ten thousand acre-feet from whatever total it lands in. Measured
+#: on 2026-08-20 across a week and all 238 storage stations, 537 of 1,435
+#: values were this and none were null -- 37%, which is the ordinary shape of
+#: the data and not an edge case.
+#:
+#: `fetch_cdec_series` is the only place the field is read, and it drops these
+#: rather than converting them. A missing reading and an empty reservoir are
+#: different facts; ADR-056 already turns on that distinction.
+CDEC_MISSING_VALUE = -9999
+
+
+def _get_cdec_json(params: dict):
+    """GET CDEC JSON with the same transient-failure policy as the others."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(CDEC_DATA_URL, params=params, timeout=60)
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
+
+
+def fetch_cdec_series(station_id: str, cadence: str,
+                      start: str, end: str) -> pd.DataFrame:
+    """Pull a CDEC storage series and normalize it to [date, storage_af].
+
+    The same contract the other two providers answer with: a date-sorted frame
+    with nulls dropped, duplicate dates collapsed to the last reading, and
+    nothing dated after today.
+
+    Two differences this service brings:
+
+    **`-9999` means no reading** and is dropped here (`CDEC_MISSING_VALUE`).
+    This is the only place `value` is read.
+
+    **The dates are not ISO.** They arrive as `2026-8-10 00:00`, unpadded, and
+    there are two of them -- `date` is the reading's own day and `obsDate` is
+    when the service recorded it. The reading date is the one a storage series
+    is indexed by, the same choice the other two providers' fetchers make.
+    """
+    payload = _get_cdec_json({
+        "Stations": station_id,
+        "SensorNums": str(CDEC_STORAGE_SENSOR),
+        "dur_code": "M" if cadence == "monthly" else "D",
+        "Start": dt.datetime.strptime(start, "%Y%m%d").date().isoformat(),
+        "End": dt.datetime.strptime(end, "%Y%m%d").date().isoformat(),
+    })
+    rows = []
+    for value in (payload if isinstance(payload, list) else []):
+        reading = value.get("value")
+        # Dropped, never converted: see CDEC_MISSING_VALUE.
+        if not isinstance(reading, (int, float)):
+            continue
+        if reading == CDEC_MISSING_VALUE or reading < 0:
+            continue
+        rows.append({"date": value.get("date"), "storage_af": float(reading)})
+
+    if not rows:
+        return pd.DataFrame({"date": pd.Series(dtype="datetime64[ns]"),
+                             "storage_af": pd.Series(dtype="float64")})
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
+    df = df.dropna(subset=["date", "storage_af"])
+    df = df[df["date"] <= local_today()]
+    return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
+              [["date", "storage_af"]].reset_index(drop=True))
+
+
+#: Positions in the canonical climatological year, 1 through 365.
+CANONICAL_YEAR_DAYS = 365
+
+
+def canonical_day(when) -> "np.ndarray | int":
+    """Where a date falls in a year that never has a 29 February.
+
+    A calendar date has to mean one position in every year, and `dayofyear`
+    does not give it one: 19 August is day 231 in an ordinary year and day 232
+    in a leap year, so a window centred on 19 August 2026 was centred on 18
+    August for every leap year in the record. A zero-width window on 19 August
+    excluded 19 August 2024 outright. The `+/- 7` day window made the effect
+    small and never made it right, and it was present on every date after
+    February -- which is most of the year and all of the melt season.
+
+    **29 February takes 28 February's position.** It has to take some
+    position, and every choice is a convention; this one keeps the canonical
+    year exactly 365 long, keeps every other date where a reader would put it,
+    and puts the extra day in the window a reader would expect to find it in.
+    Nothing is dropped -- both days contribute to any window covering 28
+    February.
+
+    The wrap at the year end is then a flat 365 for every year, because in
+    canonical positions every year is the same length. That is what the
+    per-year `year_length` here used to be working around.
+
+    Accepts a `DatetimeIndex` or a single `Timestamp` and answers in kind.
+    """
+    if isinstance(when, pd.Timestamp):
+        shift = 1 if (when.is_leap_year and when.dayofyear >= 60) else 0
+        return int(when.dayofyear) - shift
+    doy = np.asarray(when.dayofyear)
+    return doy - np.where(np.asarray(when.is_leap_year) & (doy >= 60), 1, 0)
+
+
 def seasonal_window(series: pd.Series, ref_date: pd.Timestamp,
                     window_days: int = SEASONAL_WINDOW_DAYS) -> pd.Series:
-    """Every observation within +/- window_days of ref_date's day-of-year, any year.
+    """Every observation within +/- window_days of ref_date's calendar date, any year.
 
-    IMPROVEMENT: the wrap-around uses a fixed 365, so in leap years the
-    window is off by a day around the New Year boundary. Immaterial for a
-    +/-7-day window on a drought dashboard, but it is wrong.
+    Matched on `canonical_day` rather than `dayofyear`, so the same calendar
+    date is the same position in every year and the window means what its name
+    says. See `canonical_day` for what that is worth and where 29 February
+    goes.
     """
-    doy = series.index.dayofyear
-    ref_doy = ref_date.dayofyear
-    # Wrap around the year end using each observation's own year length, not a
-    # flat 365. With the constant, a leap year shifts every day after Feb 29
-    # by one, so a window near the New Year silently picked up the wrong days.
-    year_length = np.where(series.index.is_leap_year, 366, 365)
+    doy = canonical_day(series.index)
+    ref_doy = canonical_day(ref_date)
     raw = np.abs(doy - ref_doy)
-    diff = np.minimum(raw, year_length - raw)
+    # Every canonical year is 365 long, so one constant serves every year.
+    diff = np.minimum(raw, CANONICAL_YEAR_DAYS - raw)
     return series[diff <= window_days]
 
 
 def prior_years(series: pd.Series, ref_date: pd.Timestamp) -> pd.Series:
     """Everything from calendar years strictly before ref_date's year."""
     return series[series.index.year < ref_date.year]
+
+
+def annual_seasonal_values(series: pd.Series, ref_date: pd.Timestamp,
+                           window_days: int = SEASONAL_WINDOW_DAYS) -> pd.Series:
+    """One representative value per calendar year, indexed by year.
+
+    The unit of inference here is the *year*, not the reading. A window over
+    thirty years of daily readings holds about 450 values; the same window
+    over thirty years of month-end readings holds about 15. Taking a median
+    across the pooled readings lets a year with dense readings outvote a year
+    with sparse ones, and lets one provider's reporting habit outvote another's
+    entirely -- so the same statistic meant different things for a Reclamation
+    reservoir and a Natural Resources Conservation Service one.
+
+    This gives every year one vote. `sample_years` then counts the actual
+    statistical sample rather than a number of readings that happens to be
+    grouped into years, an ordinal rank has something to be ordinal *of*, and
+    the serial correlation inside one year's fortnight stops being treated as
+    independent evidence.
+
+    `month_normals` in `tools/build_normal_baselines.py` has always worked this
+    way, for the same reason and in the same words. This brings the day-of-year
+    statistics into line with it.
+
+    Empty when no year has a reading in the window.
+    """
+    window = seasonal_window(series, ref_date, window_days)
+    if window.empty:
+        return pd.Series(dtype="float64")
+    return window.groupby(window.index.year).median()
 
 
 def normal_period(run_date: pd.Timestamp) -> dict[str, int]:
@@ -549,10 +778,24 @@ def load_normals() -> dict:
         print(f"WARNING: {NORMALS_PATH.name} could not be read ({error}) -- "
               "publishing the recent baseline only")
         return {}
+    # Two medians taken different ways are not a comparison.
+    #
+    # The site publishes both baselines so a reader can put them side by side,
+    # and that only means anything while both were computed the same way. The
+    # estimator changed once already, without a single field name moving, so
+    # this says out loud when the committed file predates the change rather
+    # than letting the two periods quietly disagree about what a median is.
+    built_under = payload.get("method_version")
+    if built_under != METHOD_VERSION:
+        print(f"WARNING: {NORMALS_PATH.name} was built by "
+              f"{built_under or 'an unversioned method'} and this pipeline is "
+              f"{METHOD_VERSION}. The two baselines are not comparable until "
+              "it is rebuilt with tools/build_normal_baselines.py")
     return {
         "period": payload.get("period", {}),
         "window_days": payload.get("window_days"),
         "built": payload.get("built"),
+        "method_version": built_under,
         # By station id, not by name (ADR-066). A climate normal is a
         # denominator like a capacity, and two reservoirs sharing a name must
         # not share one: the west holds two Lost Creeks whose records differ
@@ -567,10 +810,15 @@ def climate_baseline(normals: dict, station_id: str | None, ref_date: pd.Timesta
                      current: float) -> dict | None:
     """One reservoir's 1991-2020 normal for today, read out of the committed table.
 
-    The lookup is `ref_date.dayofyear` against a table built with the same
-    expression, so the daily and climate baselines describe the same window of
-    the year. `dayofyear` shifts by one after February in a leap year, and
-    that shift is present on both sides of the comparison rather than on one.
+    The lookup is `canonical_day(ref_date)` against a table built by iterating
+    the same positions, so the daily and climate baselines describe the same
+    window of the year and a calendar date means one position in both.
+
+    It was `ref_date.dayofyear` against a table built over a leap year, and
+    the claim written here was that the shift was "present on both sides of
+    the comparison rather than on one". It was present on one: the table's
+    entry 231 was built from 18 August and was read for every 19 August in an
+    ordinary year. Every date after February was read one day early.
 
     Returns None when this reservoir has no usable climate normal -- a dam
     younger than the period, or a station the provider would not answer for.
@@ -584,7 +832,7 @@ def climate_baseline(normals: dict, station_id: str | None, ref_date: pd.Timesta
     table = record.get("day_of_year") or {}
     medians = table.get("median_af") or []
     counts = table.get("years") or []
-    day = int(ref_date.dayofyear)
+    day = int(canonical_day(ref_date))
     if day >= len(medians) or medians[day] is None:
         return None
     normal = float(medians[day])
@@ -609,23 +857,66 @@ def seasonal_percentile(series: pd.Series, ref_date: pd.Timestamp, current: floa
     being compared against itself) and dragged every value toward the middle
     in a short record. "Lowest this week has ever been" should read as 0.
 
+    It ranks against one value per prior year (`annual_seasonal_values`), not
+    against every reading those years hold. Ranking readings made the sample
+    look far larger than the evidence: eleven years of daily readings gave a
+    population of about 160, so "14th percentile" read as a fine-grained
+    measurement of something eleven observations support. The number of years
+    is published beside it, and `seasonal_rank` says the same thing in a form
+    that cannot be over-read.
+
     Returns NaN when there are no prior years to compare against, which the
     output layer turns into null rather than a fake number.
     """
-    population = seasonal_window(prior_years(series, ref_date), ref_date, window_days)
+    population = annual_seasonal_values(
+        prior_years(series, ref_date), ref_date, window_days)
     if population.empty:
         return float("nan")
     return float(np.mean(population.to_numpy() <= current) * 100)
 
 
-def value_asof(series: pd.Series, when: pd.Timestamp, tolerance_days: int = 10) -> float | None:
-    """Most recent observation at or before `when`, or None if the gap is too wide."""
+def seasonal_rank(series: pd.Series, ref_date: pd.Timestamp, current: float,
+                  window_days: int = SEASONAL_WINDOW_DAYS) -> tuple[int, int] | None:
+    """Where `current` sits among the prior years, counting from the lowest.
+
+    Returns `(rank, of)` where `of` is the prior years plus this reading, so
+    `(3, 11)` reads "third-lowest of eleven" and needs no further explanation.
+    A percentile does need it: two ranks a few points apart are not different
+    when eleven years stand behind them, and a reader has no way to know that
+    from "18th percentile" alone. The percentile stays published for anything
+    that wants a continuous value.
+
+    None when there are no prior years, which is the same answer
+    `seasonal_percentile` gives as NaN.
+    """
+    population = annual_seasonal_values(
+        prior_years(series, ref_date), ref_date, window_days)
+    if population.empty:
+        return None
+    below = int(np.sum(population.to_numpy() < current))
+    return below + 1, len(population) + 1
+
+
+def value_asof(series: pd.Series, when: pd.Timestamp,
+               tolerance_days: int = 10) -> tuple[float, pd.Timestamp] | None:
+    """Most recent observation at or before `when`, with the date it was read.
+
+    The date is returned because the label cannot be trusted without it. A
+    provider is asked for a reading seven days back and answers with the
+    nearest one it has, which for a month-end feed can be 45 days from the
+    date asked for -- so "365-day change" has covered anything from 320 days
+    to 410. The caller publishes the date and the elapsed days beside the
+    figure rather than leaving the reader to assume the interval in its name.
+
+    None when nothing falls inside the tolerance, which is a different answer
+    from a change of zero.
+    """
     sub = series[series.index <= when]
     if sub.empty:
         return None
     if (when - sub.index[-1]).days > tolerance_days:
         return None
-    return float(sub.iloc[-1])
+    return float(sub.iloc[-1]), sub.index[-1]
 
 
 def monthly_history(series: pd.Series, months: int = 12,
@@ -708,9 +999,15 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
     # own values pulled the "normal" toward whatever is happening right now,
     # which is precisely backwards in a drought: the worse the year, the
     # lower the bar it was being measured against.
-    population = seasonal_window(prior_years(series, last_date), last_date)
+    #
+    # One value per prior year, then the median across years. Pooling every
+    # reading in the window let a year with daily readings outvote a year with
+    # month-end ones about thirty to one, so the "normal" leaned on whichever
+    # years the provider happened to report densely (`annual_seasonal_values`).
+    population = annual_seasonal_values(prior_years(series, last_date), last_date)
     seasonal_normal = float(population.median()) if not population.empty else None
-    seasonal_years = int(population.index.year.nunique()) if not population.empty else 0
+    seasonal_years = int(len(population))
+    rank = seasonal_rank(series, last_date, current)
 
     # The two baselines, side by side and each carrying its own coverage.
     #
@@ -755,11 +1052,19 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         # A monthly series cannot support a seven-day claim. For 30-day and
         # annual comparisons, month-end observations are close enough when
         # a leap day or calendar-month length shifts the target slightly.
-        past = (None if data_frequency == "monthly" and days == 7 else
-                value_asof(series, last_date - pd.Timedelta(days=days),
-                           tolerance_days=change_tolerance_days))
+        found = (None if data_frequency == "monthly" and days == 7 else
+                 value_asof(series, last_date - pd.Timedelta(days=days),
+                            tolerance_days=change_tolerance_days))
+        past, past_date = found if found else (None, None)
         changes[f"change_{label}_af"] = _round(None if past is None else current - past)
         changes[f"change_{label}_pct"] = None if not past else _round((current - past) / past * 100, 1)
+        # What the change is actually a change from. The name is a target, not
+        # a measurement: the tolerance is 10 days for a daily feed and 45 for a
+        # month-end one, so "365-day change" has covered 320 days to 410.
+        changes[f"change_{label}_reference_date"] = (
+            None if past_date is None else past_date.date().isoformat())
+        changes[f"change_{label}_elapsed_days"] = (
+            None if past_date is None else int((last_date - past_date).days))
 
     capacity = capacity or {}
     capacity_af = capacity.get("capacity_af")
@@ -797,6 +1102,11 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         "capacity_basis": capacity.get("capacity_basis"),
         "pct_of_capacity": _pct(current, capacity_af),
         "seasonal_percentile": _round(seasonal_percentile(series, last_date, current), 1),
+        # The same comparison as an ordinal, which carries its own sample size.
+        # "Third-lowest of eleven" cannot be read as more precise than it is;
+        # "18th percentile" can, and was.
+        "seasonal_rank": rank[0] if rank else None,
+        "seasonal_rank_of": rank[1] if rank else None,
 
         # --- "is this normal for the season?" ---
         "seasonal_normal_af": _round(seasonal_normal),
@@ -1202,6 +1512,70 @@ def build_watershed_sections() -> dict:
     }
 
 
+def build_coverage(records: list[dict]) -> dict:
+    """How complete this roster is, state by state, and what is missing.
+
+    Two halves that answer to different authorities. The counts are the
+    payload's own arithmetic over the records it holds, so they cannot drift
+    from it. The gaps are a reviewed judgement about the world outside the
+    payload, which no amount of counting could produce
+    (`SOURCE_COVERAGE`).
+
+    Grouped on `waterbody_states` rather than the point's own state, the same
+    question the state filter asks (ADR-060): a reader looking at Utah's list
+    should see the completeness of the list they are looking at.
+
+    Reference volume as well as count, because the two disagree and the
+    disagreement is the point. Colorado's missing reservoirs are numerous and
+    individually small; a state can be most of the way there by volume and a
+    third of the way there by count.
+    """
+    coverage: dict[str, dict] = {}
+    for record in records:
+        states = record.get("waterbody_states") or (
+            [record["state"]] if record.get("state") else [])
+        for state in states:
+            entry = coverage.setdefault(state, {
+                "tracked_reservoir_count": 0,
+                "tracked_reference_capacity_af": 0.0,
+                "daily_count": 0,
+                "monthly_count": 0,
+                "current_count": 0,
+                "climate_baseline_count": 0,
+            })
+            entry["tracked_reservoir_count"] += 1
+            entry["tracked_reference_capacity_af"] += float(
+                record.get("capacity_af") or record.get("record_max_af") or 0.0)
+            if record.get("data_frequency") == "monthly":
+                entry["monthly_count"] += 1
+            else:
+                entry["daily_count"] += 1
+            if not record.get("is_stale"):
+                entry["current_count"] += 1
+            if (record.get("baselines") or {}).get("climate"):
+                entry["climate_baseline_count"] += 1
+
+    for state, entry in coverage.items():
+        entry["tracked_reference_capacity_af"] = _round(
+            entry["tracked_reference_capacity_af"])
+        # A state with no reviewed entry says so rather than being given a
+        # verdict the review never reached.
+        reviewed = SOURCE_COVERAGE.get(state)
+        entry["status"] = (reviewed or {}).get("status", "not reviewed")
+        entry["known_additional_source"] = (reviewed or {}).get("source")
+        entry["known_additional_source_url"] = (reviewed or {}).get("url")
+        entry["known_additional_about"] = (reviewed or {}).get("adds_about")
+        entry["note"] = (reviewed or {}).get(
+            "note", "This state has not been reviewed for other sources.")
+    return {
+        "reviewed": SOURCE_COVERAGE_REVIEWED,
+        "basis": "waterbody_states",
+        "note": ("These are the reservoirs this site tracks, not all the "
+                 "stored water in a state."),
+        "states": dict(sorted(coverage.items())),
+    }
+
+
 def build_export_sections() -> dict:
     """The reference half of the dashboard's data, in one payload.
 
@@ -1491,6 +1865,14 @@ def main() -> int:
 
     payload = {
         "schema_version": RESERVOIR_SCHEMA_VERSION,
+        # What computed the numbers, which a schema version cannot see.
+        #
+        # A field can keep its name, its type and its units while the estimator
+        # under it changes -- `seasonal_normal_af` went from a median over
+        # every reading in the window to a median over one value per year, and
+        # nothing about the shape of the file moved. Anyone comparing two of
+        # these files across that change needs to be able to tell.
+        "method_version": METHOD_VERSION,
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "start_date": dt.datetime.strptime(START_DATE, "%Y%m%d").date().isoformat(),
         "normal_period": normal_period(today),
@@ -1529,10 +1911,16 @@ def main() -> int:
         "climate_normals": {
             "built": normals.get("built"),
             "file": NORMALS_PATH.name,
+            # The committed file's own estimator, published rather than
+            # assumed. The two baselines are only comparable while they agree,
+            # and `load_normals` says so loudly when they do not.
+            "method_version": normals.get("method_version"),
             "available_count": sum(
                 1 for r in records if (r.get("baselines") or {}).get("climate")),
             "minimum_years": MIN_BASELINE_YEARS,
         },
+        # What this roster is, and what it is not. See `build_coverage`.
+        "coverage": build_coverage(records),
         "stale_after_days": STALE_AFTER_DAYS,
         "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
                                          "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},

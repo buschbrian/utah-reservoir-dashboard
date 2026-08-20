@@ -142,3 +142,50 @@ body {
 .methods-live:empty {
   display: none;
 }
+
+/* The coverage table.
+ *
+ * It scrolls inside its own box rather than widening the page: the last
+ * column names a source and cannot be made narrow, and the pages are tested
+ * at 360 pixels. The scroller is focusable and labelled, so a keyboard
+ * reader can reach the columns a pointer would drag to. */
+.table-scroll {
+  overflow-x: auto;
+  margin-block: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: .25rem;
+}
+.table-scroll:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+.methods-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .875rem;
+  line-height: 1.45;
+}
+.methods-table th,
+.methods-table td {
+  padding: .5rem .7rem;
+  text-align: start;
+  border-block-end: 1px solid var(--app-border);
+  vertical-align: top;
+  white-space: nowrap;
+}
+/* The one column that carries a sentence. */
+.methods-table td:last-child {
+  white-space: normal;
+  min-width: 18rem;
+}
+.methods-table thead th {
+  background: color-mix(in srgb, var(--app-surface-raised) 94%, var(--app-sand));
+  font-weight: 600;
+}
+.methods-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+.methods-table .methods-num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

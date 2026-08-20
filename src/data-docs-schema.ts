@@ -18,6 +18,13 @@ const f = (key: string, units: string, meaning: string, optional = false): ApiFi
 export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
   { id: "reservoir-header", title: "File header", path: "root", fields: [
     f("schema_version", "version number", "Version of this JSON structure."),
+    f("method_version", "identifier",
+      "Version of the calculations behind the derived values. A field can keep "
+      + "its name, type and units while the calculation under it changes, which "
+      + "a structure version cannot show.", true),
+    f("coverage", "object",
+      "How complete this roster is for each state, and what it is known to miss.",
+      true),
     f("generated_at", "date and time", "Time the file was generated, in coordinated universal time."),
     f("start_date", "date", "First date requested from the storage providers."),
     f("normal_period", "object", "First and last years that can support the weekly comparison.", true),
@@ -83,6 +90,32 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("county_count", "counties", "Number of counties holding at least one reservoir."),
     f("state_count", "states", "Number of states holding at least one reservoir.")
   ]},
+  { id: "reservoir-coverage", title: "Coverage summary", path: "coverage", fields: [
+    f("reviewed", "date", "When the other sources were last checked."),
+    f("basis", "identifier",
+      "Which state question the rows are grouped on. Every state the water touches."),
+    f("note", "text", "What the roster is, and what it is not."),
+    f("states", "object", "One entry for each state, keyed by its two-letter code.")
+  ]},
+  { id: "reservoir-coverage-state", title: "Coverage for one state",
+    path: "coverage.states.<state>", fields: [
+    f("tracked_reservoir_count", "reservoirs", "Reservoirs this site publishes for the state."),
+    f("tracked_reference_capacity_af", "acre-feet", "Their full levels added up."),
+    f("daily_count", "reservoirs", "Of those, the ones read every day."),
+    f("monthly_count", "reservoirs", "Of those, the ones read once a month."),
+    f("current_count", "reservoirs", "Of those, the ones read inside their own schedule."),
+    f("climate_baseline_count", "reservoirs",
+      "Of those, the ones with a standard-period comparison."),
+    f("status", "text",
+      "What the source review found: more to add, published but not in a form a "
+      + "program can read, none found, or not reviewed."),
+    f("known_additional_source", "text",
+      "The source that publishes storage this site does not read, where one was found."),
+    f("known_additional_source_url", "web address", "Where to read that source."),
+    f("known_additional_about", "reservoirs",
+      "About how many reservoirs it would add, where that could be counted."),
+    f("note", "text", "What the review found for this state.")
+  ]},
   { id: "reservoir-watersheds", title: "Drainage-area summary", path: "watersheds", fields: [
     f("source", "text", "Boundary publisher."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
@@ -130,10 +163,28 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
       "Source field used for the full level. Three appear, and they do not mean the "
       + "same thing, so a total of full levels is a total of mixed definitions."),
     f("pct_of_capacity", "percent", "Current storage divided by the reviewed full level."),
-    f("seasonal_percentile", "percent", "Rank against earlier readings near the same date."),
+    f("seasonal_percentile", "percent",
+      "Rank against one value from each earlier year near the same date."),
+    f("seasonal_rank", "position",
+      "The same comparison as a position, counting from the lowest.", true),
+    f("seasonal_rank_of", "positions",
+      "The earlier years plus this reading, so 3 of 11 is third-lowest of eleven.",
+      true),
+    f("change_7d_reference_date", "date",
+      "The reading each 7 day change is measured from. The name is the date "
+      + "asked for; this is the date used.", true),
+    f("change_7d_elapsed_days", "days", "Days between that reading and this one.", true),
+    f("change_30d_reference_date", "date",
+      "The reading each 30 day change is measured from.", true),
+    f("change_30d_elapsed_days", "days", "Days between that reading and this one.", true),
+    f("change_365d_reference_date", "date",
+      "The reading each 1 year change is measured from.", true),
+    f("change_365d_elapsed_days", "days",
+      "Days between that reading and this one. A month-end feed can be up to "
+      + "45 days from the date asked for.", true),
     f("seasonal_normal_af", "acre-feet",
-      "Middle earlier-year reading near the same date, for the recent period only. "
-      + "Read `baselines` instead where the period matters."),
+      "Middle of one value per earlier year near the same date, for the recent "
+      + "period only. Read `baselines` instead where the period matters."),
     f("pct_of_seasonal_normal", "percent",
       "Current storage divided by the weekly normal value, for the recent period only."),
     f("seasonal_sample_years", "years", "Number of earlier calendar years in the weekly comparison."),
@@ -290,6 +341,9 @@ export const DROUGHT_GROUPS: readonly ApiFieldGroup[] = [
         "Per-drainage-area shares for that week, cumulative only.")
     ]},
   { id: "drought-method", title: "Calculation method", path: "method", fields: [
+    f("version", "identifier",
+      "Version of the calculation. Two weeks measured under different versions "
+      + "are not one series, whatever their fields are called."),
     f("sampling", "text", "How points were placed over each area."),
     f("grid_step_degrees", "decimal degrees", "Distance between sampled points."),
     f("weighting", "text", "How each point's land area was weighted."),

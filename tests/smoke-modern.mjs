@@ -1189,11 +1189,20 @@ for (const viewport of VIEWPORTS) {
      * reader lost the comparison with a normal year, the two change figures
      * and the history entirely. */
     for (const expected of [firstName, "%", "Stored now", "Reading date", "Measured by",
-      "Normal for this week", "History rank", "Change in 30 days", "Change in 1 year",
+      "Normal for this week", "History rank",
       "Highest value this year", "Update schedule", "The last 12 months"]) {
       check(detail.includes(expected),
         `${label}: the details panel does not report ${expected}`);
     }
+    /* The two change rows, by shape rather than by name. "30 days" is the
+     * interval the pipeline asks for and often not the one it gets -- the
+     * nearest usable reading is taken within ten days for a daily feed and
+     * forty-five for a month-end one -- so the row states the days it
+     * actually covers whenever they differ. On the payload this was written
+     * against, 77 of 198 reservoirs had a 30-day row covering 31 days. */
+    const changeRows = detail.match(/Change in (?:1 year|\d+ days?)/g) ?? [];
+    check(changeRows.length === 2,
+      `${label}: the details panel reports ${changeRows.length} change rows, expected two`);
     const detailExport = detailHost.locator("[data-export-reservoir]");
     check(await detailExport.count() === 1,
       `${label}: reservoir details have no CSV file control`);
@@ -1674,8 +1683,12 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the histogram still draws the SDK's own legend beside the key`);
     check(histogramKey.keys === 1,
       `${label}: ${histogramKey.keys} overlay keys are on the page, expected one`);
-    check(histogramKey.lines.length === 4 && histogramKey.swatches === 4,
-      `${label}: the histogram key names ${histogramKey.lines.length} of its four lines`);
+    /* Three lines: a mean and a median the chart draws, and a middle half it
+     * states. The SDK's standard-deviation band and fitted normal curve are
+     * off -- both describe a sample from one homogeneous population, and
+     * these reservoirs differ by size, purpose and operating rules. */
+    check(histogramKey.lines.length === 3 && histogramKey.swatches === 3,
+      `${label}: the histogram key names ${histogramKey.lines.length} of its three lines`);
     /* The values, not just the names: they are what the SDK's rail carried
      * and what moving the key would otherwise have dropped. Matched by shape
      * rather than by number, so the morning refresh cannot turn this red. */
@@ -1683,8 +1696,8 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the key's mean reads "${histogramKey.lines[0]}"`);
     check(/^Middle value \d+\.\d%$/.test(histogramKey.lines[1] ?? ""),
       `${label}: the key's middle value reads "${histogramKey.lines[1]}"`);
-    check(/^One standard deviation \d+\.\d points$/.test(histogramKey.lines[2] ?? ""),
-      `${label}: the key's standard deviation reads "${histogramKey.lines[2]}"`);
+    check(/^Middle half \d+\.\d% to \d+\.\d%$/.test(histogramKey.lines[2] ?? ""),
+      `${label}: the key's middle half reads "${histogramKey.lines[2]}"`);
 
     const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
       sort: chart.model?.getSortOrder(),

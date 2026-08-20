@@ -97,6 +97,16 @@ HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"
 #: to be worth, and `tools/measure_drought_convergence.py` for measuring it
 #: again.
 DEFAULT_STEP = 0.002
+
+#: The estimator behind the shares, separate from the shape of the file.
+#:
+#: `schema_version` cannot see a change in how a figure is computed, and the
+#: sampling step is exactly such a change: the fields keep their names, types
+#: and units while every value in them moves. A reader joining two weeks of
+#: this archive needs to know whether they were measured the same way, and the
+#: step alone does not say -- the land mask and the class rules are part of
+#: the method too.
+METHOD_VERSION = "drought-coverage-2"
 LEVELS = ("d0", "d1", "d2", "d3", "d4")
 
 # How many weekly maps the history keeps.
@@ -354,6 +364,7 @@ def build_payload(drought: dict, boundaries: dict, step: float,
         "source": drought["source"],
         "attribution": drought["attribution"],
         "method": {
+            "version": METHOD_VERSION,
             "sampling": "even-odd scanline over cell centres",
             "grid_step_degrees": step,
             "weighting": "cosine of latitude",
@@ -460,6 +471,18 @@ def merge_history(previous: dict | None, payload: dict,
         raise ValueError(
             f"the archive holds HUC-{kept_level} weeks and this payload is "
             f"HUC-{payload['level']}; publish the finer level with --no-history")
+    kept_method = ((previous or {}).get("method") or {}).get("version")
+    this_method = (payload.get("method") or {}).get("version")
+    if previous is not None and kept_method != this_method:
+        # The same fault as the level, one level down. A series joined across
+        # a method change is two measurements wearing one name: every field
+        # keeps its name and type while the values move, so nothing about the
+        # file's shape reveals the seam. The sampling step moved once already
+        # and shifted 52 of 825 published shares by a tenth or two.
+        raise ValueError(
+            f"the archive was built by {kept_method or 'an unversioned method'} "
+            f"and this payload is {this_method}; rebuild the archive's weeks "
+            "at one method, or start a new archive")
     weeks = list((previous or {}).get("weeks") or [])
     entry = history_entry(payload)
     weeks = [week for week in weeks if week.get("map_date") != entry["map_date"]]

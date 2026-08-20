@@ -66,7 +66,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from refresh_reservoirs import (  # noqa: E402
-    SEASONAL_WINDOW_DAYS, fetch_awdb_series, fetch_rise_series, seasonal_window,
+    CANONICAL_YEAR_DAYS, SEASONAL_WINDOW_DAYS, annual_seasonal_values,
+    fetch_awdb_series, fetch_rise_series, seasonal_window,
 )
 
 ROSTER_PATH = ROOT / "reservoirs.json"
@@ -121,7 +122,22 @@ CLIMATE_START_YEAR = 1991
 CLIMATE_END_YEAR = 2020
 
 # The shape of this file, not the numbers in it.
-SCHEMA_VERSION = 1
+#: 2 since the day-of-year arrays became 365 long rather than 366: a
+#: canonical year has no 29 February, so there is no position for one.
+SCHEMA_VERSION = 2
+
+#: The estimator behind the numbers, which is a different thing from the shape
+#: of the file holding them (ADR-041's periods are a third thing again). A
+#: schema version cannot see the change that matters most here: the fields keep
+#: their names and types while the statistic under them improves, so a file
+#: built before and after are the same shape and are not comparable.
+#:
+#: "annual" is the median of one representative value per year. "pooled" is
+#: what came before it, the median over every reading in the window, which let
+#: a densely-reported year outvote a sparsely-reported one. "-2" adds the
+#: canonical calendar: the table is built and read at the same position, where
+#: it used to be built over a leap year and read by `dayofyear`.
+METHOD_VERSION = "storage-normal-annual-2"
 
 #: How many reservoirs to fetch at once. See `build_many` for why it is small.
 DEFAULT_WORKERS = 6
@@ -152,28 +168,39 @@ def fetch_period(reservoir: dict) -> pd.DataFrame:
 def day_of_year_normals(series: pd.Series) -> dict:
     """Median storage and contributing-year count for each day of the year.
 
-    Indexed by day of the year 1 through 366 so the pipeline can look a value
-    up with the same `dayofyear` expression it already computes. Position 0 of
-    each array is unused and holds null, which keeps the index arithmetic
-    obvious at the cost of one wasted slot.
+    Indexed by canonical position 1 through 365 -- `canonical_day` in the
+    pipeline -- so the pipeline looks a value up by the same expression that
+    built it. Position 0 of each array is unused and holds null, which keeps
+    the index arithmetic obvious at the cost of one wasted slot. There is no
+    position 366: a canonical year never has one, and 29 February is read at
+    28 February's position.
 
-    Note this is the *median of the observations* in the window, not the
-    median of yearly means. That matches what the daily pipeline computes, and
-    matching matters more here than any argument for the alternative: the two
-    baselines exist to be compared with each other.
+    One representative value per year, then the median across years -- the
+    same estimator `month_normals` below has always used, and the same one the
+    daily pipeline now uses (`annual_seasonal_values`). This was a median over
+    the pooled readings, matched to what the daily pipeline then computed,
+    because the two baselines exist to be compared with each other. That
+    reasoning was right and its conclusion has moved: both sides changed
+    together, so they still match, and they now match on the estimator that
+    gives each year one vote instead of the one that let thirty years of daily
+    readings drown out a provider reporting once a month.
     """
-    medians: list[float | None] = [None] * 367
-    years: list[int] = [0] * 367
-    # A leap year so every one of the 366 reference days exists. seasonal_window
-    # reads only the day of the year off this date.
-    reference_year = 2020
-    for day in range(1, 367):
+    medians: list[float | None] = [None] * (CANONICAL_YEAR_DAYS + 1)
+    years: list[int] = [0] * (CANONICAL_YEAR_DAYS + 1)
+    # An ordinary year, so a position in this loop is already the canonical
+    # position and needs no conversion. It used to be a leap year iterated to
+    # 366, which put every entry after February one day off the position the
+    # pipeline looked it up by: the table said "day 231" meaning 18 August and
+    # was read for 19 August. The shift was on one side of the comparison, not
+    # both.
+    reference_year = 2021
+    for day in range(1, CANONICAL_YEAR_DAYS + 1):
         reference = pd.Timestamp(f"{reference_year}-01-01") + pd.Timedelta(days=day - 1)
-        window = seasonal_window(series, reference, SEASONAL_WINDOW_DAYS)
-        if window.empty:
+        yearly = annual_seasonal_values(series, reference, SEASONAL_WINDOW_DAYS)
+        if yearly.empty:
             continue
-        medians[day] = round(float(window.median()), 2)
-        years[day] = int(window.index.year.nunique())
+        medians[day] = round(float(yearly.median()), 2)
+        years[day] = int(len(yearly))
     return {"median_af": medians, "years": years}
 
 
@@ -393,6 +420,12 @@ def main() -> int:
               f"has a normal in {OUTPUT_PATH.name}.")
         return 0
     merging = bool(args.only or args.missing)
+    #: Whether this run *asked* to be partial. An interrupted full run is also
+    #: a merge, and the two want opposite things when the committed file was
+    #: built by an older estimator: a partial run must refuse rather than mix,
+    #: while an interrupted one has already paid for its fetches and must not
+    #: throw them away.
+    interrupted = False
 
     records = []
     failures = []
@@ -417,6 +450,7 @@ def main() -> int:
         print(f"\ninterrupted after {len(records)} of {len(chosen)}; "
               "keeping what was built", file=sys.stderr)
         merging = True
+        interrupted = True
     elapsed = time.monotonic() - started
 
     available = [r for r in records if r["available"]]
@@ -446,12 +480,18 @@ def main() -> int:
         "period": {"start_year": CLIMATE_START_YEAR, "end_year": CLIMATE_END_YEAR},
         "window_days": SEASONAL_WINDOW_DAYS,
         "minimum_years": MIN_YEARS_FOR_A_NORMAL,
+        "method_version": METHOD_VERSION,
         "method": (
-            "Median storage within a plus or minus 7 day window around the same "
-            "day of the year, across 1991 through 2020. Monthly values are the "
-            "median of each calendar month's mean storage across the same years. "
-            "Built once and committed, because a normal over a closed period "
-            "does not change."
+            "One representative value per year -- the median of the readings "
+            "within a plus or minus 7 day window around the same calendar "
+            "date -- then the median of those across 1991 through 2020, so "
+            "every year carries the same weight whether its provider reported "
+            "daily or monthly. The window matches on a calendar of 365 days "
+            "in which 29 February shares 28 February's place, so a date means "
+            "one position in every year. Monthly values are the median of "
+            "each calendar month's mean storage across the same years. Built "
+            "once and committed, because a normal over a closed period does "
+            "not change."
         ),
         "sources": {
             "rise": "https://data.usbr.gov/rise-api",
@@ -486,13 +526,45 @@ def main() -> int:
         kept, payload["reservoirs"] = merged_reservoirs(
             previous["reservoirs"], records)
         if merging:
-            # The period and method belong to the whole file; a partial run
-            # must not restate them from today's constants if the committed
-            # file was built under different ones.
-            for field in ("period", "window_days", "minimum_years", "method",
-                          "schema_version"):
-                if field in previous:
-                    payload[field] = previous[field]
+            # A merge must not mix estimators into one file.
+            #
+            # The fields keep their names when the statistic under them
+            # changes, so merging a reservoir built one way into a file built
+            # the other produces a file that looks entirely consistent and is
+            # not. What to do about it depends on which kind of merge this is.
+            built_under = previous.get("method_version")
+            if built_under != METHOD_VERSION and not interrupted:
+                # A run that asked to be partial. Refusing is cheap -- a full
+                # build is a few minutes -- and mixing is not recoverable by
+                # inspection afterwards.
+                print(f"ERROR: {OUTPUT_PATH.name} was built by "
+                      f"{built_under or 'an unversioned method'} and this is "
+                      f"{METHOD_VERSION}; a partial run would mix the two. "
+                      "Run a full build.", file=sys.stderr)
+                return 1
+            if built_under != METHOD_VERSION:
+                # An interrupted full build. Its fetches are already paid for
+                # and are the new estimator; the records it did not reach are
+                # the old one and cannot stay beside them. Keeping only what
+                # this run built shrinks the file, which is the honest state:
+                # `--missing` refills it, and until then every record in the
+                # file was computed the same way.
+                dropped = len(previous["reservoirs"]) - len(records)
+                print(f"WARNING: {OUTPUT_PATH.name} was built by "
+                      f"{built_under or 'an unversioned method'}; keeping the "
+                      f"{len(records)} this run built and dropping "
+                      f"{max(0, dropped)} that predate {METHOD_VERSION}. "
+                      "Run --missing to rebuild them.", file=sys.stderr)
+                payload["reservoirs"] = sorted(
+                    records, key=lambda r: (r["name"], r["source_station_id"]))
+            else:
+                # The period and method belong to the whole file; a partial run
+                # must not restate them from today's constants if the committed
+                # file was built under different ones.
+                for field in ("period", "window_days", "minimum_years", "method",
+                              "method_version", "schema_version"):
+                    if field in previous:
+                        payload[field] = previous[field]
         print(f"\nmerging {len(records)} into {len(previous['reservoirs'])} "
               f"existing -> {len(payload['reservoirs'])}")
         # Named rather than counted: a reader of this run's output should be

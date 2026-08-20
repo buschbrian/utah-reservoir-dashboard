@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { readPayload } from "../data/payload-fixture";
 import { storageColor } from "../viz/classes";
 import { headlinePercent } from "../viz/symbols";
-import { describeReservoir, lateMessage, monthlyDetail, providerName } from "./detail";
+import {
+  changeLabel, describeReservoir, lateMessage, monthlyDetail, providerName,
+  rankWithYears
+} from "./detail";
 import { createSelectionStore, findReservoir, normalizeSelectionValue } from "./selection";
 import { loadLegacyApi } from "../data/legacy-harness";
 
@@ -94,8 +97,7 @@ describe("the details a reader sees", () => {
   it("carries every reading the legacy popup carried", () => {
     for (const view of views) {
       expect(view.rows.map((row) => row.label)).toEqual(expect.arrayContaining([
-        "Stored now", "History rank", "Change in 30 days",
-        "Change in 1 year", "Highest value this year", "Reading date",
+        "Stored now", "History rank", "Highest value this year", "Reading date",
         "Update schedule", "Measured by"
       ]));
       /* The comparison row is still there, but its label now names the period
@@ -104,6 +106,16 @@ describe("the details a reader sees", () => {
        * shape rather than as a fixed string. */
       expect(view.rows.some((row) => row.label.startsWith("Normal for this week,")))
         .toBe(true);
+      /* The two change rows, for the same reason one step further on. "30
+       * days" is the interval the pipeline asks for and not always the one it
+       * gets, so where the reading it found is 31 days back the row says 31.
+       * Asserting the literal label would pin the row to the case where the
+       * provider happened to answer on the exact day. */
+      const changes = view.rows.filter((row) => row.label.startsWith("Change in "));
+      expect(changes, view.name).toHaveLength(2);
+      for (const row of changes) {
+        expect(row.label, view.name).toMatch(/^Change in (30 days|1 year|\d+ days)$/);
+      }
     }
   });
 
@@ -207,17 +219,21 @@ describe("the details a reader sees", () => {
     const falling = reservoirs.find((candidate) =>
       (candidate.change_30d_af ?? 0) < 0);
     expect(falling, "the fixture has no falling reservoir to check").toBeDefined();
+    /* The 30-day row, whatever interval it turned out to cover: the label
+     * carries the measured days when they differ from the 30 asked for, so
+     * finding the row by its literal label finds nothing on most mornings. */
+    const thirtyDayRow = (reservoir: typeof reservoirs[number]) =>
+      describeReservoir(reservoir, "#000").rows
+        .filter((entry) => entry.label.startsWith("Change in "))[0];
     if (falling) {
-      const row = describeReservoir(falling, "#000").rows
-        .find((entry) => entry.label === "Change in 30 days");
+      const row = thirtyDayRow(falling);
       expect(row?.value.startsWith("-")).toBe(true);
       expect(row?.value).toContain("%");
       expect(row?.negative).toBe(true);
     }
     const rising = reservoirs.find((candidate) => (candidate.change_30d_af ?? 0) > 0);
     if (rising) {
-      const row = describeReservoir(rising, "#000").rows
-        .find((entry) => entry.label === "Change in 30 days");
+      const row = thirtyDayRow(rising);
       expect(row?.value.startsWith("+")).toBe(true);
       expect(row?.value).toContain("%");
       expect(row?.negative).toBe(false);
@@ -341,12 +357,19 @@ describe("what the panel says about its own basis", () => {
     expect(maximumRow).not.toBe(normalRow);
   });
 
+  /*
+   * A rank without its sample size is the failure this guards; which form it
+   * takes is not. "3rd-lowest of 12" names the population it is a position
+   * in, and "18.2%, out of 11 earlier years" names it beside the share --
+   * both satisfy the rule, and the ordinal is the one that cannot be read as
+   * more precise than eleven years support.
+   */
   it("gives every history rank the number of years behind it", () => {
     for (const view of views) {
       const rank = view.rows.find((row) => row.label === "History rank")?.value ?? "";
       if (rank === "—") continue;
       expect(rank, `${view.name} states a rank with no sample size`)
-        .toMatch(/out of \d+ earlier years?/);
+        .toMatch(/(out of \d+ earlier years?)|(-lowest of \d+)/);
     }
   });
 
@@ -354,5 +377,98 @@ describe("what the panel says about its own basis", () => {
    * of eleven reads exactly like a percentile out of a hundred. */
   it("warns that a rank from this record is an indication, not a measurement", () => {
     expect(views[0]?.note).toContain("indication rather than a measurement");
+  });
+});
+
+/*
+ * The history rank, said as a position rather than only as a percentage.
+ *
+ * The percentage was the whole answer, and with eleven earlier years behind
+ * it the reachable values are about nine points apart -- so every value in
+ * between is unreachable, and two ranks four points apart are the same rank.
+ * A reader has no way to know that from "18.2%" alone.
+ */
+describe("how the history rank reads", () => {
+  it("leads with the position and keeps the percentage", () => {
+    expect(rankWithYears(18.2, 11, 3, 12)).toBe("3rd-lowest of 12, 18.2%");
+    expect(rankWithYears(0, 10, 1, 11)).toBe("1st-lowest of 11, 0.0%");
+    expect(rankWithYears(100, 10, 11, 11)).toBe("11th-lowest of 11, 100.0%");
+  });
+
+  it("spells the awkward ordinals correctly", () => {
+    expect(rankWithYears(50, 30, 11, 31)).toContain("11th-lowest");
+    expect(rankWithYears(50, 30, 12, 31)).toContain("12th-lowest");
+    expect(rankWithYears(50, 30, 13, 31)).toContain("13th-lowest");
+    expect(rankWithYears(50, 30, 21, 31)).toContain("21st-lowest");
+    expect(rankWithYears(50, 30, 22, 31)).toContain("22nd-lowest");
+    expect(rankWithYears(50, 30, 23, 31)).toContain("23rd-lowest");
+  });
+
+  /* The fields arrive from the pipeline. A payload written before they did
+   * must still answer, rather than losing the row. */
+  it("falls back to the percentage and year count without them", () => {
+    expect(rankWithYears(18.2, 11)).toBe("18.2%, out of 11 earlier years");
+    expect(rankWithYears(18.2, 1)).toBe("18.2%, out of 1 earlier year");
+  });
+
+  it("says nothing it cannot support", () => {
+    expect(rankWithYears(null, 11, 3, 12)).toBe("—");
+    expect(rankWithYears(18.2, 0)).toBe("18.2%");
+    // One "earlier year" that is only this reading is not a population.
+    expect(rankWithYears(18.2, 0, 1, 1)).toBe("18.2%");
+  });
+
+  /* Whatever the payload holds today, the two forms must not disagree about
+   * direction: the top position and 100% have to arrive together. */
+  it("agrees with the percentage across the published payload", () => {
+    for (const reservoir of reservoirs) {
+      const rank = reservoir.seasonal_rank ?? null;
+      const rankOf = reservoir.seasonal_rank_of ?? null;
+      if (rank === null || rankOf === null) continue;
+      expect(rank, reservoir.name).toBeGreaterThanOrEqual(1);
+      expect(rank, reservoir.name).toBeLessThanOrEqual(rankOf);
+      expect(rankWithYears(reservoir.seasonal_percentile, 0, rank, rankOf),
+        reservoir.name).toContain("-lowest of ");
+    }
+  });
+});
+
+/*
+ * "Change in 1 year" is the date the pipeline asks for, not the one it gets.
+ * The nearest usable reading is taken within ten days for a daily feed and
+ * forty-five for a month-end one, so the row has covered 320 days to 410 --
+ * and the panel said "1 year" for all of it.
+ */
+describe("how a change states its own interval", () => {
+  it("keeps the plain label when the interval is the one in the name", () => {
+    expect(changeLabel("Change in 30 days", 30)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 1 year", 365)).toBe("Change in 1 year");
+  });
+
+  it("gives way to the measurement when they differ", () => {
+    expect(changeLabel("Change in 30 days", 44)).toBe("Change in 44 days");
+    expect(changeLabel("Change in 1 year", 397)).toBe("Change in 397 days");
+    expect(changeLabel("Change in 1 year", 320)).toBe("Change in 320 days");
+  });
+
+  /* A payload written before the pipeline published the elapsed days keeps
+   * the plain label rather than losing the row. */
+  it("falls back to the name when the payload cannot say", () => {
+    expect(changeLabel("Change in 30 days", null)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 30 days", undefined)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 30 days", Number.NaN)).toBe("Change in 30 days");
+  });
+
+  it("names the reading a change is measured from, where the payload has one", () => {
+    for (const view of views) {
+      const row = view.rows.find((entry) => entry.label.startsWith("Change in 1"))
+        ?? view.rows.find((entry) => entry.label.startsWith("Change in 3"));
+      if (!row || row.value === "—") continue;
+      // Either it names the date, or the payload predates the field entirely.
+      const reservoir = reservoirs.find((entry) => entry.name === view.name);
+      if (reservoir?.change_365d_reference_date) {
+        expect(row.value, view.name).toMatch(/since /);
+      }
+    }
   });
 });

@@ -252,14 +252,14 @@ function chartLayer(records: readonly OverviewChartRecord[]): FeatureLayer {
 }
 
 /**
- * What the four lines across the histogram mean, and where they sit.
+ * What the lines across the histogram mean, and where they sit.
  *
- * The chart draws a mean, a median, a standard-deviation band and a fitted
- * normal curve, in four different line styles. The SDK's own legend printed
- * those four names with their values in a rail inside the chart, on the
- * right; this key was added underneath and the rail was never switched off,
- * so the card carried two legends -- one with the numbers and one without,
- * the numbers in the one a reader reaches last.
+ * The chart draws a mean and a median, in two different line styles, and the
+ * key names a third statistic the chart has no way to draw. The SDK's own
+ * legend printed its overlay names with their values in a rail inside the
+ * chart, on the right; this key was added underneath and the rail was never
+ * switched off, so the card carried two legends -- one with the numbers and
+ * one without, the numbers in the one a reader reaches last.
  *
  * One legend now, under the x-axis, carrying both. The values come from
  * `distributionStats`, which computes them the way the chart does, over the
@@ -279,14 +279,13 @@ function inkToCss(ink: readonly [number, number, number, number]): string {
 
 /** The ink each line is drawn in, by the same key the line carries, so a
  * label and its colour cannot come apart. The mean and median have their own;
- * the deviation band and the fitted curve share the guide ink, which is what
- * the chart draws them in. */
+ * the middle half is stated rather than drawn and takes the guide ink for its
+ * swatch, which the key renders as text where the style is null. */
 const OVERLAY_INK: Record<OverlayKeyLine["key"],
   readonly [number, number, number, number]> = {
   mean: CHART_INK.mean,
   median: CHART_INK.median,
-  deviation: CHART_INK.guide,
-  curve: CHART_INK.guide
+  "middle-half": CHART_INK.guide
 };
 
 export function distributionOverlayKey(
@@ -394,6 +393,19 @@ function trendTooltipFormatter(
           : `${point.reporting} of ${point.scopeCount}, `
             + `${formatPercent(point.percentCapacityReporting)} of the full level`
       });
+      /* The same month over one fixed set of reservoirs. Where this and the
+       * figure above disagree, the difference is the reporting set changing
+       * rather than the water -- which is the whole reason a reader needs
+       * both. Percent only: the cohort's combined storage is a different and
+       * smaller quantity, and putting it under the same word as the headline
+       * would invite the two to be compared. */
+      if (point.cohortPercent !== null && measure !== "storage") {
+        rows.push({
+          label: "Same reservoirs every month",
+          value: `${formatPercent(point.cohortPercent)}, `
+            + `${point.cohortCount} reservoirs`
+        });
+      }
     }
     return chartTooltip(point?.label ?? key, rows);
   }) as TooltipFormatter;
@@ -880,11 +892,13 @@ function valueLayer(
  * state low", which a ranked list genuinely cannot: fifteen bars sorted
  * descending look alarming whether the other forty are full or empty.
  *
- * The mean, the median, the standard deviation and a fitted normal curve are
- * the SDK's own overlays -- computed from the data rather than drawn on top
- * of it -- and the gap between the mean and the median is the useful part: a
- * mean well below the median is a handful of nearly-empty reservoirs
- * dragging the average down.
+ * The mean and the median are the SDK's own overlays, computed from the data
+ * rather than drawn on top of it, and the gap between them is the useful
+ * part: a mean well below the median is a handful of nearly-empty reservoirs
+ * dragging the average down. The SDK's other two overlays -- a
+ * standard-deviation band and a fitted normal curve -- are off, because both
+ * describe a sample from one homogeneous population and these reservoirs are
+ * not one. The key states the middle half instead.
  */
 export async function renderArcgisDistributionChart(
   host: HTMLElement,
@@ -938,8 +952,17 @@ export async function renderArcgisDistributionChart(
   model.colorMatch = false;
   model.showMeanOverlay = true;
   model.showMedianOverlay = true;
-  model.showStandardDevOverlay = true;
-  model.showNormalDistOverlay = true;
+  /* Off. Both describe a sample from one homogeneous population, and these
+   * reservoirs are not one -- they differ by size, purpose, hydrology,
+   * operating rules and flood-control duty, so a flood-control reservoir held
+   * deliberately low in spring sits in the same bins as a supply reservoir
+   * kept full. A curve fitted over that claims the shape means something it
+   * does not, and a standard deviation invites the reader to read the tails
+   * off it. The gap between the mean and the median is the part that survives
+   * -- a mean well below the median is a handful of nearly-empty reservoirs
+   * dragging the average -- and the key carries the middle half instead. */
+  model.showStandardDevOverlay = false;
+  model.showNormalDistOverlay = false;
   /* The bin edges are the axis's own values (see the binCount note above),
    * not independently chosen "nice" ticks, so they carry the data range's
    * own fractional digits -- rounding the display to whole numbers is what

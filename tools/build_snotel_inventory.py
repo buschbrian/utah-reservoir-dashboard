@@ -21,6 +21,7 @@ before anything draws it is exactly what an unpublished scope is for.
 """
 
 import argparse
+import datetime as dt
 import json
 import os
 import sys
@@ -167,6 +168,11 @@ def build_inventory(stations: list[dict], precise_units: list[dict],
 
     return {
         "schema_version": 1,
+        # When this was fetched. A committed reference file stops the pipeline
+        # asking its publisher every morning, which is the point of committing
+        # it and also the reason it can drift without anyone noticing
+        # (`tools/check_reference_freshness.py`).
+        "retrieved": dt.date.today().isoformat(),
         "scope": scope_name,
         "normal_period": NORMAL_PERIOD,
         "selection": {

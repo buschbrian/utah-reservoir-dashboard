@@ -14,7 +14,9 @@ import {
   subregionOptions,
   filterAndSort,
   filterOverview,
+  fixedCohort,
   monthlyTrend,
+  percentFullValues,
   overviewScope,
   watershedOptions
 } from "./overview-model";
@@ -28,11 +30,11 @@ describe("the histogram's own statistics", () => {
     id: index + 1, label: `R${index}`, value, group: "area"
   }));
 
-  it("computes the mean, the middle value and the sample spread", () => {
+  it("computes the mean, the middle value and the middle half", () => {
     /* Hand-checked: mean 30, sorted 10 20 30 40 50 so the middle is 30, and
-     * the sample variance is 1000/4 = 250. */
+     * the quarter positions are 1 and 3 exactly, needing no interpolation. */
     expect(distributionStats(points([10, 20, 30, 40, 50]))).toEqual({
-      mean: 30, median: 30, standardDeviation: Math.sqrt(250)
+      mean: 30, median: 30, p25: 20, p75: 40
     });
   });
 
@@ -40,16 +42,48 @@ describe("the histogram's own statistics", () => {
     expect(distributionStats(points([10, 20, 30, 40]))?.median).toBe(25);
   });
 
-  it("divides the spread by one less than the count, as the chart does", () => {
-    /* Not a preference: the SDK's own overlay is the sample standard
-     * deviation, verified against a rendered chart of 51 reservoirs where
-     * its legend printed 23.58 and the population figure is 23.34. A key
-     * that printed the population number would label a line the chart drew
-     * somewhere else. */
+  /*
+   * Quantiles rather than a standard deviation.
+   *
+   * The spread used to be reported as a sample standard deviation, matched to
+   * the SDK's own overlay. Both are gone: they describe a sample from one
+   * homogeneous population, and these reservoirs differ by size, purpose,
+   * hydrology, operating rules and flood-control duty. A quarter of the
+   * reservoirs being below 41% is true whatever shape they came from.
+   */
+  it("reports the middle half, interpolating like the median", () => {
     const stats = distributionStats(points([2, 4, 4, 4, 5, 5, 7, 9]));
     expect(stats?.mean).toBe(5);
-    // Population would be 2; the sample figure is sqrt(32/7).
-    expect(stats?.standardDeviation).toBeCloseTo(Math.sqrt(32 / 7), 10);
+    // Positions 1.75 and 5.25 in a sorted sample of eight.
+    expect(stats?.p25).toBeCloseTo(4, 10);
+    expect(stats?.p75).toBeCloseTo(5.5, 10);
+  });
+
+  /* About a quarter, not exactly a quarter: the quarter position of eleven
+   * values falls between two of them, and interpolating puts the answer
+   * where neither is. Within one value is the guarantee an interpolated
+   * quantile can actually make, and the ordering is exact. */
+  it("puts about a quarter of the sample below each end of the middle half", () => {
+    const numbers = [3, 9, 14, 20, 27, 33, 41, 55, 62, 88, 91];
+    const stats = distributionStats(points(numbers));
+    const below = (edge: number): number =>
+      numbers.filter((value) => value < edge).length;
+    expect(Math.abs(below(stats!.p25) - numbers.length * 0.25)).toBeLessThanOrEqual(1);
+    expect(Math.abs(below(stats!.p75) - numbers.length * 0.75)).toBeLessThanOrEqual(1);
+    expect(stats!.p25).toBeLessThanOrEqual(stats!.median);
+    expect(stats!.median).toBeLessThanOrEqual(stats!.p75);
+  });
+
+  /* Every sample the page can hand it, against the payload rather than a
+   * fixture: the ordering must hold whatever the reservoirs are doing. */
+  it("keeps the quarters in order for every scope on the page", () => {
+    const all = readPayload().reservoirs;
+    for (const size of [2, 5, 20, all.length]) {
+      const stats = distributionStats(percentFullValues(all.slice(0, size)));
+      if (!stats) continue;
+      expect(stats.p25, `${size} reservoirs`).toBeLessThanOrEqual(stats.median);
+      expect(stats.median, `${size} reservoirs`).toBeLessThanOrEqual(stats.p75);
+    }
   });
 
   it("has no answer for fewer than two values", () => {
@@ -58,32 +92,33 @@ describe("the histogram's own statistics", () => {
   });
 
   it("labels the key with the values, and without them when there are none", () => {
-    const stats = { mean: 41.05, median: 38.8, standardDeviation: 23.58 };
+    const stats = { mean: 41.05, median: 38.8, p25: 22.4, p75: 61.2 };
     expect(distributionKeyLines(stats).map((entry) => entry.label)).toEqual([
       /* 41.0, not 41.1: `toFixed` is what every percentage on this site is
        * printed with, and 41.05 is held just below the half in binary. The
        * key rounds the way the rest of the page rounds. */
       "Mean 41.0%",
       "Middle value 38.8%",
-      /* Points, not percent: a distance between two percentages is not a
-       * share of anything. */
-      "One standard deviation 23.6 points",
-      "Fitted normal curve"
+      "Middle half 22.4% to 61.2%"
     ]);
     expect(distributionKeyLines(null).map((entry) => entry.label)).toEqual([
-      "Mean", "Middle value", "One standard deviation", "Fitted normal curve"
+      "Mean", "Middle value", "Middle half"
     ]);
   });
 
   it("is the only legend the histogram has", () => {
-    /* The four lines the chart draws, and four entries to name them. The
-     * SDK's own rail is off (`legendVisibility`), so anything this key does
-     * not name is unexplained on the page. Each line carries the key its
-     * colour is looked up by, so a label and its ink cannot come apart. */
+    /* The two lines the chart draws, and one more the key states without
+     * drawing: the SDK's histogram has no quantile overlay, and quantiles are
+     * what this distribution can honestly carry. The SDK's own rail is off
+     * (`legendVisibility`), so anything this key does not name is unexplained
+     * on the page. Each line carries the key its colour is looked up by, so a
+     * label and its ink cannot come apart. */
     const lines = distributionKeyLines();
-    expect(lines).toHaveLength(4);
+    expect(lines).toHaveLength(3);
     expect(lines.map((line) => line.key)).toEqual([
-      "mean", "median", "deviation", "curve"]);
+      "mean", "median", "middle-half"]);
+    // The stated line is marked as stated, so the key can render it as text.
+    expect(lines.map((line) => line.style)).toEqual(["solid", "dashed", null]);
   });
 });
 
@@ -443,5 +478,74 @@ describe("the geographic controls against the scope controls", () => {
     expect(all.length).toBeGreaterThan(1);
     expect(codes(geographicChoices(widest,
       { state: "all", subregion: all[0]! }, names).subregions)).toEqual(all);
+  });
+});
+
+/*
+ * A twelve-month series drawn from a population that changes between points.
+ *
+ * The arithmetic per month is right -- only reporting reservoirs are on
+ * either side of the ratio -- and the series across months still compares
+ * two different sets. Measured on the payload of 2026-08-19, the newest
+ * month covered 79% of the combined full level where the eleven before it
+ * covered about 100%, and the July-to-August fall read four points steeper
+ * than the same reservoirs measured across both months.
+ */
+describe("the population behind the twelve-month trend", () => {
+  const reservoirs = readPayload().reservoirs;
+  const points = monthlyTrend(reservoirs);
+
+  it("draws twelve months, oldest first", () => {
+    expect(points.length).toBeLessThanOrEqual(12);
+    expect([...points].map((point) => point.month).sort())
+      .toEqual(points.map((point) => point.month));
+  });
+
+  it("carries the population behind every point, not only the thin ones", () => {
+    for (const point of points) {
+      expect(point.scopeCount, point.month).toBe(reservoirs.length);
+      expect(point.reporting, point.month).toBeLessThanOrEqual(point.scopeCount);
+      expect(point.percentCapacityReporting, point.month).not.toBeUndefined();
+    }
+  });
+
+  /* The cohort is chosen once for the whole series. A cohort that changed
+   * between months would be the very thing it exists to rule out. */
+  it("measures one fixed set of reservoirs across every month", () => {
+    const cohort = fixedCohort(reservoirs, points.map((point) => point.month));
+    for (const point of points) {
+      expect(point.cohortCount, point.month).toBe(cohort.length);
+    }
+    for (const reservoir of cohort) {
+      for (const point of points) {
+        const entry = reservoir.monthly.find((row) => row.month === point.month);
+        expect(entry?.mean_af, `${reservoir.name} in ${point.month}`)
+          .not.toBeNull();
+      }
+    }
+  });
+
+  it("draws its cohort from the reservoirs handed in and no others", () => {
+    const names = new Set(reservoirs.map((reservoir) => reservoir.name));
+    for (const reservoir of fixedCohort(reservoirs, points.map((p) => p.month))) {
+      expect(names.has(reservoir.name)).toBe(true);
+    }
+    // A month nothing reported leaves no cohort, rather than everything.
+    expect(fixedCohort(reservoirs, ["1900-01"])).toEqual([]);
+    // And no months is no cohort, not every reservoir.
+    expect(fixedCohort(reservoirs, [])).toEqual([]);
+  });
+
+  /* Where the two series disagree, the difference is the reporting set. The
+   * assertion is that they are computed from different populations and both
+   * stay inside the possible range -- never that they agree, because the
+   * months where they do not are the ones worth drawing. */
+  it("keeps both series inside the range a share can take", () => {
+    for (const point of points) {
+      expect(point.percent, point.month).toBeGreaterThanOrEqual(0);
+      if (point.cohortPercent === null) continue;
+      expect(point.cohortPercent, point.month).toBeGreaterThanOrEqual(0);
+      expect(point.cohortCount, point.month).toBeGreaterThan(0);
+    }
   });
 });

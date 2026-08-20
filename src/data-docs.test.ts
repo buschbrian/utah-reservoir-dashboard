@@ -45,6 +45,13 @@ describe("public API field documentation", () => {
     expectFields(RESERVOIR_GROUPS, "reservoir-source", data.sources[0]);
     expectFields(RESERVOIR_GROUPS, "reservoir-source-counts", data.source_counts);
     expectFields(RESERVOIR_GROUPS, "reservoir-watersheds", data.watersheds);
+    /* The coverage block arrives with the pipeline, so an older committed
+     * payload has none. Documented either way; checked when present. */
+    if (data.coverage) {
+      expectFields(RESERVOIR_GROUPS, "reservoir-coverage", data.coverage);
+      expectFields(RESERVOIR_GROUPS, "reservoir-coverage-state",
+        merged(Object.values(data.coverage.states as Record<string, never>)));
+    }
     expectFields(RESERVOIR_GROUPS, "reservoir-record", merged(data.reservoirs));
     expectFields(RESERVOIR_GROUPS, "reservoir-month",
       merged(data.reservoirs.flatMap((record: Record<string, any>) => record.monthly)));

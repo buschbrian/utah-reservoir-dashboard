@@ -80,6 +80,38 @@ SURCHARGE_ALLOWANCE = 0.10
 #: should land on what it became.
 CONSERVATION_ALLOWANCE = SURCHARGE_ALLOWANCE
 
+# How far above the third-highest reading the highest may sit before the
+# series is read as carrying a spike rather than a flood.
+#
+# A wrong dam is wrong in every reading; a bad reading is wrong once. Measured
+# over the 169 California candidates, five series separate from the rest by
+# this ratio, and in four of them the extreme value is the whole reason the
+# audit answered as it did: Lake Havasu 5,913,000 against a third-highest of
+# 601,300, O'Neill Forebay 443,348 against 54,535, Railroad Canyon 58,508
+# against 13,123, Grant Lake 82,410 against 49,082. Guadalupe is the fifth.
+#
+# The third highest rather than the second, because Lake Havasu carries two
+# spikes and a rule reading the second would have called them agreement.
+#
+# It is deliberately not a *correction*. The reading is not replaced by a
+# calmer one and the candidate is not admitted on the strength of it: a series
+# this project cannot explain is a series it does not publish a percentage
+# from. See `discrepancies`.
+SPIKE_RATIO = 1.50
+
+# How full a reservoir has to have been seen, once, before a percentage of
+# that capacity means anything.
+#
+# Two different faults land here and neither can be told from the other
+# without a person: a denominator that belongs to something else -- O'Neill
+# Forebay carrying San Luis Reservoir's 2,094,900 acre-feet, and reading 21%
+# full at its fullest -- and a flood-control dam operated empty on purpose,
+# which is a real reservoir whose percentage is true and useless. Martis Creek
+# has never been seen above 5% of its pool and never will be.
+#
+# Six of the 169 fall under this share. It is a referral, not a verdict.
+NEVER_FILLED_SHARE = 0.35
+
 EARTH_RADIUS_KM = 6371.0088
 
 _NOISE = re.compile(r"\b(reservoir|lake|dam|and|powerplant|no|number|res|nr)\b", re.I)
@@ -301,6 +333,66 @@ def could_hold(dam, observed_max_af):
     if not observed_max_af:
         return True
     return not holds_more_than_the_dam(dam, observed_max_af)
+
+
+def discrepancies(decision, highest_readings=None, service_capacity_af=None):
+    """Everything about this candidate that two sources do not agree about.
+
+    `admit` answers one question -- is this the right dam -- and answers it
+    from the inventory alone. This asks a second one, of everything else that
+    is known about the same reservoir: does the series behave, does the
+    service's own full level agree with the inventory's, and has the water
+    ever stood where the denominator says full is. Each answer is a fact two
+    sources disagree about, and a percentage published over a disagreement is
+    a number this project cannot stand behind.
+
+    Nothing here is repaired. A disagreement is reported and the candidate is
+    held out of the roster until a person settles it, because every repair
+    available is a guess about which source is wrong: Keswick's inventory pool
+    of 7,470 acre-feet against the service's 23,772 could be corrected either
+    way and only one of them is the pool the operator means by full.
+
+    Returns a list of `(screen, detail)` pairs, empty when nothing disagrees.
+    `highest_readings` is the largest few values of the series, largest first;
+    `service_capacity_af` is the provider's own published full level where it
+    has one. Both are optional: a screen with nothing to read stays quiet
+    rather than guessing, so a provider that publishes no full level is not
+    reported as disagreeing with itself.
+    """
+    found = []
+    if not decision.admitted:
+        found.append(("no confirmed dam", decision.reason))
+
+    readings = sorted(highest_readings or (), reverse=True)
+    if len(readings) >= 3 and readings[2] and readings[0] > readings[2] * SPIKE_RATIO:
+        found.append((
+            "unstable maximum",
+            f"highest reading {readings[0]:,.0f} acre-feet against a third "
+            f"highest of {readings[2]:,.0f}"))
+
+    capacity = decision.capacity_af
+    if capacity and service_capacity_af:
+        drift = capacity / service_capacity_af - 1
+        if abs(drift) > SURCHARGE_ALLOWANCE:
+            found.append((
+                "the two capacity sources disagree",
+                f"the inventory's {capacity:,.0f} acre-feet "
+                f"({decision.capacity_basis}) against the service's "
+                f"{service_capacity_af:,.0f}, {drift:+.0%}"))
+
+    observed = readings[0] if readings else None
+    if capacity and observed:
+        if observed > capacity * (1 + SURCHARGE_ALLOWANCE):
+            found.append((
+                "seen above the capacity it would be divided by",
+                f"{observed:,.0f} acre-feet observed against {capacity:,.0f}, "
+                f"{observed / capacity - 1:+.0%}"))
+        elif observed < capacity * NEVER_FILLED_SHARE:
+            found.append((
+                "never seen a third full",
+                f"{observed:,.0f} acre-feet observed against {capacity:,.0f}, "
+                f"{observed / capacity:.0%}"))
+    return found
 
 
 def admit(candidate, dams):

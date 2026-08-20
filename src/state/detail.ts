@@ -90,10 +90,38 @@ function formatSignedAcreFeet(value: number | null): string {
 }
 
 /** A movement in both absolute and relative terms, so small and large reservoirs compare. */
-function formatChange(amount: number | null, percent: number | null): string {
+function formatChange(
+  amount: number | null, percent: number | null, since: string | null = null
+): string {
   const acreFeet = formatSignedAcreFeet(amount);
-  if (acreFeet === "—" || percent === null || !Number.isFinite(percent)) return acreFeet;
-  return `${acreFeet} (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
+  if (acreFeet === "—") return acreFeet;
+  const relative = percent === null || !Number.isFinite(percent)
+    ? "" : ` (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
+  /* The reading it is a change *from*. Without it the row is a difference
+   * between one named date and one the reader has to assume. */
+  const from = since ? `, since ${formatDate(since)}` : "";
+  return `${acreFeet}${relative}${from}`;
+}
+
+/**
+ * The interval a change actually covers, where it is not the one in its name.
+ *
+ * "30 days" is the date the pipeline asks for, not the one it gets. The
+ * nearest usable reading is taken within a tolerance of ten days for a daily
+ * feed and forty-five for a month-end one, so a row headed "Change in 1 year"
+ * has covered anything from 320 days to 410. Where the elapsed days differ
+ * from the name, the name gives way to the measurement.
+ *
+ * Optional: a payload written before the pipeline published the elapsed days
+ * keeps the plain label rather than losing the row.
+ */
+export function changeLabel(base: string, elapsed: number | null | undefined): string {
+  if (elapsed === null || elapsed === undefined || !Number.isFinite(elapsed)) {
+    return base;
+  }
+  const named = base === "Change in 1 year" ? 365 : 30;
+  if (elapsed === named) return base;
+  return `Change in ${Math.round(elapsed)} days`;
 }
 
 /**
@@ -106,12 +134,15 @@ function formatChange(amount: number | null, percent: number | null): string {
  * it that exists to catch a flood and is not meant to be occupied. A
  * reservoir at 60% of one is not at 60% of the other.
  *
- * It matters more than the count of each suggests. Four of the sixty-nine
- * reservoirs are measured against a maximum level, and those four are 71% of
- * the combined denominator every regional percentage is divided by -- Lake
- * Powell alone is most of it. So a reader comparing two reservoirs, or
+ * It matters more than the count of each suggests. Fifteen of the 198
+ * reservoirs are measured against a maximum level, and those fifteen are a
+ * quarter of the combined denominator every regional percentage is divided by
+ * -- Lake Powell alone is most of it. So a reader comparing two reservoirs, or
  * reading a combined figure, is comparing against mixed bases unless the
- * panel says which.
+ * panel says which. (It read "four of the sixty-nine" and "71%" for as long
+ * as the roster had been western: a count in a comment goes stale the same
+ * way a count in a sentence does, and `statewideRollup` publishes these as
+ * `basisShares` so no surface has to state them.)
  */
 const CAPACITY_BASIS_NAMES: Record<string, string> = {
   normal_storage: "the normal full level",
@@ -126,19 +157,45 @@ export function capacityBasisName(basis: string | null): string | null {
 }
 
 /**
- * The history rank, with the number of years behind it.
+ * The history rank, said as a position first and a percentage second.
  *
  * A rank is a position in a list, and a position in a list of eight is a
  * different claim from a position in a list of thirty. The record starts in
- * 2015, so every rank here rests on eight to eleven values; saying so beside
- * the number is the difference between a reader treating it as a measurement
- * and treating it as an indication.
+ * 2015, so every rank here rests on eight to eleven values.
+ *
+ * "18.2%" invites a reader to take two ranks four points apart as different,
+ * which with eleven years behind them they are not -- one year moving past
+ * another moves the figure about nine points, so every value in between is
+ * unreachable. "Third-lowest of eleven" says the same thing and cannot be
+ * over-read, so it leads. The percentage stays because it is comparable
+ * across reservoirs with different record lengths, which the ordinal is not.
+ *
+ * `rank` and `rankOf` are optional: they arrive from the pipeline, and a
+ * payload written before they did still answers with the percentage alone
+ * rather than losing the row.
  */
-export function rankWithYears(percentile: number | null, years: number): string {
-  const rank = formatPercent(percentile);
-  if (percentile === null || !Number.isFinite(years) || years <= 0) return rank;
+export function rankWithYears(
+  percentile: number | null, years: number,
+  rank: number | null = null, rankOf: number | null = null
+): string {
+  const share = formatPercent(percentile);
+  if (percentile === null) return share;
+  if (rank !== null && rankOf !== null && rankOf > 1) {
+    return `${ordinal(rank)}-lowest of ${rankOf}, ${share}`;
+  }
+  if (!Number.isFinite(years) || years <= 0) return share;
   const rounded = Math.floor(years);
-  return `${rank}, out of ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
+  return `${share}, out of ${rounded} earlier ${rounded === 1 ? "year" : "years"}`;
+}
+
+/**
+ * "3rd", "11th", "21st". Written out rather than reached for from a library:
+ * this is the only place the site needs one, and the rule is four lines.
+ */
+function ordinal(value: number): string {
+  const tens = value % 100;
+  if (tens >= 11 && tens <= 13) return `${value}th`;
+  return `${value}${["th", "st", "nd", "rd"][value % 10] ?? "th"}`;
 }
 
 const SCHEDULE_NAMES: Record<string, string> = {
@@ -224,13 +281,15 @@ export function describeReservoir(
       },
       { label: comparison.label, value: comparison.value },
       {
-        label: "Change in 30 days",
-        value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct),
+        label: changeLabel("Change in 30 days", reservoir.change_30d_elapsed_days),
+        value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct,
+          reservoir.change_30d_reference_date),
         negative: (reservoir.change_30d_af ?? 0) < 0
       },
       {
-        label: "Change in 1 year",
-        value: formatChange(reservoir.change_365d_af, reservoir.change_365d_pct),
+        label: changeLabel("Change in 1 year", reservoir.change_365d_elapsed_days),
+        value: formatChange(reservoir.change_365d_af, reservoir.change_365d_pct,
+          reservoir.change_365d_reference_date),
         negative: (reservoir.change_365d_af ?? 0) < 0
       },
       {
@@ -243,7 +302,8 @@ export function describeReservoir(
       {
         label: "History rank",
         value: rankWithYears(
-          reservoir.seasonal_percentile, reservoir.seasonal_sample_years)
+          reservoir.seasonal_percentile, reservoir.seasonal_sample_years,
+          reservoir.seasonal_rank ?? null, reservoir.seasonal_rank_of ?? null)
       },
       { label: "Reading date", value: formatDate(reservoir.as_of) },
       {
@@ -262,11 +322,12 @@ export function describeReservoir(
     /* The history rank is the one number here a reader cannot work out from
      * the others, and the legacy popup explained it every time rather than
      * once somewhere else. */
-    note: `History rank compares this value with values near the same date in earlier ` +
-      `years: 90% means it is higher than 90% of them. The rank always uses the years ` +
-      `this site collects, which start in 2015, so it rests on a small number of ` +
-      `years and is an indication rather than a measurement. The normal value above ` +
-      `uses the period named beside it. Storage data from the ` +
+    note: `History rank compares this value with one value from each earlier year ` +
+      `near the same date. "Third-lowest of eleven" places it among those years and ` +
+      `this one. 90% means it is higher than 90% of them. The rank always uses the ` +
+      `years this site collects, which start in 2015, so it rests on a small number ` +
+      `of years and is an indication rather than a measurement. The normal value ` +
+      `above uses the period named beside it. Storage data from the ` +
       `${providerName(reservoir)}, which can revise these values later.`
   };
 }

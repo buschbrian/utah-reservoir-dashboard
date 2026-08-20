@@ -22,7 +22,8 @@ import "@esri/calcite-components/components/calcite-navigation";
 
 import { loadReservoirs } from "./data/load";
 import { sizeBasis } from "./data/rollup";
-import type { Reservoir } from "./types";
+import { stateName } from "./data/state-vocabulary";
+import type { Reservoir, ReservoirPayload } from "./types";
 import { brandMarkup, pageLinksMarkup } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
@@ -85,6 +86,7 @@ root.innerHTML = `
         <li><a href="#collection">How the data is collected</a></li>
         <li><a href="#values">How each value is worked out</a></li>
         <li><a href="#scope">Which reservoirs are included</a></li>
+        <li><a href="#coverage">How complete this is</a></li>
         <li><a href="#limits">What this data cannot tell you</a></li>
         <li><a href="#credit">Credit</a></li>
       </ul>
@@ -125,7 +127,15 @@ root.innerHTML = `
           land nor evenly up the mountainside. An area with four sites and an area with
           thirty are each an average of what they have. Every area's figure is published
           with the number of sites reporting that day. No area is given a figure until at
-          least two sites report.</dd>
+          least two sites report.
+          <br /><strong>Early and late in the season, a percent of normal means very
+          little.</strong> In October the usual amount of snow for the date is close to
+          zero. A small amount of new snow divided by it gives a very large percentage. On
+          27 October 2025, 147 sites reported and the figure was 266% of normal, against a
+          usual amount of about a quarter of an inch. There was almost no snow and almost
+          no usual snow. Where the usual amount for the date is below one inch, this site
+          leads with the depth of water in the snow instead. The season curve still draws
+          the percentage, because that is where the shape of a season is read.</dd>
         <dt>Drought conditions</dt>
         <dd>The U.S. Drought Monitor's weekly national map, produced by the National
           Drought Mitigation Center with the U.S. Department of Agriculture and the
@@ -338,6 +348,34 @@ root.innerHTML = `
         Utah is one of those choices, not the subject of the site.</p>
     </section>
 
+    <section class="methods-section" id="coverage" aria-labelledby="coverage-heading">
+      <h2 id="coverage-heading">How complete this is</h2>
+      <p>The two federal programmes cover the large federal projects well. They cover
+        everything else unevenly, so the reservoirs this site tracks and the stored water
+        in a state are different quantities. In some states they are very different.</p>
+      <p>The table says what this site holds for each state, and what it is known to be
+        missing. A state is counted here the way the state filter counts it: where a
+        reservoir's water reaches a state, it is in that state's row. So a reservoir on a
+        border appears in two rows, and the rows do not add up to the roster.</p>
+      <p><strong>"None found" does not mean complete.</strong> It means this project looked
+        for another public source of current storage and did not find one. Each source
+        below was requested and checked rather than taken from a description of it.</p>
+      <div class="table-scroll" tabindex="0" role="region"
+        aria-label="Coverage by state, scrolls sideways">
+        <table class="methods-table" id="coverage-table">
+          <thead><tr>
+            <th scope="col">State</th>
+            <th scope="col">Tracked</th>
+            <th scope="col">Full level</th>
+            <th scope="col">Standard period</th>
+            <th scope="col">Known to be missing</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="methods-live" data-live="coverage-note"></p>
+    </section>
+
     <section class="methods-section" id="limits" aria-labelledby="limits-heading">
       <h2 id="limits-heading">What this data cannot tell you</h2>
       <ul class="methods-plain">
@@ -384,6 +422,12 @@ root.innerHTML = `
           level. The snow map's bands follow the comparison ranges the snow service
           commonly uses. One extra division is added so the highest values can be told
           apart.</li>
+        <li><strong>This site measures water supply, not the health of a river or a
+          lake.</strong> It carries three things: how much water is stored, how much is
+          lying as mountain snow, and how dry the land is. A full reservoir is not a
+          healthy river, and a dry drainage area is not a failing one. Water temperature,
+          streamflow, groundwater, water quality and the condition of habitat are all
+          absent, and nothing here should be read as standing in for them.</li>
         <li>Nothing here is a forecast. Every number is a measurement, a published
           assessment, or an arithmetic comparison of those.</li>
       </ul>
@@ -507,6 +551,67 @@ function fillLiveCounts(
   }
 }
 
+/** The words for what a state's coverage was reviewed to be. */
+const COVERAGE_STATUS: Record<string, string> = {
+  "more to add": "More to add",
+  "not machine readable": "Published, but not in a form a program can read",
+  "none found": "None found",
+  "not reviewed": "Not reviewed"
+};
+
+/**
+ * What this roster holds for each state, beside what it is known to miss.
+ *
+ * The counts are the payload's own; the gaps are a reviewed judgement it
+ * cannot contain. A dashboard that shows the first without the second is not
+ * wrong in any single number and is misleading as a whole: California's row
+ * reads eight reservoirs, and the state's own service publishes 154.
+ *
+ * The section is left empty rather than half-filled when a payload predates
+ * the coverage block, because a table of counts with the gaps column missing
+ * is exactly the impression this exists to prevent.
+ */
+function fillCoverage(payload: ReservoirPayload): void {
+  const section = document.querySelector<HTMLElement>("#coverage");
+  const body = document.querySelector<HTMLElement>("#coverage-table tbody");
+  const states = payload.coverage?.states;
+  if (!section || !body || !states || Object.keys(states).length === 0) {
+    if (section) section.hidden = true;
+    return;
+  }
+  const rows = Object.entries(states)
+    .sort((a, b) => b[1].tracked_reference_capacity_af - a[1].tracked_reference_capacity_af);
+  body.replaceChildren(...rows.map(([code, entry]) => {
+    const missing = entry.known_additional_source
+      ? `${COVERAGE_STATUS[entry.status] ?? entry.status}: `
+        + `${entry.known_additional_source}`
+        + (entry.known_additional_about
+          ? `, about ${entry.known_additional_about} reservoirs` : "")
+      : COVERAGE_STATUS[entry.status] ?? entry.status;
+    const row = document.createElement("tr");
+    for (const [text, isNumber] of [
+      [stateName(code), false],
+      [String(entry.tracked_reservoir_count), true],
+      [`${formatAcreFeet(entry.tracked_reference_capacity_af)} acre-feet`, true],
+      [`${entry.climate_baseline_count} of ${entry.tracked_reservoir_count}`, true],
+      [missing, false]
+    ] as [string, boolean][]) {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      if (isNumber) cell.className = "methods-num";
+      row.append(cell);
+    }
+    return row;
+  }));
+  const note = payload.coverage?.reviewed;
+  const element = document.querySelector<HTMLElement>('[data-live="coverage-note"]');
+  if (element && note) {
+    element.textContent = `The sources were last reviewed on ${formatDate(note)}. `
+      + "A reservoir whose water reaches two states is counted in both, so these "
+      + "rows do not add up to the roster.";
+  }
+}
+
 async function showPublishedData(): Promise<void> {
   const status = document.querySelector<HTMLElement>("#methods-status");
   if (!status) return;
@@ -514,6 +619,7 @@ async function showPublishedData(): Promise<void> {
     const data = await loadReservoirs();
     const counts = providerCounts(data.reservoirs);
     fillLiveCounts(data.reservoirs, data.climate_normals?.minimum_years ?? 0);
+    fillCoverage(data);
     status.textContent =
       `The data on this site was published on ${formatDate(data.generated_at.slice(0, 10))}. ` +
       `It covers ${data.reservoirs.length} reservoirs: ${counts.rise} measured by the ` +

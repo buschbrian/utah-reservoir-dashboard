@@ -169,6 +169,76 @@ def test_seasonal_window_wraps_correctly_across_a_leap_year():
     }
 
 
+# --- one calendar date, one position in every year -------------------------
+
+def test_the_same_calendar_date_matches_in_every_year():
+    """A window centred on 19 August must hold every 19 August.
+
+    It did not. `dayofyear` makes 19 August day 231 in an ordinary year and
+    232 in a leap year, so a zero-width window centred on 19 August 2026
+    excluded 19 August 2024 outright, and a seven-day one was centred on 18
+    August for every leap year in the record. Every date after February was
+    affected, which is most of the year and all of the melt season.
+    """
+    dates = pd.DatetimeIndex(
+        [f"{year}-08-19" for year in range(2015, 2027)])
+    series = pd.Series(1.0, index=dates)
+    window = R.seasonal_window(series, pd.Timestamp("2026-08-19"), window_days=0)
+    assert set(window.index.date) == set(dates.date)
+
+
+def test_the_canonical_year_is_the_same_length_every_year():
+    """Every year has 365 positions, which is what makes the wrap one constant."""
+    for year in (2023, 2024, 2100, 2000):
+        days = pd.date_range(f"{year}-01-01", f"{year}-12-31", freq="D")
+        positions = R.canonical_day(days)
+        assert positions.min() == 1
+        assert positions.max() == R.CANONICAL_YEAR_DAYS
+
+
+def test_february_29_takes_february_28s_position():
+    """It has to take one. Nothing is dropped and nothing else moves."""
+    leap = pd.DatetimeIndex(["2024-02-28", "2024-02-29", "2024-03-01"])
+    positions = R.canonical_day(leap)
+    assert positions[0] == positions[1], "29 February shares 28 February's slot"
+    assert positions[2] == positions[0] + 1, "1 March is still the next position"
+
+    # And both February days reach a window centred on 28 February.
+    series = pd.Series([1.0, 2.0, 3.0], index=leap)
+    window = R.seasonal_window(series, pd.Timestamp("2026-02-28"), window_days=0)
+    assert sorted(window.to_numpy().tolist()) == [1.0, 2.0]
+
+
+def test_a_single_timestamp_and_an_index_agree():
+    """The two forms are one rule; a reader of either must get the same answer."""
+    dates = pd.date_range("2024-01-01", "2025-12-31", freq="D")
+    from_index = R.canonical_day(dates)
+    for offset in (0, 58, 59, 60, 200, 365, 366, 500):
+        moment = dates[offset]
+        assert R.canonical_day(moment) == from_index[offset], str(moment.date())
+
+
+def test_the_normal_table_is_read_at_the_position_it_was_built_at():
+    """The table and the lookup were one day apart for most of the year.
+
+    The table was built by iterating a leap year and read by `dayofyear`, so
+    entry 231 was built from 18 August and read for every 19 August in an
+    ordinary year. Built here from a flat series so the medians cannot hide a
+    shift, and checked on the position rather than the value.
+    """
+    import tools.build_normal_baselines as B
+    index = pd.date_range("1991-01-01", "2020-12-31", freq="D")
+    # A ramp, so every position has a different value and an off-by-one shows.
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    table = B.day_of_year_normals(series)
+
+    for date in ("2026-08-19", "2026-03-01", "2026-12-31", "2026-01-01"):
+        moment = pd.Timestamp(date)
+        day = R.canonical_day(moment)
+        expected = R.annual_seasonal_values(series, moment).median()
+        assert table["median_af"][day] == round(float(expected), 2), date
+
+
 def test_seasonal_window_default_comes_from_the_published_constant():
     idx = pd.date_range("2025-06-01", "2025-06-30", freq="D")
     series = pd.Series(1.0, index=idx)
@@ -492,6 +562,98 @@ def test_awdb_monthly_values_become_month_end_rows(monkeypatch):
     assert frame["storage_af"].tolist() == [1234, 1100]
 
 
+# --- California Data Exchange Center --------------------------------------
+
+def cdec_row(date, value, dur="D"):
+    return {"stationId": "SHA", "durCode": dur, "SENSOR_NUM": 15,
+            "sensorType": "STORAGE", "date": date, "obsDate": date,
+            "value": value, "dataFlag": " ", "units": "AF"}
+
+
+def test_cdec_drops_the_missing_sentinel_rather_than_reading_it(monkeypatch):
+    """`-9999` is a number, and it is the most dangerous fact about this source.
+
+    Measured on 2026-08-20 across a week and all 238 storage stations, 537 of
+    1,435 values were this and none were null -- 37%, the ordinary shape of
+    the data. A reader that treats the field as a measurement subtracts ten
+    thousand acre-feet from whatever total it lands in.
+    """
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", 2897658),
+        cdec_row("2026-8-11 00:00", R.CDEC_MISSING_VALUE),
+        cdec_row("2026-8-12 00:00", 2865715),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10", "2026-08-12"]
+    assert frame["storage_af"].tolist() == [2897658.0, 2865715.0]
+    # Dropped, never converted: a row for the 11th at any value would mean the
+    # sentinel had been read as a measurement.
+    assert R.CDEC_MISSING_VALUE not in frame["storage_af"].tolist()
+    assert 0 not in frame["storage_af"].tolist()
+
+
+def test_cdec_keeps_a_true_zero(monkeypatch):
+    """An empty reservoir is a reading. Only the sentinel is not."""
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", 0),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+    assert frame["storage_af"].tolist() == [0.0]
+
+
+def test_cdec_reads_the_unpadded_dates_this_service_writes(monkeypatch):
+    """They arrive as `2026-8-10 00:00`, which is neither ISO nor padded.
+
+    Both a one-digit and a two-digit month, because an unpadded format is
+    where a fixed-width parse quietly reads the wrong field. Dated in the past
+    on purpose -- a future row is dropped by a different rule, asserted below.
+    """
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2025-1-5 00:00", 100),
+        cdec_row("2025-11-5 00:00", 200),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20250101", "20251231")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2025-01-05", "2025-11-05"]
+
+
+def test_cdec_answers_the_same_contract_as_the_other_providers(monkeypatch):
+    """Sorted, deduplicated to the last reading, and nothing after today."""
+    later = (R.local_today() + pd.Timedelta(days=3)).strftime("%Y-%-m-%-d 00:00")
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-12 00:00", 300),
+        cdec_row("2026-8-10 00:00", 100),
+        cdec_row("2026-8-10 00:00", 111),
+        cdec_row(later, 999),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20261231")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10", "2026-08-12"]
+    assert frame["storage_af"].tolist() == [111.0, 300.0], "last reading wins"
+
+
+def test_cdec_with_nothing_to_say_answers_an_empty_frame(monkeypatch):
+    """The shape the caller expects, so a quiet station is not a crash."""
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", R.CDEC_MISSING_VALUE),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+    assert frame.empty
+    assert list(frame.columns) == ["date", "storage_af"]
+
+
+def test_cdec_asks_for_the_cadence_it_was_given(monkeypatch):
+    """Monthly stations must not be asked for a daily series."""
+    seen = {}
+    monkeypatch.setattr(R, "_get_cdec_json",
+                        lambda params: seen.update(params) or [])
+    R.fetch_cdec_series("SHA", "monthly", "20150101", "20260820")
+    assert seen["dur_code"] == "M"
+    assert seen["SensorNums"] == str(R.CDEC_STORAGE_SENSOR)
+    assert seen["Start"] == "2015-01-01" and seen["End"] == "2026-08-20"
+    R.fetch_cdec_series("SHA", "daily", "20150101", "20260820")
+    assert seen["dur_code"] == "D"
+
+
 # --- published output -----------------------------------------------------
 
 def test_committed_reservoirs_json_is_well_formed():
@@ -783,3 +945,170 @@ def test_the_refresh_hour_puts_every_western_zone_on_one_date():
             assert 1 <= local.hour <= 22, (
                 f"the refresh starts at {local.hour:02d}:00 Pacific, close "
                 "enough to a date boundary that the zone choice matters")
+
+
+# --- every year gets one vote ---------------------------------------------
+
+def test_a_dense_year_does_not_outvote_a_sparse_one():
+    """The estimator's whole point, in the case that motivated it.
+
+    Ten years at 1000 reported once a month, one year at 100 reported every
+    day. Pooling the readings gives the dense year about thirty times the
+    weight of each sparse one, so it drags the median down and the "normal"
+    becomes a fact about who reports often. One value per year puts the median
+    back where the years say it is.
+    """
+    dense_year = TODAY.year - 1
+    rows = []
+    for year in range(TODAY.year - 11, TODAY.year):
+        if year == dense_year:
+            for day in pd.date_range(f"{year}-06-08", f"{year}-06-22", freq="D"):
+                rows.append((day, 100.0))
+        else:
+            rows.append((pd.Timestamp(f"{year}-06-15"), 1000.0))
+    index = pd.DatetimeIndex([row[0] for row in rows])
+    series = pd.Series([row[1] for row in rows], index=index)
+
+    yearly = R.annual_seasonal_values(series, pd.Timestamp(f"{TODAY.year}-06-15"))
+    assert len(yearly) == 11
+    assert yearly[dense_year] == 100.0
+    # Ten years at 1000 and one at 100: the years say 1000.
+    assert float(yearly.median()) == 1000.0
+    # Pooled, the fifteen daily readings would have pulled it well below.
+    window = R.seasonal_window(series, pd.Timestamp(f"{TODAY.year}-06-15"))
+    assert float(window.median()) < 1000.0
+
+
+def test_the_sample_size_is_years_not_readings():
+    """`sample_years` must count the sample the statistic actually has."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    series = pd.Series(np.linspace(900, 1100, len(index)), index=index)
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Daily", 994, 40.0, -111.0, frame, TODAY)
+
+    prior = R.annual_seasonal_values(
+        R.prior_years(series, TODAY), TODAY)
+    assert record["seasonal_sample_years"] == len(prior)
+    assert record["seasonal_sample_years"] == TODAY.year - 2015
+
+
+def test_the_rank_is_ordinal_and_names_what_it_is_of():
+    """"Third-lowest of eleven" cannot be read as more precise than it is."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    # Each prior year flat at its own level, rising with the year, so the
+    # ordering of the annual representatives is known exactly.
+    values = np.where(index.year < TODAY.year,
+                      (index.year - 2014) * 100.0, 250.0)
+    series = pd.Series(values, index=index)
+
+    prior_count = TODAY.year - 2015
+    rank = R.seasonal_rank(series, TODAY, 250.0)
+    assert rank is not None
+    # Prior years sit at 100, 200, 300, ...; 250 is above exactly two of them.
+    assert rank == (3, prior_count + 1)
+
+    # The lowest reading ever must read as first of its own population, and
+    # the percentile beside it as a true zero.
+    lowest = R.seasonal_rank(series, TODAY, 1.0)
+    assert lowest == (1, prior_count + 1)
+    assert R.seasonal_percentile(series, TODAY, 1.0) == 0.0
+
+
+def test_a_reservoir_with_no_prior_years_has_no_rank():
+    """No years to be ordinal of; say so rather than invent a first place."""
+    index = pd.date_range(f"{TODAY.year}-01-01", TODAY, freq="D")
+    series = pd.Series(np.linspace(100, 50, len(index)), index=index)
+    assert R.seasonal_rank(series, TODAY, 50.0) is None
+
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Brand New", 993, 40.0, -111.0, frame, TODAY)
+    assert record["seasonal_rank"] is None
+    assert record["seasonal_rank_of"] is None
+    json.dumps(record)
+
+
+def test_the_rank_and_the_percentile_agree_about_direction():
+    """Two forms of one comparison. They may not disagree about which way."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    values = np.where(index.year < TODAY.year,
+                      (index.year - 2014) * 100.0, 250.0)
+    series = pd.Series(values, index=index)
+    for current in (50.0, 250.0, 450.0, 10_000.0):
+        rank, of = R.seasonal_rank(series, TODAY, current)
+        percentile = R.seasonal_percentile(series, TODAY, current)
+        assert 1 <= rank <= of
+        # Both count the same prior years, so the highest rank and a
+        # percentile of 100 have to arrive together.
+        assert (rank == of) == (percentile == 100.0)
+
+
+def test_the_pipeline_publishes_the_estimator_it_used():
+    """A field can keep its name while the statistic under it changes."""
+    assert R.METHOD_VERSION
+    import tools.build_normal_baselines as B
+    assert B.METHOD_VERSION == R.METHOD_VERSION, (
+        "the two baselines are published to be compared with each other, so "
+        "they must be built by the same estimator")
+
+
+def test_a_change_says_what_it_is_a_change_from():
+    """"30-day change" is the date asked for, not the date used.
+
+    The nearest usable reading is taken within a tolerance -- ten days for a
+    daily feed and forty-five for a month-end one -- so a row headed "Change
+    in 1 year" has covered anything from 320 days to 410, and the payload
+    published no way to tell which.
+    """
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Daily", 992, 40.0, -111.0, frame, TODAY)
+
+    for label, days in (("7d", 7), ("30d", 30), ("365d", 365)):
+        reference = record[f"change_{label}_reference_date"]
+        elapsed = record[f"change_{label}_elapsed_days"]
+        assert reference is not None, label
+        # A daily series has the exact day, so the interval is the named one.
+        assert elapsed == days, label
+        assert (pd.Timestamp(record["as_of"]) - pd.Timestamp(reference)).days == elapsed
+
+
+def test_a_gappy_series_reports_the_interval_it_actually_used():
+    """The point of the field: the reading used is not the one asked for."""
+    # Month-end readings only, so a 30-day target lands between two of them.
+    index = pd.DatetimeIndex(
+        pd.date_range("2015-01-31", TODAY, freq="ME"))
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Monthly", 991, 40.0, -111.0, frame, TODAY,
+                         data_frequency="monthly", change_tolerance_days=45)
+
+    # A monthly series cannot support a seven-day claim and does not make one.
+    assert record["change_7d_af"] is None
+    assert record["change_7d_reference_date"] is None
+    assert record["change_7d_elapsed_days"] is None
+
+    for label in ("30d", "365d"):
+        if record[f"change_{label}_af"] is None:
+            continue
+        elapsed = record[f"change_{label}_elapsed_days"]
+        reference = record[f"change_{label}_reference_date"]
+        assert elapsed is not None and reference is not None, label
+        # Whatever it is, it is stated rather than assumed from the name.
+        assert elapsed > 0, label
+        assert (pd.Timestamp(record["as_of"])
+                - pd.Timestamp(reference)).days == elapsed
+
+
+def test_a_change_that_cannot_be_made_names_no_reference():
+    """Absent is not zero, and an interval for a change that does not exist
+    would be a date with nothing measured from it."""
+    index = pd.date_range(f"{TODAY.year}-06-01", TODAY, freq="D")
+    series = pd.Series(1.0, index=index)
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Young", 990, 40.0, -111.0, frame, TODAY)
+
+    assert record["change_365d_af"] is None
+    assert record["change_365d_reference_date"] is None
+    assert record["change_365d_elapsed_days"] is None
+    json.dumps(record)
