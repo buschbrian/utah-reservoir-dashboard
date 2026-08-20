@@ -65,12 +65,15 @@ the only thing that makes it usable.
 
 | | |
 |---|---:|
-| published today | **69** reservoirs |
+| published before R1 | 69 reservoirs |
+| **published now** | **198**, with 5 withdrawn |
 | AWDB candidates measured (ADR-065) | 157 |
 | already tracked, after the position dedupe | 68 |
 | **admissible by the rules** | **137** |
 | RISE reservoirs inside `west-huc6` not in that pool | ~81 |
-| projected published roster | **~193** |
+| projected published roster | ~193 |
+| **actual, after R1** | **198** — 134 admitted, four excluded by name |
+| drainage areas holding a reservoir | **40 of 75**, against 14 |
 
 Findings 1 and 2 of the admission review are built (ADR-065; the dedupe against
 the reviewed dam point). Finding 2 was built and then stopped working: the
@@ -137,13 +140,23 @@ numeric:
 |---|---|---|
 | 1 The rename | A | **done** — `SITE_NAME` is "Western Water Dashboard" |
 | 2 Prefix-safe drainage clause | B | **done** (`ada826a`) — predicate and clause agree at 2, 4 and 6 digits |
-| 3 Publish `bbox` per unit | D | not started — was blocked on schema v3, which has landed |
-| 4 `?state=` on the three maps | C, F | **half done** — the model layer exists, no page reads it |
+| 3 Publish `bbox` per unit | D | **done** — S1, with `west-huc2` for the region names |
+| 4 `?state=` on the three maps | C, F | **done on snow, drought and charts**; the storage map is S3a and is the last of the four |
 | 5 Carry the parameters across the navigation | E | **done** (`1f4914e`) — `portable-url.ts` |
-| 6 The state control | G | not started |
-| 7 Widen `?area=` to any code width | — | not started |
-| 8 Persist the choice | H | not started |
-| 9 The splash | I | not started |
+| 6 The state control | G | not started — S4, and next after S3a |
+| 7 Widen `?area=` to any code width | — | **done** — `HUC_CODE` accepts any even width and `areaAtLevel` reconciles it with `?level=` |
+| 8 Persist the choice | H | not started — S5 |
+| 9 The splash | I | not started — S6 |
+
+Landed alongside, none of it foreseen when this was written:
+
+| | |
+|---|---|
+| `areaAtLevel` | `?level=` and `?area=` were never reconciled, so a six-digit area on a surface drawing at level four emptied the page in silence and the URL writer put the pair back on every render. |
+| `NAVIGABLE_BOUNDS` | One constant answered both "where does the map open" and "where may a reader pan". Eight of the eleven states were being clamped, which made the chooser and the roster block each other. Splitting them broke the circle without touching the roster. |
+| ADR-067 | The Utah mask is retired and the state boundary stops being published; the credit moves to the U.S. Census Bureau by way of Esri's Living Atlas. |
+| The drought map's reservoirs | Off by default behind a toggle. The snow map's own "density is the argument, not principle" applies at three times the roster it was written against. |
+| The snow map's drawn basins | Two areas hold one site against a floor of two, so they publish no mean; they were still drawn. `areaCanReport` now governs the map, the picker, the `?basin=` link and the page's count together. |
 
 Step 4's model half is worth being precise about, because it is more finished
 than it looks. [`src/data/state-vocabulary.ts`](../src/data/state-vocabulary.ts)
