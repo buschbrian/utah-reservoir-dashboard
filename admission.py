@@ -364,7 +364,11 @@ def discrepancies(decision, highest_readings=None, service_capacity_af=None):
         found.append(("no confirmed dam", decision.reason))
 
     readings = sorted(highest_readings or (), reverse=True)
-    if len(readings) >= 3 and readings[2] and readings[0] > readings[2] * SPIKE_RATIO:
+    # A third-highest of exactly zero is an empty reservoir, not a missing
+    # reading: a series whose top three are [58,000, 0, 0] is one anomalous
+    # spike over a pond that has stood empty, which is precisely the shape
+    # this screen exists to catch. Truthiness here silently waved it through.
+    if len(readings) >= 3 and readings[0] > readings[2] * SPIKE_RATIO:
         found.append((
             "unstable maximum",
             f"highest reading {readings[0]:,.0f} acre-feet against a third "

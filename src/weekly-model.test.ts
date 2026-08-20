@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { readDroughtCoverage, readPayload, readSnowpack } from "./data/payload-fixture";
-import type { Reservoir } from "./types";
+import type { Reservoir, SnowpackPayload } from "./types";
 import { weeklyDrought, weeklySnow, weeklyStorage, weeklySummary } from "./weekly-model";
 
 const reservoir = (over: Partial<Reservoir>): Reservoir => ({
@@ -117,6 +117,44 @@ describe("the snow half of the week", () => {
     const before = Date.parse(`${week.previousDay}T00:00:00Z`);
 
     expect((day - before) / 86_400_000).toBe(7);
+  });
+
+  /*
+   * The digest and the snowpack page read one payload and must not disagree
+   * about it. The snow page refuses to headline a percentage measured
+   * against a normal under an inch (`MEANINGFUL_NORMAL_INCHES`, measured on
+   * 27 October: 147 sites, a quarter-inch normal, 266% of normal). A digest
+   * line is a headline, so it holds the same floor -- otherwise the overview
+   * printed the very figure the snow page was suppressing.
+   */
+  const octoberWeek = (normalInches: number) => {
+    const base = readSnowpack();
+    const sites = Array.from({ length: 20 }, (_, index) => ({
+      ...base.sites[0]!,
+      station: `thin-${index}`,
+      series: [
+        ["2026-10-20", normalInches * 2, normalInches],
+        ["2026-10-27", normalInches * 2.7, normalInches]
+      ] as SnowpackPayload["sites"][number]["series"]
+    }));
+    return weeklySnow({ ...base, sites });
+  };
+
+  it("refuses a comparison the snowpack page would not headline", () => {
+    const week = octoberWeek(0.24);
+
+    expect(week.day).toBe("2026-10-27");
+    expect(week.reporting).toBe(20);
+    // The sites reported and each ratio exists; the base is what fails.
+    expect(week.comparable).toBe(false);
+    expect(week.percentNow).toBeNull();
+  });
+
+  it("compares once the normal is worth dividing by", () => {
+    const week = octoberWeek(4);
+
+    expect(week.comparable).toBe(true);
+    expect(week.percentNow).toBeCloseTo(270, 6);
   });
 });
 

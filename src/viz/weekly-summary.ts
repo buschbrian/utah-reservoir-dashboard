@@ -122,12 +122,16 @@ export function describeSnow(snow: WeeklySnow): string[] {
     return ["No snow measurements are published for this week."];
   }
   if (!snow.comparable) {
-    /* The honest reason, not a blank. Percent of normal has no value once the
-     * normal for the day is zero, which is every site by late summer. */
+    /* The honest reason, not a blank. Percent of normal has no value once
+     * the normal for the day is zero, which is every site by late summer --
+     * and too small a value to divide by in early autumn, the same floor
+     * the snowpack page holds its own headline to
+     * (`MEANINGFUL_NORMAL_INCHES`). */
     return [
       "There is no snow comparison for this week. Percent of normal measures " +
-      "against the middle value for the same day in 1991 through 2020. By late " +
-      "summer that value is zero at these sites, so there is nothing to divide by.",
+      "against the middle value for the same day in 1991 through 2020. From " +
+      "late summer into early autumn that value is zero or nearly zero at " +
+      "these sites. That is too small a base for a fair comparison.",
       "The snowpack view carries the whole season, including its high point."
     ];
   }

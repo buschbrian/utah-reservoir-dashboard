@@ -372,6 +372,24 @@ class TestTheDisagreementScreens:
         found = dict(discrepancies(decision, highest_readings=[90000, 10000]))
         assert "unstable maximum" not in found
 
+    def test_a_spike_over_an_empty_pond_is_still_a_spike(self):
+        # A third-highest of exactly zero is an empty reservoir, not a
+        # missing reading: one large value over a pond that has stood empty
+        # is the purest form of the shape this screen exists to catch, and a
+        # truthiness check used to wave it through. Under the capacity's
+        # surcharge allowance and above the never-filled share, no other
+        # screen backstops it.
+        decision = self.clean(60000.0)
+        found = dict(discrepancies(decision,
+                                   highest_readings=[58000, 0, 0]))
+        assert "unstable maximum" in found
+        assert "58,000" in found["unstable maximum"]
+
+    def test_a_reservoir_that_has_only_ever_been_empty_is_not_a_spike(self):
+        decision = self.clean(60000.0)
+        found = dict(discrepancies(decision, highest_readings=[0, 0, 0]))
+        assert "unstable maximum" not in found
+
     def test_the_two_capacity_sources_are_compared(self):
         # Keswick: 7,470 against 23,772, the widest disagreement measured.
         decision = self.clean(7470.0)

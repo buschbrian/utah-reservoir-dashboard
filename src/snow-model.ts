@@ -493,6 +493,28 @@ export function newestHeadline(
   return null;
 }
 
+/**
+ * The newest day that meets the reporting floor, whatever its percentage is
+ * worth.
+ *
+ * The depth-fallback headline uses this, not `newestReading`: a headline
+ * refused by `newestHeadline` was refused for one of two reasons, and only
+ * the denominator one may fall back to depth. This function still holds the
+ * reporting floor, so when it answers, the only reason left is the
+ * denominator -- which is what the caption beside the fallback says. Falling
+ * back past the floor put the mean depth of October's first five stations in
+ * the page's largest type, with a note blaming the normal.
+ */
+export function newestFloored(
+  points: readonly CurvePoint[], floor: number
+): CurvePoint | null {
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index]!;
+    if (point.reportingSites >= floor) return point;
+  }
+  return null;
+}
+
 /** The newest day anything reported, whatever its percentage is worth. */
 export function newestReading(points: readonly CurvePoint[]): CurvePoint | null {
   for (let index = points.length - 1; index >= 0; index -= 1) {

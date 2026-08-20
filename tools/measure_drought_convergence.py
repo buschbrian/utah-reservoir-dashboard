@@ -50,11 +50,21 @@ from tools.compute_drought_coverage import (  # noqa: E402
 ROUNDING_BOUNDARY = 0.05
 
 
-def shares(payload: dict) -> dict[tuple[str, str, str], float]:
-    """Every published share, keyed by area, block and class."""
+def shares(payload: dict, level: int) -> dict[tuple[str, str, str], float]:
+    """Every published share, keyed by area, block and class.
+
+    The level names the attribute the code arrives in
+    (`watershed_scopes.huc_field`), never a list written here: a hand-written
+    `huc6 or huc4 or huc2` chain omitted `huc8`, which is a registered level,
+    and keyed all 571 of its subbasins to the empty string -- each
+    overwriting the last, so the table compared one surviving unit and
+    reported a clean run. A tool that decides whether to move `DEFAULT_STEP`
+    may not answer from a collision.
+    """
+    field = watershed_scopes.huc_field(level)
     out: dict[tuple[str, str, str], float] = {}
     for unit in payload["units"]:
-        code = unit.get("huc6") or unit.get("huc4") or unit.get("huc2") or ""
+        code = unit[field]
         for block in ("percent_of_area", "percent_of_area_at_least"):
             for name, value in (unit.get(block) or {}).items():
                 if isinstance(value, (int, float)):
@@ -88,12 +98,14 @@ def main() -> int:
     land = json.loads(args.land.read_text(encoding="utf-8"))
 
     print(f"reference: {args.reference} degrees over {scope.name}", flush=True)
-    reference = shares(build_payload(drought, boundaries, args.reference, land))
+    reference = shares(build_payload(drought, boundaries, args.reference, land),
+                       scope.level)
     print(f"{len(reference)} published shares\n")
     print(f"{'step':<10}{'over ' + str(ROUNDING_BOUNDARY):<14}{'worst':<10}{'mean':<10}")
     worst_overall = 0.0
     for step in sorted(args.steps, reverse=True):
-        measured = shares(build_payload(drought, boundaries, step, land))
+        measured = shares(build_payload(drought, boundaries, step, land),
+                          scope.level)
         gaps = [abs(value - reference[key])
                 for key, value in measured.items() if key in reference]
         if not gaps:

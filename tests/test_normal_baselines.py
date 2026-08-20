@@ -60,9 +60,28 @@ def test_a_window_that_wraps_the_new_year_draws_on_the_whole_period():
     year in the period, because the window matches on day of the year rather
     than on adjacency in time. Adding 1990 and 2021 to "protect" the seam once
     added two extra calendar years to all 365 days.
+
+    Thirty everywhere except the fourteen days whose window crosses the year
+    end, where it is thirty-one -- and that is the honest count rather than a
+    fault to round away. A vote is one winter (`annual_seasonal_values`), and
+    a winter spans two calendar years, so a period bounded by calendar years
+    cuts its first and last winters in half: day 1 draws on January 1991 with
+    no December 1990 behind it, and on December 2020 with no January 2021
+    after it. Thirty-one winters really did vote. The count says so, because
+    it is published as the sample size and a median may not overstate what
+    stands behind it. This asserted thirty everywhere before, which was a
+    property of grouping by calendar year -- the grouping that put a year's
+    January and its December, two winters apart, in one vote.
     """
     table = B.day_of_year_normals(climate_series())
-    assert set(table["years"][1:]) == {30}
+    window = R.SEASONAL_WINDOW_DAYS
+    seam = set(range(1, window + 1)) | set(
+        range(R.CANONICAL_YEAR_DAYS - window + 1, R.CANONICAL_YEAR_DAYS + 1))
+    for day in range(1, R.CANONICAL_YEAR_DAYS + 1):
+        assert table["years"][day] == (31 if day in seam else 30), day
+    # Every day still answers, and a flat period is flat at every position.
+    assert all(table["median_af"][day] == 1000.0
+               for day in range(1, R.CANONICAL_YEAR_DAYS + 1))
 
 
 def test_the_file_carries_the_method_that_built_it():
@@ -137,6 +156,40 @@ def test_a_partial_run_merges_when_the_estimators_agree(tmp_path, monkeypatch):
     assert code == 0
     kept = json.loads(stale.read_text(encoding="utf-8"))
     assert sorted(r["name"] for r in kept["reservoirs"]) == [
+        "Already Built", "Newly Built"]
+
+
+def test_a_full_run_does_not_mix_estimators_either(tmp_path, monkeypatch, capsys):
+    """A completed full run is still a merge.
+
+    `kept` holds the reservoirs absent from today's payload (an ADR-056
+    withdrawal), and those records carry whatever estimator the committed
+    file was built by. Left in place, they would sit under a header stamped
+    with the new method -- a mix `load_normals` could never warn about,
+    because its check is keyed on the header.
+    """
+    stale, code = _canned_run(
+        tmp_path, monkeypatch, "storage-normal-pooled-0", [])
+
+    assert code == 0
+    written = json.loads(stale.read_text(encoding="utf-8"))
+    # The old-method record is dropped, loudly, and the header tells the truth
+    # about everything that remains.
+    assert [r["name"] for r in written["reservoirs"]] == ["Newly Built"]
+    assert written["method_version"] == B.METHOD_VERSION
+    err = capsys.readouterr().err
+    assert "Already Built" in err
+    assert "rather than mixing" in err
+
+
+def test_a_full_run_keeps_absent_reservoirs_when_the_estimators_agree(
+        tmp_path, monkeypatch):
+    """Dropping is only for a method change; a quiet feed keeps its normal."""
+    stale, code = _canned_run(tmp_path, monkeypatch, B.METHOD_VERSION, [])
+
+    assert code == 0
+    written = json.loads(stale.read_text(encoding="utf-8"))
+    assert sorted(r["name"] for r in written["reservoirs"]) == [
         "Already Built", "Newly Built"]
 
 

@@ -112,6 +112,53 @@ and is not listed here.
 
 ### Fixed
 
+- **A history rank and its percentile disagreed about a tie.** The rank
+  counted the years strictly below today's reading and the percentile counted
+  ties as at-or-below, so a reservoir sitting exactly where a past year sat
+  published both figures from one comparison and they did not match. Four
+  reservoirs in the committed payload said so out loud: Thief Valley read
+  "1st-lowest of 12" -- the lowest it has ever been for the date -- beside a
+  percentile of 9.1, in the same details-panel row. Both count strictly below
+  now, so the lowest reading on record reads 0 whether or not it ties one,
+  and 100 arrives exactly when the rank reads highest.
+
+- **A comparison near New Year averaged two different winters.** The
+  day-of-year window wraps across the year end, and the readings it kept were
+  then grouped by their own calendar year -- so one "year" of evidence held
+  early-January readings from the winter before and late-December readings
+  from the winter after, about 360 days apart, medianed into a single value
+  describing neither. The same rule chose which years counted as prior, which
+  admitted the current winter's December as history and split a finished
+  winter in half. Each reading now votes with the winter it is evidence
+  about. Fourteen days of the climate normals move, and those fourteen now
+  count 31 winters against a thirty-year period -- the honest number, because
+  a winter spans two calendar years and the period cuts its first and last one
+  in half. `normals.json` is rebuilt (`storage-normal-annual-3`).
+
+- **The snowpack page blamed the wrong thing for a missing comparison.**
+  Where percent of normal could not carry a headline, the page led with the
+  depth and said "there is too little normal snow for this date to compare
+  against". But the headline is refused for two reasons -- too small a normal
+  to divide by, or too few sites reporting -- and the fallback took both,
+  so five reporting stations in October put their mean depth in the page's
+  largest type under a note about the normal. The fallback holds the
+  reporting floor now, and too few sites has its own message again.
+
+- **The weekly digest printed a percentage the snowpack page suppresses.**
+  Both read one payload, and the snowpack page refuses to headline a percent
+  of normal measured against a normal under an inch -- 147 sites reporting
+  produced "266% of normal" against a quarter-inch normal on 27 October. The
+  digest held no such floor, so the overview could state that figure while
+  the snowpack page, reading the same file the same morning, would not. It
+  holds the same floor now and says why when it has nothing to compare.
+
+- **A reservoir that has stood empty could hide a bad reading.** The
+  admission screen that catches an unstable maximum -- one reading far above
+  the rest of the series -- read a third-highest of exactly zero acre-feet as
+  a missing value and skipped the check. A series of one large spike over an
+  empty pond is the purest form of what the screen exists to catch, and it
+  was the one shape that got through.
+
 - **The headline counted Utah's reservoirs on a map of the west.** The
   storage summary read 59 reservoirs and 5.5 million acre-feet under a card
   that said "Every reservoir", above a map drawing 196 of them. `inScope` had

@@ -204,7 +204,11 @@ RESERVOIR_SCHEMA_VERSION = 1
 #: took two different positions depending on whether its year was a leap year.
 #: "-2" matches on `canonical_day`, so a window centred on 19 August holds
 #: every 19 August.
-METHOD_VERSION = "storage-normal-annual-2"
+#: "-3" attributes each reading the year-end wrap keeps to the window
+#: instance it is evidence about, so a vote near 1 January is one winter --
+#: grouping by calendar year had medianed a year's early-January readings
+#: with its late-December ones, two winters about 360 days apart in one vote.
+METHOD_VERSION = "storage-normal-annual-3"
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -716,14 +720,9 @@ def seasonal_window(series: pd.Series, ref_date: pd.Timestamp,
     return series[diff <= window_days]
 
 
-def prior_years(series: pd.Series, ref_date: pd.Timestamp) -> pd.Series:
-    """Everything from calendar years strictly before ref_date's year."""
-    return series[series.index.year < ref_date.year]
-
-
 def annual_seasonal_values(series: pd.Series, ref_date: pd.Timestamp,
                            window_days: int = SEASONAL_WINDOW_DAYS) -> pd.Series:
-    """One representative value per calendar year, indexed by year.
+    """One representative value per window instance, indexed by its year.
 
     The unit of inference here is the *year*, not the reading. A window over
     thirty years of daily readings holds about 450 values; the same window
@@ -743,12 +742,46 @@ def annual_seasonal_values(series: pd.Series, ref_date: pd.Timestamp,
     way, for the same reason and in the same words. This brings the day-of-year
     statistics into line with it.
 
-    Empty when no year has a reading in the window.
+    A vote is a *window instance*, not a calendar year. Away from 1 January
+    the two are the same thing. At the year end the window wraps
+    (`seasonal_window`), and grouping the wrapped readings by their own
+    calendar year medianed a year's early-January readings -- the winter
+    before -- with its late-December ones -- the winter after -- into one
+    "year" that described neither: two winters about 360 days apart in one
+    vote. Each reading kept by the wrap therefore votes with the instance
+    whose reference date it is days away from: a late-December reading sits
+    just before the *next* year's reference and votes there, an early-January
+    reading just after the *previous* year's. The index label is the
+    instance's own calendar year.
+
+    Empty when no instance has a reading in the window.
     """
     window = seasonal_window(series, ref_date, window_days)
     if window.empty:
         return pd.Series(dtype="float64")
-    return window.groupby(window.index.year).median()
+    doy = canonical_day(window.index)
+    delta = doy - canonical_day(ref_date)
+    # Only a wrapped reading has |delta| beyond the window; everything else
+    # was already inside it, so the adjustment is exactly the wrap direction.
+    votes = (window.index.year.to_numpy()
+             + (delta > window_days).astype(int)
+             - (delta < -window_days).astype(int))
+    return window.groupby(votes).median()
+
+
+def prior_annual_seasonal_values(series: pd.Series, ref_date: pd.Timestamp,
+                                 window_days: int = SEASONAL_WINDOW_DAYS
+                                 ) -> pd.Series:
+    """One vote per window instance strictly before ref_date's own.
+
+    The cut is on the vote's instance year, never on the reading's calendar
+    year: near 1 January the window wraps, and cutting on calendar years both
+    admitted the current winter's December as "prior" evidence and dropped a
+    completed winter's January half. The current instance carries the
+    reading being compared, so it is excluded whole.
+    """
+    values = annual_seasonal_values(series, ref_date, window_days)
+    return values[values.index < ref_date.year]
 
 
 def normal_period(run_date: pd.Timestamp) -> dict[str, int]:
@@ -865,14 +898,22 @@ def seasonal_percentile(series: pd.Series, ref_date: pd.Timestamp, current: floa
     is published beside it, and `seasonal_rank` says the same thing in a form
     that cannot be over-read.
 
+    A tie counts as not-below, on both sides. `seasonal_rank` counts the
+    years strictly below `current`, so a year at exactly the current value
+    does not push the rank up -- and it must not push the percentile up
+    either, or the pair contradicts itself in one details-panel row: a
+    reading that ties the lowest year on record published "lowest of 12"
+    beside a percentile of 9.1. Counting strictly below keeps both ends
+    honest: lowest ever, tied or not, reads 0, and 100 appears exactly when
+    the rank reads highest.
+
     Returns NaN when there are no prior years to compare against, which the
     output layer turns into null rather than a fake number.
     """
-    population = annual_seasonal_values(
-        prior_years(series, ref_date), ref_date, window_days)
+    population = prior_annual_seasonal_values(series, ref_date, window_days)
     if population.empty:
         return float("nan")
-    return float(np.mean(population.to_numpy() <= current) * 100)
+    return float(np.mean(population.to_numpy() < current) * 100)
 
 
 def seasonal_rank(series: pd.Series, ref_date: pd.Timestamp, current: float,
@@ -889,8 +930,7 @@ def seasonal_rank(series: pd.Series, ref_date: pd.Timestamp, current: float,
     None when there are no prior years, which is the same answer
     `seasonal_percentile` gives as NaN.
     """
-    population = annual_seasonal_values(
-        prior_years(series, ref_date), ref_date, window_days)
+    population = prior_annual_seasonal_values(series, ref_date, window_days)
     if population.empty:
         return None
     below = int(np.sum(population.to_numpy() < current))
@@ -1004,7 +1044,7 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
     # reading in the window let a year with daily readings outvote a year with
     # month-end ones about thirty to one, so the "normal" leaned on whichever
     # years the provider happened to report densely (`annual_seasonal_values`).
-    population = annual_seasonal_values(prior_years(series, last_date), last_date)
+    population = prior_annual_seasonal_values(series, last_date)
     seasonal_normal = float(population.median()) if not population.empty else None
     seasonal_years = int(len(population))
     rank = seasonal_rank(series, last_date, current)

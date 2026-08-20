@@ -43,6 +43,13 @@ function hasNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
 
+/* A string, null, or absent entirely -- `optionalNullableNumber`'s reasoning
+ * for a field the pipeline publishes as text, such as a reference date the
+ * details panel formats into visible words. */
+function optionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || hasNullableString(value);
+}
+
 function isMonthlyRecord(value: unknown): value is MonthlyRecord {
   return isObject(value) && typeof value.month === "string" &&
     hasNumber(value.days) &&
@@ -139,6 +146,12 @@ function isReservoir(value: unknown): value is Reservoir {
     optionalNullableNumber(value.change_7d_elapsed_days) &&
     optionalNullableNumber(value.change_30d_elapsed_days) &&
     optionalNullableNumber(value.change_365d_elapsed_days) &&
+    /* The details panel formats these into visible text (`formatDate` echoes
+     * a value it cannot parse), so a wrong type must be refused here, not
+     * rendered. */
+    optionalNullableString(value.change_7d_reference_date) &&
+    optionalNullableString(value.change_30d_reference_date) &&
+    optionalNullableString(value.change_365d_reference_date) &&
     hasNullableNumber(value.seasonal_normal_af) &&
     hasNullableNumber(value.pct_of_seasonal_normal) &&
     hasNumber(value.seasonal_sample_years) &&

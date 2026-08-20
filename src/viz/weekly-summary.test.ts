@@ -104,7 +104,10 @@ describe("the sections that have nothing to report", () => {
       percentNow: null, percentBefore: null, reporting: 0
     });
 
-    expect(lines.join(" ")).toContain("nothing to");
+    /* The reason covers both ways the comparison can be unavailable: a
+     * normal of zero at melt-out, and one too small to divide by in early
+     * autumn -- the floor the snowpack page holds its own headline to. */
+    expect(lines.join(" ")).toContain("too small a base");
     expect(lines.join(" ")).toContain("1991 through 2020");
   });
 

@@ -33,6 +33,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import watershed_scopes  # noqa: E402
 
 #: Each committed reference file, the field carrying the date it was last
 #: checked against its source, and how long that answer stays good for.
@@ -65,13 +68,29 @@ REFERENCES: tuple[dict, ...] = (
      "what": "The 1991-2020 climate normals"},
     {"path": "snow_sites.json", "field": "retrieved", "days": 180,
      "what": "The mountain snow site inventory"},
-    {"path": "data/watersheds/west-huc6.geojson", "field": "retrieved", "days": 365,
-     "what": "The drawn drainage areas, from the Watershed Boundary Dataset"},
-    {"path": "data/watersheds/west-huc4.geojson", "field": "retrieved", "days": 365,
-     "what": "The same areas at the larger size"},
     {"path": "data/us-land.geojson", "field": "retrieved", "days": 365,
      "what": "The land mask the drought engine measures against"},
 )
+
+
+def drainage_references() -> tuple[dict, ...]:
+    """The drawn drainage boundaries, resolved from the scope registry.
+
+    Never a path written here (ADR-063): which file holds which geography has
+    moved once already and will move again when the roster expands west, so
+    naming `west-huc6.geojson` would leave this tool reviewing the retired
+    file's date and never the drawn one's -- silently, since a missing file
+    reports as "REVIEW" rather than as a fault. `DRAWN_SCOPES` is the same
+    answer the reference export publishes to the maps, so this asks it.
+    """
+    return tuple(
+        {"path": watershed_scopes.get_scope(name).output,
+         "field": "retrieved", "days": 365,
+         "what": f"The drawn drainage areas at HUC-{level}, from the "
+                 "Watershed Boundary Dataset"}
+        for level, name in sorted(watershed_scopes.DRAWN_SCOPES.items(),
+                                  reverse=True)
+    )
 
 
 def read_date(path: Path, field: str) -> str | None:
@@ -89,7 +108,7 @@ def read_date(path: Path, field: str) -> str | None:
 def review(today: dt.date) -> list[dict]:
     """Every reference file, with how long since it was checked."""
     rows = []
-    for entry in REFERENCES:
+    for entry in (*REFERENCES, *drainage_references()):
         path = ROOT / entry["path"]
         stamped = read_date(path, entry["field"])
         try:

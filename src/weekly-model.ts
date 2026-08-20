@@ -29,7 +29,7 @@
  */
 import type { DroughtCoveragePayload, Reservoir, SnowpackPayload } from "./types";
 import { isMeasured, shareAtOrWorse, worstClass, type StorageSource } from "./drought-model";
-import { percentOfNormal } from "./snow-model";
+import { MEANINGFUL_NORMAL_INCHES, percentOfNormal } from "./snow-model";
 import type { DroughtClass } from "./viz/drought-classes";
 
 /** How many days back a "week" reaches. The reservoir payload publishes a
@@ -191,13 +191,26 @@ function regionalPercentOn(
   payload: SnowpackPayload, date: string
 ): { percent: number | null; reporting: number } {
   const values: number[] = [];
+  const normals: number[] = [];
   for (const site of payload.sites) {
     const row = site.series.find((entry) => entry[0] === date);
     if (!row) continue;
     const percent = percentOfNormal(row[1], row[2]);
-    if (percent !== null) values.push(percent);
+    if (percent === null) continue;
+    values.push(percent);
+    normals.push(row[2] as number);
   }
   if (values.length === 0) return { percent: null, reporting: 0 };
+  /* The same denominator floor the snow page holds its headlines to
+   * (`MEANINGFUL_NORMAL_INCHES`): in October the sites' normals are tiny but
+   * positive, so every per-site ratio exists and their mean is a number --
+   * the same "266% of normal" the snow page refuses to headline. A digest
+   * line is a headline, so it holds the same floor, and the two surfaces
+   * cannot contradict each other over one payload. */
+  const meanNormal = normals.reduce((sum, value) => sum + value, 0) / normals.length;
+  if (meanNormal < MEANINGFUL_NORMAL_INCHES) {
+    return { percent: null, reporting: values.length };
+  }
   return {
     percent: values.reduce((sum, value) => sum + value, 0) / values.length,
     reporting: values.length

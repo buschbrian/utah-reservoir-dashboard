@@ -21,6 +21,7 @@ from compute_drought_coverage import (  # noqa: E402
     DEFAULT_STEP,
     HISTORY_WEEKS_KEPT,
     LEVELS,
+    METHOD_VERSION,
     build_payload,
     unit_field,
     history_entry,
@@ -198,6 +199,27 @@ class TestCommittedOutput:
             assert step == DEFAULT_STEP, (
                 f"{path.name} was sampled at {step} and the engine now "
                 f"defaults to {DEFAULT_STEP}; recompute it")
+
+    def test_every_published_file_states_the_method_it_was_measured_by(self):
+        """The step is one term of the method; the version names all of them.
+
+        The reader picks a level (ADR-064) and each level is its own file, so
+        a method change that leaves the step alone -- a new land mask, a
+        changed class rule -- could recompute one level and leave the other
+        published under the old method with nothing said. `merge_history`
+        refuses a mismatched archive week, but only the HUC-6 archive passes
+        through it; the HUC-4 file is written with --no-history and shipped
+        without that gate, which is exactly how it once shipped with no
+        version field at all. Both constants are the engine's, not the
+        morning's data, so this cannot go red on a data-only day.
+        """
+        directory = ROOT / "data" / "drought"
+        for path in sorted(directory.glob("usdm-huc*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            version = payload["method"].get("version")
+            assert version == METHOD_VERSION, (
+                f"{path.name} states method version {version!r} and the "
+                f"engine is {METHOD_VERSION!r}; recompute it")
 
     def test_percentages_are_complete_and_sum_to_the_whole(self, payload):
         for unit in payload["units"]:
