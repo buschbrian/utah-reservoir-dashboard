@@ -112,6 +112,21 @@ and is not listed here.
 
 ### Fixed
 
+- **The headline counted Utah's reservoirs on a map of the west.** The
+  storage summary read 59 reservoirs and 5.5 million acre-feet under a card
+  that said "Every reservoir", above a map drawing 196 of them. `inScope` had
+  already applied all three scope dimensions, and `updateSummary` then passed
+  its own options into `statewideRollup` with `geography` pinned to `utah` --
+  so the set was narrowed a second time, by a question the reader had already
+  answered. `?state=CO` was the clearest case: a Colorado view reporting
+  Utah's water. The same call left `lakeMead` absent, and absent means
+  excluded, so the reader's own Lake Mead switch could not move a total the
+  map had already drawn Mead into. It spreads `WIDEST_SCOPE` now, which is
+  how the storage charts have said "already scoped" since ADR-062. The
+  connected total is 196 reservoirs at 61.8%, and the count on the card
+  matches the count on the map in every scope. The month view was never
+  wrong: `monthlyRollup` sums what it is given and never re-scoped.
+
 - **The storage charts offer every drainage area again.** The subregion and
   drainage-area controls were rebuilt from the reservoirs the reader's scope
   had already narrowed to, so excluding Lake Powell -- which is what the page
