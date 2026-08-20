@@ -63,6 +63,7 @@ import {
 } from "./state/drought-url";
 import { levelFromSearch, writeLevel } from "./state/level";
 import { createLevelControl } from "./ui/level-control";
+import { createWhereControl } from "./ui/where-control";
 import { renderDroughtScatter } from "./viz/drought-scatter";
 import { renderDroughtGap } from "./viz/drought-gap";
 import { renderDroughtSeverity } from "./viz/drought-severity";
@@ -671,6 +672,34 @@ function renderDrought(
      * was asked for either way. */
     console.warn("The area-size control could not be built:", error);
   });
+
+  /*
+   * The control that picks where a reader is looking (S4): a state and a
+   * region/subregion/drainage-area drill-down, beside the level control in
+   * the same filter bar. `opening` carries the full, unnarrowed rosters
+   * this needs (`OpeningContext.rosters`) -- `openingSelection` above is
+   * already the resolved, aliveness-checked selection this page draws with,
+   * which is exactly what a repopulated control should show as chosen.
+   * Skipped, like the level control effectively is by its own `.catch`,
+   * when the reference export never resolved: there is nothing published to
+   * build either control's options from.
+   *
+   * A full navigation, the same choice and the same reason as the level
+   * control just above: `?state=` and `?area=` are read once, here, before
+   * `renderDrought` is ever called (see the comment on `resolveOpening`'s
+   * caller), so a picked value takes the path a shared link already takes
+   * rather than a re-render this page has no function for.
+   */
+  if (opening) {
+    const control = createWhereControl(opening.rosters, openingSelection, (selection) => {
+      const params = new URLSearchParams(window.location.search);
+      if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
+      if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
+      const query = params.toString();
+      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+    }, { scale: "l" });
+    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+  }
 
   worseSelect?.addEventListener("change", () => {
     update({ worse: worseSelect.value === "" ? null : worseSelect.value });

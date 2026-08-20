@@ -19,6 +19,7 @@ import {
   resolveOpeningScope,
   type OpeningRosters,
   type OpeningScope,
+  type OpeningSelection,
   EMPTY_OPENING_ROSTERS,
   isOpeningScopeChosen
 } from "./data/opening-scope";
@@ -63,6 +64,7 @@ import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/bas
 import { levelFromSearch, writeLevel } from "./state/level";
 import { supportsDashboard } from "./state/shell";
 import { createLevelControl } from "./ui/level-control";
+import { createWhereControl } from "./ui/where-control";
 import { renderLegend } from "./ui/legend";
 import { loadMap, type MapController } from "./ui/map";
 import {
@@ -294,6 +296,33 @@ async function wireLevelControl(): Promise<number> {
     if (control) host.append(control.element);
   }
   return offered.length || 1;
+}
+
+/**
+ * The control that picks where a reader is looking (S4): a state and a
+ * region/subregion/drainage-area drill-down, built beside the level control
+ * from the same rosters this page already fetched for `openingScope`.
+ *
+ * `current` is `openingScope.selection` at the point this is called, after
+ * every widening this page does (the linked-reservoir override above) --
+ * the control reflects the scope actually in force, not the raw address
+ * bar. A full navigation, like the level control: `?state=` and `?area=`
+ * are read once at initialization by this page and by the other three
+ * surfaces (S3a-d), each with its own rule for what the area axis means
+ * (D5), so a picked value takes the path a shared link already takes rather
+ * than a re-render this page has no function for.
+ */
+function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
+  for (const host of document.querySelectorAll<HTMLElement>(".filters")) {
+    const control = createWhereControl(rosters, current, (selection) => {
+      const params = new URLSearchParams(window.location.search);
+      if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
+      if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
+      const query = params.toString();
+      window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+    });
+    if (control) host.append(control.element);
+  }
 }
 
 /**
@@ -1066,6 +1095,7 @@ if (!supportsDashboard(browserCapabilities())) {
   applyBaseline();
   await loadContext(map);
   const levelsOffered = await wireLevelControl();
+  wireWhereControl(openingRosters, openingScope.selection);
 
   /* One fact per field, and fields are only ever added (never removed or
    * re-pointed at an expression another field already reads): two fields

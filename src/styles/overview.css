@@ -111,6 +111,28 @@ body {
   letter-spacing: .03em;
   text-transform: uppercase;
 }
+/* The where control (S4, docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) is
+   four `calcite-label`-wrapped selects stacked inside one grid cell, the same
+   reason and the same fix as `.level-control` above: appended when the
+   reference export resolves, and `min-width: 0` because an unbreakable
+   select otherwise refuses to shrink and widens the whole page at 360px. */
+/* Scoped to the control rather than to one host's wrapper: the snow and
+ * drought bars use `.filterbar-controls`, the storage panel uses `.filters`,
+ * and a rule naming only the first silently stopped applying to the third. */
+.where-control {
+  display: grid;
+  gap: .5rem;
+  min-width: 0;
+}
+.where-control calcite-label {
+  min-width: 0;
+  --calcite-label-margin-bottom: 0;
+  color: var(--app-muted);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
 .dashboard-filterbar .reset-button { flex: 0 0 auto; }
 
 .dashboard-filterbar label, .sort-control {

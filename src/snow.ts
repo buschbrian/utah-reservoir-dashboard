@@ -77,6 +77,7 @@ import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { createLevelControl } from "./ui/level-control";
+import { createWhereControl } from "./ui/where-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
@@ -234,6 +235,36 @@ function formatFeet(value: number): string {
 
 function formatInches(value: number | null): string {
   return value === null ? "—" : value.toFixed(1);
+}
+
+/**
+ * The control that picks where a reader is looking (S4): a state and a
+ * region/subregion/drainage-area drill-down, beside the level control in the
+ * same filter bar. Wired after `renderSnow` rather than inside it, because
+ * it needs the full, unnarrowed rosters -- `renderSnow`'s own `openingScope`
+ * parameter is already narrowed to what this page draws, which is right for
+ * everything else that function does and wrong for this control's own
+ * region and subregion option lists (`resolveOpeningScope`'s doc: "never
+ * unioned directly" for that reason).
+ *
+ * A full navigation, like the level control just below: every figure on
+ * this page is a mean over a different set of sites once the area or the
+ * state narrows, so a picked value takes the path a shared link already
+ * takes rather than a re-render this page has no function for.
+ */
+function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
+  const host = document.querySelector<HTMLElement>("#snow-content .filterbar-controls");
+  if (!host) return;
+  const control = createWhereControl(rosters, current, (selection) => {
+    const params = new URLSearchParams(window.location.search);
+    if (selection.state === "all") params.delete("state"); else params.set("state", selection.state);
+    if (selection.area === null) params.delete("area"); else params.set("area", selection.area);
+    const query = params.toString();
+    window.location.replace(`${window.location.pathname}${query ? `?${query}` : ""}`);
+    /* Large, because the native selects it sits beside are a third taller
+     * than a Calcite control at the default scale. */
+  }, { scale: "l" });
+  if (control) host.append(control.element);
 }
 
 function renderSnow(
@@ -1203,6 +1234,7 @@ try {
 
   const payload = payloadForOpeningScope(levelPayload, openingScope.selection, level);
   renderSnow(payload, openingScope, widenedForSite);
+  wireWhereControl(rosters, openingScope.selection);
 } catch (error) {
   console.error("Snowpack view failed:", error);
   const content = document.querySelector<HTMLElement>("#snow-content");
