@@ -41,7 +41,7 @@ from watershed_scopes import (  # noqa: E402
 AWDB_DATA = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
              "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
-USER_AGENT = "utah-water-dashboard/candidate-audit (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/candidate-audit (+https://github.com/buschbrian)"
 TIMEOUT = 180
 START_DATE = "2015-01-01"
 

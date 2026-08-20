@@ -67,7 +67,7 @@ NID_NAME_FIELD = "NAME"
 # the same pool, so the dam is where the stored water leaves. It reproduces
 # every point currently committed.
 SECONDARY_STRUCTURE = re.compile(r"\b(dike|dyke|saddle|auxiliary)\b", re.IGNORECASE)
-USER_AGENT = "utah-water-dashboard/dam-points (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/dam-points (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 # A dam further than this from the reservoir's published point is far more

@@ -60,7 +60,7 @@ NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
              "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
 NID_ID_FIELDS = ("NIDID", "nidId", "FEDERAL_ID", "federalId", "nidid")
 
-USER_AGENT = "utah-water-dashboard/huc-probe (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/huc-probe (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 
