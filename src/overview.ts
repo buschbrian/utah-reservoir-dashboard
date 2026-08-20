@@ -207,7 +207,7 @@ async function renderOverview(
         <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>
         <label id="county-field" hidden>County<select id="county-filter"><option value="all">All counties</option></select></label>
         <label>Reporting<select id="cadence-filter"><option value="all">All reporting</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="late">Late or unavailable</option></select></label>
-        <label>Reservoirs<select id="geography-filter"><option value="utah">Utah waterbodies</option><option value="connected">All connected</option></select></label>
+        <label>Reservoirs<select id="geography-filter"><option value="connected">Every reservoir</option><option value="utah">Utah waterbodies only</option></select></label>
       </div>
     </section>
     <p id="filter-status" class="filter-status" role="status"></p>
@@ -598,7 +598,7 @@ async function renderOverview(
      * that includes 28 million acre-feet without saying so is the silent
      * total ADR-011 and ADR-062 exist to prevent. */
     status.textContent = `${visible.length} of ${scoped.length} reservoirs shown · ` +
-      `${geography.value === "connected" ? "All connected" : "Utah waterbodies"} · Lake Powell ` +
+      `${geography.value === "connected" ? "Every reservoir" : "Utah waterbodies only"} · Lake Powell ` +
       `${lakePowell.checked ? "included" : "excluded"} · Lake Mead ` +
       `${lakeMead.checked ? "included" : "excluded"}${chosenClass}`;
     for (const host of chartHosts) host.setAttribute("aria-busy", "true");
@@ -717,7 +717,9 @@ async function renderOverview(
     sort.value = "capacity";
     lakePowell.checked = false;
     lakeMead.checked = false;
-    geography.value = "utah";
+    /* Every reservoir, matching what the page opens on. Resetting to Utah's
+     * waterbodies would have "reset" narrowed the page to a third of itself. */
+    geography.value = "connected";
     chartLimit.value = "15";
     chartMeasure.value = "percent";
     chartRank.value = "capacity";

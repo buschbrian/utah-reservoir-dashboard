@@ -81,8 +81,8 @@ function panelContents(suffix: string): string {
           Reservoirs
           <calcite-select data-scope="geography"
             label="Which reservoirs to show">
-            <calcite-option value="utah">Utah waterbodies</calcite-option>
-            <calcite-option value="connected">All connected reservoirs</calcite-option>
+            <calcite-option value="connected">Every reservoir</calcite-option>
+            <calcite-option value="utah">Utah waterbodies only</calcite-option>
           </calcite-select>
         </calcite-label>
         <calcite-label layout="inline-space-between">

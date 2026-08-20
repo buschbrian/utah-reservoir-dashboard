@@ -113,7 +113,18 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   drainageArea: null,
   lakePowell: "exclude",
   lakeMead: "exclude",
-  geography: "utah",
+  /* The whole west, not Utah's waterbodies.
+   *
+   * This defaulted to `utah` when the roster was Utah's, and stayed there
+   * when the roster went west -- so the site published 198 reservoirs and
+   * opened showing 60 of them, behind a control most readers never touch.
+   * A dashboard that hides two thirds of its own subject by default is
+   * answering a question nobody asked.
+   *
+   * The narrower reading is still one choice away, and `?state=UT` now says
+   * the same thing more precisely (ADR-060: "Utah waterbodies" is exactly
+   * what `waterbody_states` contains). */
+  geography: "connected",
   month: null,
   tableOpen: false,
   tableSort: DEFAULT_SORT,
@@ -205,8 +216,10 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
     ? "include" : "exclude";
   state.lakeMead = lastValue(pairs, SELECTION_PARAMS.lakeMead) === "include"
     ? "include" : "exclude";
-  state.geography = lastValue(pairs, SELECTION_PARAMS.geography) === "connected"
-    ? "connected" : "utah";
+  /* Only the narrow reading is spelled; anything else -- absent, misspelt,
+   * hand-edited -- is every reservoir, which is what the dashboard opens on. */
+  state.geography = lastValue(pairs, SELECTION_PARAMS.geography) === "utah"
+    ? "utah" : "connected";
   const month = lastValue(pairs, SELECTION_PARAMS.month);
   /* Whether the payload actually has this month is the page's business. A
    * link to a month that has aged out opens on the newest reading. */
@@ -256,7 +269,7 @@ export function searchWithState(
   if (full.lakeMead !== "exclude") {
     parts.push(`${SELECTION_PARAMS.lakeMead}=${full.lakeMead}`);
   }
-  if (full.geography !== "utah") {
+  if (full.geography !== "connected") {
     parts.push(`${SELECTION_PARAMS.geography}=${full.geography}`);
   }
   if (full.month !== null) {
