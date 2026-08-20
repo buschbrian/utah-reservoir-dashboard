@@ -359,9 +359,15 @@ async function renderOverview(
         <div id="spread-chart" class="chart-host" aria-busy="true"></div>
       </section>
     </div>
-    <section class="overview-card table-card" aria-labelledby="table-heading">
-      <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><div class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div></div>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="Reservoir table, scrolls sideways"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
+    <section class="overview-card table-card mobile-table-card" aria-labelledby="table-heading">
+      <div class="card-heading">
+        <div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div>
+        <button id="overview-table-toggle" class="mobile-disclosure-toggle" type="button"
+          aria-controls="overview-table-actions overview-table-scroll"
+          aria-expanded="false">Show table</button>
+        <div id="overview-table-actions" class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div>
+      </div>
+      <div id="overview-table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Reservoir table, scrolls sideways"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
     </section>`;
 
   const weeklyCard = document.querySelector<HTMLElement>("#weekly-summary");
@@ -383,6 +389,15 @@ async function renderOverview(
       openClass: "mobile-chart-settings-open",
       openLabel: "Hide chart options",
       closedLabel: "Show chart options"
+    });
+  }
+  const tableCard = document.querySelector<HTMLElement>(".mobile-table-card");
+  const tableToggle = document.querySelector<HTMLButtonElement>("#overview-table-toggle");
+  if (tableCard && tableToggle) {
+    wireMobileDisclosure(tableCard, tableToggle, {
+      openClass: "mobile-table-open",
+      openLabel: "Hide table",
+      closedLabel: "Show table"
     });
   }
 

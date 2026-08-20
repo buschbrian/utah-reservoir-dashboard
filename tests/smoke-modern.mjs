@@ -1582,7 +1582,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     check(await tab.locator("arcgis-charts-action-bar").count() === 0,
       `${label}: an empty collapsible chart rail is still rendered`);
 
-    /* The phone opens on the summary instead of three long forms. Each
+    /* The phone opens on the summary instead of several long supporting panels. Each
      * disclosure must still reveal its complete content before the rest of
      * this test drives the controls. Desktop keeps all three areas open and
      * does not expose phone-only buttons. */
@@ -1590,12 +1590,14 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       weeklyHeight: document.querySelector("#weekly-summary")?.getBoundingClientRect().height ?? 0,
       filterHeight: document.querySelector(".mobile-filterbar")?.getBoundingClientRect().height ?? 0,
       settingsHeight: document.querySelector(".chart-settings")?.getBoundingClientRect().height ?? 0,
-      buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle"].map((id) => ({
+      buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+        "overview-table-toggle"].map((id) => ({
         id,
         display: getComputedStyle(document.getElementById(id)).display,
         expanded: document.getElementById(id)?.getAttribute("aria-expanded")
       })),
-      content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls"]
+      content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls",
+        "overview-table-scroll"]
         .map((id) => getComputedStyle(document.getElementById(id)).display)
     }));
     if (viewport.width <= 672) {
@@ -1609,13 +1611,16 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
         && mobileDisclosures.settingsHeight < 180,
       `${label}: compact cards are ${mobileDisclosures.weeklyHeight}px, ` +
         `${mobileDisclosures.filterHeight}px and ${mobileDisclosures.settingsHeight}px tall`);
-      for (const id of ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle"]) {
+      for (const id of ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+        "overview-table-toggle"]) {
         await tab.locator(`#${id}`).click();
       }
       const opened = await tab.evaluate(() => ({
-        buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle"]
+        buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+          "overview-table-toggle"]
           .map((id) => document.getElementById(id)?.getAttribute("aria-expanded")),
-        content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls"]
+        content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls",
+          "overview-table-scroll"]
           .map((id) => getComputedStyle(document.getElementById(id)).display)
       }));
       check(opened.buttons.every((expanded) => expanded === "true")

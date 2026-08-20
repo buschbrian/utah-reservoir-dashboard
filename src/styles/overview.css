@@ -534,6 +534,11 @@ body {
   .mobile-chart-settings:not(.mobile-chart-settings-open) > .chart-settings-controls {
     display: none;
   }
+  .mobile-table-card:not(.mobile-table-open) .card-heading p,
+  .mobile-table-card:not(.mobile-table-open) .table-actions,
+  .mobile-table-card:not(.mobile-table-open) > .table-scroll {
+    display: none;
+  }
   /* The headline gets its own line on a phone; the rest pair up. */
   .overview-kpi { flex-basis: 9rem; }
   .overview-kpi-primary { flex-basis: 100%; }
