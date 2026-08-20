@@ -3329,6 +3329,112 @@ for (const failure of [
 }
 
 /*
+ * The where control (S4): a state select and a region/subregion/drainage-
+ * area drill-down, beside the level control in the storage panel and the
+ * snow/drought filter bars. This is its own committed coverage -- the same
+ * reason the area-size block above holds the level control's: a slice that
+ * ships no coverage of its own is how a whole feature ends up untested (this
+ * project has already found that once).
+ *
+ * `storageState` is the state the storage-map coverage above already proved
+ * narrows the default scope without emptying it. Reused here rather than
+ * re-derived, on the reasonable expectation that a drainage area holding a
+ * reservoir also carries that reservoir's state in its own `states` field
+ * (ADR-060's water-reaches-the-state rule) -- and if that expectation is
+ * ever wrong for a real payload, this is exactly the test that should catch
+ * it.
+ */
+{
+  check(Boolean(storageState),
+    "Where control: no state narrows the default scope without emptying it");
+
+  const cases = [
+    {
+      label: "Storage map", url: `${URL}?state=${storageState?.code}`,
+      signal: "__dashboardReady", drawn: "drainageAreas"
+    },
+    {
+      label: "Snowpack", url: `${URL}snow.html?state=${storageState?.code}`,
+      signal: "__snowReady", drawn: "mapBasins"
+    },
+    {
+      label: "Drought", url: `${URL}drought.html?state=${storageState?.code}`,
+      signal: "__droughtReady", drawn: "mapOutlines"
+    }
+  ];
+
+  // Every width the rest of this suite tests at (CLAUDE.md: "no page may
+  // scroll sideways" at 1280, 390 or 360), because the where control adds
+  // four selects to a filter bar that already has to reflow at the narrowest
+  // one, and a control that clips or widens the page there is exactly the
+  // failure `.filterbar-controls`'s own `min-width: 0` rules exist to catch.
+  for (const viewport of VIEWPORTS) {
+    const context = await browser.newContext({ viewport });
+    const tab = await context.newPage();
+    const errors = [];
+    tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+    tab.on("console", (message) => {
+      if (message.type() === "error") errors.push(`console: ${message.text()}`);
+    });
+
+    for (const scenario of cases) {
+      const label = `Where control: ${scenario.label} (${viewport.name})`;
+      console.log(`\n=== ${label}`);
+      await tab.goto(scenario.url, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await tab.waitForFunction(
+        (key) => window[key] !== undefined, scenario.signal, { timeout: 90000 });
+      /* Settled, not merely present: the map's own readiness fields arrive
+       * on a later publish than the page's (the same two-wait shape the
+       * snow and drought per-page checks above use), and axe-core run
+       * before then would be scoring a slider or a map host that has not
+       * finished initializing -- a false positive with nothing to do with
+       * this control. */
+      await tab.waitForFunction(
+        ([key, field]) => window[key]?.[field] !== undefined,
+        [scenario.signal, scenario.drawn], { timeout: 90000 });
+      await tab.waitForFunction(
+        () => document.querySelector(
+          '.where-control calcite-select[label="Which state to show"]') !== null,
+        { timeout: 90000 });
+      const state = await tab.evaluate(() => ({
+        stateValues: [...document.querySelectorAll(
+          '.where-control calcite-select[label="Which state to show"]')]
+          .map((select) => select.value),
+        regionSelects: document.querySelectorAll(
+          '.where-control calcite-select[label="Which region to show"]').length,
+        subregionSelects: document.querySelectorAll(
+          '.where-control calcite-select[label="Which subregion to show"]').length,
+        areaSelects: document.querySelectorAll(
+          '.where-control calcite-select[label="Which drainage area to show"]').length,
+        viewport: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth
+      }));
+      console.log("  where control:", JSON.stringify(state));
+      check(state.stateValues.length >= 1, `${label}: no where control was built`);
+      /* The control has to carry the reader's choice, or the state narrows
+       * while the select beside it reads "All states" -- the same
+       * requirement S3a's subregion coverage above already holds the
+       * drainage-area control to. */
+      check(state.stateValues.every((value) => value === storageState?.code),
+        `${label}: the state select shows ${state.stateValues.join(", ")}, ` +
+        `not the state the link opened on (${storageState?.code})`);
+      check(state.regionSelects === state.stateValues.length
+        && state.subregionSelects === state.stateValues.length
+        && state.areaSelects === state.stateValues.length,
+        `${label}: the where control is missing one of its four selects ` +
+        `(state ${state.stateValues.length}, region ${state.regionSelects}, ` +
+        `subregion ${state.subregionSelects}, drainage area ${state.areaSelects})`);
+      check(state.scroll <= state.viewport + 1,
+        `${label}: the page scrolls sideways with the where control carrying a link`);
+      await checkAccessibility(tab, check, label);
+    }
+
+    for (const message of errors) failures.push(`Where control (${viewport.name}): ${message}`);
+    await context.close();
+  }
+}
+
+/*
  * Simplified Technical English, measured on what a reader actually sees.
  *
  * ADR-006 has always been enforced as a vocabulary -- a list of retired terms
