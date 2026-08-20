@@ -2,9 +2,11 @@
 
 ## Status
 
-The broader ten-unit scope remains available for research. The published
-14-unit Utah-connected geography is unchanged, but the three drainage areas
-that had no tracked reservoir now have reviewed sites. See ADR-023.
+The broader ten-unit scope remains available for research. The production
+scope has since moved to 75 western basins, so the fourteen-area
+Utah-connected scope described by this 2026-08-10 record is historical rather
+than the current opening geography. The three areas that were empty at the
+time received reviewed sites under ADR-023.
 
 ## Named scope
 

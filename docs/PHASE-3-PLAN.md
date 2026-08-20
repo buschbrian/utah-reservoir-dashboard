@@ -1,5 +1,8 @@
 # Phase 3 execution plan — symbology and map interactions
 
+**Status:** complete on 2026-08-13. Later western-scope work expanded the
+roster and geography without changing this interaction contract.
+
 Phase 2 established the responsive shell, local data layers, anonymous basemap
 fallback, and accessible reservoir list. Phase 3 improves how readers scan and
 interact with those same 51 in-scope reservoirs. It does not change the

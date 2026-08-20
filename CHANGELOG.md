@@ -5,6 +5,15 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Documentation
+
+- **The maintained documentation describes the western product.** The project
+  README, documentation index, modernization closeout, source inventory,
+  contributor guidance, historical plan status notes, archived MapLibre
+  findings, and GitHub wiki now use the current repository name, production
+  pages, western scope, data contracts, and remaining-work boundary. Accepted
+  architecture decision records remain unchanged history.
+
 ### Added
 
 - **The maps cover the west.** Seventy-five drainage areas instead of

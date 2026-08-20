@@ -6,26 +6,32 @@ exist.
 
 ## The shape of the project
 
-One typed ArcGIS 5.1 application with two primary surfaces, three compatibility
-redirects, one frozen source oracle, and one Python pipeline:
+One typed ArcGIS 5.1 application with four analytical surfaces, three
+documentation pages, three compatibility redirects, one frozen source oracle,
+and Python data pipelines:
 
 | | |
 |---|---|
-| `index.html` | Primary Vite entry for the typed ArcGIS 5.1 and Calcite 5 application. |
+| `index.html` | Primary reservoir-map entry for the typed ArcGIS 5.1 and Calcite 5 application. |
 | `modern.html` | Stable alias for the primary application. |
 | `overview.html` | Production ArcGIS Charts data workspace. |
+| `snow.html` | Production snowpack curves, drainage-area map, site map, and detail views. |
+| `drought.html` | Production weekly drought map and comparison charts. |
 | `methods.html` | Methods and sources page. |
 | `data.html` | Public data API documentation. |
+| `terms.html` | Terms and license page. |
 | `legacy/index.html` | Compatibility redirect from the former ArcGIS 4.34 path to the storage map. |
 | `maplibre/index.html` | Compatibility redirect from the former MapLibre path to the storage map. |
 | `explore.html` | Compatibility redirect from the earlier overview to storage charts. |
 | `public/retired-route.js` | Allowlisted URL-state translation for all three redirects. |
 | `shared/reservoir-viz.js` | Frozen source-only color-table owner and test oracle. It is not published. |
 | `src/` | Strict TypeScript modules for the modernization, including the complete runtime data validator. |
-| `refresh_reservoirs.py` | The daily data pipeline. Not part of the frontend work. |
+| `refresh_reservoirs.py`, `refresh_snowpack.py` | The daily reservoir and snow pipelines. Not part of frontend-only work. |
+| `watershed_scopes.py`, `huc.py` | Named western scopes, drainage assignment, and grouping. |
+| `data/drought/` and `tools/compute_drought_coverage.py` | Verified weekly drought polygons, level-specific measurements, and history. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
-| `data/watersheds/west-huc6.geojson` | The 75 drainage areas the maps draw and the pipeline assigns against, since ADR-063. Committed, never published: not inside `reference.json` and not copied into `dist/` (ADR-048, ADR-049). Nothing in a browser has fetched a polygon file since the outlines became the hosted layer's. |
-| `huc6.geojson` | The fourteen areas the reservoir roster was admitted from, and the box the storage map opens on. Still committed, still reviewed, and its geometry is asserted identical to the same fourteen inside the drawn file. |
+| `data/watersheds/west-huc6.geojson` | The 75 default drainage areas the maps draw and the western roster is assigned against. Committed, never published: browser outlines come from the hosted layer (ADR-048, ADR-049, ADR-068). |
+| `huc6.geojson` | The fourteen-area Utah-connected historical scope. Still committed and reviewed for compatibility and parity checks; it no longer defines the opening map or roster. |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules

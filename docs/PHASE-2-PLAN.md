@@ -1,5 +1,9 @@
 # Phase 2 execution plan
 
+**Status:** complete. The shell later moved to the root under ADR-019, and the
+three comparison runtimes were retired to redirects under ADR-031. The
+milestones below preserve the boundary Phase 2 used when it was built.
+
 Phase 2 builds the ArcGIS 5.1 and Calcite 5 dashboard at `modern.html`. The
 three production views remain unchanged until a later cutover decision. See
 [ADR-011](decisions/ADR-011-separate-location-scope-from-lake-powell.md) for

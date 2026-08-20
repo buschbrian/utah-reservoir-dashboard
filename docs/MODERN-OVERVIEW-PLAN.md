@@ -1,5 +1,8 @@
 # Modern overview and visual theme
 
+**Status (2026-08-20): delivered.** `overview.html` is the production Storage
+Charts workspace; `explore.html` is its compatibility redirect.
+
 ## Decision
 
 Keep `explore.html` as a compatibility redirect to `overview.html`. The modern

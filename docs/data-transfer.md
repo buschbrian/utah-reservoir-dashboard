@@ -1,5 +1,9 @@
 # What this site costs over the wire
 
+**Status:** maintained measurement record, checked through the 2026-08-20
+western roster and science-review work. Re-run `tools/audit-transfer.mjs`
+after changing a payload, hosted layer, SDK surface, or content-policy host.
+
 Two rules before any figure below is read:
 
 - **Gzip is what a reader actually pays.** GitHub Pages compresses the JSON,

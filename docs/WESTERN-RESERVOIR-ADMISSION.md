@@ -1,5 +1,13 @@
 # Admitting the western reservoirs: what the run found
 
+**Status (2026-08-20): historical admission measurement; delivered through
+the later R1 and R2 reviews.** The capacity ceiling, cross-provider dedupe, and
+station-keyed roster changes described here are implemented. Use the current
+payload for published counts and
+[`WESTERN-ROSTER-ADMISSION-REVIEW.md`](WESTERN-ROSTER-ADMISSION-REVIEW.md)
+plus [`RISE-ADMISSION-REVIEW.md`](RISE-ADMISSION-REVIEW.md) for the final
+review trail.
+
 Measured 2026-08-19 against `west-huc6`, with
 `tools/audit_awdb_stations.py` and `tools/audit_candidate_capacity.py`. Every
 figure here came from a real run, and nothing has been admitted: this is the

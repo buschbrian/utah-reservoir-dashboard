@@ -1,5 +1,11 @@
 # Phase 1.6 execution plan — connected sites and snowpack
 
+**Status (2026-08-20): complete and expanded by later western work.** The first
+connected-reservoir and snow pipeline shipped, the drought interface shipped,
+and the later western expansion grew the snow inventory to 637 sites and the
+reservoir roster across eleven states. Measurements below retain their
+original 2026-08-10 scope.
+
 Scoped 2026-08-10, after a measurement pass run the same day. This plan
 covers the two data additions left in Phase 1.6: the reservoir sites inside
 our drainage areas that we do not yet track, and snowpack. Drought context

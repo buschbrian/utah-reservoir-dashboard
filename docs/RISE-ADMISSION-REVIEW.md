@@ -1,5 +1,9 @@
 # R2: the RISE-only west, measured
 
+**Status (2026-08-20): delivered.** The reviewed RISE-only additions are in the
+production federal western roster. Counts below describe the admission run,
+not a daily payload guarantee.
+
 Run 2026-08-19 against the live RISE catalogue and the USACE National
 Inventory of Dams, on `main` at 198 published reservoirs.
 
