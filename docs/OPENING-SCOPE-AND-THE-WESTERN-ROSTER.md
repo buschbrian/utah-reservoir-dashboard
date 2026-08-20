@@ -144,7 +144,7 @@ numeric:
 | 4 `?state=` on the three maps | C, F | **done on snow, drought and charts**; the storage map is S3a and is the last of the four |
 | 5 Carry the parameters across the navigation | E | **done** (`1f4914e`) — `portable-url.ts` |
 | 6 The state control | G | not started — S4, and next after S3a |
-| 7 Widen `?area=` to any code width | — | **done** — `HUC_CODE` accepts any even width and `areaAtLevel` reconciles it with `?level=` |
+| 7 Widen `?area=` to any code width | — | **done** — `HUC_CODE` accepts any even width and `areaAtLevel` reconciles it with `?level=`; the storage map's `applyScope` was the last gate still comparing by equality and is fixed |
 | 8 Persist the choice | H | not started — S5 |
 | 9 The splash | I | not started — S6 |
 
@@ -224,6 +224,25 @@ accepts any even width to twelve, `matchesFilter` prefix-matches, and since
 `ada826a` the `where` clause does too, at exactly 2, 4 and 6 digits. The drawn
 level stays 4 or 6 and the reader's region narrows what is drawn at that level.
 
+**The storage map did not, and the row below saying it "already works" was
+wrong when it was written.** The filter was prefix-safe at both ends and never
+saw a coarse code: `applyScope` held the reader's choice against the six-digit
+basin list *by equality*, so `?area=1401` was reset to "all drainage areas"
+before it reached `matchesFilter`, and the page answered a subregion link with
+the whole roster. Two lessons worth keeping, because slices 6 and 9 both plan
+on this parameter:
+
+- **A filter is prefix-safe only if every gate on the way to it is.** Two of
+  the three were, which is why the claim survived review. `coversDrainageArea`
+  in `src/state/filters.ts` is now the single prefix test all three read.
+- **A control that lists one level has to be able to show a coarser choice.**
+  The select offers basins; a link may carry a region or a subregion. Left
+  alone, the map narrowed while the select beside it read "All drainage areas"
+  and the reader had no way back to what the link opened on. The coarse area is
+  added to the control and named at its own level -- "Bear subregion", because
+  nineteen of the drawn basins carry their subregion's name exactly, and
+  "Bear" alone would be two rows in one list meaning different things.
+
 One gap: **region names are published nowhere.** `reservoirs.json` publishes
 `watersheds.subregions` (four-digit names, and only for subregions the roster
 occupies); `reference.json` publishes per-unit names at 4 and 6. Five region
@@ -236,7 +255,7 @@ go stale with nothing to catch it.
 
 | Page | `?area=` | Needs |
 |---|---|---|
-| Storage map | filters (`drainage=`, `area=` as alias), prefix-matched | nothing at 2 and 4 digits — it already works |
+| Storage map | filters (`drainage=`, `area=` as alias), prefix-matched | nothing further — it works at 2, 4 and 6 digits since the `applyScope` fix below |
 | Snow | narrows the whole page | narrowing the **drawn** areas as well, to measured ∩ chosen |
 | Drought | **opens that area's row; does not filter** | a decision |
 

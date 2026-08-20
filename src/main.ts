@@ -16,12 +16,14 @@ import { isLate, statewideRollup } from "./data/rollup";
 import {
   DEFAULT_SCOPE,
   overviewScope,
+  subregionNames,
   watershedOptions,
   type ScopeChoice
 } from "./overview-model";
 import { describeReservoir } from "./state/detail";
 import {
   ALL_RESERVOIRS,
+  coversDrainageArea,
   describeFilter,
   drainageAreaLabel,
   filterWhere,
@@ -115,6 +117,19 @@ let deepLink: Reservoir | null = null;
 let published: readonly Reservoir[] = [];
 /** Everything the map is currently drawing. */
 let inScope: readonly Reservoir[] = [];
+/* The subregion names the payload publishes, for the one place this page can
+ * be asked about a four-digit area: a shared link. `watersheds.subregions` is
+ * in `reservoirs.json` rather than `reference.json` because one copy of a
+ * roster is the point of having one (ADR-060, ADR-064). */
+let subregionLabels: ReadonlyMap<string, string> = new Map();
+/* The area a shared link opened on, when it is coarser than the basins this
+ * control offers -- `?area=14` is a region and `?area=1401` a subregion, and
+ * both filter correctly because `matchesFilter` prefix-matches. The control
+ * lists basins, so without this the map would narrow while the select beside
+ * it read "All drainage areas", and the reader would have no way back to what
+ * the link opened on. Held for the session rather than only while it is
+ * chosen, so looking at one basin is not a one-way door. */
+let openingArea: string | null = null;
 /* ADR-011's two dimensions, both the reader's to choose. Geography was
  * pinned to `utah`, which is why Fontenelle and Woodruff Narrows -- paid for
  * by the refresh every morning, connected to Utah by drainage but never
@@ -151,6 +166,7 @@ async function loadData(): Promise<readonly Reservoir[] | null> {
       return null;
     }
     publishedAt = data.generated_at.slice(0, 10);
+    subregionLabels = subregionNames(data);
     /* The periods this payload can actually offer, and which one it opens on.
      * Both come from the data rather than from a constant here, so a change of
      * default in the pipeline reaches the page without a code change and a
@@ -425,20 +441,57 @@ async function renderRankingChart(): Promise<void> {
 }
 
 
-/** The drainage areas the map currently has, as the control's choices. The
- * areas follow the scope: `connected` brings two more reservoirs, and one of
- * them may be the only reservoir in its area. */
-function drainageAreaChoices(): { value: string; label: string }[] {
-  return [{ value: "all", label: drainageAreaLabel(null) },
-    ...watershedOptions(inScope).map((area) => ({ value: area.code, label: area.label }))];
+/** Whether any drainage area the map currently has sits inside this code.
+ * The one question both the control's choices and the surviving filter are
+ * answered from, so a code cannot be offered and refused at once. */
+function scopeHoldsArea(code: string): boolean {
+  return watershedOptions(inScope).some((area) => coversDrainageArea(code, area.code));
 }
 
-/** The name of the chosen area, for the sentence under the controls. Null
- * when nothing is chosen, and also when the choice has left the scope. */
+/**
+ * A region or a subregion, named so it cannot be read as a basin.
+ *
+ * Nineteen of the drawn basins carry their subregion's name exactly -- basin
+ * 140100 and subregion 1401 are both "Colorado Headwaters" -- so the level
+ * has to be in the words, or the control offers two identical rows meaning
+ * different things. That is the county rule (ADR-058) in another geography:
+ * key on the code, disambiguate the label.
+ *
+ * Region names are published nowhere, so a region is named by its code.
+ */
+function coarseAreaLabel(code: string): string {
+  if (code.length <= 2) return `Region ${code}`;
+  const name = subregionLabels.get(code);
+  return name ? `${name} subregion` : `Subregion ${code}`;
+}
+
+/** The drainage areas the map currently has, as the control's choices. The
+ * areas follow the scope: `connected` brings two more reservoirs, and one of
+ * them may be the only reservoir in its area.
+ *
+ * A coarser area a shared link opened on is offered above them, when the
+ * scope still holds basins inside it -- see `openingArea`. */
+function drainageAreaChoices(): { value: string; label: string }[] {
+  const areas = watershedOptions(inScope);
+  const opening = openingArea;
+  const coarser = opening !== null
+    && !areas.some((area) => area.code === opening)
+    && scopeHoldsArea(opening)
+    ? [{ value: opening, label: coarseAreaLabel(opening) }]
+    : [];
+  return [{ value: "all", label: drainageAreaLabel(null) },
+    ...coarser,
+    ...areas.map((area) => ({ value: area.code, label: area.label }))];
+}
+
+/** The name of the chosen area, for the sentence under the controls. Read
+ * from the list the control itself shows, so the sentence and the select
+ * cannot name the same code differently. Null when nothing is chosen, and
+ * also when the choice has left the scope. */
 function drainageAreaName(): string | null {
-  if (filterState.drainageArea === null) return null;
-  return watershedOptions(inScope)
-    .find((area) => area.code === filterState.drainageArea)?.label ?? null;
+  const chosen = filterState.drainageArea;
+  if (chosen === null) return null;
+  return drainageAreaChoices().find((area) => area.value === chosen)?.label ?? null;
 }
 
 function wireFilters(map: MapController): void {
@@ -668,14 +721,22 @@ if (!supportsDashboard(browserCapabilities())) {
       if (selection.get() && !findReservoir(inScope, selection.get())) {
         selection.set(null, { source: "scope" });
       }
-      /* The areas the map has changed with the scope. A chosen area that is
-       * no longer one of them would leave every reservoir dimmed with a
+      /* The areas the map has changed with the scope. A chosen area that no
+       * longer holds one of them would leave every reservoir dimmed with a
        * control offering no way back, so it falls back to all of them --
-       * the same rule the selection above follows. */
-      const areas = drainageAreaChoices();
-      setDrainageAreaOptions(areas);
-      if (filterState.drainageArea !== null
-        && !areas.some((area) => area.value === filterState.drainageArea)) {
+       * the same rule the selection above follows.
+       *
+       * Held by prefix and not by equality, because the reader's choice is
+       * not always one of the codes on the list. A link may carry a region or
+       * a subregion (`?area=14`, `?area=1401`), which `matchesFilter` and the
+       * `where` clause both handle; compared for equality against six-digit
+       * basins, every such link was reset to "all drainage areas" here,
+       * before it ever reached the filter it was written for. A code finer
+       * than a basin still falls away, which is right: nothing published sits
+       * inside it. */
+      setDrainageAreaOptions(drainageAreaChoices());
+      const chosenArea = filterState.drainageArea;
+      if (chosenArea !== null && !scopeHoldsArea(chosenArea)) {
         filterState = { ...filterState, drainageArea: null };
       }
       applyFilter();
@@ -775,6 +836,8 @@ if (!supportsDashboard(browserCapabilities())) {
       reporting: wanted.reporting,
       drainageArea: wanted.drainageArea
     };
+    /* Read before the first `applyScope`, which is what fills the control. */
+    openingArea = wanted.drainageArea;
     // A link to a month the payload no longer carries opens on the newest
     // reading rather than on nothing.
     const askedFor = wanted.month === null ? -1 : months.indexOf(wanted.month);

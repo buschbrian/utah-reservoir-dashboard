@@ -136,6 +136,56 @@ const sharedFilter = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
       reservoir.huc6 === drainage && classOf(reservoir) === storageClass).length
   })))
   .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+/* A subregion the default scope holds more than one basin of, for the link a
+ * reader shares after choosing a region rather than a single drainage area.
+ *
+ * Derived from the payload the way everything here is: `huc6.slice(0, 4)`,
+ * because codes are fixed-width and nest and a subregion code is published
+ * nowhere -- only its name is, in `watersheds.subregions`. More than one
+ * basin inside it is the point of the fixture: it makes the expected count an
+ * answer no six-digit choice could have produced, so a page that quietly
+ * substituted a basin for the region cannot pass.
+ *
+ * `applyScope` used to hold the reader's choice against the six-digit basin
+ * list by equality, so a four-digit code was reset to "all drainage areas"
+ * before it reached `matchesFilter` -- which prefix-matches, and always did.
+ * The page answered a subregion link with the whole roster and said so in the
+ * summary, which is a shared link silently ignored. */
+const sharedSubregion = [...new Set(inScope
+  .map((reservoir) => reservoir.huc6)
+  .filter((code) => typeof code === "string")
+  .map((code) => code.slice(0, 4)))].sort()
+  .map((code) => {
+    const rows = inScope.filter((reservoir) => reservoir.huc6?.startsWith(code));
+    return {
+      code,
+      count: rows.length,
+      basins: new Set(rows.map((reservoir) => reservoir.huc6)).size,
+      /* The label the control has to show. Named rather than left as a bare
+       * code, and named at its own level: nineteen of the drawn basins carry
+       * their subregion's name exactly, so "Bear" alone would be two rows in
+       * one list meaning different things. */
+      label: `${payload.watersheds?.subregions
+        ?.find((entry) => entry.huc4 === code)?.name ?? code} subregion`
+    };
+  })
+  .find((candidate) => candidate.basins > 1 && candidate.count < inScope.length);
+
+/* And the same at two digits, which is the width slice 6's state and region
+ * control will produce. Region names are published nowhere, so the label is
+ * the code -- said in words, because a bare "14" beside a list of names is
+ * not a choice a reader can read. */
+const sharedRegion = [...new Set(inScope
+  .map((reservoir) => reservoir.huc6)
+  .filter((code) => typeof code === "string")
+  .map((code) => code.slice(0, 2)))].sort()
+  .map((code) => ({
+    code,
+    count: inScope.filter((reservoir) => reservoir.huc6?.startsWith(code)).length,
+    label: `Region ${code}`
+  }))
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+
 /* The drawn scope's areas, found through the reference export rather than by
  * file name: which file holds the drawn geography moved once already
  * (ADR-063), and a count read from the roster scope's file would have gone on
@@ -2814,6 +2864,95 @@ for (const viewport of VIEWPORTS) {
       document.querySelector('#start-panel [data-share="copy"]')?.textContent?.includes("Link copied"));
     const copied = await tab.evaluate(() => navigator.clipboard.readText());
     check(copied === tab.url(), `${label}: copied "${copied}" instead of "${tab.url()}"`);
+
+    /* The same link one level coarser. `?area=` is the alias `?drainage=` is
+     * the canonical spelling of, and it is the spelling a reader arrives with
+     * from another surface, so the coarse case is exercised through it. */
+    check(Boolean(sharedSubregion),
+      `${label}: the scope holds no subregion spanning more than one drainage area`);
+    await tab.goto(`${URL}?area=${sharedSubregion?.code}`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    const bySubregion = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      control: document.querySelector('#start-panel [data-filter="drainage"]')?.value,
+      /* Every choice the control offers, so the coarse one can be shown to be
+       * on it exactly once and under a name no basin also answers to. */
+      options: [...document.querySelectorAll(
+        '#start-panel [data-filter="drainage"] calcite-option')]
+        .map((option) => ({ value: option.getAttribute("value"), label: option.textContent })),
+      summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      listShown: document.querySelectorAll(
+        '#start-panel .list-btn:not(.list-btn-excluded)').length,
+      where: document.querySelector("arcgis-map")?.map
+        ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
+    }));
+    check(bySubregion.ready.areaFilter === sharedSubregion?.code,
+      `${label}: a four-digit ?area= was not applied ` +
+      `(${bySubregion.ready.areaFilter}), so the link was ignored`);
+    check(bySubregion.ready.shown === sharedSubregion?.count,
+      `${label}: the subregion showed ${bySubregion.ready.shown} reservoirs, ` +
+      `expected ${sharedSubregion?.count} across its ${sharedSubregion?.basins} ` +
+      "drainage areas");
+    check(bySubregion.listShown === bySubregion.ready.shown,
+      `${label}: the list showed ${bySubregion.listShown} for the subregion, ` +
+      `the map reported ${bySubregion.ready.shown}`);
+    // A filter, not a scope: nothing leaves the map, exactly as at six digits.
+    check(bySubregion.ready.drawn === expectedReservoirs,
+      `${label}: filtering by subregion removed reservoirs from the map`);
+    check(bySubregion.where === `drainage_area LIKE '${sharedSubregion?.code}%'`,
+      `${label}: the map filter is "${bySubregion.where}" for a subregion link`);
+    /* The control has to carry the reader's choice, or the map narrows while
+     * the select beside it reads "All drainage areas" and there is no way
+     * back to what the link opened on. */
+    check(bySubregion.control === sharedSubregion?.code,
+      `${label}: the drainage-area control shows "${bySubregion.control}", ` +
+      "not the subregion the link opened on");
+    const offered = bySubregion.options
+      .filter((option) => option.value === sharedSubregion?.code);
+    check(offered.length === 1,
+      `${label}: the subregion appears ${offered.length} times in the ` +
+      "drainage-area control, expected once");
+    check(offered[0]?.label === sharedSubregion?.label,
+      `${label}: the subregion is labelled "${offered[0]?.label}", ` +
+      `expected "${sharedSubregion?.label}"`);
+    check(bySubregion.options.filter((option) =>
+      option.label === offered[0]?.label).length === 1,
+    `${label}: "${offered[0]?.label}" names more than one choice in the ` +
+    "drainage-area control");
+    check(bySubregion.summary.includes(`in ${sharedSubregion?.label}`),
+      `${label}: the summary reads "${bySubregion.summary}" and does not ` +
+      "name the subregion the reader asked for");
+
+    // Two digits is a region, and the only difference from a subregion is the
+    // name: nothing publishes region names, so the code is said in words.
+    check(Boolean(sharedRegion),
+      `${label}: the scope holds no region narrower than the whole roster`);
+    await tab.goto(`${URL}?area=${sharedRegion?.code}`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    const byRegion = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      control: document.querySelector('#start-panel [data-filter="drainage"]')?.value,
+      chosenLabel: document.querySelector(
+        '#start-panel [data-filter="drainage"] calcite-option[selected]')?.textContent
+        ?? null,
+      summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? ""
+    }));
+    check(byRegion.ready.areaFilter === sharedRegion?.code,
+      `${label}: a two-digit ?area= was not applied (${byRegion.ready.areaFilter})`);
+    check(byRegion.ready.shown === sharedRegion?.count,
+      `${label}: the region showed ${byRegion.ready.shown} reservoirs, ` +
+      `expected ${sharedRegion?.count}`);
+    check(byRegion.control === sharedRegion?.code,
+      `${label}: the drainage-area control shows "${byRegion.control}", ` +
+      "not the region the link opened on");
+    check(byRegion.chosenLabel === sharedRegion?.label,
+      `${label}: the region is labelled "${byRegion.chosenLabel}", ` +
+      `expected "${sharedRegion?.label}"`);
+    check(byRegion.summary.includes(`in ${sharedRegion?.label}`),
+      `${label}: the summary reads "${byRegion.summary}" and does not name ` +
+      "the region the reader asked for");
 
     // A link that names nothing this page draws is not an error; it is no
     // selection, and the reader gets the ordinary starting view.
