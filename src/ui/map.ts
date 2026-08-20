@@ -25,12 +25,12 @@ import type { DrainageAreaBox, DrainageScope } from "../data/boundaries";
 import { findReservoir, type SelectionStore } from "../state/selection";
 import type { NullableNumber, Reservoir } from "../types";
 import {
-  extentFromBox,
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
   navigableExtent,
   regionExtent,
-  selectionTarget
+  selectionTarget,
+  mapExtentFromBox
 } from "../viz/extent";
 import { storageByArea } from "../drought-model";
 import { elementById } from "./dom";
@@ -732,7 +732,7 @@ export async function loadMap(
       // The same conversion `regionExtent()`'s own assignment above went
       // through, so the corner order and spatial reference cannot drift
       // between the fixed default and a reader's chosen override.
-      element.extent = { type: "extent", ...extentFromBox(box) };
+      element.extent = mapExtentFromBox(box);
     }
   };
 }

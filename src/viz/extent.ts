@@ -256,6 +256,21 @@ export function extentFromBox(
 
 /** Where the storage map opens when a reader has chosen no scope: the box
  * pinned by ADR-044, one zoom level out. */
+/**
+ * A box as the geometry an `arcgis-map` element takes, discriminator included.
+ *
+ * `extentFromBox` deliberately returns the four numbers alone, which left
+ * every caller writing `{ type: "extent", ...extentFromBox(box) }` by hand --
+ * three copies, each one able to forget the `type` and fail silently, because
+ * an extent without it is not rejected so much as ignored. This is the form a
+ * caller assigning to `element.extent` wants.
+ */
+export function mapExtentFromBox(
+  box: readonly [readonly [number, number], readonly [number, number]]
+): Extent & { type: "extent" } {
+  return { type: "extent", ...extentFromBox(box) };
+}
+
 export function regionExtent(): Extent {
   return extentFromBox(MAP_BOUNDS);
 }

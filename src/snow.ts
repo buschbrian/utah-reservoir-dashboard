@@ -31,7 +31,8 @@ import {
   withinOpeningArea,
   type OpeningRosters,
   type OpeningScope,
-  type OpeningSelection
+  type OpeningSelection,
+  EMPTY_OPENING_ROSTERS
 } from "./data/opening-scope";
 import { stateName } from "./data/state-vocabulary";
 import { loadSnowpack } from "./data/snow-load";
@@ -81,7 +82,9 @@ import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
-import { extentFromBox } from "./viz/extent";
+import {
+  mapExtentFromBox
+} from "./viz/extent";
 import { formatDate, formatPercent } from "./viz/format";
 import { renderSiteCurve } from "./viz/site-curve";
 import { renderSnowCurve } from "./viz/snow-curve";
@@ -1085,7 +1088,7 @@ function renderSnow(
        * which is also what makes this override trustworthy rather than
        * clamped back to a narrower box the instant the view settles --
        * every published unit's box now fits inside it. */
-      mapElement.extent = { type: "extent", ...extentFromBox(openingScope.box) };
+      mapElement.extent = mapExtentFromBox(openingScope.box);
       const firstDay = currentDay
         ? { values: mapDayValues(payload, currentDay), day: currentDay }
         : null;
@@ -1157,7 +1160,7 @@ try {
     loadOpeningRosters().catch((error: unknown): OpeningRosters => {
       console.warn("The opening-scope rosters could not load; the page " +
         "opens with no area narrowing.", error);
-      return { regions: [], subregions: [], areas: [] };
+      return EMPTY_OPENING_ROSTERS;
     })
   ]);
   /* Regrouped before anything reads it, so the picker, the curves, the table,

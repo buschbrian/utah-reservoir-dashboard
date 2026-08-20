@@ -18,7 +18,9 @@ import {
   openingSelectionFromSearch,
   resolveOpeningScope,
   type OpeningRosters,
-  type OpeningScope
+  type OpeningScope,
+  EMPTY_OPENING_ROSTERS,
+  isOpeningScopeChosen
 } from "./data/opening-scope";
 import { isLate, statewideRollup } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
@@ -134,7 +136,6 @@ let deepLink: Reservoir | null = null;
  * exported from `data/opening-scope.ts`: that module is shared with the
  * other three surfaces, and this slice owns only `main.ts`.
  */
-const EMPTY_OPENING_ROSTERS: OpeningRosters = { regions: [], subregions: [], areas: [] };
 
 /** Everything published, before the scope control narrows it. */
 let published: readonly Reservoir[] = [];
@@ -561,7 +562,13 @@ function openingPlaceSummary(): string {
       `${reservoirLabel(widenedForReservoir, inScope)}, is included. `;
   }
   const state = openingScope.selection.state;
-  return state === "all" ? "" : `Narrowed to reservoirs in ${stateName(state)}. `;
+  /* "Showing X for PLACE", which is the shape the snow and drought pages
+   * already use. Two of the four surfaces had it and two described the
+   * operation instead -- "Narrowed to..." here and "Storage narrowed to..."
+   * on the charts -- and a reader carrying a choice across the navigation
+   * met a different sentence on each page for the same fact. The majority
+   * shape wins rather than the newer one. */
+  return state === "all" ? "" : `Showing reservoir storage for ${stateName(state)}. `;
 }
 
 function wireFilters(map: MapController): void {
@@ -814,7 +821,7 @@ if (!supportsDashboard(browserCapabilities())) {
    * boundaries.
    */
   const openingSelection = openingSelectionFromSearch(window.location.search);
-  const scopeChosen = openingSelection.state !== "all" || openingSelection.area !== null;
+  const scopeChosen = isOpeningScopeChosen(openingSelection);
   // Module-level (declared beside `scope`, above): `applyScope` and
   // `wireFilters`'s `apply` both read it, and a local shadow here would
   // leave that second reader looking at the placeholder default forever.

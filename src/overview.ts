@@ -14,7 +14,9 @@ import {
   resolveOpeningScope,
   withinOpeningArea,
   type OpeningRosters,
-  type OpeningScope
+  type OpeningScope,
+  EMPTY_OPENING_ROSTERS,
+  isOpeningScopeChosen
 } from "./data/opening-scope";
 import { weeklySummary } from "./weekly-model";
 import { describeWeek } from "./viz/weekly-summary";
@@ -862,7 +864,6 @@ async function renderWeekly(reservoirs: readonly Reservoir[]): Promise<void> {
   } as NonNullable<typeof window.__overviewReady>;
 }
 
-const EMPTY_OPENING_ROSTERS: OpeningRosters = { regions: [], subregions: [], areas: [] };
 
 try {
   const openingSelection = openingSelectionFromSearch(window.location.search);
@@ -880,7 +881,7 @@ try {
    * reader loses only the area half of the opening scope, not the page. */
   const [payload, openingRosters] = await Promise.all([
     loadReservoirs(),
-    openingSelection.state !== "all" || openingSelection.area !== null
+    isOpeningScopeChosen(openingSelection)
       ? loadOpeningRosters().catch((error: unknown) => {
         console.warn("The opening scope's drainage-area roster did not load:", error);
         return EMPTY_OPENING_ROSTERS;

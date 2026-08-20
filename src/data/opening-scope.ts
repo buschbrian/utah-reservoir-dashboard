@@ -137,6 +137,32 @@ export const DEFAULT_OPENING_SELECTION: OpeningSelection = { state: "all", area:
  * state from a `?drainage=`-only link keeps using `state/url.ts` for that,
  * same as today.
  */
+/**
+ * No rosters at all: what a page holds before the reference export resolves,
+ * and what it falls back to when the fetch fails.
+ *
+ * One constant because it was written out four times across three surfaces,
+ * and the two cases it covers -- not fetched yet, and fetch failed -- must not
+ * be able to drift apart. `resolveOpeningScope` answers a selection against it
+ * with every list empty and the box falling back to `MAP_BOUNDS`, which is the
+ * behaviour a page with no geography should have.
+ */
+export const EMPTY_OPENING_ROSTERS: OpeningRosters =
+  { regions: [], subregions: [], areas: [] };
+
+/**
+ * Whether the reader asked for a place at all.
+ *
+ * The absence of both parameters is what "the whole west" means, so this is
+ * the test for "did a link or a control name somewhere". Written out
+ * identically in three surfaces before it lived here; if the sentinel for
+ * "everywhere" ever stops being the string `all`, or a third axis joins
+ * state and area, this is the one place that has to know.
+ */
+export function isOpeningScopeChosen(selection: OpeningSelection): boolean {
+  return selection.state !== "all" || selection.area !== null;
+}
+
 export function openingSelectionFromSearch(search: string | null | undefined): OpeningSelection {
   // `+`, not `^\?`: a search string built by prefixing "?" onto something
   // that already had one -- unlikely by hand, easy by string concatenation
