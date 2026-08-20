@@ -329,7 +329,7 @@ async function renderOverview(
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="distribution-heading">
-        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the median, one standard deviation and a fitted normal curve.</p></div><span class="sdk-badge">Histogram</span></div>
+        <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the middle value, and the range the middle half of them fall in. These reservoirs differ in size, purpose and operating rules, so they are not one population with a shape to fit a curve to.</p></div><span class="sdk-badge">Histogram</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
         <!-- Under the chart, not beside it. The histogram is the widest thing
              on this page and a key in a side rail would take width from the

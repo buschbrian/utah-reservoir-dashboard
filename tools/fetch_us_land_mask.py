@@ -21,6 +21,7 @@ offline, exactly like `huc6.geojson`, and no browser has any use for it.
 """
 
 import argparse
+import datetime as dt
 import json
 import sys
 import urllib.error
@@ -103,6 +104,8 @@ def main() -> int:
     # Recorded in the file, so the tolerance a figure rests on travels with it
     # rather than living only in this tool -- the same arrangement the
     # watershed scopes use.
+    # When this was fetched. See `tools/check_reference_freshness.py`.
+    collection["retrieved"] = dt.date.today().isoformat()
     collection["geometry"] = {
         "max_allowable_offset_degrees": float(MAX_ALLOWABLE_OFFSET),
         "source": STATE_LAYER,

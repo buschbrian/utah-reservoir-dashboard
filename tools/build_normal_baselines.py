@@ -66,8 +66,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from refresh_reservoirs import (  # noqa: E402
-    SEASONAL_WINDOW_DAYS, annual_seasonal_values, fetch_awdb_series,
-    fetch_rise_series, seasonal_window,
+    CANONICAL_YEAR_DAYS, SEASONAL_WINDOW_DAYS, annual_seasonal_values,
+    fetch_awdb_series, fetch_rise_series, seasonal_window,
 )
 
 ROSTER_PATH = ROOT / "reservoirs.json"
@@ -122,7 +122,9 @@ CLIMATE_START_YEAR = 1991
 CLIMATE_END_YEAR = 2020
 
 # The shape of this file, not the numbers in it.
-SCHEMA_VERSION = 1
+#: 2 since the day-of-year arrays became 365 long rather than 366: a
+#: canonical year has no 29 February, so there is no position for one.
+SCHEMA_VERSION = 2
 
 #: The estimator behind the numbers, which is a different thing from the shape
 #: of the file holding them (ADR-041's periods are a third thing again). A
@@ -132,8 +134,10 @@ SCHEMA_VERSION = 1
 #:
 #: "annual" is the median of one representative value per year. "pooled" is
 #: what came before it, the median over every reading in the window, which let
-#: a densely-reported year outvote a sparsely-reported one.
-METHOD_VERSION = "storage-normal-annual-1"
+#: a densely-reported year outvote a sparsely-reported one. "-2" adds the
+#: canonical calendar: the table is built and read at the same position, where
+#: it used to be built over a leap year and read by `dayofyear`.
+METHOD_VERSION = "storage-normal-annual-2"
 
 #: How many reservoirs to fetch at once. See `build_many` for why it is small.
 DEFAULT_WORKERS = 6
@@ -164,10 +168,12 @@ def fetch_period(reservoir: dict) -> pd.DataFrame:
 def day_of_year_normals(series: pd.Series) -> dict:
     """Median storage and contributing-year count for each day of the year.
 
-    Indexed by day of the year 1 through 366 so the pipeline can look a value
-    up with the same `dayofyear` expression it already computes. Position 0 of
-    each array is unused and holds null, which keeps the index arithmetic
-    obvious at the cost of one wasted slot.
+    Indexed by canonical position 1 through 365 -- `canonical_day` in the
+    pipeline -- so the pipeline looks a value up by the same expression that
+    built it. Position 0 of each array is unused and holds null, which keeps
+    the index arithmetic obvious at the cost of one wasted slot. There is no
+    position 366: a canonical year never has one, and 29 February is read at
+    28 February's position.
 
     One representative value per year, then the median across years -- the
     same estimator `month_normals` below has always used, and the same one the
@@ -179,12 +185,16 @@ def day_of_year_normals(series: pd.Series) -> dict:
     gives each year one vote instead of the one that let thirty years of daily
     readings drown out a provider reporting once a month.
     """
-    medians: list[float | None] = [None] * 367
-    years: list[int] = [0] * 367
-    # A leap year so every one of the 366 reference days exists. seasonal_window
-    # reads only the day of the year off this date.
-    reference_year = 2020
-    for day in range(1, 367):
+    medians: list[float | None] = [None] * (CANONICAL_YEAR_DAYS + 1)
+    years: list[int] = [0] * (CANONICAL_YEAR_DAYS + 1)
+    # An ordinary year, so a position in this loop is already the canonical
+    # position and needs no conversion. It used to be a leap year iterated to
+    # 366, which put every entry after February one day off the position the
+    # pipeline looked it up by: the table said "day 231" meaning 18 August and
+    # was read for 19 August. The shift was on one side of the comparison, not
+    # both.
+    reference_year = 2021
+    for day in range(1, CANONICAL_YEAR_DAYS + 1):
         reference = pd.Timestamp(f"{reference_year}-01-01") + pd.Timedelta(days=day - 1)
         yearly = annual_seasonal_values(series, reference, SEASONAL_WINDOW_DAYS)
         if yearly.empty:
@@ -473,12 +483,15 @@ def main() -> int:
         "method_version": METHOD_VERSION,
         "method": (
             "One representative value per year -- the median of the readings "
-            "within a plus or minus 7 day window around the same day of the "
-            "year -- then the median of those across 1991 through 2020, so "
+            "within a plus or minus 7 day window around the same calendar "
+            "date -- then the median of those across 1991 through 2020, so "
             "every year carries the same weight whether its provider reported "
-            "daily or monthly. Monthly values are the median of each calendar "
-            "month's mean storage across the same years. Built once and "
-            "committed, because a normal over a closed period does not change."
+            "daily or monthly. The window matches on a calendar of 365 days "
+            "in which 29 February shares 28 February's place, so a date means "
+            "one position in every year. Monthly values are the median of "
+            "each calendar month's mean storage across the same years. Built "
+            "once and committed, because a normal over a closed period does "
+            "not change."
         ),
         "sources": {
             "rise": "https://data.usbr.gov/rise-api",

@@ -169,6 +169,76 @@ def test_seasonal_window_wraps_correctly_across_a_leap_year():
     }
 
 
+# --- one calendar date, one position in every year -------------------------
+
+def test_the_same_calendar_date_matches_in_every_year():
+    """A window centred on 19 August must hold every 19 August.
+
+    It did not. `dayofyear` makes 19 August day 231 in an ordinary year and
+    232 in a leap year, so a zero-width window centred on 19 August 2026
+    excluded 19 August 2024 outright, and a seven-day one was centred on 18
+    August for every leap year in the record. Every date after February was
+    affected, which is most of the year and all of the melt season.
+    """
+    dates = pd.DatetimeIndex(
+        [f"{year}-08-19" for year in range(2015, 2027)])
+    series = pd.Series(1.0, index=dates)
+    window = R.seasonal_window(series, pd.Timestamp("2026-08-19"), window_days=0)
+    assert set(window.index.date) == set(dates.date)
+
+
+def test_the_canonical_year_is_the_same_length_every_year():
+    """Every year has 365 positions, which is what makes the wrap one constant."""
+    for year in (2023, 2024, 2100, 2000):
+        days = pd.date_range(f"{year}-01-01", f"{year}-12-31", freq="D")
+        positions = R.canonical_day(days)
+        assert positions.min() == 1
+        assert positions.max() == R.CANONICAL_YEAR_DAYS
+
+
+def test_february_29_takes_february_28s_position():
+    """It has to take one. Nothing is dropped and nothing else moves."""
+    leap = pd.DatetimeIndex(["2024-02-28", "2024-02-29", "2024-03-01"])
+    positions = R.canonical_day(leap)
+    assert positions[0] == positions[1], "29 February shares 28 February's slot"
+    assert positions[2] == positions[0] + 1, "1 March is still the next position"
+
+    # And both February days reach a window centred on 28 February.
+    series = pd.Series([1.0, 2.0, 3.0], index=leap)
+    window = R.seasonal_window(series, pd.Timestamp("2026-02-28"), window_days=0)
+    assert sorted(window.to_numpy().tolist()) == [1.0, 2.0]
+
+
+def test_a_single_timestamp_and_an_index_agree():
+    """The two forms are one rule; a reader of either must get the same answer."""
+    dates = pd.date_range("2024-01-01", "2025-12-31", freq="D")
+    from_index = R.canonical_day(dates)
+    for offset in (0, 58, 59, 60, 200, 365, 366, 500):
+        moment = dates[offset]
+        assert R.canonical_day(moment) == from_index[offset], str(moment.date())
+
+
+def test_the_normal_table_is_read_at_the_position_it_was_built_at():
+    """The table and the lookup were one day apart for most of the year.
+
+    The table was built by iterating a leap year and read by `dayofyear`, so
+    entry 231 was built from 18 August and read for every 19 August in an
+    ordinary year. Built here from a flat series so the medians cannot hide a
+    shift, and checked on the position rather than the value.
+    """
+    import tools.build_normal_baselines as B
+    index = pd.date_range("1991-01-01", "2020-12-31", freq="D")
+    # A ramp, so every position has a different value and an off-by-one shows.
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    table = B.day_of_year_normals(series)
+
+    for date in ("2026-08-19", "2026-03-01", "2026-12-31", "2026-01-01"):
+        moment = pd.Timestamp(date)
+        day = R.canonical_day(moment)
+        expected = R.annual_seasonal_values(series, moment).median()
+        assert table["median_af"][day] == round(float(expected), 2), date
+
+
 def test_seasonal_window_default_comes_from_the_published_constant():
     idx = pd.date_range("2025-06-01", "2025-06-30", freq="D")
     series = pd.Series(1.0, index=idx)
@@ -887,3 +957,66 @@ def test_the_pipeline_publishes_the_estimator_it_used():
     assert B.METHOD_VERSION == R.METHOD_VERSION, (
         "the two baselines are published to be compared with each other, so "
         "they must be built by the same estimator")
+
+
+def test_a_change_says_what_it_is_a_change_from():
+    """"30-day change" is the date asked for, not the date used.
+
+    The nearest usable reading is taken within a tolerance -- ten days for a
+    daily feed and forty-five for a month-end one -- so a row headed "Change
+    in 1 year" has covered anything from 320 days to 410, and the payload
+    published no way to tell which.
+    """
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Daily", 992, 40.0, -111.0, frame, TODAY)
+
+    for label, days in (("7d", 7), ("30d", 30), ("365d", 365)):
+        reference = record[f"change_{label}_reference_date"]
+        elapsed = record[f"change_{label}_elapsed_days"]
+        assert reference is not None, label
+        # A daily series has the exact day, so the interval is the named one.
+        assert elapsed == days, label
+        assert (pd.Timestamp(record["as_of"]) - pd.Timestamp(reference)).days == elapsed
+
+
+def test_a_gappy_series_reports_the_interval_it_actually_used():
+    """The point of the field: the reading used is not the one asked for."""
+    # Month-end readings only, so a 30-day target lands between two of them.
+    index = pd.DatetimeIndex(
+        pd.date_range("2015-01-31", TODAY, freq="ME"))
+    series = pd.Series(range(len(index)), index=index, dtype="float64")
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Monthly", 991, 40.0, -111.0, frame, TODAY,
+                         data_frequency="monthly", change_tolerance_days=45)
+
+    # A monthly series cannot support a seven-day claim and does not make one.
+    assert record["change_7d_af"] is None
+    assert record["change_7d_reference_date"] is None
+    assert record["change_7d_elapsed_days"] is None
+
+    for label in ("30d", "365d"):
+        if record[f"change_{label}_af"] is None:
+            continue
+        elapsed = record[f"change_{label}_elapsed_days"]
+        reference = record[f"change_{label}_reference_date"]
+        assert elapsed is not None and reference is not None, label
+        # Whatever it is, it is stated rather than assumed from the name.
+        assert elapsed > 0, label
+        assert (pd.Timestamp(record["as_of"])
+                - pd.Timestamp(reference)).days == elapsed
+
+
+def test_a_change_that_cannot_be_made_names_no_reference():
+    """Absent is not zero, and an interval for a change that does not exist
+    would be a date with nothing measured from it."""
+    index = pd.date_range(f"{TODAY.year}-06-01", TODAY, freq="D")
+    series = pd.Series(1.0, index=index)
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Young", 990, 40.0, -111.0, frame, TODAY)
+
+    assert record["change_365d_af"] is None
+    assert record["change_365d_reference_date"] is None
+    assert record["change_365d_elapsed_days"] is None
+    json.dumps(record)

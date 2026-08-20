@@ -422,6 +422,12 @@ root.innerHTML = `
           level. The snow map's bands follow the comparison ranges the snow service
           commonly uses. One extra division is added so the highest values can be told
           apart.</li>
+        <li><strong>This site measures water supply, not the health of a river or a
+          lake.</strong> It carries three things: how much water is stored, how much is
+          lying as mountain snow, and how dry the land is. A full reservoir is not a
+          healthy river, and a dry drainage area is not a failing one. Water temperature,
+          streamflow, groundwater, water quality and the condition of habitat are all
+          absent, and nothing here should be read as standing in for them.</li>
         <li>Nothing here is a forecast. Every number is a measurement, a published
           assessment, or an arithmetic comparison of those.</li>
       </ul>

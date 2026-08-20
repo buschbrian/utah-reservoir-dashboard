@@ -89,6 +89,20 @@ export interface Reservoir {
    */
   seasonal_rank?: NullableNumber;
   seasonal_rank_of?: NullableNumber;
+  /**
+   * What each change is actually a change from.
+   *
+   * The name of a change is the date the pipeline asks for, not the one it
+   * gets: the nearest usable reading is taken within ten days for a daily
+   * feed and forty-five for a month-end one, so `change_365d_af` has covered
+   * 320 days to 410. Optional, because they arrive with the pipeline.
+   */
+  change_7d_reference_date?: string | null;
+  change_7d_elapsed_days?: NullableNumber;
+  change_30d_reference_date?: string | null;
+  change_30d_elapsed_days?: NullableNumber;
+  change_365d_reference_date?: string | null;
+  change_365d_elapsed_days?: NullableNumber;
   seasonal_normal_af: NullableNumber;
   pct_of_seasonal_normal: NullableNumber;
   seasonal_sample_years: number;

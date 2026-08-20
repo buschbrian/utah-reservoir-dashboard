@@ -276,6 +276,27 @@ describe("user text", () => {
     expect(methods).toContain('data-live="coverage-note"');
   });
 
+  /*
+   * The P2 corrections. Each is a sentence a later edit removes for length,
+   * and each is the difference between a figure a reader can place and one
+   * they cannot.
+   */
+  it("keeps the scope and interval statements", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    // What the site measures, and what its name might otherwise imply.
+    expect(methods).toMatch(/measures water supply, not the health of a river/i);
+    /* One line, not a phrase spanning the source's own wrapping: a test that
+     * breaks when a paragraph is re-flowed is a test somebody deletes. */
+    expect(methods).toContain("healthy river");
+    expect(methods).toContain("not a failing one");
+
+    // The distribution is not one population with a shape worth fitting.
+    const overview = await readFile(resolve(root, "src/overview.ts"), "utf8");
+    expect(overview).toMatch(/not one population with a shape to fit a curve to/i);
+    expect(overview).not.toMatch(/fitted normal curve/i);
+    expect(overview).not.toMatch(/one standard deviation/i);
+  });
+
   it("keeps the glossary the retired overview used to carry", async () => {
     // explore.html defined these before it became a redirect. The definitions
     // moved here; this test is what notices if they are dropped again.

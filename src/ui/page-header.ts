@@ -108,9 +108,16 @@ const PAGES: readonly PageLink[] = [
  * all there was, then "Utah Water Dashboard" once mountain snow and the
  * weekly drought map joined the storage. The site has since expanded west
  * (ADR-053, ADR-063): it publishes drought coverage for 75 drainage areas
- * across regions 14-18 and snow for 637 sites across 51 areas in 11 states,
- * while only the reservoir roster stays Utah-connected. "Utah" now describes
- * a fraction of it.
+ * across regions 14-18, snow for 637 sites across 51 areas in 11 states, and
+ * a reservoir roster admitted from the same west rather than from Utah.
+ * "Utah" describes none of it now.
+ *
+ * "Water" is the broadest word here and the site measures three things under
+ * it: how much water is stored, how much is lying as mountain snow, and how
+ * dry the land is. None of those is a measure of the health of a river or a
+ * lake, and the methods page says so rather than leaving the name to imply
+ * it. If ecological measurements are ever added they are a new domain with
+ * their own sources, not a wider reading of these.
  */
 export const SITE_NAME = "Western Water Dashboard";
 /** The same name where the bar is too narrow for the whole of it. */

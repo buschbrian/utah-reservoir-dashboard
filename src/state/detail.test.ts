@@ -3,7 +3,8 @@ import { readPayload } from "../data/payload-fixture";
 import { storageColor } from "../viz/classes";
 import { headlinePercent } from "../viz/symbols";
 import {
-  describeReservoir, lateMessage, monthlyDetail, providerName, rankWithYears
+  changeLabel, describeReservoir, lateMessage, monthlyDetail, providerName,
+  rankWithYears
 } from "./detail";
 import { createSelectionStore, findReservoir, normalizeSelectionValue } from "./selection";
 import { loadLegacyApi } from "../data/legacy-harness";
@@ -96,8 +97,7 @@ describe("the details a reader sees", () => {
   it("carries every reading the legacy popup carried", () => {
     for (const view of views) {
       expect(view.rows.map((row) => row.label)).toEqual(expect.arrayContaining([
-        "Stored now", "History rank", "Change in 30 days",
-        "Change in 1 year", "Highest value this year", "Reading date",
+        "Stored now", "History rank", "Highest value this year", "Reading date",
         "Update schedule", "Measured by"
       ]));
       /* The comparison row is still there, but its label now names the period
@@ -106,6 +106,16 @@ describe("the details a reader sees", () => {
        * shape rather than as a fixed string. */
       expect(view.rows.some((row) => row.label.startsWith("Normal for this week,")))
         .toBe(true);
+      /* The two change rows, for the same reason one step further on. "30
+       * days" is the interval the pipeline asks for and not always the one it
+       * gets, so where the reading it found is 31 days back the row says 31.
+       * Asserting the literal label would pin the row to the case where the
+       * provider happened to answer on the exact day. */
+      const changes = view.rows.filter((row) => row.label.startsWith("Change in "));
+      expect(changes, view.name).toHaveLength(2);
+      for (const row of changes) {
+        expect(row.label, view.name).toMatch(/^Change in (30 days|1 year|\d+ days)$/);
+      }
     }
   });
 
@@ -209,17 +219,21 @@ describe("the details a reader sees", () => {
     const falling = reservoirs.find((candidate) =>
       (candidate.change_30d_af ?? 0) < 0);
     expect(falling, "the fixture has no falling reservoir to check").toBeDefined();
+    /* The 30-day row, whatever interval it turned out to cover: the label
+     * carries the measured days when they differ from the 30 asked for, so
+     * finding the row by its literal label finds nothing on most mornings. */
+    const thirtyDayRow = (reservoir: typeof reservoirs[number]) =>
+      describeReservoir(reservoir, "#000").rows
+        .filter((entry) => entry.label.startsWith("Change in "))[0];
     if (falling) {
-      const row = describeReservoir(falling, "#000").rows
-        .find((entry) => entry.label === "Change in 30 days");
+      const row = thirtyDayRow(falling);
       expect(row?.value.startsWith("-")).toBe(true);
       expect(row?.value).toContain("%");
       expect(row?.negative).toBe(true);
     }
     const rising = reservoirs.find((candidate) => (candidate.change_30d_af ?? 0) > 0);
     if (rising) {
-      const row = describeReservoir(rising, "#000").rows
-        .find((entry) => entry.label === "Change in 30 days");
+      const row = thirtyDayRow(rising);
       expect(row?.value.startsWith("+")).toBe(true);
       expect(row?.value).toContain("%");
       expect(row?.negative).toBe(false);
@@ -415,6 +429,46 @@ describe("how the history rank reads", () => {
       expect(rank, reservoir.name).toBeLessThanOrEqual(rankOf);
       expect(rankWithYears(reservoir.seasonal_percentile, 0, rank, rankOf),
         reservoir.name).toContain("-lowest of ");
+    }
+  });
+});
+
+/*
+ * "Change in 1 year" is the date the pipeline asks for, not the one it gets.
+ * The nearest usable reading is taken within ten days for a daily feed and
+ * forty-five for a month-end one, so the row has covered 320 days to 410 --
+ * and the panel said "1 year" for all of it.
+ */
+describe("how a change states its own interval", () => {
+  it("keeps the plain label when the interval is the one in the name", () => {
+    expect(changeLabel("Change in 30 days", 30)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 1 year", 365)).toBe("Change in 1 year");
+  });
+
+  it("gives way to the measurement when they differ", () => {
+    expect(changeLabel("Change in 30 days", 44)).toBe("Change in 44 days");
+    expect(changeLabel("Change in 1 year", 397)).toBe("Change in 397 days");
+    expect(changeLabel("Change in 1 year", 320)).toBe("Change in 320 days");
+  });
+
+  /* A payload written before the pipeline published the elapsed days keeps
+   * the plain label rather than losing the row. */
+  it("falls back to the name when the payload cannot say", () => {
+    expect(changeLabel("Change in 30 days", null)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 30 days", undefined)).toBe("Change in 30 days");
+    expect(changeLabel("Change in 30 days", Number.NaN)).toBe("Change in 30 days");
+  });
+
+  it("names the reading a change is measured from, where the payload has one", () => {
+    for (const view of views) {
+      const row = view.rows.find((entry) => entry.label.startsWith("Change in 1"))
+        ?? view.rows.find((entry) => entry.label.startsWith("Change in 3"));
+      if (!row || row.value === "—") continue;
+      // Either it names the date, or the payload predates the field entirely.
+      const reservoir = reservoirs.find((entry) => entry.name === view.name);
+      if (reservoir?.change_365d_reference_date) {
+        expect(row.value, view.name).toMatch(/since /);
+      }
     }
   });
 });

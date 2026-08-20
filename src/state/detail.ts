@@ -90,10 +90,38 @@ function formatSignedAcreFeet(value: number | null): string {
 }
 
 /** A movement in both absolute and relative terms, so small and large reservoirs compare. */
-function formatChange(amount: number | null, percent: number | null): string {
+function formatChange(
+  amount: number | null, percent: number | null, since: string | null = null
+): string {
   const acreFeet = formatSignedAcreFeet(amount);
-  if (acreFeet === "—" || percent === null || !Number.isFinite(percent)) return acreFeet;
-  return `${acreFeet} (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
+  if (acreFeet === "—") return acreFeet;
+  const relative = percent === null || !Number.isFinite(percent)
+    ? "" : ` (${percent > 0 ? "+" : ""}${formatPercent(percent)})`;
+  /* The reading it is a change *from*. Without it the row is a difference
+   * between one named date and one the reader has to assume. */
+  const from = since ? `, since ${formatDate(since)}` : "";
+  return `${acreFeet}${relative}${from}`;
+}
+
+/**
+ * The interval a change actually covers, where it is not the one in its name.
+ *
+ * "30 days" is the date the pipeline asks for, not the one it gets. The
+ * nearest usable reading is taken within a tolerance of ten days for a daily
+ * feed and forty-five for a month-end one, so a row headed "Change in 1 year"
+ * has covered anything from 320 days to 410. Where the elapsed days differ
+ * from the name, the name gives way to the measurement.
+ *
+ * Optional: a payload written before the pipeline published the elapsed days
+ * keeps the plain label rather than losing the row.
+ */
+export function changeLabel(base: string, elapsed: number | null | undefined): string {
+  if (elapsed === null || elapsed === undefined || !Number.isFinite(elapsed)) {
+    return base;
+  }
+  const named = base === "Change in 1 year" ? 365 : 30;
+  if (elapsed === named) return base;
+  return `Change in ${Math.round(elapsed)} days`;
 }
 
 /**
@@ -253,13 +281,15 @@ export function describeReservoir(
       },
       { label: comparison.label, value: comparison.value },
       {
-        label: "Change in 30 days",
-        value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct),
+        label: changeLabel("Change in 30 days", reservoir.change_30d_elapsed_days),
+        value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct,
+          reservoir.change_30d_reference_date),
         negative: (reservoir.change_30d_af ?? 0) < 0
       },
       {
-        label: "Change in 1 year",
-        value: formatChange(reservoir.change_365d_af, reservoir.change_365d_pct),
+        label: changeLabel("Change in 1 year", reservoir.change_365d_elapsed_days),
+        value: formatChange(reservoir.change_365d_af, reservoir.change_365d_pct,
+          reservoir.change_365d_reference_date),
         negative: (reservoir.change_365d_af ?? 0) < 0
       },
       {

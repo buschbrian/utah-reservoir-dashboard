@@ -199,7 +199,12 @@ RESERVOIR_SCHEMA_VERSION = 1
 #: string for the committed climate normals, and the two must agree: the
 #: whole point of publishing both baselines is that a reader can compare them,
 #: and two medians taken different ways are not a comparison.
-METHOD_VERSION = "storage-normal-annual-1"
+#:
+#: "-1" was the same annual estimator on `dayofyear`, where a calendar date
+#: took two different positions depending on whether its year was a leap year.
+#: "-2" matches on `canonical_day`, so a window centred on 19 August holds
+#: every 19 August.
+METHOD_VERSION = "storage-normal-annual-2"
 
 # name -> (RISE catalog-item id for "Daily Instantaneous Lake/Reservoir
 # Storage (af)", lat, lon). The first 12 item IDs and the seasonal/record-max
@@ -578,22 +583,55 @@ def fetch_awdb_series(station_triplet: str, cadence: str,
               [["date", "storage_af"]].reset_index(drop=True))
 
 
+#: Positions in the canonical climatological year, 1 through 365.
+CANONICAL_YEAR_DAYS = 365
+
+
+def canonical_day(when) -> "np.ndarray | int":
+    """Where a date falls in a year that never has a 29 February.
+
+    A calendar date has to mean one position in every year, and `dayofyear`
+    does not give it one: 19 August is day 231 in an ordinary year and day 232
+    in a leap year, so a window centred on 19 August 2026 was centred on 18
+    August for every leap year in the record. A zero-width window on 19 August
+    excluded 19 August 2024 outright. The `+/- 7` day window made the effect
+    small and never made it right, and it was present on every date after
+    February -- which is most of the year and all of the melt season.
+
+    **29 February takes 28 February's position.** It has to take some
+    position, and every choice is a convention; this one keeps the canonical
+    year exactly 365 long, keeps every other date where a reader would put it,
+    and puts the extra day in the window a reader would expect to find it in.
+    Nothing is dropped -- both days contribute to any window covering 28
+    February.
+
+    The wrap at the year end is then a flat 365 for every year, because in
+    canonical positions every year is the same length. That is what the
+    per-year `year_length` here used to be working around.
+
+    Accepts a `DatetimeIndex` or a single `Timestamp` and answers in kind.
+    """
+    if isinstance(when, pd.Timestamp):
+        shift = 1 if (when.is_leap_year and when.dayofyear >= 60) else 0
+        return int(when.dayofyear) - shift
+    doy = np.asarray(when.dayofyear)
+    return doy - np.where(np.asarray(when.is_leap_year) & (doy >= 60), 1, 0)
+
+
 def seasonal_window(series: pd.Series, ref_date: pd.Timestamp,
                     window_days: int = SEASONAL_WINDOW_DAYS) -> pd.Series:
-    """Every observation within +/- window_days of ref_date's day-of-year, any year.
+    """Every observation within +/- window_days of ref_date's calendar date, any year.
 
-    IMPROVEMENT: the wrap-around uses a fixed 365, so in leap years the
-    window is off by a day around the New Year boundary. Immaterial for a
-    +/-7-day window on a drought dashboard, but it is wrong.
+    Matched on `canonical_day` rather than `dayofyear`, so the same calendar
+    date is the same position in every year and the window means what its name
+    says. See `canonical_day` for what that is worth and where 29 February
+    goes.
     """
-    doy = series.index.dayofyear
-    ref_doy = ref_date.dayofyear
-    # Wrap around the year end using each observation's own year length, not a
-    # flat 365. With the constant, a leap year shifts every day after Feb 29
-    # by one, so a window near the New Year silently picked up the wrong days.
-    year_length = np.where(series.index.is_leap_year, 366, 365)
+    doy = canonical_day(series.index)
+    ref_doy = canonical_day(ref_date)
     raw = np.abs(doy - ref_doy)
-    diff = np.minimum(raw, year_length - raw)
+    # Every canonical year is 365 long, so one constant serves every year.
+    diff = np.minimum(raw, CANONICAL_YEAR_DAYS - raw)
     return series[diff <= window_days]
 
 
@@ -691,10 +729,15 @@ def climate_baseline(normals: dict, station_id: str | None, ref_date: pd.Timesta
                      current: float) -> dict | None:
     """One reservoir's 1991-2020 normal for today, read out of the committed table.
 
-    The lookup is `ref_date.dayofyear` against a table built with the same
-    expression, so the daily and climate baselines describe the same window of
-    the year. `dayofyear` shifts by one after February in a leap year, and
-    that shift is present on both sides of the comparison rather than on one.
+    The lookup is `canonical_day(ref_date)` against a table built by iterating
+    the same positions, so the daily and climate baselines describe the same
+    window of the year and a calendar date means one position in both.
+
+    It was `ref_date.dayofyear` against a table built over a leap year, and
+    the claim written here was that the shift was "present on both sides of
+    the comparison rather than on one". It was present on one: the table's
+    entry 231 was built from 18 August and was read for every 19 August in an
+    ordinary year. Every date after February was read one day early.
 
     Returns None when this reservoir has no usable climate normal -- a dam
     younger than the period, or a station the provider would not answer for.
@@ -708,7 +751,7 @@ def climate_baseline(normals: dict, station_id: str | None, ref_date: pd.Timesta
     table = record.get("day_of_year") or {}
     medians = table.get("median_af") or []
     counts = table.get("years") or []
-    day = int(ref_date.dayofyear)
+    day = int(canonical_day(ref_date))
     if day >= len(medians) or medians[day] is None:
         return None
     normal = float(medians[day])
@@ -773,14 +816,26 @@ def seasonal_rank(series: pd.Series, ref_date: pd.Timestamp, current: float,
     return below + 1, len(population) + 1
 
 
-def value_asof(series: pd.Series, when: pd.Timestamp, tolerance_days: int = 10) -> float | None:
-    """Most recent observation at or before `when`, or None if the gap is too wide."""
+def value_asof(series: pd.Series, when: pd.Timestamp,
+               tolerance_days: int = 10) -> tuple[float, pd.Timestamp] | None:
+    """Most recent observation at or before `when`, with the date it was read.
+
+    The date is returned because the label cannot be trusted without it. A
+    provider is asked for a reading seven days back and answers with the
+    nearest one it has, which for a month-end feed can be 45 days from the
+    date asked for -- so "365-day change" has covered anything from 320 days
+    to 410. The caller publishes the date and the elapsed days beside the
+    figure rather than leaving the reader to assume the interval in its name.
+
+    None when nothing falls inside the tolerance, which is a different answer
+    from a change of zero.
+    """
     sub = series[series.index <= when]
     if sub.empty:
         return None
     if (when - sub.index[-1]).days > tolerance_days:
         return None
-    return float(sub.iloc[-1])
+    return float(sub.iloc[-1]), sub.index[-1]
 
 
 def monthly_history(series: pd.Series, months: int = 12,
@@ -916,11 +971,19 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         # A monthly series cannot support a seven-day claim. For 30-day and
         # annual comparisons, month-end observations are close enough when
         # a leap day or calendar-month length shifts the target slightly.
-        past = (None if data_frequency == "monthly" and days == 7 else
-                value_asof(series, last_date - pd.Timedelta(days=days),
-                           tolerance_days=change_tolerance_days))
+        found = (None if data_frequency == "monthly" and days == 7 else
+                 value_asof(series, last_date - pd.Timedelta(days=days),
+                            tolerance_days=change_tolerance_days))
+        past, past_date = found if found else (None, None)
         changes[f"change_{label}_af"] = _round(None if past is None else current - past)
         changes[f"change_{label}_pct"] = None if not past else _round((current - past) / past * 100, 1)
+        # What the change is actually a change from. The name is a target, not
+        # a measurement: the tolerance is 10 days for a daily feed and 45 for a
+        # month-end one, so "365-day change" has covered 320 days to 410.
+        changes[f"change_{label}_reference_date"] = (
+            None if past_date is None else past_date.date().isoformat())
+        changes[f"change_{label}_elapsed_days"] = (
+            None if past_date is None else int((last_date - past_date).days))
 
     capacity = capacity or {}
     capacity_af = capacity.get("capacity_af")

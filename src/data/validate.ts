@@ -136,6 +136,9 @@ function isReservoir(value: unknown): value is Reservoir {
      * does not. */
     optionalNullableNumber(value.seasonal_rank) &&
     optionalNullableNumber(value.seasonal_rank_of) &&
+    optionalNullableNumber(value.change_7d_elapsed_days) &&
+    optionalNullableNumber(value.change_30d_elapsed_days) &&
+    optionalNullableNumber(value.change_365d_elapsed_days) &&
     hasNullableNumber(value.seasonal_normal_af) &&
     hasNullableNumber(value.pct_of_seasonal_normal) &&
     hasNumber(value.seasonal_sample_years) &&

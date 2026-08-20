@@ -170,6 +170,18 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("seasonal_rank_of", "positions",
       "The earlier years plus this reading, so 3 of 11 is third-lowest of eleven.",
       true),
+    f("change_7d_reference_date", "date",
+      "The reading each 7 day change is measured from. The name is the date "
+      + "asked for; this is the date used.", true),
+    f("change_7d_elapsed_days", "days", "Days between that reading and this one.", true),
+    f("change_30d_reference_date", "date",
+      "The reading each 30 day change is measured from.", true),
+    f("change_30d_elapsed_days", "days", "Days between that reading and this one.", true),
+    f("change_365d_reference_date", "date",
+      "The reading each 1 year change is measured from.", true),
+    f("change_365d_elapsed_days", "days",
+      "Days between that reading and this one. A month-end feed can be up to "
+      + "45 days from the date asked for.", true),
     f("seasonal_normal_af", "acre-feet",
       "Middle of one value per earlier year near the same date, for the recent "
       + "period only. Read `baselines` instead where the period matters."),

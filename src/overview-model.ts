@@ -600,28 +600,28 @@ export function percentFullValues(reservoirs: readonly Reservoir[]): ValuePoint[
 }
 
 /**
- * The three statistics the histogram draws lines for.
+ * The statistics under the histogram: two it draws, and one it states.
  *
- * Computed here so the key under the chart can print them. The chart draws
- * the lines from its own arithmetic over the same values, so these have to
- * agree with it exactly or the page states one number and marks another.
+ * Computed here so the key under the chart can print them. The mean and the
+ * median are drawn by the chart from its own arithmetic over the same values,
+ * so those two have to agree with it exactly or the page states one number
+ * and marks another.
  *
- * The standard deviation is the **sample** one, dividing by n - 1. That is
- * not a preference: it is what the SDK's own overlay uses, verified against a
- * rendered chart -- 51 reservoirs, mean 41.05, median 38.8, and the legend
- * printing 23.58 where the population figure is 23.34. The difference is a
- * quarter of a point, which is small enough to look like rounding and large
- * enough to be wrong.
+ * The middle half is this module's alone. The SDK's histogram offers a mean,
+ * a median, a standard-deviation band and a fitted normal curve, and no
+ * quantile overlay -- so the two statistics worth having here are the two it
+ * cannot draw, and the key carries them as text.
  *
- * Null for fewer than two values, where a sample standard deviation has no
- * denominator. The chart refuses to draw below three (`renderArcgis-
- * DistributionChart`), so a caller with a key and no chart has nothing to
- * label anyway.
+ * Null for fewer than two values. The chart refuses to draw below three
+ * (`renderArcgisDistributionChart`), so a caller with a key and no chart has
+ * nothing to label anyway.
  */
 export interface DistributionStats {
   mean: number;
   median: number;
-  standardDeviation: number;
+  /** The middle half: a quarter of the reservoirs sit below each end. */
+  p25: number;
+  p75: number;
 }
 
 export function distributionStats(
@@ -639,9 +639,33 @@ export function distributionStats(
   const median = sorted.length % 2 === 1
     ? sorted[(sorted.length - 1) / 2]!
     : (sorted[middle - 1]! + sorted[middle]!) / 2;
-  const variance = numbers.reduce(
-    (sum, value) => sum + (value - mean) ** 2, 0) / (numbers.length - 1);
-  return { mean, median, standardDeviation: Math.sqrt(variance) };
+  /* Quantiles rather than a standard deviation.
+   *
+   * A standard deviation, and the normal curve drawn from it, describe a
+   * sample from one homogeneous population. These reservoirs are not one:
+   * they differ by size, purpose, hydrology, operating rules, flood-control
+   * duty and water-supply obligation, and a flood-control reservoir held
+   * deliberately low in spring sits in the same histogram as a supply
+   * reservoir kept full. The curve fitted over that says the shape means
+   * something it does not.
+   *
+   * Quantiles claim nothing about the shape. "A quarter of the reservoirs in
+   * view are below 41%" is true whatever distribution they came from.
+   */
+  return { mean, median, p25: quantile(sorted, 0.25), p75: quantile(sorted, 0.75) };
+}
+
+/**
+ * The value at a position in a sorted sample, interpolating between the two
+ * either side -- the same rule the median above uses for an even count.
+ */
+function quantile(sorted: readonly number[], fraction: number): number {
+  if (sorted.length === 0) return Number.NaN;
+  const at = (sorted.length - 1) * fraction;
+  const below = Math.floor(at);
+  const above = Math.ceil(at);
+  if (below === above) return sorted[below]!;
+  return sorted[below]! + (sorted[above]! - sorted[below]!) * (at - below);
 }
 
 /**
@@ -659,9 +683,10 @@ export function distributionStats(
 export type OverlayKeyStyle = "solid" | "dashed" | "dotted";
 
 export interface OverlayKeyLine {
-  key: "mean" | "median" | "deviation" | "curve";
+  key: "mean" | "median" | "middle-half";
   label: string;
-  style: OverlayKeyStyle;
+  /** Absent for a line the chart states rather than draws. */
+  style: OverlayKeyStyle | null;
 }
 
 
@@ -682,19 +707,16 @@ export function distributionKeyLines(
       style: "dashed"
     },
     {
-      key: "deviation",
-      /* Points, not percent: this is a distance between two percentages, and
-       * writing it as 23.6% invites a reader to take it for a share of
-       * something (ADR-046's rule, one scale down). */
-      /* One decimal like every percentage here, but no percent sign: the
-       * site's own formatter would add one. The SDK's rail printed two
-       * decimals, which is below what the reading is worth. */
+      /* Stated, not drawn: the SDK's histogram offers a mean, a median, a
+       * standard-deviation band and a fitted normal curve, and no quantile
+       * overlay. The two it does not offer are the two worth having here, so
+       * this line carries the numbers without a mark on the plot. */
+      key: "middle-half",
       label: stats
-        ? `One standard deviation ${stats.standardDeviation.toFixed(1)} points`
-        : "One standard deviation",
-      style: "dotted"
-    },
-    { key: "curve", label: "Fitted normal curve", style: "solid" }
+        ? `Middle half ${formatPercent(stats.p25)} to ${formatPercent(stats.p75)}`
+        : "Middle half",
+      style: null
+    }
   ];
 }
 

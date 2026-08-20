@@ -18,6 +18,7 @@ https://developers.arcgis.com/rest/services-reference/enterprise/query-feature-s
 """
 
 import argparse
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -279,6 +280,9 @@ def main() -> int:
     normalized, report = normalize_collection(collection, scope)
     normalized.update({
         "source": layer,
+        # When this was fetched. See `tools/check_reference_freshness.py` for
+        # why a committed boundary file needs to carry one.
+        "retrieved": dt.date.today().isoformat(),
         "scope": scope.name,
         "filter": scope.where,
         "unit_count": report["feature_count"],
