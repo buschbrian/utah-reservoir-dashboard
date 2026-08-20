@@ -1,4 +1,4 @@
-# Utah Water Dashboard
+# Western Water Dashboard
 
 **Live site:** <https://buschbrian.github.io/western-water-dashboard/>
 
