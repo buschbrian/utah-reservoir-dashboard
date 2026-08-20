@@ -342,21 +342,21 @@ describe("the opening scope summary sentence", () => {
 
   it("names the state alone", () => {
     expect(openingScopeSummary(selection({ state: "ID" }), rosters))
-      .toBe("Storage narrowed to reservoirs in Idaho.");
+      .toBe("Showing reservoir storage for Idaho.");
   });
 
   it("names the area alone, at any of the three widths", () => {
     expect(openingScopeSummary(selection({ area: "14" }), rosters))
-      .toBe("Storage narrowed to Upper Colorado Region.");
+      .toBe("Showing reservoir storage for Upper Colorado Region.");
     expect(openingScopeSummary(selection({ area: "1601" }), rosters))
-      .toBe("Storage narrowed to Bear River.");
+      .toBe("Showing reservoir storage for Bear River.");
     expect(openingScopeSummary(selection({ area: "160101" }), rosters))
-      .toBe("Storage narrowed to Bear Lake.");
+      .toBe("Showing reservoir storage for Bear Lake.");
   });
 
   it("names the state and the area together", () => {
     expect(openingScopeSummary(selection({ state: "ID", area: "1601" }), rosters))
-      .toBe("Storage narrowed to Bear River in Idaho.");
+      .toBe("Showing reservoir storage for Bear River, in Idaho.");
   });
 
   it("drops a code with no published name rather than printing the digits", () => {
@@ -364,7 +364,7 @@ describe("the opening scope summary sentence", () => {
     // the state) but absent from this particular roster snapshot -- the same
     // gap a payload published between R1 and R2 would leave.
     expect(openingScopeSummary(selection({ state: "UT", area: "999999" }), rosters))
-      .toBe("Storage narrowed to reservoirs in Utah.");
+      .toBe("Showing reservoir storage for Utah.");
   });
 
   it("falls back to the raw code for a state stateName does not recognise", () => {
@@ -373,7 +373,7 @@ describe("the opening scope summary sentence", () => {
     // (the code itself) is worth pinning down so a change to that function
     // cannot silently start printing something else here.
     expect(openingScopeSummary(selection({ state: "ZZ" }), rosters))
-      .toBe("Storage narrowed to reservoirs in ZZ.");
+      .toBe("Showing reservoir storage for ZZ.");
   });
 });
 

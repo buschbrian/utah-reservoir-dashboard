@@ -103,10 +103,10 @@ export function openingScopeSummary(
   const { state, area } = selection;
   const areaName = area === null ? null : namedOpeningArea(area, rosters);
   if (state !== "all" && areaName) {
-    return `Storage narrowed to ${areaName} in ${stateName(state)}.`;
+    return `Showing reservoir storage for ${areaName}, in ${stateName(state)}.`;
   }
-  if (state !== "all") return `Storage narrowed to reservoirs in ${stateName(state)}.`;
-  if (areaName) return `Storage narrowed to ${areaName}.`;
+  if (state !== "all") return `Showing reservoir storage for ${stateName(state)}.`;
+  if (areaName) return `Showing reservoir storage for ${areaName}.`;
   return "";
 }
 

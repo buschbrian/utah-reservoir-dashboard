@@ -33,7 +33,8 @@ import {
   withinOpeningArea,
   type OpeningRosters,
   type OpeningScope,
-  type OpeningSelection
+  type OpeningSelection,
+  isOpeningScopeChosen
 } from "./data/opening-scope";
 import { areaReachesState, stateName } from "./data/state-vocabulary";
 import {
@@ -70,7 +71,9 @@ import { createDroughtMap } from "./ui/drought-map";
 import { RESERVOIR_REFERENCE_LAYER_ID } from "./ui/layers";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
-import { extentFromBox } from "./viz/extent";
+import {
+  mapExtentFromBox
+} from "./viz/extent";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { wireTheme } from "./ui/theme";
 import { DROUGHT_CLASSES, NO_DROUGHT_LABEL } from "./viz/drought-classes";
@@ -224,7 +227,7 @@ function renderDrought(
    * who chose nothing sees the page exactly as it drew before this slice --
    * unfiltered by construction, not merely by a narrowing that happens not
    * to remove anything. */
-  const scopeChosen = openingSelection.state !== "all" || openingSelection.area !== null;
+  const scopeChosen = isOpeningScopeChosen(openingSelection);
   /* `?area=` and `?level=` are independent parameters (a shared link from a
    * six-digit-basin page can land on a four-digit-subregion one), so the
    * selection is coarsened to what this page actually draws before it is
@@ -781,7 +784,7 @@ function renderDrought(
        * goes through, so the corner order and spatial reference cannot drift
        * between them. */
       if (opening && scopeChosen) {
-        mapElement.extent = { type: "extent", ...extentFromBox(opening.scope.box) };
+        mapElement.extent = mapExtentFromBox(opening.scope.box);
       }
       const mapStatus = await createDroughtMap(
         mapElement, card, scope, usdm, reservoirs,
