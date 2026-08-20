@@ -1,6 +1,11 @@
 __pycache__/
 *.pyc
 .venv/
+# Without the slash as well: a trailing slash matches a directory only, so a
+# *symlink* named .venv slipped past this and was committed -- which then
+# replaced the real directory with a link to itself on the next checkout.
+# Agents working in git worktrees link these two back to the main checkout.
+.venv
 
 # macOS writes one of these into every directory it opens. One reached a
 # commit already; this keeps the next one out.
@@ -9,6 +14,7 @@ __pycache__/
 # Local artifacts of running the browser smoke test (see README): Playwright
 # is installed with --no-save, and the test writes a screenshot per page.
 node_modules/
+node_modules
 dist/
 screenshots/
 
