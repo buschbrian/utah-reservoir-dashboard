@@ -99,7 +99,10 @@ export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
   subregion: "all",
   county: "all",
   reporting: "all",
-  geography: "utah",
+  /* Every reservoir, matching the storage map. See `state/url.ts` for why
+   * this moved: a default of Utah's waterbodies hid two thirds of the site's
+   * own subject once the roster went west. */
+  geography: "connected",
   lakePowell: "exclude",
   lakeMead: "exclude",
   storageClass: null,
@@ -179,7 +182,7 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
     } else if (key === MAP_FILTER_PARAMS.reporting) {
       state.reporting = value === "true" ? "late" : "all";
     } else if (key === OVERVIEW_PARAMS.geography) {
-      state.geography = oneOf(value, ["utah", "connected"] as const, "utah");
+      state.geography = oneOf(value, ["utah", "connected"] as const, "connected");
     } else if (key === OVERVIEW_PARAMS.lakePowell) {
       state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
     } else if (key === OVERVIEW_PARAMS.lakeMead) {
@@ -228,7 +231,7 @@ export function searchWithOverviewState(
   if (full.subregion !== "all") write("subregion", full.subregion);
   if (full.county !== "all") write("county", full.county);
   if (full.reporting !== "all") write("reporting", full.reporting);
-  if (full.geography !== "utah") write("geography", full.geography);
+  if (full.geography !== "connected") write("geography", full.geography);
   if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
   if (full.lakeMead !== "exclude") write("lakeMead", full.lakeMead);
   if (full.storageClass !== null) write("storageClass", String(full.storageClass));

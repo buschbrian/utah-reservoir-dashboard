@@ -256,7 +256,7 @@ function updateSummary(): void {
     // silently holds 28 million acre-feet is what ADR-011 and ADR-062 exist
     // to prevent -- and a card naming one of the two invites the reader to
     // assume the other is in it.
-    scope: `${scope.geography === "connected" ? "Connected reservoirs" : "Utah waterbodies"}, ` +
+    scope: `${scope.geography === "connected" ? "Every reservoir" : "Utah waterbodies only"}, ` +
       `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell, ` +
       `${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead`
   });

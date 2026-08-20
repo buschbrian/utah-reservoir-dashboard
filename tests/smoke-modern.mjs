@@ -97,14 +97,18 @@ function check(condition, message) {
 }
 
 const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"), "utf8"));
-/* The scope the shell draws, computed the way src/main.ts computes it: the
- * waterbodies that touch Utah, without Lake Powell (ADR-011). Derived from
- * the payload rather than written down, so the morning refresh cannot turn
- * this red on its own. */
+/* The scope the shell draws, computed the way src/main.ts computes it: every
+ * published reservoir, without the two dominant ones, which are absent by
+ * default (ADR-011, ADR-062). Derived from the payload rather than written
+ * down, so the morning refresh cannot turn this red on its own.
+ *
+ * It was the waterbodies touching Utah until the roster went west. That
+ * default was hiding two thirds of the site's own subject, and the geography
+ * control still offers the narrower reading one choice away. */
 const inScope = payload.reservoirs.filter((reservoir) =>
-  reservoir.intersects_utah === true &&
   reservoir.rise_item_id !== 509 &&
-  reservoir.name.trim().toLowerCase() !== "lake powell");
+  reservoir.name.trim().toLowerCase() !== "lake powell" &&
+  reservoir.name.trim().toLowerCase() !== "lake mead");
 const expectedReservoirs = inScope.length;
 /* The reservoirs the ranking chart can rank: those with a readable headline
  * percentage, computed the way src/viz/symbols.ts computes it. Derived from
@@ -758,12 +762,14 @@ for (const viewport of VIEWPORTS) {
     const controls = mobile ? "#start-sheet" : "#start-panel";
     check(await tab.locator(`${controls} [data-filter="storage"]`).isVisible(),
       `${label}: the storage level filter is not visible`);
-    /* Both of ADR-011's dimensions are the reader's to choose. Geography was
-     * pinned to Utah, which is why Fontenelle and Woodruff Narrows were
-     * published every morning and drawn nowhere. */
+    /* Both of ADR-011's dimensions are the reader's to choose. The map opens
+     * on every published reservoir now, so the dimension to exercise is the
+     * *narrowing* one -- Utah's waterbodies alone. It was the other way round
+     * while the roster was Utah's and the wider reading was the one a reader
+     * could not reach. */
     const wider = await tab.evaluate(async (selector) => {
       const geography = document.querySelector(`${selector} [data-scope="geography"]`);
-      geography.value = "connected";
+      geography.value = "utah";
       geography.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
       await new Promise((resolve) => { setTimeout(resolve, 900); });
       return {
@@ -775,8 +781,8 @@ for (const viewport of VIEWPORTS) {
         search: window.location.search
       };
     }, controls);
-    check(wider.geography === "connected",
-      `${label}: the geography control did not widen the scope`);
+    check(wider.geography === "utah",
+      `${label}: the geography control did not narrow the scope`);
     /* The selection ring is added over the reservoirs on the first draw and
      * has to stay there through every redraw the scope control causes. It
      * was added to the map once, so it sat above the opening layer and
@@ -785,14 +791,14 @@ for (const viewport of VIEWPORTS) {
       `${label}: the selection ring fell beneath the reservoirs after a scope change`);
     check(wider.drainageLabelsDeconflicted,
       `${label}: the drainage names stopped being placed after a scope change`);
-    check(wider.drawn > expectedReservoirs,
-      `${label}: every connected reservoir drew ${wider.drawn}, no more than Utah's ` +
-      `${expectedReservoirs} -- the reservoirs outside Utah are still unreachable`);
-    check(/reservoirs=connected/.test(wider.search),
-      `${label}: the wider scope is missing from a shareable link`);
+    check(wider.drawn < expectedReservoirs,
+      `${label}: Utah's waterbodies drew ${wider.drawn}, no fewer than every ` +
+      `reservoir's ${expectedReservoirs} -- the narrower reading is unreachable`);
+    check(/reservoirs=utah/.test(wider.search),
+      `${label}: the narrower scope is missing from a shareable link`);
     await tab.evaluate(async (selector) => {
       const geography = document.querySelector(`${selector} [data-scope="geography"]`);
-      geography.value = "utah";
+      geography.value = "connected";
       geography.dispatchEvent(new CustomEvent("calciteSelectChange", { bubbles: true }));
       await new Promise((resolve) => { setTimeout(resolve, 900); });
     }, controls);

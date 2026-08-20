@@ -111,9 +111,9 @@ describe("the rest of the view in the link", () => {
   it("carries the filters, both scope dimensions and the month", () => {
     expect(searchWithState({
       storageClass: 0, reporting: "late", drainageArea: "140600", lakePowell: "include",
-      geography: "connected", month: "2026-02"
+      geography: "utah", month: "2026-02"
     })).toBe("?class=0&late=true&drainage=140600&powell=include" +
-      "&reservoirs=connected&month=2026-02");
+      "&reservoirs=utah&month=2026-02");
   });
 
   it("uses false to distinguish current data from no reporting filter", () => {
@@ -123,8 +123,13 @@ describe("the rest of the view in the link", () => {
   });
 
   it("writes nothing for the geography the dashboard opens on", () => {
-    expect(searchWithState({ geography: "utah" })).toBe("");
-    expect(stateFromSearch("?reservoirs=nonsense").geography).toBe("utah");
+    /* The dashboard opens on every reservoir it publishes. It opened on
+     * Utah's until the roster went west, at which point the default was
+     * hiding two thirds of the site's own subject -- so the narrower reading
+     * is the one a link has to state now. */
+    expect(searchWithState({ geography: "connected" })).toBe("");
+    expect(searchWithState({ geography: "utah" })).toBe("?reservoirs=utah");
+    expect(stateFromSearch("?reservoirs=nonsense").geography).toBe("connected");
   });
 
   it("takes a month only in the shape the payload writes them", () => {
