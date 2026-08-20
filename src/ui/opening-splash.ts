@@ -50,7 +50,7 @@ const DISMISSED_STORAGE_KEY = "utah-reservoir-dashboard-splash-dismissed";
 /** The three surfaces a place can be applied to. `href` is what the reader's
  * choice is appended to; `label` is what the button says. */
 const SUBJECTS = [
-  { key: "storage", href: "./index.html", label: "Reservoir storage" },
+  { key: "storage", href: "./index.html", label: "Storage" },
   { key: "snow", href: "./snow.html", label: "Snowpack" },
   { key: "drought", href: "./drought.html", label: "Drought" }
 ] as const;
@@ -148,8 +148,9 @@ export function createOpeningSplash(places: SplashPlaces): OpeningSplash | null 
 
   const intro = document.createElement("p");
   intro.className = "splash-intro";
-  intro.textContent = "This site covers the western United States. "
-    + "Choose a place and a subject, or see all of it.";
+  /* One sentence. At 360 pixels every line of this is a line the place list
+   * below does not get, and the list is the thing the reader came for. */
+  intro.textContent = "Water in the western United States.";
   dialog.append(intro);
 
   /* The subject is chosen first and remembered only for as long as this
