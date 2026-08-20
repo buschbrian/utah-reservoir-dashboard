@@ -4,6 +4,12 @@ Status: Measured 2026-08-20. Every figure below came from a live request made
 in this session; nothing is carried over from documentation or from the
 earlier survey in `docs/WESTERN-SOURCE-CANDIDATES.md`.
 
+Current outcome: California has the larger measured value and its read-only
+adapter and audit exist, but no California reservoir is in the production
+roster. Thirty-six candidates remain held where source evidence disagrees;
+that decision must be resolved before publication. Colorado remains a later
+coverage-of-places source.
+
 `docs/WESTERN-SOURCE-CANDIDATES.md` established that both sources exist, are
 keyless, and carry stable identifiers. This review asks the next question:
 **what would it cost to build against them, and what would the site gain.**

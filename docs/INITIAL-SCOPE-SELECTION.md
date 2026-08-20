@@ -1,13 +1,11 @@
 # Choosing where to start
 
-Design for a reader-chosen opening scope: pick a state on a splash screen,
-and every surface narrows to it. Written before any of it is built, on
-`initial-scope-selection`.
-
-Nothing here is implemented. This document settles the decisions that are
-expensive to reverse — what a state selection is allowed to claim, where the
-opening box comes from, and which states are worth offering — before any of
-them are made accidentally by the first commit.
+**Status (2026-08-20): delivered.** The Western Water Dashboard name, opening
+scope model, state and drainage-area controls, cross-page URL state, stored
+preference, and first-visit splash are in production. This document is the
+design record written before implementation; later delivery details are in
+[`OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`](OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md)
+and ADR-068.
 
 ## Decisions taken
 

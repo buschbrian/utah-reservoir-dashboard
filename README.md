@@ -1,82 +1,74 @@
-# Utah Water Dashboard
+# Western Water Dashboard
 
 **Live site:** <https://buschbrian.github.io/western-water-dashboard/>
 
-A public dashboard for water conditions in Utah and the connected Colorado
-River and Great Basin drainage areas: what is stored in the reservoirs, how
-much snow is in the mountains, and how much of the land is in drought. It
-combines official observations, traceable capacity figures, twelve months of
-history, and drainage-area context.
+A public dashboard for reservoir storage, mountain snow, and drought across
+the western United States. It combines official observations, reviewed full
+levels, climate comparisons, weekly drought measurements, and drainage-area
+context in one typed ArcGIS 5.1 and Calcite 5 application.
 
-The same validated data is presented through one ArcGIS 5.1 application, and
-each page is named for its own subject (ADR-045):
+The project began as a Utah reservoir map. Its current scope follows five
+western hydrologic regions across eleven states. The application draws 75
+basins or 44 larger subregions, reads a reviewed western reservoir roster, and
+uses 637 mountain snow sites. Counts that can change with provider reporting
+are read from the runtime payloads rather than written into application code.
 
-| View | Subject | Purpose |
-|---|---|---|
-| [Storage map](./) | Utah Reservoir Storage | Current reservoir storage on a responsive ArcGIS map. |
-| [Storage charts](overview.html) | Utah Storage Charts | A weekly digest, cross-filtered summaries, six ArcGIS charts, and an accessible exact-value table. |
-| [Snowpack](snow.html) | Utah Snowpack | The season's snow by drainage area and measurement site, opening on the season's peak. |
-| [Drought](drought.html) | Utah Drought | The weekly Drought Monitor by drainage area, against the water banked in it. |
-| [Methods and sources](methods.html) | Methods and Sources | Where the numbers come from, how they are collected, and how each value is worked out. |
-| [Public data API](data.html) | Public Data API | Stable JSON downloads, field definitions, and code examples. |
+## Dashboard pages
 
-The root page and its stable `modern.html` alias are the ArcGIS Maps SDK for
-JavaScript application. New interface work targets these primary surfaces.
+| Page | What it answers |
+|---|---|
+| [Western Reservoir Storage](./) | Where water is stored now, how full each reservoir is, and how levels compare with earlier years. |
+| [Western Storage Charts](overview.html) | What moved this week and how the current reservoir set compares across charts and an exact-value table. |
+| [Western Snowpack](snow.html) | How much water is held in mountain snow, by site and drainage area, against the 1991–2020 comparison period. |
+| [Western Drought](drought.html) | How much land is in each U.S. Drought Monitor class and how that relates to stored water. |
+| [Methods and Sources](methods.html) | Where each number comes from, how it is worked out, and what it does not claim. |
+| [Public Data API](data.html) | Stable JSON paths, field definitions, update behavior, and code examples. |
+| [Terms and License](terms.html) | Project terms, source-data terms, and the noncommercial code license. |
 
-## How this project is made
-
-The judgment is human; most of the typing is not. All of the UI/UX design,
-the geographic decisions (which drainage areas are in scope, how reservoirs
-are assigned, what a map draws and at what level), and the visualization
-design (colour ramps, class bands, symbol composition, label placement,
-chart forms) are human-made. Most of the JavaScript/TypeScript and Python
-that implements them is written with agentic AI, and every change lands
-through human review, the test suites, and the decision records — the wiki's
-[Lessons Learned](../../wiki/Lessons-Learned) page records candidly how that
-division of labor has worked in practice.
+`modern.html` is a stable alias for the storage map. The former ArcGIS 4.34,
+MapLibre, and overview paths are accessible compatibility redirects. They
+preserve saved links without restoring retired runtimes.
 
 ## Use the dashboard
 
-The ArcGIS dashboard provides these map controls:
+The storage map lets a reader:
 
-- Point at a reservoir for its name, percent full, and data date.
-- Select a reservoir for its complete record and 12-month chart.
-- Filter by state, subregion, drainage area, county, percent-full class, or
-  show only reservoirs with late data. The three geographic filters narrow
-  each other, so you can drill down from a state to one drainage area. Search
-  by reservoir name, drainage area or county.
-  Other reservoirs remain visible in gray to preserve geographic
-  context.
-- Move or play the month slider to compare the last 12 months.
-- Open the reservoir table below the map to sort every matching reservoir by
-  storage, full level, drainage area, or reading date, and download exactly
-  the rows and order on screen as a CSV file.
-- Open the reservoir list to reach every site with a keyboard.
-- Copy a link to the complete view. The address can carry `?reservoir=`,
-  `?drainage=`, `?class=`, `?late=`, `?month=`, `?table=`, and `?sort=`
-  together.
+- point at or select a reservoir for its storage, full level, reading date,
+  comparison period, history rank, and change over time;
+- narrow the view by state, subregion, drainage area, county, storage class,
+  reporting status, reservoir geography, Lake Powell, or Lake Mead;
+- move or play the month slider through the last twelve published months;
+- open a keyboard-reachable reservoir list;
+- sort the matching reservoirs in a table and download the exact rows and
+  order on screen as CSV; and
+- share the complete view through the address bar.
 
-The storage charts answer comparison questions that a map cannot. Their search,
-drainage-area, and reporting filters update the summary strip, all six ArcGIS
-charts, and the semantic table as one view. Lake Powell starts excluded from
-the default map and charts, but remains in the source data and can be included.
+The storage map opens on the complete western roster. Lake Powell and Lake
+Mead start excluded because either reservoir can dominate a regional total.
+The narrower Utah-waterbody view remains available as a deliberate choice.
+
+The storage charts use the same geographic and reservoir scope. Their search,
+filters, summary strip, six ArcGIS charts, and semantic table update together.
+The snow and drought pages share the reader's chosen state or drainage area
+where that choice has the same meaning, and every page writes its own view to a
+shareable URL.
 
 ## Quick start
 
 Requirements:
 
 - Node.js 22
-- Python 3.11 or newer for the data pipeline
-- A Playwright Chromium installation for browser smoke tests
+- Python 3.11 or newer for pipeline work
+- Playwright Chromium, or a local Google Chrome executable, for browser tests
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Vite opens the storage map. Open `/overview.html` for storage charts. The map
-needs network access for basemap services; stored reservoir data still loads
-when those services do not answer.
+Vite opens the storage map. The maps need network access for Esri basemaps and
+hosted reference layers. Stored measurements still load when an optional map
+service does not answer.
 
 ### Commands
 
@@ -85,362 +77,208 @@ when those services do not answer.
 | `npm run dev` | Start the Vite development server. |
 | `npm run typecheck` | Check the strict TypeScript project. |
 | `npm test` | Run the Vitest unit suite. |
-| `npm run budget:sdk` | Check the planned ArcGIS 5.1 bundle against its size budget. |
-| `npm run build` | Typecheck, test, check the SDK budget, and build `dist/`. |
-| `python -m pytest tests/ -q` | Run pipeline and drainage-area tests without network access. |
-| `node tests/smoke.mjs` | Check retired route redirects in Chromium. |
-| `python refresh_reservoirs.py --dry-run` | Refresh and validate storage data without writing. |
-| `python tools/fetch_watershed_scope.py --scope utah-connected --dry-run` | Rebuild drainage-area boundaries without writing. |
-| `python tools/fetch_watershed_scope.py --scope upper-colorado --dry-run` | Validate all Upper Colorado HUC6 boundaries without replacing the dashboard scope. |
-| `python tools/audit_awdb_stations.py --scope upper-colorado` | Audit AWDB storage stations across the configured Upper Colorado HUC6 scope. |
-| `npm run boundary:utah -- --dry-run` | Check the authoritative Utah boundary without writing. |
+| `npm run budget:sdk` | Check the ArcGIS 5.1 bundle against its measured budget. |
+| `npm run build` | Typecheck, run unit tests, check the SDK budget, and build `dist/`. |
+| `python -m pytest tests/ -q` | Run pipeline, source, geography, and measurement tests. |
+| `node tests/smoke.mjs` | Check the three compatibility redirects in Chromium. |
+| `node tests/smoke-modern.mjs` | Check every current page at desktop and phone widths, including axe-core. |
+| `python refresh_reservoirs.py --dry-run` | Fetch and validate reservoir data without writing. |
+| `python tools/build_normal_baselines.py --missing` | Build only missing 1991–2020 reservoir comparisons. |
+| `node tools/audit-transfer.mjs` | Measure page requests and hosts against a built `dist/`. |
 
-The browser smoke test expects a current `dist/` directory and an existing
-`screenshots/` directory:
+Playwright is intentionally not a package dependency. Restore it after an
+ordinary `npm install` with:
 
 ```bash
-npm run build
-mkdir -p screenshots
-node tests/smoke.mjs
+npm install --no-save --no-package-lock playwright
+```
+
+To use an installed Chrome instead of downloading Chromium:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" node tests/smoke-modern.mjs
 ```
 
 ## Data and methods
 
-The [public data API documentation](data.html) describes stable paths for the reservoir,
-snow and reference payloads, their complete field definitions, and browser and Python
-examples.
+The browser fetches runtime JSON. It never imports a daily payload into an
+application bundle. This keeps a data-only morning commit deployable without
+turning measurements into compiled source.
 
-[`reservoirs.json`](reservoirs.json) is the published data contract. The daily
-pipeline rebuilds it from observations dating to 2015 and preserves the last
-known record when an individual source cannot be reached.
+Stable public paths are documented on the [data page](data.html):
 
-To work on the pipeline in an isolated environment:
+| Path | Contents |
+|---|---|
+| `/api/reservoirs.json` | Current storage, comparisons, changes, twelve-month history, reporting status, source identity, and geography. |
+| `/api/snowpack.json` | Water-year site series and drainage-area summaries against 1991–2020. |
+| `/data/drought/usdm-huc6.json` | Weekly drought shares for 75 basins. |
+| `/data/drought/usdm-huc4.json` | The same week measured over 44 larger subregions. |
+| `/data/drought/usdm-current.geojson` | The verified current U.S. Drought Monitor polygons. |
+| `/api/reference.json` | Reviewed capacity evidence and the drainage-area roster, without polygon geometry. |
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-test.txt
-python -m pytest tests/ -q
-python refresh_reservoirs.py --dry-run
-```
+The daily pipeline reads observations from the Bureau of Reclamation and the
+Natural Resources Conservation Service. Dam evidence comes from the U.S. Army
+Corps of Engineers National Inventory of Dams. Drainage areas come from the
+U.S. Geological Survey Watershed Boundary Dataset. Drought data comes from the
+U.S. Drought Monitor. The complete ownership and failure contract is in
+[`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md).
 
-The version ranges match CI and the scheduled refresh workflow.
+California and Colorado remain research sources, not current production
+providers. A read-only California adapter and audit exist; Colorado is still
+measured design work. The source review is in
+[`docs/CDSS-CDEC-API-REVIEW.md`](docs/CDSS-CDEC-API-REVIEW.md), and unresolved
+California capacity disagreements remain tracked before any of those
+reservoirs can be published.
 
-Watershed geography is chosen by named scope, so it cannot change by accident.
-`west-huc6` is what the maps draw and what reservoirs are assigned against;
-`utah-connected` retains the 14 units the roster was admitted from and is what
-the storage map opens on; `upper-colorado` selects the 10 HUC6 codes beginning
-with region 14 and writes `data/watersheds/upper-colorado-huc6.geojson`. The
-HUC4 and HUC8 western scopes are registered, fetched and drawn by nothing.
+### Storage metrics
 
-The watershed fetcher uses the public ArcGIS REST query API by default. To
-exercise the ArcGIS API for Python `FeatureLayer` query path, use Python
-3.10-3.13 (the supported range for ArcGIS API 2.4.3) in a separate environment:
+- **Percent full** is current storage divided by the reviewed full level. The
+  full-level source is published per reservoir.
+- **Standard comparison** is the median of one representative value per year
+  near the same calendar date from 1991 through 2020.
+- **Recent-years comparison** uses the years this project collects through the
+  prior year.
+- **History rank** compares the current value with one representative value
+  per earlier year near the same calendar date.
+- **Change** reports the measured interval and reference date for 7-, 30-, and
+  365-day targets when the source supports them.
+- **Monthly history** carries the mean, minimum, maximum, ending storage, and
+  comparison value for each of the last twelve months.
+- **Reporting status** is evaluated per source update schedule. A reading that
+  is late remains visible and named. A reading from another season is removed
+  from current totals until the provider resumes.
 
-```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-gis.txt
-python tools/fetch_watershed_scope.py --scope upper-colorado --backend arcgis --dry-run
-```
-
-Both backends first obtain the complete object-ID set and then fetch bounded
-GeoJSON batches. The script refuses missing, duplicate, out-of-region, or
-partial results. Its report uses pandas to normalize ArcGIS attributes and
-NumPy to summarize geometry size; no broader-scope file is loaded by the
-dashboard until a separate product decision changes that contract.
-The measured scope and current candidate baseline are recorded in
-[`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md).
-
-### Sources
-
-- Storage observations come from the [Bureau of Reclamation RISE
-  API](https://data.usbr.gov/) and the [USDA Natural Resources Conservation
-  Service AWDB API](https://wcc.sc.egov.usda.gov/awdbRestApi/swagger-ui.html).
-- Reclamation's [Addressing Drought Across the West Experience
-  Builder](https://experience.arcgis.com/experience/512cef7647fe42698dc05dd4e75d4343/page/Current-Conditions)
-  and its Major Reclamation River Basins layer are design and scope references
-  only. GitHub Actions continues to fetch observed storage from RISE/AWDB; an
-  Experience Builder or feature-service outage cannot change or stop the
-  published measurements.
-- Capacity for Reclamation sites comes from the U.S. Army Corps of Engineers
-  National Inventory of Dams and is committed in
-  [`capacities.json`](capacities.json). AWDB sites use the provider's reservoir
-  metadata.
-- Six-digit drainage areas come from the U.S. Geological Survey Watershed
-  Boundary Dataset. The maps draw the 75 basins of the west, committed in
-  [`west-huc6.geojson`](data/watersheds/west-huc6.geojson); the fourteen the
-  reservoir roster was admitted from stay committed in
-  [`huc6.geojson`](huc6.geojson) and are what the storage map opens on
-  ([ADR-063](docs/decisions/ADR-063-draw-the-west-and-open-on-the-roster.md)).
-- The Utah state boundary comes from the Utah Geospatial Resource Center's
-  maintained Utah State Boundary and is committed in
-  [`utah-boundary.geojson`](utah-boundary.geojson). It no longer draws a map
-  mask -- no map has one since a dashboard drawing 75 basins across 11 states
-  has no single state to grey the rest of the map around -- but it still
-  drives Python's `in_utah` and `intersects_utah` classification; see
-  [ADR-014](docs/decisions/ADR-014-use-the-ugrc-utah-state-boundary.md)
-  (superseded) and [ADR-067](docs/decisions/ADR-067-retire-the-state-mask.md).
-  The storage and snow maps draw no state outline at all now. The drought
-  map is the one place a reader still sees one, and it comes from Esri's
-  Living Atlas (`src/arcgis/reference-layers.ts`), which it has since
-  ADR-034 -- unrelated to and unchanged by this retirement.
-
-Every reservoir record includes the provider, station or item identifier,
-data frequency, data date, capacity source, and drainage-area assignment point.
-Source values are provisional and can be revised by their publisher.
-
-### Metrics
-
-- **Percent full** is current storage divided by capacity. If capacity is not
-  available, the highest observed storage since 2015 is the fallback full
-  level.
-- **Normal for this week** is the median observation near the same calendar
-  date in prior years.
-- **History rank** compares the current value with observations near the same
-  date in prior years; the current year is not ranked against itself.
-- **Change** is reported over 7, 30, and 365 days when the source frequency
-  supports it.
-- **Monthly history** contains mean, minimum, maximum, ending storage, and the
-  prior-years normal for each of the last 12 months.
-- **Freshness** is evaluated per reservoir. Daily sources are late after two
-  days; month-end sources use a 45-day threshold.
-
-Drainage-area and statewide percentages are capacity-weighted:
+Regional storage is full-level weighted:
 
 ```text
 percent full = sum(current storage) / sum(full level) × 100
 ```
 
-They describe only the reservoirs tracked by this dashboard, not all water in
-a drainage area. The overview always shows the reservoir count and combined
-full level beside a drainage-area percentage.
+The result describes the reservoirs tracked by this dashboard, not every
+reservoir or every form of water in a drainage area.
 
 ### Geographic scope
 
-A reservoir is assigned by its dam or outlet point, not by the center of the
-water polygon. A drainage area is in scope when it intersects Utah and belongs
-to the Colorado River or Great Basin systems: hydrologic regions 14, 15, and
-16. Region 17 is excluded because it drains to the Columbia River system.
+The western scope follows where water drains, not a longitude box. It includes
+hydrologic regions 14 through 18: the Colorado River, Great Basin, Pacific
+Northwest, and California systems. The maps offer two complete measurement
+levels:
 
-This rule admits connected sites outside Utah, including Fontenelle, while
-excluding reservoirs in basins that never affect the state. Upper Snake is
-excluded because it drains to the Columbia River system.
+- 75 six-digit basins, the default; and
+- 44 four-digit subregions.
 
-Reservoir location and drainage assignment are separate facts.
-`intersects_utah` says whether the stored-water surface reaches Utah, including
-cross-border Bear Lake and Meeks Cabin Reservoir. `in_utah` describes the
-provider's published point. `huc6` is assigned by the dam or outlet. See
-[ADR-010](docs/decisions/ADR-010-colorado-and-great-basin-systems-only.md) and
-[ADR-013](docs/decisions/ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md).
+A reservoir is assigned to a drainage area from its reviewed dam or outlet
+point. State and county filters describe where the waterbody is. Those are
+separate facts: a dam, a lake, and the land feeding it can cross different
+lines.
 
 ## Architecture
 
-The primary application is typed and component based. The former application
-paths are permanent compatibility redirects, not parallel product targets.
-
-Five reader-facing surfaces, three compatibility redirects, one frozen source
-oracle, and a Python pipeline.
+The reader-facing application is strict TypeScript built with Vite, ArcGIS
+Maps SDK for JavaScript 5.1, ArcGIS Charts 5.1, and Calcite Components 5.1.
 
 | Path | Role |
 |---|---|
-| `index.html`, `modern.html` + `src/` | Primary ArcGIS 5.1 and Calcite 5 application; `modern.html` is a stable alias. |
-| `overview.html` + `src/overview*` | ArcGIS Charts data workspace and shared filter model. |
-| `snow.html` + `src/snow*` | Snowpack view: the seasonal curve, the basin choropleth and site map with its key on the map, and one site's own season. |
-| `drought.html` + `src/drought*` | Drought view: weekly Drought Monitor coverage by drainage area, the monitor's polygons over terrain shading, the storage-against-drought scatter, the same comparison ranked, and the severity distribution. |
-| `methods.html` + `src/methods.ts` | Methods and sources page: where the numbers come from and how each value is worked out. |
-| `data.html` + `src/data-docs.ts` | Public data API documentation: stable paths, field definitions, and code examples. |
-| `legacy/index.html`, `maplibre/index.html`, `explore.html` | Compatibility redirects to the storage map and storage charts. |
-| `public/retired-route.js` | Allowlisted state translation for the three redirects. |
-| `shared/reservoir-viz.js` | Source-only color-table owner and porting test oracle; not published. |
-| `refresh_reservoirs.py`, `refresh_snowpack.py` | Daily storage and snow pipelines, and metric calculation. |
-| `huc.py` | Drainage-area geometry, assignment, and pipeline rollups. |
-| `tools/` | On-demand pipeline and audit tools: drought download and coverage, source audits, the symbol profiler, and the transfer audit. |
-| `tests/smoke-modern.mjs` | Browser contract for every surface: rendering, deep links, failure paths, accessibility, and label fonts. |
-| `tests/smoke.mjs` | Browser contract for the compatibility redirects. |
-
-Shared front-end modules worth knowing about:
-
-| Module | Role |
-|---|---|
-| `src/ui/map-hover.ts` | The pointer machinery all three maps use: one hit test per frame, stale answers discarded, an edge-safe card. |
-| `src/ui/hover-content.ts` | What every hover card says, kept pure so the sentences are unit-tested. |
-| `src/ui/view-map.ts`, `src/ui/theme-basemap.ts` | Framing, controls, navigation bounds and the theme-following background for the snow and drought maps. |
-| `src/viz/label-scales.ts` | The label ladder: which names appear at which scale, and how large each is drawn. |
-| `src/viz/classes.ts`, `snow-classes.ts`, `drought-classes.ts` | One colour table per map, each the only place its breaks and colours are written. |
-| `src/arcgis/reference-layers.ts` | State and county boundaries from hosted services, loaded against a deadline and added only if they answer. |
+| `index.html`, `modern.html`, `src/main.ts` | Primary reservoir map and stable alias. |
+| `overview.html`, `src/overview*` | Storage charts workspace and shared filter model. |
+| `snow.html`, `src/snow*` | Snow curves, drainage-area map, site map, and detail views. |
+| `drought.html`, `src/drought*` | Weekly drought map, comparisons, rankings, and distribution. |
+| `methods.html`, `data.html`, `terms.html` | Methods, public API, and legal documentation. |
+| `legacy/`, `maplibre/`, `explore.html` | Compatibility redirects only. |
+| `public/retired-route.js` | Allowlisted translation for retired URL state. |
+| `shared/reservoir-viz.js` | Frozen source-only storage color-table oracle; never published. |
+| `refresh_reservoirs.py`, `refresh_snowpack.py` | Reservoir and snow refresh pipelines. |
+| `huc.py`, `watershed_scopes.py` | Drainage assignment, grouping, and named-scope contracts. |
+| `tools/` | Source audits, boundary work, drought processing, symbol profiling, and transfer measurement. |
 
 The load-bearing rules are:
 
-1. **Runtime data is copied, never bundled.** Daily refreshes must not require
-   application data to be compiled into JavaScript.
-2. **The frozen source oracle is not a runtime.** The typed port is tested
-   against `shared/reservoir-viz.js`, but that file is not published.
-3. **Color classes have one source of truth, and one language per map.**
-   Renderers, legends, filters, and charts derive from the same table. Storage,
-   snow, and drought each own a separate table, and a test asserts no colour
-   appears in two of them — two maps of unrelated quantities must not speak the
-   same colour language, on one page or across pages.
-4. **Retired routes preserve bookmarks, not runtimes.** Their allowlisted
-   redirects reach the closest ArcGIS surface without loading the old engines.
-5. **A public page never asks for ArcGIS credentials.** Secured resources fail
-   promptly and fall back rather than opening a sign-in dialog.
-6. **Visible text uses Simplified Technical English.** Tests reject retired or
-   unexplained specialist terms in rendered content.
-7. **Anything that can wait forever needs a deadline.** Runtime fetches, the
-   basemap chain, the chart render, and the hosted boundary layers each have
-   one, and each degrades to a stated fallback rather than an endless spinner.
-8. **Accessibility is a gate, not an aspiration.** axe-core runs over every
-   page at every tested width on every browser-suite run, at WCAG 2.1 AA. The
-   two accepted exceptions are both in vendor components and each is documented
-   where it is allowed.
-9. **A borrowed line never draws over the subject.** A basemap's reference
-   layers render above every operational layer, so they are moved beneath this
-   project's own on every map and every basemap swap.
-10. **Every comparison names the years it came from.** Two normals are
-    published per reservoir — the 1991–2020 standard and the years this site
-    collects — and no figure is shown without the period and the number of
-    years behind it.
-11. **Numbers are measurements or arithmetic on measurements.** Nothing is
-    modelled or forecast, and two shares with different denominators are never
-    subtracted into a single figure.
+1. Runtime data is fetched and copied, never bundled.
+2. Each map quantity has one color table; storage retains the frozen oracle
+   until a later ADR moves ownership.
+3. Retired routes preserve bookmarks, not runtimes.
+4. Public pages never ask for ArcGIS credentials.
+5. Anything that can wait forever has a deadline and an explicit failure
+   state.
+6. Visible application text uses Simplified Technical English.
+7. Accessibility is a release gate at 1280, 390, and 360 pixels.
+8. One readiness field reports one fact, so deleting a rendered layer cannot
+   hide behind another successful signal.
+9. Comparisons name their period, method, and sample size.
+10. Shares with different denominators are never subtracted into a stated
+    quantity.
 
-The rationale and rejected alternatives are in the
+The rationale and supersession history are in the
 [architecture decision records](docs/decisions/).
 
 ## Refresh, build, and deploy
 
-The scheduled [refresh workflow](.github/workflows/refresh-data.yml) runs the
-Python pipeline, retains good previous records when individual feeds fail,
-refuses to publish a broadly failed reservoir refresh, and maintains the
-late-data issue. Snow measurements refresh independently, so a provider
-failure keeps the last complete `snowpack.json` without blocking reservoir
-updates. The weekly drought polygons and the coverage figures computed from
-them move together or not at all: the coverage is recomputed from the
-polygons that were just downloaded, both files are staged in one commit, and
-a mismatch restores both rather than publishing two different weeks. A missed
-weekly release opens and closes its own issue. Changed runtime data is
-committed to `main`.
+The scheduled [refresh workflow](.github/workflows/refresh-data.yml) updates
+reservoir and snow data independently, retains verified previous data when a
+provider fails, refuses broad or inconsistent results, computes drought
+coverage from the polygons downloaded in the same run, and maintains issues
+for late and withdrawn reservoir feeds.
 
 The [Pages workflow](.github/workflows/deploy-pages.yml) builds and publishes
-`dist/` after direct pushes to `main` and after successful scheduled refreshes.
-Vite copies the reservoir, snow, and reference files and the three
-compatibility redirects into the artifact. The workflow checks
-that every public URL exists and that the data payload did not leak into a
-JavaScript bundle.
+`dist/` after changes to `main` and after successful scheduled refreshes. It
+checks public paths and fails if runtime data appears in `dist/assets`.
 
-The [CI workflow](.github/workflows/ci.yml) runs TypeScript checks, Python
-tests, the SDK bundle budget, and browser smoke tests on pushes and pull
-requests. Browser assertions read the expected reservoir count from the
-current payload; tests do not hard-code values that change in the daily feed.
+The [CI workflow](.github/workflows/ci.yml) runs TypeScript, Vitest, pytest,
+the SDK bundle budget, Playwright smoke tests, axe-core, URL compatibility,
+and font-host checks. Tests derive changing counts from the payload rather
+than asserting today's numbers.
 
-## Modernization status
+## Project status and documentation
 
-Phases 0, 1, and 1.5 are complete: the build and deploy pipeline, strict data
-types and runtime validation, tested rollups, drainage-area enrichment, and
-the typed application foundation are in place. The connected-site inventory
-now covers every published drainage area. Current U.S. Drought Monitor
-polygons are downloaded as verified GeoJSON, and both interface views
-shipped: the snowpack page draws all 217 full-resolution-verified monitoring
-sites against their 1991–2020 comparisons, and the drought page reads the
-monitor's weekly map by drainage area beside the storage that drains it.
+The original modernization phases are complete. ArcGIS 5.1 is the production
+runtime; the MapLibre rebuild was superseded by the decision to keep retired
+paths as redirects. The western geography, reader-chosen opening scope,
+637-site snow network, western federal reservoir roster, drought measurements,
+accessibility gates, and transfer policy have all shipped.
 
-Phase 2 is complete: the unified ArcGIS 5.1 and Calcite 5 application runs at
-the root and at its stable `modern.html` alias, with its ArcGIS Charts
-workspace at `overview.html`.
+Current product work is narrower:
 
-Phase 3 is complete: pointer hover, corrected map-click selection, layer-view
-highlight, filter dimming, and eased selection all landed, and the measured
-symbol and filter cost is recorded in the modernization plan. Phase 5 is also
-complete: one filter and selection state object drives the map, the reservoir
-list, the sortable table under the map, and the address bar together; the
-table's CSV export writes exactly the rows and order on screen; and storage
-color uses five equal, colorblind-safe bands. The methods and public data API
-pages document where the numbers come from and how to reach them outside the
-dashboard.
+- resolve the held California source and capacity decisions before adding a
+  third reservoir provider;
+- keep automatically reported late and withdrawn feeds under review;
+- re-check vendor accessibility exceptions and the content policy on SDK
+  upgrades; and
+- complete a human visual review of every page and viewport. Automated tests
+  cannot judge color balance, terrain, density, or visual hierarchy because
+  the ArcGIS canvas is blank in headless Chromium.
 
-Phase 7 is complete: axe-core runs over every page at every tested width on
-every browser-suite run, every page ships a Content-Security-Policy written
-from a measured host list, and `tools/audit-transfer.mjs` reports what each
-page actually requests.
+Start with [`docs/README.md`](docs/README.md) for the maintained documentation
+index. Key records include:
 
-Groundwork for covering the whole west is in place and deliberately
-invisible: the watershed scopes are a registry that carries its own
-hydrologic level, the western geographies (44 subregions, 75 basins, 571
-subbasins, scoped by where the water goes — ADR-053) are committed and
-reviewed but unpublished, the payloads shrank to make the scale affordable
-(ADR-048, ADR-051, ADR-052), and the pipeline's assignment, gates, and dam
-matching are measured ready for a roster ten times the size.
-
-Phase 3's ordered increments and gates are in
-[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md); the completed shell contract
-remains in [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). The full sequence,
-measurements, and implementation history live in
-[`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md).
-
-## Documentation map
-
-- [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) — concise rules and
-  verification steps for contributors and coding agents.
-- [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — working roadmap,
-  measurements, spikes, and implementation history.
-- [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) — the completed shell scope,
-  milestones, and acceptance gates.
-- [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) — the completed symbology and
-  interaction increments.
-- [`docs/PHASE-1.6-PLAN.md`](docs/PHASE-1.6-PLAN.md) — the connected-site and
-  snowpack data additions.
-- [`docs/MODERN-OVERVIEW-PLAN.md`](docs/MODERN-OVERVIEW-PLAN.md) — the data
-  workspace's decision record and visual direction.
-- [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md) — the
-  broader watershed research scope and its measured baseline.
-- [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md)
-  — the owner, endpoint, copy policy, failure behavior, geometry precision,
-  and next migration step for every current or planned data source.
-- [`docs/data-transfer.md`](docs/data-transfer.md) — what each page actually
-  fetches, measured; the file to update when a payload or layer changes cost.
-- [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and
-  their status.
-- [`CHANGELOG.md`](CHANGELOG.md) — notable user-facing changes; daily data
-  refreshes are intentionally omitted.
-- [`maplibre/README.md`](maplibre/README.md) — historical ArcGIS/MapLibre
-  comparison findings.
+- [`CHANGELOG.md`](CHANGELOG.md) — user-facing changes, excluding daily data refreshes;
+- [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — historical roadmap and implementation journal;
+- [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md) — current data ownership and failure behavior;
+- [`docs/data-transfer.md`](docs/data-transfer.md) — measured page and payload cost;
+- [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and their current status;
+- [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) — repository rules and verification guidance; and
+- [`maplibre/README.md`](maplibre/README.md) — archived findings from the retired comparison runtime.
 
 ## Known limitations
 
-- Monthly sources cannot support a meaningful 7-day change.
-- The map depends on third-party basemap services. If they all fail, local
-  reservoir data remains available without a background map.
-- The content policy's `script-src` has to allow the ArcGIS CDN and
-  `unsafe-eval`, because the SDK's workers import their own code from that CDN
-  and the charts package compiles schemas with `new Function`. It therefore
-  offers little protection against injected script; what it does enforce is
-  that fetches, images and fonts cannot leave this site and the named Esri
-  hosts.
-- Two accessibility findings are accepted rather than fixed, and both are in
-  third-party components. `arcgis-chart` renders an inner element carrying a
-  label with no role for it to attach to, so that label is inert — every
-  chart is named by the section heading around it instead. Re-check on the
-  next SDK upgrade. Calcite's slider leaves its own handle unnamed, which
-  this project works around by naming the handle directly; if Calcite starts
-  naming it, that workaround stands aside.
-- ArcGIS map pixels render blank in headless Chromium even when the map and
-  reservoir layers are ready, so smoke tests assert runtime state as well as
-  capturing screenshots.
+- Monthly sources cannot support a meaningful seven-day change.
+- Maps depend on third-party basemap and reference services. Local
+  measurements and non-map views remain available when those services fail.
+- The content policy must currently allow the ArcGIS CDN and `unsafe-eval`
+  because of SDK workers and chart schema compilation. Re-measure it on every
+  SDK upgrade.
+- Two accessibility exceptions remain in vendor components and are documented
+  in `AXE_EXCEPTIONS` in `tests/smoke-modern.mjs`.
+- ArcGIS map pixels render blank in headless Chromium. Runtime readiness and a
+  human review are therefore both required evidence.
 
 ## License and commercial use
 
-Copyright © 2026 Brian Busch. The source code in this repository is licensed
-under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): you may read,
-run, study, and modify it for any noncommercial purpose, but commercial use
-requires a separate license. To license this dashboard commercially — for
-example, an embedded or white-label version for a news organization or
-agency — contact <brian.busch@me.com>.
+Copyright © 2026 Brian Busch. The source code is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use,
+inspection, and modification are allowed under that license. Commercial use
+requires a separate license; contact <brian.busch@me.com>.
 
-The license covers the code, not the measurements. The published JSON data
-files are built from public-domain sources produced by the federal agencies
-credited on the [methods page](https://buschbrian.github.io/western-water-dashboard/methods.html),
-and those agencies' own terms govern their data. Mapping and geospatial
-services are provided by [Esri](https://www.esri.com/) under Esri's own terms.
-See [terms.html](https://buschbrian.github.io/western-water-dashboard/terms.html)
-for the site's terms of use.
+The license covers the code, not source measurements. The federal and state
+publishers credited on the [methods page](methods.html) retain their own terms.
+Esri mapping services are provided under Esri's terms. See
+[terms.html](terms.html) for the site terms.

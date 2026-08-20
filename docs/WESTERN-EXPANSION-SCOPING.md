@@ -1,5 +1,11 @@
 # Scoping the west, and reader-selectable hydrologic levels
 
+**Status (2026-08-20): delivered for geography, levels, snow, drought, and the
+federal roster.** The maps offer 75 basins or 44 subregions, the snow inventory
+has 637 sites, and the reservoir roster now covers eleven states through the
+two federal providers. Non-federal source work is separate and remains under
+review.
+
 Scoped 2026-08-18. Every figure below came from a live query or a real run on
 this machine, not from documentation and not from scaling the Utah figure by a
 ratio of basin counts — telemetry density is not uniform, and the Pacific

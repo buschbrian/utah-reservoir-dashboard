@@ -7,6 +7,9 @@ Each record is written when the decision is made and **not edited afterwards**
 except to change its status. When a decision changes, add a new record that
 supersedes the old one — the history is the point.
 
+Index checked 2026-08-20. See the [documentation guide](../README.md) for the
+maintained references and historical plans around these records.
+
 | | Decision | Status |
 |---|---|---|
 | [ADR-001](ADR-001-adopt-a-build-step.md) | Adopt a build step, retiring the zero-build constraint | Accepted |
@@ -62,7 +65,7 @@ supersedes the old one — the history is the point.
 | [ADR-051](ADR-051-revalidate-do-not-refetch.md) | Revalidate, do not refetch | Accepted |
 | [ADR-052](ADR-052-write-the-snow-calendar-once.md) | Write the snow calendar once | Accepted |
 | [ADR-053](ADR-053-scope-the-west-by-drainage-not-longitude.md) | Scope the west by where the water goes, not by longitude | Accepted |
-| [ADR-054](ADR-054-make-the-terrain-the-ground-under-the-drought-classes.md) | Make the terrain the ground under the drought classes | Accepted |
+| [ADR-054](ADR-054-make-the-terrain-the-ground-under-the-drought-classes.md) | Make the terrain the ground under the drought classes | Superseded by ADR-061 |
 | [ADR-055](ADR-055-measure-area-geodesically-and-keep-the-sampler-spherical.md) | Measure area geodesically, and keep the sampler spherical | Accepted |
 | [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md) | Withdraw a reading that belongs to another season | Accepted |
 | [ADR-057](ADR-057-a-dam-identifier-names-a-project-not-a-structure.md) | A dam identifier names a project, not a structure | Accepted |
@@ -71,7 +74,7 @@ supersedes the old one — the history is the point.
 | [ADR-060](ADR-060-three-questions-about-a-state.md) | Three questions about a state | Accepted |
 | [ADR-061](ADR-061-reference-geometry-over-continuous-data-only.md) | Reference geometry may sit over continuous data, never over discrete | Accepted |
 | [ADR-062](ADR-062-admit-lake-mead-and-generalize-the-dominant-reservoir-control.md) | Admit Lake Mead, and generalize the dominant-reservoir control | Accepted |
-| [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md) | Draw the whole west, and open on the areas that hold reservoirs | Accepted |
+| [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md) | Draw the whole west, and open on the areas that hold reservoirs | Accepted; roster/opening coupling narrowed by ADR-068 |
 | [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md) | Offer two hydrologic levels, and let the reader choose | Accepted |
 | [ADR-065](ADR-065-the-ceiling-is-the-largest-figure-the-record-holds.md) | The ceiling is the largest figure the record holds, plus a surcharge | Accepted |
 | [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md) | A reservoir is keyed by its station, not by its name | Accepted |

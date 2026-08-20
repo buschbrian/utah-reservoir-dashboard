@@ -1,5 +1,10 @@
 # Scoping the three open backlog items
 
+**Status (2026-08-20): partly delivered.** The dam-source migration and county
+search/filter axis shipped. No conservancy-district source was found, and
+per-reservoir permanent pages still require the product decision recorded
+below.
+
 Scoped 2026-08-18, against the list in `MODERNIZATION_PLAN.md` (item 7 of the
 interface-polish slice): the **county and conservancy district aggregation
 axes**, **per-reservoir permanent pages**, and the **dam inventory

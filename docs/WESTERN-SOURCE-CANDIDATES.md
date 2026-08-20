@@ -1,15 +1,14 @@
 # Western reservoir source candidates
 
-Status: Working inventory, checked 2026-08-19
+Status: Research inventory, checked 2026-08-20
 
-The roster is 69 Utah-connected reservoirs fed by two federal providers,
-Reclamation RISE and NRCS AWDB (`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`). The
-site now draws 75 drainage areas across Utah, Colorado, Wyoming, Arizona,
-Nevada, Idaho, Oregon, Washington, California, Montana and New Mexico, and
-`docs/WESTERN-RESERVOIR-ADMISSION.md` already found 125 admissible AWDB
-candidates in that footprint plus a large RISE-covered pool. This inventory
-asks the next question: **what else publishes current storage** for a
-reservoir neither provider covers, and is any of it fit to build against.
+The production roster is now western and is still fed by two federal
+providers, the Bureau of Reclamation and the Natural Resources Conservation
+Service (`AUTHORITATIVE-SOURCE-INVENTORY.md`). This document preserves the
+survey that asked the next question: **what else publishes current storage**
+for a reservoir neither provider covers, and is any of it fit to build
+against. Its Colorado-first recommendation was later reversed by measured
+value in [`CDSS-CDEC-API-REVIEW.md`](CDSS-CDEC-API-REVIEW.md).
 
 Every candidate is judged against two accepted decisions this project will
 not trade away:

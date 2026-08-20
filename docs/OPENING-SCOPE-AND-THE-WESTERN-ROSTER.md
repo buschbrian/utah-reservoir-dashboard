@@ -1,5 +1,11 @@
 # Opening on what the reader came for
 
+**Status (2026-08-20): delivered.** Chooser slices S1 through S6 and federal
+roster slices R1 and R2 are complete. The site opens on the western roster,
+offers state/region/subregion/basin entry, carries and remembers the choice,
+and publishes the reviewed federal western additions. R3, non-federal source
+work, is tracked separately in the Colorado/California review.
+
 Scoped 2026-08-19, on `main` with 54 test files and 718 unit tests green. This
 document covers **two pieces of work that look separate and are one**: taking
 the reservoir roster west, and letting a reader choose what they open on.

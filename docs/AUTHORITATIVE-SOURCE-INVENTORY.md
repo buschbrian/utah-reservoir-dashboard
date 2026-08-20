@@ -1,6 +1,6 @@
 # Authoritative source inventory
 
-Status: Working inventory, checked 2026-08-20
+Status: Maintained inventory, checked 2026-08-20
 
 This inventory turns the source preference in the modernization plan into a
 review checklist. It separates measurement services from map services because
@@ -35,9 +35,9 @@ geometry.
 | Dam capacity and outlet points | U.S. Army Corps of Engineers National Inventory of Dams public ArcGIS service: `https://geospatial.sec.usace.army.mil/dls/rest/services/NID/National_Inventory_of_Dams_Public_Service/FeatureServer/0` | Capacity evidence, dam identifiers, outlet points used for drainage-area assignment, and the physical identity used to deduplicate providers | Capacity and point decisions are committed so an upstream edit cannot change a past assignment during a daily refresh | No runtime dependency; a deliberate rebuild stops before writing if a dam is absent or implausibly far from its reservoir | Adopted 2026-08-18, replacing the hosted copy at `https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/NID_v1/FeatureServer/0`. The parity report is below. ADR-069 keeps it as the default capacity source but permits a named reservoir-operator project record to resolve an explicit conflict; Billy Clapp, Keswick and Cachuma are the three committed exceptions. The layer is pinned rather than searched for. |
 | Drainage areas | U.S. Geological Survey Watershed Boundary Dataset ArcGIS service: `https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer`. Each hydrologic level is a layer on it — HUC2 is 1, HUC4 is 2, HUC6 is 3, HUC8 is 4 — and the scope's level decides which is queried. The published dashboard reads layer 3, for the 75-basin `west-huc6` scope (ADR-063). | Boundaries, labels, reservoir assignment, and drainage-area summaries | Scope fetches obtain the complete object-ID set, validate it, and commit GeoJSON. Scope changes are deliberate, not part of the daily refresh | No runtime service dependency; a failed rebuild leaves the last verified file in place | A scope file a figure is measured against requests `0.0005` degrees, about 56 metres, under ADR-037: measurement showed the source stops adding vertices past that point. `huc6.geojson` was refetched at it when the outlines became a drawn subject, and `data/watersheds/west-huc6.geojson` when it became the drawn scope (ADR-063) -- at the 100-metre default two of the fourteen published drought figures moved by a tenth of a point, which is a rounding step at the precision this project publishes. Unpublished research scopes still request `0.001`. Adopted. |
 | Utah state boundary | Utah Geospatial Resource Center Utah State Boundary ArcGIS service: `https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStateBoundary/FeatureServer/0` | Python's `in_utah` and `intersects_utah` point-in-state checks. No map draws a mask from it any more (ADR-067); the outside-state mask this row used to serve is retired | `scripts/fetch-utah-boundary.mjs` validates one Utah polygon and commits the normalized copy when run | No runtime service dependency; a failed rebuild writes nothing | Requests `0.0001` degrees, about 10 metres. Adopted under ADR-014. |
-| Current drought polygons | U.S. Drought Monitor ArcGIS service, produced by the National Drought Mitigation Center, U.S. Department of Agriculture, and National Oceanic and Atmospheric Administration: `https://services5.arcgis.com/0OTVzJS4K09zlixn/arcgis/rest/services/USDM_current/FeatureServer/0` | Source geometry for the planned drought and drainage-area statistics slice | The daily workflow validates the complete current layer and commits `data/drought/usdm-current.geojson`; the producer normally publishes a new map each week | A failed independent download keeps the last verified drought file and does not block current reservoir data | Requests `0.001` degrees, about 100 metres. Adopted for analysis; not yet loaded by a dashboard view. |
+| Current drought polygons | U.S. Drought Monitor ArcGIS service, produced by the National Drought Mitigation Center, U.S. Department of Agriculture, and National Oceanic and Atmospheric Administration: `https://services5.arcgis.com/0OTVzJS4K09zlixn/arcgis/rest/services/USDM_current/FeatureServer/0` | Source geometry for the drought map and drainage-area statistics | The daily workflow validates the complete current layer and commits `data/drought/usdm-current.geojson`; the producer normally publishes a new map each week. Coverage is computed for both offered levels and the current and prior weeks are retained | A failed independent download keeps the last verified polygons and coverage files and does not block current reservoir data | Requests `0.001` degrees, about 100 metres. Adopted and loaded by the Drought page. |
 | Snow monitoring-site inventory | Natural Resources Conservation Service station API: `https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/stations`, joined to the full-resolution U.S. Geological Survey drainage-area layer | Reviewed station list and drainage-area assignment | `snow_sites.json` is a committed inventory rebuilt deliberately | No runtime service dependency; an incomplete inventory build writes nothing | Full-resolution drainage-area geometry is used for point assignment. Adopted. |
-| Snow measurements | Natural Resources Conservation Service water and climate API: `https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data` | Daily snow-water values and 1991–2020 comparisons | `refresh_snowpack.py` validates every reviewed station and writes `snowpack.json` atomically | A short response is retried per station; any unresolved site keeps the previous complete payload | No geometry is taken from this service. Adopted; interface view remains to be built. |
+| Snow measurements | Natural Resources Conservation Service water and climate API: `https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data` | Daily snow-water values and 1991–2020 comparisons | `refresh_snowpack.py` validates the 637-site western inventory and writes `snowpack.json` atomically | A short response is retried per station; a bounded number of missing sites is named in the payload, and a broader failure keeps the previous complete payload | No geometry is taken from this service. Adopted and loaded by the Snowpack page. |
 | Reservoir discovery and basin references | Bureau of Reclamation public ArcGIS feature services, including `https://services5.arcgis.com/HDRa0B57OVrv2E1q/ArcGIS/rest/services/Reclamation_Reservoirs/FeatureServer` | Discovery, scope review, and design comparison only | No ArcGIS feature-service response is copied into daily observed storage | An outage cannot change or stop the measurement refresh | Reference only. Promote a specific layer only after its fields, update schedule, and failure path are documented here. |
 | Map background | Esri public basemaps `oceans` (leading), `dark-gray-vector`, `gray-vector`, `topo-vector`, and direct portal item `7dc6cea0b1764a1f9af2e679f642f0f5` | Optional geographic background on every map | Loaded at runtime; no local copy | Each candidate has a 10-second deadline. The application tries the next candidate and ultimately keeps reservoirs and drainage areas visible without a background map | Optional runtime context. Adopted under the existing anonymous-access and fallback contract. `oceans` leads both theme chains from 2026-08-16: its bathymetry and shaded relief are the terrain the water sits in, which the deliberately featureless gray canvases could not show. Its base is a public tile service and its labels a public vector style; both were verified anonymous before adoption. |
 | State boundaries | Esri full-resolution boundaries, published by Esri Demographics from U.S. Census Bureau geography: `https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_States/FeatureServer/0` | Outlines and state names on the drought map, where the national drought sweep needs something that says which land it crosses | Loaded at runtime; no local copy. Nothing on any page is computed from these boundaries | An 8-second deadline; a layer that does not answer is not added, and the drought classes, drainage outlines, reservoirs and every published figure are already drawn from local data | Full resolution, adopted 2026-08-19 after measurement: quantized to the view, the detailed layer costs no more on the wire than the generalized one (511 KiB against 534 KiB, drought page, both layers, reproducible). Optional runtime context, adopted 2026-08-16. Verified anonymous. |
@@ -46,7 +46,7 @@ geometry.
 | Drought-monitor land mask | U.S. Census Bureau TIGERweb, layer 0 of the States and Counties service: `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0`. The same owner-operated service the county assignment reads, one layer up | The extent the drought engine measures against, so land the monitor does not cover is reported as unmeasured rather than as land with no drought on it (ADR-059) | `tools/fetch_us_land_mask.py` validates that every western state is present and commits `data/us-land.geojson`. Rebuilt deliberately, never during the daily run | No runtime dependency. A missing mask **stops** the coverage run rather than defaulting: running without one does not fail, it silently reports every border basin's far half as drought-free, which looks like a clean run | Requests `0.001` degrees, the 100-metre default under rule 5; no exception is claimed, because the sampling grid is an order of magnitude coarser and a finer mask could not move a published figure. Committed, never published -- the engine reads it offline like `huc6.geojson`. Adopted 2026-08-18. |
 | Drainage-area boundaries, drawn | Esri Living Atlas copies of the USGS Watershed Boundary Dataset, one service per level: `https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/Watershed_Boundary_Dataset_HUC_6s/FeatureServer/0` (and the HUC 4s and HUC 8s beside it) | The drainage outlines and shapes the maps draw | Loaded at runtime, scoped by an explicit list of the units in scope. The committed `huc6.geojson` remains the assignment source, so which unit a reservoir belongs to is still reproducible from a file and never depends on a service | The same deadline and non-addition on failure as the boundaries above | Measured before adopting: the fourteen published basins cost about 12 KB at 1:18,000,000 and 24 KB at 1:9,000,000 once the SDK quantizes them to the view, against 982 KB for the same outlines inside `reference.json`. The saving is the quantization, not the hosting -- the same features fetched in bulk are 935 KB. This service ignores `maxAllowableOffset`. Verified anonymous. |
 
-## Next source slices
+## Source slices and their outcome
 
 ### 1. Migrate the dam inventory reference -- done 2026-08-18
 
@@ -83,22 +83,23 @@ provenance. All five active tools name the owner service, and
 `src/source-inventory.test.ts` rejects the retired URL in every one of them and
 in the three committed files that republish it.
 
-### 2. Publish drought statistics before a drought view
+### 2. Publish drought statistics before a drought view -- done 2026-08-16
 
-1. Intersect the committed drought polygons with the committed six-digit
-   drainage areas.
-2. Publish a small, dated result per drainage area: total area and area in
-   each reported drought class.
-3. Verify that class areas do not overlap incorrectly and that reported areas
-   close to the drainage-area total within a stated tolerance.
-4. Add the dashboard view only after this analytical contract is tested.
+The pipeline intersects the verified current polygons with the committed
+western geography, distinguishes measured U.S. land from cross-border land,
+and publishes dated class shares for both the 75-basin and 44-subregion
+levels. The Drought page reads those checked results. The current file carries
+the prior week for weekly change, and the level-six archive retains the longer
+history. A missing land mask or mismatched week stops the coverage update.
 
-### 3. Split research geography from the first page load when measured
+### 3. Split research geography from the first page load when measured -- done 2026-08-18
 
-The broader Upper Colorado geometry is intentionally retained as a future
-regional-explorer seed. It should remain in the public reference data for now.
-Before adding more regions, measure transfer and parse cost, then create a
-smaller map-start payload if the current broader copy becomes material.
+The measured split became ADR-048 and ADR-049. `reference.json` carries the
+drainage-area roster, names, states, and boxes but no polygon geometry.
+Committed geography remains the reproducible assignment and measurement
+source; browser maps request view-quantized outlines from the hosted Watershed
+Boundary Dataset. Research scopes stay committed and are not copied to
+`dist/`.
 
 ### 4. Keep the hosted boundary layers inside their contract
 
@@ -117,6 +118,18 @@ an error. And these are Esri's own generalizations rather than a tolerance this
 project requested, so rule 5 does not apply to them -- if either is ever used
 for an analytical result, it stops being optional context and has to be
 re-sourced from the owner at a stated tolerance.
+
+### 5. Add a third reservoir provider only after its evidence agrees
+
+California's Data Exchange Center and Colorado's Division of Water Resources
+both answer keyless requests with stable station identifiers. The measured
+review in [`CDSS-CDEC-API-REVIEW.md`](CDSS-CDEC-API-REVIEW.md) puts
+California first by water covered. Its read-only adapter and audit exist, but
+no record is in the production roster: thirty-six candidates are held where
+the service, dam inventory, or observed series disagree about the dam or full
+level. Resolve and record that denominator decision before promoting CDEC to
+this table's current-observation rows. Colorado remains the next
+coverage-of-places source after that decision.
 
 ## Review boundary
 

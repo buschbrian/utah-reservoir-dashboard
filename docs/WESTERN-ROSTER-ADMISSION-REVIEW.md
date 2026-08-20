@@ -1,5 +1,11 @@
 # The R1 review: reading the 137 one by one
 
+**Status (2026-08-20): delivered.** The duplicate Lake Mead path, capacity
+review, station-key migration, county assignments, comparisons, refresh, and
+western opening extent were resolved before the federal western roster was
+published. This file preserves the candidate-by-candidate evidence and the
+bugs the review found.
+
 Measured 2026-08-19, on branch `published-unit-boxes` at `2a87b2d` (a working
 tree mid-S1, per [`OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md`](OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md);
 none of that work is touched here). This is the measurement half of R1: open

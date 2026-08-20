@@ -1,23 +1,30 @@
-# Modernization Plan — Utah Reservoir Drought Dashboard
+# Modernization Plan — Western Water Dashboard
 
-**Status (2026-08-15):** Phases 0, 1, 1.5, 2, 3, and 5 are complete. The
-inventory portion of Phase 1.6 added Fontenelle; drought context remains data
-only. Phase 4 is underway: the chart workspace is live, its class colours,
-storage bands and reservoir summaries have completed their first accessibility
-pass, and the layer-driven ranking chart now runs on the primary application's
-bottom row. The ArcGIS 5.1 application is the root production view. The first
-snowpack view shipped late on 2026-08-15: a fourth navigation surface with the
-seasonal percent-of-normal curve, drainage-area narrowing over `?area=`, and
-the full site table, validated at the fetch boundary and gated by its own
-browser smoke sections. Its map rendering (the basin choropleth) is still to
-build under slice 5.
+**Status (2026-08-20): complete and retained as an implementation journal.**
+Phases 0 through 7 shipped. The typed ArcGIS 5.1 and Calcite 5 application is
+the production runtime at the root, with Storage Charts, Snowpack, Drought,
+Methods, and Public Data API pages. The proposed MapLibre 6 rebuild was
+superseded by ADR-031: its URL is now a compatibility redirect rather than a
+second product runtime.
 
-**Goal:** turn a set of three hand-written, zero-build HTML pages into one slick,
-unified dashboard on the current generation of tooling — ArcGIS Maps SDK for
-JavaScript 5.1, MapLibre GL JS 6, Calcite Design System 5, and a real build
-pipeline — while preserving the daily refresh contract. Controlled data
-enrichment is allowed; the storage formulas and refresh reliability contract
-are not part of the frontend rewrite.
+Work after the original plan moved the product west. The application offers
+75 basins or 44 subregions, a reader-chosen state or drainage-area opening,
+637 reviewed snow sites, and a federal western reservoir roster across eleven
+states. Drought coverage is measured and published at both offered levels.
+Accessibility, content-policy, font, URL-compatibility, runtime-data, and
+browser release gates are live.
+
+The dated sections below are historical evidence. They deliberately retain the
+state, measurements, and rejected directions that were true when written.
+Use [`README.md`](README.md) and [`docs/README.md`](docs/README.md) for the
+maintained product and documentation status.
+
+**Original goal:** turn a set of three hand-written, zero-build HTML pages into
+one unified dashboard on the current generation of tooling — ArcGIS Maps SDK
+for JavaScript 5.1, Calcite Design System 5, and a real build pipeline — while
+preserving the daily refresh contract. Controlled data enrichment was allowed;
+the storage formulas and refresh reliability contract were not part of the
+frontend rewrite.
 
 **Decisions already made** (see [Open decisions](#open-decisions) for what is not):
 
@@ -25,20 +32,20 @@ are not part of the frontend rewrite.
 |---|---|
 | Build step | **Yes.** Vite + npm + TypeScript. The zero-build constraint is retired. |
 | Visual scope | Polished 2D + micro-interactions, plus a real charting upgrade. 3D scenes and deck.gl are **out of scope** for this pass (parked in [Deferred](#deferred)). |
-| First target | **A new unified dashboard** — map, charts, metrics and table in one Calcite shell. It now runs at the root; the existing views remain as explicit comparisons. |
+| First target | **A new unified dashboard** — delivered at the root; former comparison implementations are now compatibility redirects. |
 | User text | **Use ASD-STE100 Simplified Technical English.** Use short sentences. Use one term for one item. Replace specialist terms when possible. Define each required water or file term. |
 
 ### Current snapshot
 
 | Area | State |
 |---|---|
-| Production views | The ArcGIS 5.1 application runs at the root. ArcGIS 4.34, MapLibre, and the earlier overview remain at comparison URLs. |
+| Production views | Reservoir Storage, Storage Charts, Snowpack, Drought, Methods, Public Data API, and Terms run from the typed Vite build. |
 | Build and deploy | Vite, strict TypeScript, Vitest, runtime-data copying, GitHub Pages deployment after direct pushes and successful refreshes, and the SDK bundle budget are live. |
 | Typed foundation | Runtime validation, class breaks, formatting, statewide rollups, drainage-area assignment, and drainage-area rollups are tested. |
-| Data expansion | Fourteen drainage areas are in scope. Fontenelle is included; the remaining inventory candidates still need capacity validation. |
+| Data expansion | The drawn scope is 75 basins or 44 subregions. The snow network has 637 sites, and the published reservoir payload is built from two reviewed federal providers across eleven states. |
 | Symbology and interaction | One feature layer, composed symbols, hover, selection, filter effects and shareable state are live and measured affordable on integrated graphics. |
-| Bottom row | The sortable table, its CSV export, and Phase 4's ranking chart share the row under the map. The chart is loaded when the row opens. |
-| Next application work | Phase 4's remaining question: whether the distribution histogram joins the primary application or stays an overview-only view. |
+| Storage and charts | The sortable table and CSV export share the row under the map; the six-chart workspace remains the comparison surface for distribution and ranking questions. |
+| Current follow-up | Resolve held California source decisions, monitor late or withdrawn feeds, re-check vendor exceptions on SDK upgrades, and complete human visual review. |
 
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
