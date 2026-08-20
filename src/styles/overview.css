@@ -75,7 +75,8 @@ body {
   gap: .5rem 1.25rem;
   align-items: center;
 }
-.mobile-filter-toggle { display: none; }
+.mobile-filter-toggle,
+.mobile-disclosure-toggle { display: none; }
 .filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
 /* The site search rides in the head row next to the title rather than
@@ -489,12 +490,13 @@ body {
   .filterbar-head-search { flex-basis: 100%; }
   .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
   .dashboard-filterbar .reset-button { flex: 0 1 auto; }
-  /* Snow and drought gain four place controls after their first paint. A
-     phone does not need to spend its entire opening screen on that form.
-     Keep the filter's heading and current status visible, then reveal the
-     complete form when the reader asks for it. Desktop keeps the existing
-     always-open bar because this rule never applies there. */
-  .mobile-filter-toggle {
+  /* The data pages carry filters, context and display settings that are
+     useful after a reader has seen the headline. A phone keeps each heading
+     visible, then reveals the complete content when the reader asks for it.
+     Desktop keeps the existing always-open layout because these rules never
+     apply there. */
+  .mobile-filter-toggle,
+  .mobile-disclosure-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -507,13 +509,29 @@ body {
     font: 700 .82rem "Avenir Next", Avenir, sans-serif;
     cursor: pointer;
   }
-  .mobile-filter-toggle:focus-visible {
+  .mobile-filter-toggle:focus-visible,
+  .mobile-disclosure-toggle:focus-visible {
     outline: .18rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
     outline-offset: .12rem;
   }
   .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-search,
   .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-actions,
   .mobile-filterbar:not(.mobile-filters-open) > .filterbar-controls {
+    display: none;
+  }
+  .mobile-filterbar.mobile-filters-open #overview-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  #overview-filter-actions .switch-label { justify-content: space-between; }
+  #overview-filter-actions .reset-button { width: 100%; }
+  .weekly-card:not(.weekly-open) .weekly-intro,
+  .weekly-card:not(.weekly-open) .weekly-sections {
+    display: none;
+  }
+  .mobile-chart-settings:not(.mobile-chart-settings-open) .chart-settings-copy > p,
+  .mobile-chart-settings:not(.mobile-chart-settings-open) > .chart-settings-controls {
     display: none;
   }
   /* The headline gets its own line on a phone; the rest pair up. */
