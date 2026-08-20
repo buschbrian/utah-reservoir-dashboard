@@ -470,7 +470,9 @@ function providerCounts(reservoirs: readonly Reservoir[]): { rise: number; awdb:
  * A count about the data belongs in a slot the data fills. The rules around
  * them stay as text, because a rule cannot drift.
  */
-function fillLiveCounts(reservoirs: readonly Reservoir[]): void {
+function fillLiveCounts(
+  reservoirs: readonly Reservoir[], minimumBaselineYears: number
+): void {
   const total = reservoirs.length;
   const fullLevel = reservoirs.reduce((sum, reservoir) => sum + sizeBasis(reservoir), 0);
   const shareOf = (rows: readonly Reservoir[]): string => formatPercent(
@@ -480,13 +482,16 @@ function fillLiveCounts(reservoirs: readonly Reservoir[]): void {
     reservoir.waterbody_states ?? [reservoir.state]).filter(Boolean));
   const areas = new Set(reservoirs.map((reservoir) => reservoir.huc6).filter(Boolean));
   const maximum = reservoirs.filter((reservoir) => reservoir.capacity_basis === "max_storage");
-  const withClimate = reservoirs.filter((reservoir) => reservoir.baselines?.climate);
+  const withClimate = reservoirs.filter((reservoir) => {
+    const climate = reservoir.baselines?.climate;
+    return climate && climate.sample_years >= minimumBaselineYears;
+  });
 
   const text: Record<string, string> = {
     "scope-counts":
-      `Today that is ${total} reservoirs, in ${areas.size} of the 75 drainage areas and `
+      `Today that is ${total} reservoirs, in ${areas.size} drainage areas and `
       + `reaching ${states.size} states. Their full levels add up to `
-      + `${formatAcreFeet(fullLevel)} acre-feet. The rest of the drawn areas hold no `
+      + `${formatAcreFeet(fullLevel)} acre-feet. Other drawn areas hold no `
       + "reservoir this site tracks.",
     "basis-mix":
       `Today ${maximum.length} of the ${total} reservoirs are measured against a maximum `
@@ -508,7 +513,7 @@ async function showPublishedData(): Promise<void> {
   try {
     const data = await loadReservoirs();
     const counts = providerCounts(data.reservoirs);
-    fillLiveCounts(data.reservoirs);
+    fillLiveCounts(data.reservoirs, data.climate_normals?.minimum_years ?? 0);
     status.textContent =
       `The data on this site was published on ${formatDate(data.generated_at.slice(0, 10))}. ` +
       `It covers ${data.reservoirs.length} reservoirs: ${counts.rise} measured by the ` +

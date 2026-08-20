@@ -156,7 +156,11 @@ function updateKpis(
   /* The rows handed in are already the scope the reader chose, so this must
    * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
    * means "do not filter again", which is what makes the toggles work. */
-  const rollup = statewideRollup(reservoirs, { ...WIDEST_SCOPE, baseline: period.id });
+  const rollup = statewideRollup(reservoirs, {
+    ...WIDEST_SCOPE,
+    baseline: period.id,
+    minimumBaselineYears: period.minimumYears
+  });
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const years = periodLabel(period.choices, rollup.normalBaseline);
@@ -208,6 +212,7 @@ function updateKpis(
 interface ComparisonPeriod {
   id: BaselineId;
   choices: readonly BaselineChoice[];
+  minimumYears: number;
 }
 
 async function renderOverview(
@@ -963,7 +968,8 @@ try {
   await renderOverview(payload.reservoirs, payload.generated_at,
     payload.watersheds?.subregions ?? [], openingScope, openingRosters, {
       id: choices.some((choice) => choice.id === preferred) ? preferred : "recent",
-      choices
+      choices,
+      minimumYears: payload.climate_normals?.minimum_years ?? 0
     });
 } catch (error) {
   console.error("Reservoir overview failed:", error);

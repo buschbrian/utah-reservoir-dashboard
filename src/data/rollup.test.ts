@@ -438,30 +438,50 @@ describe("what a combined figure is made of", () => {
  * 1991-2020, and both were labelled "normal".
  */
 describe("which period the combined comparison uses", () => {
+  const minimumYears = payload.climate_normals?.minimum_years ?? 0;
   const withClimate = payload.reservoirs.filter((reservoir) =>
-    reservoir.baselines?.climate);
+    (reservoir.baselines?.climate?.sample_years ?? -1) >= minimumYears);
+
+  const optionsFor = (baseline: "recent" | "climate") => ({
+    ...CONNECTED_WITH_LAKE_POWELL,
+    baseline,
+    minimumBaselineYears: minimumYears
+  });
+
+  const normalFor = (reservoirs: readonly Reservoir[], baseline: "recent" | "climate") =>
+    reservoirs.reduce((total, reservoir) => {
+      const found = reservoir.baselines?.[baseline];
+      return total + (found && found.sample_years >= minimumYears ? found.normal_af ?? 0 : 0);
+    }, 0);
 
   it("measures against the period it was asked for", () => {
-    const recent = statewideRollup(withClimate,
-      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "recent" });
-    const climate = statewideRollup(withClimate,
-      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+    const recent = statewideRollup(withClimate, optionsFor("recent"));
+    const climate = statewideRollup(withClimate, optionsFor("climate"));
 
     expect(recent.normalBaseline).toBe("recent");
     expect(climate.normalBaseline).toBe("climate");
-    expect(recent.normalAf).toBeCloseTo(withClimate.reduce((total, reservoir) =>
-      total + (reservoir.baselines?.recent?.normal_af ?? 0), 0), 6);
-    expect(climate.normalAf).toBeCloseTo(withClimate.reduce((total, reservoir) =>
-      total + (reservoir.baselines?.climate?.normal_af ?? 0), 0), 6);
+    expect(recent.normalAf).toBeCloseTo(normalFor(withClimate, "recent"), 6);
+    expect(climate.normalAf).toBeCloseTo(normalFor(withClimate, "climate"), 6);
   });
 
   /* The whole reason the period has to travel with the number. */
   it("gives a different answer for the two periods", () => {
-    const recent = statewideRollup(withClimate,
-      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "recent" });
-    const climate = statewideRollup(withClimate,
-      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+    const recent = statewideRollup(withClimate, optionsFor("recent"));
+    const climate = statewideRollup(withClimate, optionsFor("climate"));
     expect(recent.percentOfNormal).not.toBeCloseTo(climate.percentOfNormal ?? 0, 1);
+  });
+
+  it("uses the same minimum number of years as the reservoir details", () => {
+    const climate = statewideRollup(payload.reservoirs, optionsFor("climate"));
+    expect(climate.normalCovers).toBe(withClimate.length);
+    for (const reservoir of payload.reservoirs) {
+      const found = reservoir.baselines?.climate;
+      if (found && found.sample_years < minimumYears) {
+        const one = statewideRollup([reservoir], optionsFor("climate"));
+        expect(one.normalCovers, reservoir.name).toBe(0);
+        expect(one.percentOfNormal, reservoir.name).toBeNull();
+      }
+    }
   });
 
   it("defaults to the recent period, which is what every caller had", () => {
@@ -474,13 +494,12 @@ describe("which period the combined comparison uses", () => {
 
   /*
    * How much of the total the comparison actually covers, by volume and not
-   * only by count. The standard period exists for 69 of 198 reservoirs and
-   * those 69 hold most of the water, so the two numbers tell very different
+   * only by count. The standard period covers a minority of the roster but
+   * most of its combined full level, so the two numbers tell very different
    * stories and the count alone is the more alarming one.
    */
   it("reports baseline coverage by combined full level as well as by count", () => {
-    const climate = statewideRollup(payload.reservoirs,
-      { ...CONNECTED_WITH_LAKE_POWELL, baseline: "climate" });
+    const climate = statewideRollup(payload.reservoirs, optionsFor("climate"));
     expect(climate.normalCovers).toBe(withClimate.length);
     expect(climate.normalCoversCapacityAf)
       .toBeCloseTo(withClimate.reduce((total, row) => total + sizeBasis(row), 0), 6);

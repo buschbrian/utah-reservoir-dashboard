@@ -262,7 +262,8 @@ function updateSummary(): void {
     lakePowell: "include",
     // The reader's own period, so the total and the details panel below it
     // cannot disagree about which years "normal" means (ADR-041).
-    baseline: activeBaselineId
+    baseline: activeBaselineId,
+    minimumBaselineYears: baselineMinimumYears
   }) : null;
   const monthly = month === null ? null : monthlyRollup(inScope, month);
   /* One shape from two, so the card below reads one set of fields whichever
