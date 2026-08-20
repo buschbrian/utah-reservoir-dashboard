@@ -23,6 +23,8 @@ import {
   isOpeningScopeChosen
 } from "./data/opening-scope";
 import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
+import { offeredStates } from "./data/state-vocabulary";
+import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
 import { isLate, statewideRollup } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
@@ -1101,6 +1103,22 @@ if (!supportsDashboard(browserCapabilities())) {
   await loadContext(map);
   const levelsOffered = await wireLevelControl();
   wireWhereControl(openingRosters, openingScope.selection);
+  /* The splash asks only when nothing else answered -- never over a shared
+   * link, never over a remembered place, never twice. Built from the rosters
+   * already fetched, so it costs no request and cannot arrive late. */
+  if (shouldAskWhere(openingPlace.source, wasDismissed(), window.location.search)) {
+    const splash = createOpeningSplash({
+      states: offeredStates({
+        reservoirStates: published.map((reservoir) => reservoir.waterbody_states ?? reservoir.state),
+        drainageAreaStates: openingRosters.areas.map((area) => area.states)
+      }).map((option) => option.code),
+      regions: openingRosters.regions
+    });
+    if (splash) {
+      document.body.append(splash.element);
+      splash.open();
+    }
+  }
 
   /* One fact per field, and fields are only ever added (never removed or
    * re-pointed at an expression another field already reads): two fields
