@@ -35,6 +35,7 @@ from huc import (  # noqa: E402
 ROSTER_BOUNDARIES = ROOT / "huc6.geojson"
 RESERVOIRS = ROOT / "reservoirs.json"
 ADMITTED = ROOT / "admitted_reservoirs.json"
+ADMITTED_RISE = ROOT / "admitted_rise_reservoirs.json"
 SHARED_VIZ = ROOT / "shared" / "reservoir-viz.js"
 UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 
@@ -83,6 +84,9 @@ EXPECTED_UNITS = {
     "171100": "Puget Sound",
     "180102": "Klamath",
     "180200": "Upper Sacramento",
+    "180201": "Lower Sacramento",
+    "180400": "San Joaquin",
+    "180600": "Central California Coastal",
 }
 
 # Assignments a reader can check against a map without running anything.
@@ -101,12 +105,14 @@ KNOWN_ASSIGNMENTS = {
     "Dillon Reservoir": "140100",     # Colorado Headwaters
     "Elkhead Reservoir": "140500",    # White-Yampa
     "Narraguinnep Reservoir": "140802",  # Lower San Juan
+    "Shasta Lake": "180201",        # Lower Sacramento, at its upstream edge
+    "Lake Cachuma": "180600",       # Central California Coastal
 }
 
 # The margin the boundary generalization was chosen against. If a future
-# reservoir lands inside this, the 500 m generalization in
-# the retired 500 m generalization is no longer comfortably finer than the closest
-# call, and that decision needs re-measuring.
+# reservoir lands inside this, the committed 56 m generalization may no
+# longer be comfortably finer than the closest call, and that decision needs
+# re-measuring.
 MIN_BOUNDARY_MARGIN_KM = 2.0
 
 # San Carlos Reservoir (Coolidge Dam, AZ), admitted in R1, sits at the Gila
@@ -117,11 +123,21 @@ MIN_BOUNDARY_MARGIN_KM = 2.0
 # (huc.py), so `describe`'s divide fallback cannot resolve it either -- the
 # published point is not clear of the boundary by the margin the fallback
 # requires. Assigned to Middle Gila by the dam point today (measured
-# directly against `huc.describe`); this is the one case MIN_BOUNDARY_
-# MARGIN_KM exists to surface, not a reason to raise it for everyone. Re-
-# measure if the boundary file is ever refetched at a different
+# directly against `huc.describe`). R2 added two more reviewed close calls;
+# each is named below instead of weakening the guard for every reservoir.
+# Re-measure them if the boundary file is ever refetched at a different
 # generalization.
-BOUNDARY_MARGIN_EXCEPTIONS = {"San Carlos Reservoir"}
+BOUNDARY_MARGIN_EXCEPTIONS = {
+    # Coolidge Dam is the Upper Gila / Middle Gila pour point.
+    "San Carlos Reservoir",
+    # Shasta Dam is the Upper Sacramento / Lower Sacramento pour point; both
+    # the reviewed dam and provider point sit on that line.
+    "Shasta Lake",
+    # Both reviewed points agree on Clearwater and remain more than twice the
+    # committed geometry's 56 m generalization, but sit inside this guard's
+    # deliberately wider 2 km review margin.
+    "Soldiers Meadow Reservoir",
+}
 
 
 @pytest.fixture(scope="module")
@@ -143,12 +159,13 @@ def reservoirs() -> list[dict]:
     records = json.loads(RESERVOIRS.read_text())["reservoirs"]
     published = {record["name"] for record in records}
     # Keyed by station since ADR-066; the name it is called by is inside.
-    roster = json.loads(ADMITTED.read_text()).get("reservoirs", {})
-    for entry in roster.values():
-        name = entry["name"]
-        if name not in published and entry.get("lat") and entry.get("lon"):
-            records.append({"name": name, "lat": entry["lat"], "lon": entry["lon"],
-                            "huc6": entry.get("huc6")})
+    for roster_path in (ADMITTED, ADMITTED_RISE):
+        roster = json.loads(roster_path.read_text()).get("reservoirs", {})
+        for entry in roster.values():
+            name = entry["name"]
+            if name not in published and entry.get("lat") and entry.get("lon"):
+                records.append({"name": name, "lat": entry["lat"], "lon": entry["lon"],
+                                "huc6": entry.get("huc6")})
     return records
 
 
@@ -214,7 +231,7 @@ def test_no_reservoir_sits_close_enough_to_a_boundary_to_be_generalized_across(
                                  assign_huc((r["lon"], r["lat"]), units)), r["name"])
         for r in reservoirs if r["name"] not in BOUNDARY_MARGIN_EXCEPTIONS)
     assert closest[0] > MIN_BOUNDARY_MARGIN_KM, (
-        f"{closest[1]} is {closest[0]:.2f} km from a unit boundary; the 500 m "
+        f"{closest[1]} is {closest[0]:.2f} km from a unit boundary; the 56 m "
         "the committed boundary generalization needs re-measuring")
 
 

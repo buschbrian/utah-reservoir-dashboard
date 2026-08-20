@@ -50,6 +50,7 @@ SEASONAL_WINDOW_DAYS = 7
 OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 ADMITTED_RESERVOIRS_PATH = Path(__file__).parent / "admitted_reservoirs.json"
+ADMITTED_RISE_RESERVOIRS_PATH = Path(__file__).parent / "admitted_rise_reservoirs.json"
 NORMALS_PATH = Path(__file__).parent / "normals.json"
 COUNTIES_PATH = Path(__file__).parent / "counties.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
@@ -233,7 +234,7 @@ METHOD_VERSION = "storage-normal-annual-3"
 # climate normal and its link (ADR-066). The id is what the payload already
 # publishes as `source_station_id`, and ADR-003 already calls it the stable
 # provider identity.
-RESERVOIRS = {
+BASE_RISE_RESERVOIRS = {
     "290": ("Deer Creek", 40.43511, -111.50035),
     "468": ("Jordanelle", 40.60689, -111.41655),
     "779": ("Strawberry", 40.16882, -111.1311),
@@ -320,6 +321,67 @@ BASE_AWDB_RESERVOIRS = {
 }
 
 
+REQUIRED_CAPACITY_EVIDENCE = {
+    "capacity_af", "capacity_basis", "nid_id", "nid_dam_name",
+    "dam_lon", "dam_lat", "match_distance_km", "match_confirmed_by",
+}
+
+
+def validate_capacity_evidence(name: str, capacity: object) -> None:
+    if not isinstance(capacity, dict) or not REQUIRED_CAPACITY_EVIDENCE <= capacity.keys():
+        raise ValueError(f"{name}: incomplete capacity evidence")
+    if not isinstance(capacity.get("capacity_af"), (int, float)) \
+            or capacity["capacity_af"] <= 0:
+        raise ValueError(f"{name}: capacity must be positive")
+    if capacity.get("capacity_basis") == "reclamation_project_record":
+        if not isinstance(capacity.get("capacity_source_url"), str) \
+                or not capacity["capacity_source_url"].startswith("https://www.usbr.gov/"):
+            raise ValueError(
+                f"{name}: a Reclamation project capacity needs its owner-operated source")
+
+
+def load_admitted_rise_reservoirs(
+    path: Path = ADMITTED_RISE_RESERVOIRS_PATH,
+) -> dict[str, dict]:
+    """Load reviewed Reclamation storage items admitted by R2.
+
+    The original 30 items stay in source because they predate the reviewed
+    admission file. R2's western additions keep the provider item, point,
+    matched dam and denominator in one committed record, the same shape R1
+    established for the admitted AWDB stations.
+    """
+    document = json.loads(path.read_text(encoding="utf-8"))
+    rows = document.get("reservoirs")
+    if not isinstance(rows, dict) or not rows:
+        raise ValueError(f"{path.name} must contain a non-empty reservoirs object")
+    for item_id, row in rows.items():
+        if not isinstance(item_id, str) or not item_id.isdigit() or not isinstance(row, dict):
+            raise ValueError(f"invalid reservoir entry in {path.name}")
+        name = row.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"{item_id}: a reservoir needs a name to be called by")
+        if str(row.get("rise_item_id")) != item_id:
+            raise ValueError(
+                f"{item_id}: keyed by one item and configured for {row.get('rise_item_id')!r}")
+        if row.get("cadence") != "daily":
+            raise ValueError(f"{name}: Reclamation storage items must be daily")
+        if not isinstance(row.get("lat"), (int, float)) or not isinstance(
+                row.get("lon"), (int, float)):
+            raise ValueError(f"{name}: coordinates are required")
+        validate_capacity_evidence(name, row.get("capacity"))
+    return rows
+
+
+ADMITTED_RISE_RESERVOIRS = load_admitted_rise_reservoirs()
+RESERVOIRS = {
+    **BASE_RISE_RESERVOIRS,
+    **{
+        item_id: (row["name"], row["lat"], row["lon"])
+        for item_id, row in ADMITTED_RISE_RESERVOIRS.items()
+    },
+}
+
+
 def load_admitted_reservoirs(path: Path = ADMITTED_RESERVOIRS_PATH) -> dict[str, dict]:
     """Load the reviewed AWDB stations admitted onto the roster.
 
@@ -332,10 +394,6 @@ def load_admitted_reservoirs(path: Path = ADMITTED_RESERVOIRS_PATH) -> dict[str,
     if not isinstance(rows, dict) or not rows:
         raise ValueError(f"{path.name} must contain a non-empty reservoirs object")
 
-    required_capacity = {
-        "capacity_af", "capacity_basis", "nid_id", "nid_dam_name",
-        "dam_lon", "dam_lat", "match_distance_km", "match_confirmed_by",
-    }
     for station, row in rows.items():
         if not isinstance(station, str) or not station or not isinstance(row, dict):
             raise ValueError(f"invalid reservoir entry in {path.name}")
@@ -356,12 +414,7 @@ def load_admitted_reservoirs(path: Path = ADMITTED_RESERVOIRS_PATH) -> dict[str,
         if not isinstance(row.get("lat"), (int, float)) or not isinstance(
                 row.get("lon"), (int, float)):
             raise ValueError(f"{name}: coordinates are required")
-        capacity = row.get("capacity")
-        if not isinstance(capacity, dict) or not required_capacity <= capacity.keys():
-            raise ValueError(f"{name}: incomplete capacity evidence")
-        if not isinstance(capacity.get("capacity_af"), (int, float)) \
-                or capacity["capacity_af"] <= 0:
-            raise ValueError(f"{name}: capacity must be positive")
+        validate_capacity_evidence(name, row.get("capacity"))
     return rows
 
 
@@ -424,8 +477,8 @@ def load_capacities() -> dict[str, dict]:
 
     The original Reclamation table is built by tools/build_capacity_table.py.
     Reviewed admitted-site evidence lives beside its station configuration
-    in admitted_reservoirs.json. Both are committed rather than fetched at
-    refresh time because a denominator must not change silently.
+    in the two admitted-reservoir files. All are committed rather than
+    fetched at refresh time because a denominator must not change silently.
     """
     capacities = {}
     try:
@@ -436,6 +489,8 @@ def load_capacities() -> dict[str, dict]:
               "its percent-full values will be omitted")
     return {
         **capacities,
+        **{station: row["capacity"]
+           for station, row in ADMITTED_RISE_RESERVOIRS.items()},
         **{station: row["capacity"] for station, row in ADMITTED_RESERVOIRS.items()},
     }
 
@@ -1413,6 +1468,7 @@ def load_capacity_catalog() -> dict:
     # (ADR-066).
     catalog["keyed_by"] = "source_station_id"
     catalog["admitted_reservoirs"] = ADMITTED_RESERVOIRS_PATH.name
+    catalog["admitted_rise_reservoirs"] = ADMITTED_RISE_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)

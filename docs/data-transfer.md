@@ -279,6 +279,25 @@ being a Utah map with western context around it.
 moved to `west-huc6` and the export now publishes the drawn scope's roster as
 the roster scope's as well.
 
+## The Bureau-only west (2026-08-20)
+
+R2 adds 25 daily reservoirs without adding a browser request. The public
+storage payload is now **1,264,362 bytes raw and 136,074 bytes (132.9 KB)
+gzipped** with `gzip -9`, against 104.5 KB after R1. It publishes 223 active
+reservoirs and five withdrawal notices. The transfer increase is therefore
+about 28 KB compressed for the observations and comparison history of the 25
+additions.
+
+`reference.json` is **80,292 bytes raw and 14,795 bytes (14.4 KB) gzipped**.
+Its increase carries 25 reviewed capacity records, including the retained
+national inventory evidence and the three named operator-record overrides;
+the new source-only admission roster is not copied into `dist/`.
+
+The rebuilt `normals.json` is 939,289 bytes raw and 188,200 bytes gzipped, but
+it is a pipeline input and does not ship. The same is true of the county
+assignment and admission files. The first-load cost of R2 is the two public
+payload increases above, not the size of all four committed artefacts.
+
 ## Generalized against full-resolution boundaries (2026-08-19)
 
 The state and county outlines were the publisher's generalized layers on the

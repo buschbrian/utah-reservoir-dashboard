@@ -291,7 +291,10 @@ def test_committed_capacity_table_covers_every_reservoir():
     path = Path(__file__).resolve().parent.parent / "capacities.json"
     payload = json.loads(path.read_text())
     caps = payload["capacities"]
-    assert set(R.RESERVOIRS) <= set(caps), "capacity table does not cover every RISE site"
+    assert set(R.BASE_RISE_RESERVOIRS) <= set(caps), (
+        "capacity table does not cover every original RISE site")
+    assert set(R.RESERVOIRS) <= set(R.load_capacities()), (
+        "reviewed capacity evidence does not cover every RISE site")
     assert "National Inventory of Dams" in payload["source"]
 
     published = R.load_previous(R.OUTPUT_PATH)
@@ -321,6 +324,9 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     # Reservoir, already on the roster and not a new admission).
     assert len(R.ADMITTED_RESERVOIRS) == 148
     assert len(R.AWDB_RESERVOIRS) == 173
+    assert len(R.ADMITTED_RISE_RESERVOIRS) == 25
+    assert len(R.RESERVOIRS) == 55
+    assert len(R.ALL_RESERVOIR_IDS) == 228
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
     for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
@@ -348,6 +354,30 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
             "normal_storage", "max_storage", "nid_storage"
         }
 
+    for item_id, row in R.ADMITTED_RISE_RESERVOIRS.items():
+        assert str(row["rise_item_id"]) == item_id
+        assert row["cadence"] == "daily"
+        evidence = row["capacity"]
+        assert evidence["nid_id"], f"{row['name']} has no dam inventory identifier"
+        assert evidence["nid_dam_name"]
+        assert evidence["match_distance_km"] <= 25
+        assert evidence["capacity_basis"] in {
+            "normal_storage", "max_storage", "nid_storage",
+            "reclamation_project_record",
+        }
+        if evidence["capacity_basis"] == "reclamation_project_record":
+            assert evidence["capacity_source_url"].startswith("https://www.usbr.gov/")
+
+    overrides = {
+        row["name"]: row["capacity"]
+        for row in R.ADMITTED_RISE_RESERVOIRS.values()
+        if row["capacity"]["capacity_basis"] == "reclamation_project_record"
+    }
+    assert set(overrides) == {"Billy Clapp Lake", "Keswick Reservoir", "Lake Cachuma"}
+    for evidence in overrides.values():
+        assert evidence["capacity_source"]
+        assert evidence["capacity_source_checked"] == "2026-08-20"
+
 
 def test_admitted_inventory_lands_at_its_reviewed_dam_point():
     """Every admitted station's stored drainage area has to match where its
@@ -371,11 +401,13 @@ def test_admitted_inventory_lands_at_its_reviewed_dam_point():
     """
     units = R.huc.load_units()
     seen_areas = set()
-    for row in R.ADMITTED_RESERVOIRS.values():
-        capacity = row["capacity"]
-        assigned = R.huc.assign_huc((capacity["dam_lon"], capacity["dam_lat"]), units)
-        assert assigned and assigned["huc6"] == row["huc6"], row["name"]
-        seen_areas.add(row["huc6"])
+    for roster in (R.ADMITTED_RESERVOIRS, R.ADMITTED_RISE_RESERVOIRS):
+        for row in roster.values():
+            capacity = row["capacity"]
+            assigned = R.huc.assign_huc(
+                (capacity["dam_lon"], capacity["dam_lat"]), units)
+            assert assigned and assigned["huc6"] == row["huc6"], row["name"]
+            seen_areas.add(row["huc6"])
     # 3 areas before R1; 36 after, well above this bound -- a drop back
     # toward the old count would mean the admitted pool stopped being
     # western, not that the roster shrank a little.

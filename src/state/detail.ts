@@ -147,6 +147,7 @@ export function changeLabel(base: string, elapsed: number | null | undefined): s
 const CAPACITY_BASIS_NAMES: Record<string, string> = {
   normal_storage: "the normal full level",
   max_storage: "the maximum level, which includes storage kept for floods",
+  reclamation_project_record: "the full level published by the reservoir operator",
   awdb_reservoir_metadata: "the full level published with the readings"
 };
 

@@ -76,6 +76,8 @@ supersedes the old one — the history is the point.
 | [ADR-065](ADR-065-the-ceiling-is-the-largest-figure-the-record-holds.md) | The ceiling is the largest figure the record holds, plus a surcharge | Accepted |
 | [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md) | A reservoir is keyed by its station, not by its name | Accepted |
 | [ADR-067](ADR-067-retire-the-state-mask.md) | Retire the state mask, and stop publishing the state boundary | Accepted |
+| [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md) | Move the roster scope west, and decouple the opening box from it | Accepted |
+| [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md) | Deduplicate reservoirs by dam identity | Accepted |
 
 ## Relationship to the modernization plan
 
