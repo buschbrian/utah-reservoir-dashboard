@@ -821,7 +821,7 @@ Relevant to us specifically from the 5.x line:
 ## 2. Target architecture
 
 ```
-utah-water-dashboard/
+western-water-dashboard/
 ├── index.html                     # primary ArcGIS 5.1 production URL
 ├── legacy/index.html              # retained ArcGIS 4.34 comparison
 ├── explore.html                   # current overview and Vite entry
@@ -1822,10 +1822,10 @@ two are watch items on somebody else's release and stay open as reminders.
 
 The decisions this phase made are now ADR-032 through ADR-036, which is where
 a contributor looks before changing any of it — the commit history was never
-going to carry that weight. Original list, with outcomes: [#15](https://github.com/buschbrian/utah-water-dashboard/issues/15),
-[#16](https://github.com/buschbrian/utah-water-dashboard/issues/16),
-[#17](https://github.com/buschbrian/utah-water-dashboard/issues/17) and
-[#18](https://github.com/buschbrian/utah-water-dashboard/issues/18).
+going to carry that weight. Original list, with outcomes: [#15](https://github.com/buschbrian/western-water-dashboard/issues/15),
+[#16](https://github.com/buschbrian/western-water-dashboard/issues/16),
+[#17](https://github.com/buschbrian/western-water-dashboard/issues/17) and
+[#18](https://github.com/buschbrian/western-water-dashboard/issues/18).
 
 1. **The `b1c0ed9` commit message is not the one its author wrote.** That
    commit carries the map-parity work with an auto-generated summary: while a
@@ -1838,7 +1838,7 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    remote branches, needs a force-push to a branch that deploys, and leaves
    merged PR #14 pointing at commits no longer on any branch. `git notes` is
    the no-risk alternative and fixes the local record but not GitHub's.
-   **Closed, not done ([#15](https://github.com/buschbrian/utah-water-dashboard/issues/15)).**
+   **Closed, not done ([#15](https://github.com/buschbrian/western-water-dashboard/issues/15)).**
    The history stays as it is. No SHAs rewritten, no force-push, merged PR #14
    still points at real commits. What that message could not say is in the
    changelog, the plan and ADR-032 to ADR-035 instead.
@@ -1850,7 +1850,7 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    unnamed, which `src/ui/slider-label.ts` works around by naming the handle
    directly. Both are recorded in `AXE_EXCEPTIONS`. Re-check on the next SDK
    upgrade: if either vendor fixes theirs, the exception starts matching
-   **Open as a watch item ([#16](https://github.com/buschbrian/utah-water-dashboard/issues/16)),**
+   **Open as a watch item ([#16](https://github.com/buschbrian/western-water-dashboard/issues/16)),**
    and recorded in ADR-036. Nothing is blocked on it.
 
 3. **The content policy's `script-src` is permissive by necessity.** It has to
@@ -1859,7 +1859,7 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    with `new Function`. Both were confirmed by removing them and watching
    pages fail. The other directives do real work; this one does not. Worth
    re-measuring with `tools/audit-transfer.mjs` on each SDK upgrade to see
-   **Open as a watch item ([#17](https://github.com/buschbrian/utah-water-dashboard/issues/17)),**
+   **Open as a watch item ([#17](https://github.com/buschbrian/western-water-dashboard/issues/17)),**
    and recorded in ADR-036, which states plainly what the policy does and does
    not buy.
 
@@ -1869,7 +1869,7 @@ going to carry that weight. Original list, with outcomes: [#15](https://github.c
    ordinary `npm install` prunes it as extraneous and every browser test
    stops resolving `playwright` until it is reinstalled the same way. It cost
    a debugging detour in this session. Either the reason should be written
-   **Fixed ([#18](https://github.com/buschbrian/utah-water-dashboard/issues/18)).**
+   **Fixed ([#18](https://github.com/buschbrian/western-water-dashboard/issues/18)).**
    All three browser tools now catch the missing module and answer with the
    command that fixes it. The deliberate absence from `package.json` is kept,
    so the lockfile still stays exactly what `npm ci` produced.
@@ -1969,33 +1969,33 @@ them were measured before being written down, because both had a plausible
 answer that turns out to be wrong.
 
 1. **The map key on the storage map is not aligned inside its own box.**
-   ([#19](https://github.com/buschbrian/utah-water-dashboard/issues/19))
+   ([#19](https://github.com/buschbrian/western-water-dashboard/issues/19))
    The panel that explains what the circles mean sits off-centre in its
    container. Small, visible, and on the primary surface.
 
 2. **The month table in the reservoir details panel scrolls sideways.**
-   ([#19](https://github.com/buschbrian/utah-water-dashboard/issues/19))
+   ([#19](https://github.com/buschbrian/western-water-dashboard/issues/19))
    Twelve months of values do not fit, so the panel grows a horizontal
    scrollbar inside an already-narrow column. Stack the headers or step the
    type down until they fit; a nested sideways scroller is the thing the
    layout rules in `CLAUDE.md` already warn about.
 
 3. **The storage charts table and chart should share the map frame.**
-   ([#21](https://github.com/buschbrian/utah-water-dashboard/issues/21)) Today
+   ([#21](https://github.com/buschbrian/western-water-dashboard/issues/21)) Today
    they are stacked surfaces. The reading a user is trying to make is
    table-and-map together — click a row, see it on the map — and that wants a
    split the reader can size, with both panes live, rather than scrolling
    between them.
 
 4. **The drought view needs work on its charting and general polish.**
-   ([#22](https://github.com/buschbrian/utah-water-dashboard/issues/22)) The
+   ([#22](https://github.com/buschbrian/western-water-dashboard/issues/22)) The
    scatter answers the page's own question and the coverage bars are sound,
    but the rest has had the least design attention of the five surfaces.
    Treat as its own slice rather than a checklist item.
 
 5. **The snow map's legend belongs on the map, and the framing needs fixing
-   on both cards.** ([#19](https://github.com/buschbrian/utah-water-dashboard/issues/19)
-   and [#20](https://github.com/buschbrian/utah-water-dashboard/issues/20))
+   on both cards.** ([#19](https://github.com/buschbrian/western-water-dashboard/issues/19)
+   and [#20](https://github.com/buschbrian/western-water-dashboard/issues/20))
    The legend move was done for drought and not for snow;
    `.map-inset-legend` already exists and is tested, so that half is small.
 
@@ -2010,7 +2010,7 @@ answer that turns out to be wrong.
    the storage stage's 1.96.
 
 6. **Draw in UTM zone 12N where it is actually available, which is not the
-   interactive map.** ([#23](https://github.com/buschbrian/utah-water-dashboard/issues/23))
+   interactive map.** ([#23](https://github.com/buschbrian/western-water-dashboard/issues/23))
    Measured both halves before filing:
 
    - *The basemaps forbid it.* Esri's tiled basemaps are Web Mercator

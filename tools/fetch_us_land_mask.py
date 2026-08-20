@@ -47,7 +47,7 @@ WESTERN_STATES = ("AZ", "CA", "CO", "ID", "MT", "NM", "NV", "OR", "UT", "WA", "W
 # published figure.
 MAX_ALLOWABLE_OFFSET = "0.001"
 
-USER_AGENT = "utah-water-dashboard/us-land-mask (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/us-land-mask (+https://github.com/buschbrian)"
 TIMEOUT = 180
 
 

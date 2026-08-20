@@ -67,7 +67,7 @@ COUNTY_LAYER = ("https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/"
 # merge six reservoirs into three groups that do not exist.
 FIELDS = "FIPS,NAME,STATE_ABBR,STATE_NAME"
 
-USER_AGENT = "utah-water-dashboard/county-assignment (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/county-assignment (+https://github.com/buschbrian)"
 TIMEOUT = 60
 
 

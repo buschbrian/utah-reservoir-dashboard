@@ -33,7 +33,7 @@ LAYER_URL = (
     "https://services5.arcgis.com/0OTVzJS4K09zlixn/arcgis/rest/services/"
     "USDM_current/FeatureServer/0"
 )
-USER_AGENT = "utah-water-dashboard/drought-monitor (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/drought-monitor (+https://github.com/buschbrian)"
 TIMEOUT = 90
 MAX_ALLOWABLE_OFFSET = 0.001  # degrees; about 110 m north-to-south
 GEOMETRY_PRECISION = 5

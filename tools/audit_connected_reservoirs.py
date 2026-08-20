@@ -43,7 +43,7 @@ RISE_RESULT = "https://data.usbr.gov/rise/api/result"
 NID_LAYER = ("https://geospatial.sec.usace.army.mil/dls/rest/services/NID/"
              "National_Inventory_of_Dams_Public_Service/FeatureServer/0")
 
-USER_AGENT = "utah-water-dashboard/connected-audit (+https://github.com/buschbrian)"
+USER_AGENT = "western-water-dashboard/connected-audit (+https://github.com/buschbrian)"
 TIMEOUT = 90
 
 # name -> the NID dam that impounds it. The inventory is keyed by dam, and

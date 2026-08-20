@@ -18,7 +18,7 @@ setCalciteAssetPath(new URL(/* @vite-ignore */ "../", import.meta.url).href);
 const root = document.querySelector<HTMLElement>("#data-docs-app");
 if (!root) throw new Error("Missing #data-docs-app root");
 
-const base = "https://buschbrian.github.io/utah-water-dashboard/api";
+const base = "https://buschbrian.github.io/western-water-dashboard/api";
 
 root.innerHTML = `
   <calcite-navigation class="methods-nav" aria-label="Primary navigation">
