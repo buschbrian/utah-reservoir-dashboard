@@ -33,15 +33,46 @@ import {
   STATE_LABEL_SIZE_PX
 } from "../viz/label-scales";
 
-/** Esri's generalized state boundaries. Recorded in the source inventory. */
+/*
+ * The full-resolution boundaries, not the generalized ones -- measured, not
+ * assumed.
+ *
+ * The generalized layers look like the obvious choice for decoration: fetched
+ * whole they are 19 to 90 times lighter, and a 41-vertex Utah draws the same
+ * as a 1,009-vertex one at continental scale. But a `FeatureLayer` never
+ * fetches a layer whole. It asks for the current view, quantized to the
+ * current resolution, and quantization discards exactly the vertices
+ * generalization would have -- so the saving is spent before it is banked.
+ *
+ * Measured with `tools/audit-transfer.mjs` on the drought page, which draws
+ * both layers, twice each and reproducible to the kilobyte:
+ *
+ *              requests   from this host
+ *   detailed         22          511 KiB
+ *   generalized      17          534 KiB
+ *
+ * The detailed layers are *cheaper* on the wire here, and the difference
+ * either way is under 4% of what the page fetches from other hosts.
+ *
+ * Counties carry a second argument that is about correctness rather than
+ * cost. ADR-058 requires the detailed layer for the assignment in
+ * `counties.json`, because the generalized one puts Lost Lake outside
+ * Wasatch County. Drawing the generalized outline meant the line on the map
+ * disagreed with the source the reservoir's county came from -- a reservoir
+ * could sit visibly outside the county this site says it is in.
+ */
+
+/** Esri's full-resolution state boundaries. Recorded in the source inventory. */
 export const STATES_SERVICE_URL =
   "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
-  "USA_States_Generalized_Boundaries/FeatureServer/0";
+  "USA_Census_States/FeatureServer/0";
 
-/** Esri's generalized county boundaries. Recorded in the source inventory. */
+/** Esri's full-resolution county boundaries -- the same layer ADR-058
+ * requires for the county assignment, so the drawn line and the published
+ * county now come from one source. */
 export const COUNTIES_SERVICE_URL =
   "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
-  "USA_Counties_Generalized_Boundaries/FeatureServer/0";
+  "USA_Census_Counties/FeatureServer/0";
 
 export const STATE_LAYER_ID = "reference-states";
 export const COUNTY_LAYER_ID = "reference-counties";

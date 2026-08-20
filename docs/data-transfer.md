@@ -278,3 +278,44 @@ being a Utah map with western context around it.
 `reference.json` is 12.8 KB gzipped, up from 6.5 KB, because `ROSTER_SCOPE`
 moved to `west-huc6` and the export now publishes the drawn scope's roster as
 the roster scope's as well.
+
+## Generalized against full-resolution boundaries (2026-08-19)
+
+The state and county outlines were the publisher's generalized layers on the
+grounds that generalization is what you use for decoration. Measured, that
+was wrong, and the measurement is worth keeping because the intuition is
+strong and the arithmetic is not obvious.
+
+Fetched **whole**, generalization is overwhelming — all states, one request:
+
+| tolerance | generalized | full resolution |
+|---:|---:|---:|
+| 1000 m | 105 KB | 2,044 KB |
+| 300 m | 118 KB | 5,933 KB |
+| 100 m | 129 KB | 11,640 KB |
+
+But a `FeatureLayer` never fetches a layer whole. It requests the current
+view, quantized to the current resolution, and quantization discards exactly
+the vertices generalization would have. Measured in place with
+`tools/audit-transfer.mjs` on the drought page, which draws both layers,
+twice each and reproducible to the kilobyte:
+
+| | requests | from the boundary host |
+|---|---:|---:|
+| full resolution | 22 | **511 KiB** |
+| generalized | 17 | 534 KiB |
+
+The full-resolution layers are *cheaper* here, and either way the difference
+is under 4% of what that page fetches from other hosts. So the site draws the
+real geometry.
+
+Counties carry a second argument that is about correctness rather than cost.
+ADR-058 requires the detailed layer for the county assignment, because the
+generalized one puts Lost Lake outside Wasatch County. While the drawn
+outline came from the generalized layer, the line on the map could disagree
+with the county this site publishes for a reservoir. One source now answers
+both.
+
+**The rule this does not change:** generalized geometry is still never used
+for analysis. The numbers above are about what a browser draws, and a
+41-vertex Utah cannot resolve a border whatever it costs to send.
