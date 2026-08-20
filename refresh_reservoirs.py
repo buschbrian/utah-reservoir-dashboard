@@ -583,6 +583,87 @@ def fetch_awdb_series(station_triplet: str, cadence: str,
               [["date", "storage_af"]].reset_index(drop=True))
 
 
+#: California's own service. The station id and sensor number are the identity
+#: (ADR-066); sensor 15 is reservoir storage, published in acre-feet.
+CDEC_DATA_URL = "https://cdec.water.ca.gov/dynamicapp/req/JSONDataServlet"
+CDEC_STORAGE_SENSOR = 15
+
+#: The value this service writes where it has no reading.
+#:
+#: It is a number rather than a null, which makes it the most dangerous fact
+#: about this source: a reader of `value` that treats it as a measurement
+#: subtracts ten thousand acre-feet from whatever total it lands in. Measured
+#: on 2026-08-20 across a week and all 238 storage stations, 537 of 1,435
+#: values were this and none were null -- 37%, which is the ordinary shape of
+#: the data and not an edge case.
+#:
+#: `fetch_cdec_series` is the only place the field is read, and it drops these
+#: rather than converting them. A missing reading and an empty reservoir are
+#: different facts; ADR-056 already turns on that distinction.
+CDEC_MISSING_VALUE = -9999
+
+
+def _get_cdec_json(params: dict):
+    """GET CDEC JSON with the same transient-failure policy as the others."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(CDEC_DATA_URL, params=params, timeout=60)
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
+
+
+def fetch_cdec_series(station_id: str, cadence: str,
+                      start: str, end: str) -> pd.DataFrame:
+    """Pull a CDEC storage series and normalize it to [date, storage_af].
+
+    The same contract the other two providers answer with: a date-sorted frame
+    with nulls dropped, duplicate dates collapsed to the last reading, and
+    nothing dated after today.
+
+    Two differences this service brings:
+
+    **`-9999` means no reading** and is dropped here (`CDEC_MISSING_VALUE`).
+    This is the only place `value` is read.
+
+    **The dates are not ISO.** They arrive as `2026-8-10 00:00`, unpadded, and
+    there are two of them -- `date` is the reading's own day and `obsDate` is
+    when the service recorded it. The reading date is the one a storage series
+    is indexed by, the same choice the other two providers' fetchers make.
+    """
+    payload = _get_cdec_json({
+        "Stations": station_id,
+        "SensorNums": str(CDEC_STORAGE_SENSOR),
+        "dur_code": "M" if cadence == "monthly" else "D",
+        "Start": dt.datetime.strptime(start, "%Y%m%d").date().isoformat(),
+        "End": dt.datetime.strptime(end, "%Y%m%d").date().isoformat(),
+    })
+    rows = []
+    for value in (payload if isinstance(payload, list) else []):
+        reading = value.get("value")
+        # Dropped, never converted: see CDEC_MISSING_VALUE.
+        if not isinstance(reading, (int, float)):
+            continue
+        if reading == CDEC_MISSING_VALUE or reading < 0:
+            continue
+        rows.append({"date": value.get("date"), "storage_af": float(reading)})
+
+    if not rows:
+        return pd.DataFrame({"date": pd.Series(dtype="datetime64[ns]"),
+                             "storage_af": pd.Series(dtype="float64")})
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
+    df = df.dropna(subset=["date", "storage_af"])
+    df = df[df["date"] <= local_today()]
+    return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
+              [["date", "storage_af"]].reset_index(drop=True))
+
+
 #: Positions in the canonical climatological year, 1 through 365.
 CANONICAL_YEAR_DAYS = 365
 

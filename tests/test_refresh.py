@@ -562,6 +562,98 @@ def test_awdb_monthly_values_become_month_end_rows(monkeypatch):
     assert frame["storage_af"].tolist() == [1234, 1100]
 
 
+# --- California Data Exchange Center --------------------------------------
+
+def cdec_row(date, value, dur="D"):
+    return {"stationId": "SHA", "durCode": dur, "SENSOR_NUM": 15,
+            "sensorType": "STORAGE", "date": date, "obsDate": date,
+            "value": value, "dataFlag": " ", "units": "AF"}
+
+
+def test_cdec_drops_the_missing_sentinel_rather_than_reading_it(monkeypatch):
+    """`-9999` is a number, and it is the most dangerous fact about this source.
+
+    Measured on 2026-08-20 across a week and all 238 storage stations, 537 of
+    1,435 values were this and none were null -- 37%, the ordinary shape of
+    the data. A reader that treats the field as a measurement subtracts ten
+    thousand acre-feet from whatever total it lands in.
+    """
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", 2897658),
+        cdec_row("2026-8-11 00:00", R.CDEC_MISSING_VALUE),
+        cdec_row("2026-8-12 00:00", 2865715),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10", "2026-08-12"]
+    assert frame["storage_af"].tolist() == [2897658.0, 2865715.0]
+    # Dropped, never converted: a row for the 11th at any value would mean the
+    # sentinel had been read as a measurement.
+    assert R.CDEC_MISSING_VALUE not in frame["storage_af"].tolist()
+    assert 0 not in frame["storage_af"].tolist()
+
+
+def test_cdec_keeps_a_true_zero(monkeypatch):
+    """An empty reservoir is a reading. Only the sentinel is not."""
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", 0),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+    assert frame["storage_af"].tolist() == [0.0]
+
+
+def test_cdec_reads_the_unpadded_dates_this_service_writes(monkeypatch):
+    """They arrive as `2026-8-10 00:00`, which is neither ISO nor padded.
+
+    Both a one-digit and a two-digit month, because an unpadded format is
+    where a fixed-width parse quietly reads the wrong field. Dated in the past
+    on purpose -- a future row is dropped by a different rule, asserted below.
+    """
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2025-1-5 00:00", 100),
+        cdec_row("2025-11-5 00:00", 200),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20250101", "20251231")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2025-01-05", "2025-11-05"]
+
+
+def test_cdec_answers_the_same_contract_as_the_other_providers(monkeypatch):
+    """Sorted, deduplicated to the last reading, and nothing after today."""
+    later = (R.local_today() + pd.Timedelta(days=3)).strftime("%Y-%-m-%-d 00:00")
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-12 00:00", 300),
+        cdec_row("2026-8-10 00:00", 100),
+        cdec_row("2026-8-10 00:00", 111),
+        cdec_row(later, 999),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20261231")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10", "2026-08-12"]
+    assert frame["storage_af"].tolist() == [111.0, 300.0], "last reading wins"
+
+
+def test_cdec_with_nothing_to_say_answers_an_empty_frame(monkeypatch):
+    """The shape the caller expects, so a quiet station is not a crash."""
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", R.CDEC_MISSING_VALUE),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+    assert frame.empty
+    assert list(frame.columns) == ["date", "storage_af"]
+
+
+def test_cdec_asks_for_the_cadence_it_was_given(monkeypatch):
+    """Monthly stations must not be asked for a daily series."""
+    seen = {}
+    monkeypatch.setattr(R, "_get_cdec_json",
+                        lambda params: seen.update(params) or [])
+    R.fetch_cdec_series("SHA", "monthly", "20150101", "20260820")
+    assert seen["dur_code"] == "M"
+    assert seen["SensorNums"] == str(R.CDEC_STORAGE_SENSOR)
+    assert seen["Start"] == "2015-01-01" and seen["End"] == "2026-08-20"
+    R.fetch_cdec_series("SHA", "daily", "20150101", "20260820")
+    assert seen["dur_code"] == "D"
+
+
 # --- published output -----------------------------------------------------
 
 def test_committed_reservoirs_json_is_well_formed():
