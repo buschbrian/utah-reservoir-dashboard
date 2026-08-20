@@ -223,7 +223,7 @@ root.innerHTML = `
   </calcite-navigation>
   <main class="overview-main">
     <header class="overview-intro">
-      <p>Snow that falls on the mountains melts into the reservoirs, so this winter's snow is next summer's storage. This page shows snow water equivalent: the depth of water the snow would make if it melted. The Natural Resources Conservation Service measures it every day at automatic mountain sites.</p>
+      <p>Mountain snow is a major source of the spring and summer water that runs into western rivers and reservoirs. Not all of it gets there. Some evaporates and some soaks into the ground. What does arrive is stored, released or diverted by the people who operate the reservoirs. So read snow and storage together rather than as one measurement. This page shows snow water equivalent: the depth of water the snow would make if it melted. The Natural Resources Conservation Service measures it every day at automatic mountain sites.</p>
     </header>
     <section id="snow-content" aria-live="polite"><calcite-loader label="Loading snow measurements"></calcite-loader></section>
   </main>`;
@@ -306,7 +306,7 @@ function renderSnow(
     </section>
     <section class="overview-card" aria-labelledby="snow-map-heading">
       <div class="card-heading">
-        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area takes its colour from its mean percent of normal for the day shown. Each measurement site is a point on the same scale. The map opens on the day this season held the most snow, because the rest of the year measures against that day. Move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
+        <div><h2 id="snow-map-heading">Where the snow is</h2><p>Each drainage area takes its colour from the plain average of the sites reporting inside it that day, and every site counts once. That is a figure about the measuring sites. It is not a measure of the snow lying across the whole area. The sites are placed where snow can be measured reliably. That is neither evenly across the land nor evenly up the mountainside. Each measurement site is a point on the same scale. Hover an area to see how many sites its figure came from. The map opens on the day this season held the most snow, because the rest of the year measures against that day. Move the slider to see any other day. Areas and sites without a fair value for that day stay grey.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div id="snow-map-host" class="view-map-host" aria-busy="true"

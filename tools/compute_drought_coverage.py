@@ -37,14 +37,31 @@ unchanged week writes an unchanged file.
 Two error terms, both measured against the committed inputs (ADR-055), in the
 percentage points this file publishes, against a rounding boundary of 0.05:
 
-    area model, sphere against the WGS84 ellipsoid      0.004
-    sampling, the 0.01-degree step against convergence  0.069
-    control: dropping the latitude weight entirely      0.286
+    area model, sphere against the WGS84 ellipsoid       0.004
+    sampling, the 0.002-degree step against convergence  ~0.001
+    control: dropping the latitude weight entirely       0.286
 
 So the sampling dominates, the area model cannot move a published figure, and
 an equal-area projection -- which is what Albers would supply -- would change
 nothing a reader could see. The first thing to reach for if the published
 precision ever tightens past 0.1 is a finer step, not a projection.
+
+WHY THE STEP IS 0.002 AND NOT 0.01. It was 0.01, whose sampling error was
+measured at 0.069 -- above the 0.05 that moves a published tenth. That figure
+was a single worst case; measured over every share this engine publishes,
+`tools/measure_drought_convergence.py` counts how many would round to a
+different tenth than a fine reference gives. On the map of 2026-08-11, over 844
+shares in 75 areas, against a 0.001-degree reference:
+
+    0.01     59 of 844 (7.0%) would print a different tenth,  10s
+    0.005    17 of 844 (2.0%),                                21s
+    0.002     5 of 844 (0.6%),                                80s
+
+0.6% is the engine's floor rather than a residue to chase: those shares sit on
+a rounding boundary, where no step settles the digit. Seventy seconds a morning
+buys a published tenth that means what it says, in a job that runs once a day
+and is otherwise waiting on other people's web services. Run the tool again
+before moving the step; it writes nothing.
 
 `tests/test_area_model.py` holds both terms against a geodesic oracle;
 `tests/test_drought_coverage.py` holds the engine to known shapes and the
@@ -75,7 +92,11 @@ BOUNDARIES_PATH = (
 LAND_PATH = ROOT / "data" / "us-land.geojson"
 OUTPUT_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
 HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"
-DEFAULT_STEP = 0.01
+#: Fine enough that a published tenth is the engine's answer rather than the
+#: grid's. See the module docstring for what each candidate step was measured
+#: to be worth, and `tools/measure_drought_convergence.py` for measuring it
+#: again.
+DEFAULT_STEP = 0.002
 LEVELS = ("d0", "d1", "d2", "d3", "d4")
 
 # How many weekly maps the history keeps.
@@ -516,6 +537,13 @@ def main() -> int:
     scope = watershed_scopes.get_scope(args.scope)
     boundaries_path = args.boundaries or (ROOT / scope.output)
     output_path = args.output or coverage_path(scope.level)
+    # An experiment redirected away from the committed coverage file must not
+    # write the committed archive either. `--output` alone used to do exactly
+    # that: it moved the file the run was measured by and still merged the
+    # week into `usdm-huc6-history.json`, so a run at a trial step silently
+    # rewrote published figures. Naming `--history` explicitly still opts in.
+    if args.output is not None and args.history == HISTORY_PATH:
+        args.no_history = True
     drought = json.loads(args.drought.read_text(encoding="utf-8"))
     boundaries = json.loads(boundaries_path.read_text(encoding="utf-8"))
     # A missing mask is fatal rather than ignored. Running without it does not

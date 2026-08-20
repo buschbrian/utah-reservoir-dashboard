@@ -6,6 +6,7 @@ import "@esri/calcite-components/components/calcite-loader";
 import "@esri/calcite-components/components/calcite-navigation";
 
 import { loadReservoirs } from "./data/load";
+import { baselineChoices, periodLabel } from "./state/baseline";
 import { loadDroughtCoverage } from "./data/drought-load";
 import { loadSnowpack } from "./data/snow-load";
 import {
@@ -24,7 +25,7 @@ import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
 import {
   isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
-  type ReservoirGeography
+  type ReservoirGeography, type RollupCoverage, type StatewideRollup
 } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
 import {
@@ -67,7 +68,7 @@ import {
   type OverviewSort
 } from "./overview-model";
 import type {
-  DroughtCoveragePayload, Reservoir, SnowpackPayload
+  BaselineChoice, BaselineId, DroughtCoveragePayload, Reservoir, SnowpackPayload
 } from "./types";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
@@ -92,7 +93,10 @@ root.innerHTML = `
   </calcite-navigation>
   <main class="overview-main">
     <header class="overview-intro">
-      <p>Explore current storage for waterbodies that intersect Utah. Lake Powell is large enough to hide local conditions in a combined total, so it starts excluded and can be added back at any time.</p>
+      <p>Explore current storage for the reservoirs this site tracks across the western
+        United States. Lake Powell and Lake Mead are each large enough to hide local
+        conditions in a combined total. Both start excluded, and either can be added back at
+        any time.</p>
     </header>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
   </main>`;
@@ -115,28 +119,73 @@ function renderRows(tbody: HTMLTableSectionElement, reservoirs: readonly Reservo
   }));
 }
 
-function updateKpis(reservoirs: readonly Reservoir[]): void {
+/**
+ * When the readings behind a combined figure were taken.
+ *
+ * Two facts, and the second is the one that matters: a reader can discount
+ * "9 late" as a rounding detail, and cannot discount "97% of the combined
+ * full level was read on time" or fail to notice its absence. Ten small late
+ * reservoirs and one enormous late reservoir give the same count.
+ */
+function describeObservations(coverage: RollupCoverage): string {
+  const { earliestDate, latestDate } = coverage;
+  if (!earliestDate || !latestDate) return "No readings in view";
+  const span = earliestDate === latestDate
+    ? `All readings from ${formatDate(earliestDate)}`
+    : `Readings from ${formatDate(earliestDate)} to ${formatDate(latestDate)}`;
+  const onTime = coverage.percentCapacityCurrent;
+  return onTime === null ? span
+    : `${span} · ${formatPercent(onTime)} of the full level read on time`;
+}
+
+/** What the combined full level divides by, when it divides by more than one thing. */
+function describeDenominator(rollup: StatewideRollup): string {
+  const shares = rollup.basisShares;
+  const only = shares[0];
+  if (!only) return "No reservoirs in view";
+  if (shares.length === 1) return `Measured against ${only.label.toLowerCase()}`;
+  const named = shares
+    .map((share) => `${share.label.toLowerCase()} ${share.count}`)
+    .join(", ");
+  return `Full levels of ${shares.length} kinds: ${named}`;
+}
+
+function updateKpis(
+  reservoirs: readonly Reservoir[], period: ComparisonPeriod
+): void {
   /* The rows handed in are already the scope the reader chose, so this must
    * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
    * means "do not filter again", which is what makes the toggles work. */
-  const rollup = statewideRollup(reservoirs, WIDEST_SCOPE);
+  const rollup = statewideRollup(reservoirs, { ...WIDEST_SCOPE, baseline: period.id });
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
+  const years = periodLabel(period.choices, rollup.normalBaseline);
+  const { coverage } = rollup;
   const values: Record<string, string> = {
     percent: formatPercent(rollup.percentFull),
     volume: `${formatAcreFeet(rollup.storageAf)} of ${formatAcreFeet(rollup.capacityAf)}`,
     count: String(rollup.count),
+    /* Which reservoirs, and against how many kinds of full level. The tile
+     * used to say "Utah-intersecting waterbodies", which was the whole
+     * roster's description once and describes 60 of 198 rows now. */
+    "count-note": describeDenominator(rollup),
     /* How full against how full it usually is on this date. The headline
      * percentage cannot answer that on its own: a reservoir at 60% in April
      * and one at 60% in September are not the same news, and this is the
-     * number a drought reader is actually looking for. */
+     * number a drought reader is actually looking for. The years are named
+     * because two periods are published and they do not agree (ADR-041). */
     normal: formatPercent(rollup.percentOfNormal),
     "normal-note": rollup.normalCovers === rollup.count
-      ? "Of the usual storage for this date"
-      : `Of the usual storage for this date, for ${rollup.normalCovers} of ${rollup.count}`,
+      ? `Of the usual storage for this date, ${years}`
+      : `Of the usual storage for this date, ${years}, for ${rollup.normalCovers} `
+        + `of ${rollup.count} reservoirs`,
     year: signed(rollup.change365dAf),
     change: `30 days: ${signed(rollup.change30dAf)}`,
-    late: String(rollup.stale)
+    late: String(rollup.stale),
+    /* The readings are not all from the publication date, and until now the
+     * tile said only "Observation dates vary by reservoir" -- true, and no
+     * help in judging whether the total is a picture of now. */
+    observed: describeObservations(coverage)
   };
   for (const [name, value] of Object.entries(values)) {
     const element = document.querySelector<HTMLElement>(`[data-kpi="${name}"]`);
@@ -144,10 +193,28 @@ function updateKpis(reservoirs: readonly Reservoir[]): void {
   }
 }
 
+/**
+ * Which period this page's combined comparison is measured against, and the
+ * words for it.
+ *
+ * The page has no period control of its own -- the storage map has that -- so
+ * it takes the payload's declared default, which is the period the map opens
+ * on. Before this it took neither: the tile read `seasonal_normal_af`
+ * unconditionally, which is the recent period, and printed it under the words
+ * "Of the usual storage for this date". A reader who had just seen the map's
+ * standard-period figure saw a different number here with no way to know why
+ * (ADR-041).
+ */
+interface ComparisonPeriod {
+  id: BaselineId;
+  choices: readonly BaselineChoice[];
+}
+
 async function renderOverview(
   allReservoirs: Reservoir[], generatedAt: string,
   subregions: readonly { huc4: string; name: string }[],
-  openingScope: OpeningScope, openingRosters: OpeningRosters
+  openingScope: OpeningScope, openingRosters: OpeningRosters,
+  period: ComparisonPeriod
 ): Promise<void> {
   const content = document.querySelector<HTMLElement>("#overview-content");
   if (!content) return;
@@ -213,11 +280,11 @@ async function renderOverview(
     <p id="filter-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Filtered storage summary">
       <article class="overview-kpi overview-kpi-primary"><span>Combined storage</span><strong data-kpi="percent">—</strong><small data-kpi="volume">—</small></article>
-      <article class="overview-kpi"><span>Reservoirs in view</span><strong data-kpi="count">—</strong><small>Utah-intersecting waterbodies</small></article>
+      <article class="overview-kpi"><span>Reservoirs in view</span><strong data-kpi="count">—</strong><small data-kpi="count-note">—</small></article>
       <article class="overview-kpi"><span>Compared with normal</span><strong data-kpi="normal">—</strong><small data-kpi="normal-note">—</small></article>
       <article class="overview-kpi"><span>Change over the year</span><strong data-kpi="year">—</strong><small data-kpi="change">30 days: —</small></article>
       <article class="overview-kpi"><span>Late or unavailable</span><strong data-kpi="late">—</strong><small>Evaluated against each source update schedule</small></article>
-      <article class="overview-kpi"><span>Data published</span><strong>${formatDate(generatedAt.slice(0, 10))}</strong><small>Observation dates vary by reservoir</small></article>
+      <article class="overview-kpi"><span>Data published</span><strong>${formatDate(generatedAt.slice(0, 10))}</strong><small data-kpi="observed">—</small></article>
     </section>
     <section class="class-strip" aria-labelledby="class-heading">
       <div class="class-strip-head">
@@ -253,7 +320,7 @@ async function renderOverview(
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card" aria-labelledby="trend-heading">
-        <div class="card-heading"><div><h2 id="trend-heading">The last 12 months</h2><p>Combined storage for the reservoirs in view, month by month. The only chart here that shows direction.</p></div><span class="sdk-badge">Bar and line chart</span></div>
+        <div class="card-heading"><div><h2 id="trend-heading">The last 12 months</h2><p>Combined storage for the reservoirs in view, month by month. The only chart here that shows direction. Each month counts only the reservoirs that reported it, so the months are not all drawn from the same set. The newest month is the one to read with care. Reservoirs read once a month report at month end, so that month is thin until they do. Hover any month to see how many reservoirs are behind it.</p></div><span class="sdk-badge">Bar and line chart</span></div>
         <div id="trend-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="normal-heading">
@@ -577,7 +644,7 @@ async function renderOverview(
     const visible = storageClassFilter === null
       ? matching
       : matching.filter((reservoir) => classIndexOf(reservoir) === storageClassFilter);
-    updateKpis(visible);
+    updateKpis(visible, period);
     /* The digest follows the scope, not the filters.
      *
      * That is the same line the map draws (ADR-011): a scope changes which
@@ -891,8 +958,13 @@ try {
       : Promise.resolve(EMPTY_OPENING_ROSTERS)
   ]);
   const openingScope = resolveOpeningScope(openingSelection, openingRosters);
+  const choices = baselineChoices(payload);
+  const preferred = payload.default_baseline ?? "recent";
   await renderOverview(payload.reservoirs, payload.generated_at,
-    payload.watersheds?.subregions ?? [], openingScope, openingRosters);
+    payload.watersheds?.subregions ?? [], openingScope, openingRosters, {
+      id: choices.some((choice) => choice.id === preferred) ? preferred : "recent",
+      choices
+    });
 } catch (error) {
   console.error("Reservoir overview failed:", error);
   const content = document.querySelector<HTMLElement>("#overview-content");

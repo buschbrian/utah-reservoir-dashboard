@@ -86,7 +86,7 @@ root.innerHTML = `
       <article class="api-file">
         <h3>Capacity and geography reference</h3>
         <p><a href="./api/reference.json"><code>/api/reference.json</code></a></p>
-        <p>Reviewed full levels, dam-point evidence, Utah boundaries and named
+        <p>Reviewed full levels, dam-point evidence and named
           drainage-area scopes. Structure version 1. Updated when reviewed source data
           changes, not on the daily observation schedule. If a source cannot be checked,
           the last published reference file remains available.</p>

@@ -11,7 +11,9 @@ import {
   reservoirHistoryCsv,
   tableCsv
 } from "./data/export";
-import { monthKeys, monthLabel, monthPercent, monthlyRollup } from "./data/months";
+import {
+  monthKeys, monthLabel, monthPercent, monthlyRollup, type MonthlyRollup
+} from "./data/months";
 import {
   DEFAULT_OPENING_SELECTION,
   loadOpeningRosters,
@@ -25,7 +27,7 @@ import {
 import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
 import { offeredStates } from "./data/state-vocabulary";
 import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
-import { isLate, statewideRollup } from "./data/rollup";
+import { isLate, statewideRollup, type RollupCoverage } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
   DEFAULT_SCOPE,
@@ -229,20 +231,50 @@ async function loadData(): Promise<readonly Reservoir[] | null> {
   }
 }
 
+/** When the readings behind the current total were taken. */
+function summaryCoverage(coverage: RollupCoverage): string {
+  const { earliestDate, latestDate } = coverage;
+  if (!earliestDate || !latestDate || earliestDate === latestDate) return "";
+  const onTime = coverage.percentCapacityCurrent;
+  const share = onTime === null ? ""
+    : `, ${formatPercent(onTime)} of it read on time`;
+  return `. Readings from ${formatDate(earliestDate)} to ${formatDate(latestDate)}${share}`;
+}
+
+/** How much of the scope actually reported the month on the slider. */
+function monthlyCoverage(rollup: MonthlyRollup): string {
+  const share = rollup.percentCapacityReporting;
+  if (share === null) return "";
+  return `. ${rollup.reporting} of ${rollup.scopeCount} reported this month, `
+    + `${formatPercent(share)} of the combined full level`;
+}
+
 /** The headline, recomputed for whatever the scope control now includes. */
 function updateSummary(): void {
   const month = selectedMonth();
   /* The headline follows the slider. A summary still reporting today while
    * the map draws last November is the page saying two things at once, and
    * the map is the louder one. */
-  const rollup = month === null
-    ? statewideRollup(inScope, {
-      geography: "utah",
-      // `inScope` already answered the Lake Powell question; asking it twice
-      // here would make the control unable to add the reservoir back.
-      lakePowell: "include"
-    })
-    : { ...monthlyRollup(inScope, month), count: monthlyRollup(inScope, month).reporting };
+  const current = month === null ? statewideRollup(inScope, {
+    geography: "utah",
+    // `inScope` already answered the Lake Powell question; asking it twice
+    // here would make the control unable to add the reservoir back.
+    lakePowell: "include",
+    // The reader's own period, so the total and the details panel below it
+    // cannot disagree about which years "normal" means (ADR-041).
+    baseline: activeBaselineId
+  }) : null;
+  const monthly = month === null ? null : monthlyRollup(inScope, month);
+  /* One shape from two, so the card below reads one set of fields whichever
+   * the slider is on. `count` is the reservoirs the figure was made from,
+   * which in month mode is the ones that reported that month. */
+  const rollup = current
+    ? { ...current, count: current.count }
+    : {
+      percentFull: monthly?.percentFull ?? null,
+      storageAf: monthly?.storageAf ?? 0,
+      count: monthly?.reporting ?? 0
+    };
   setSummary({
     percent: formatPercent(rollup.percentFull),
     storage: `${formatAcreFeet(rollup.storageAf)} acre-feet stored`,
@@ -258,7 +290,15 @@ function updateSummary(): void {
     // assume the other is in it.
     scope: `${scope.geography === "connected" ? "Every reservoir" : "Utah waterbodies only"}, ` +
       `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell, ` +
-      `${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead`
+      `${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead` +
+      /* What the total was added up from, in time. A combined percentage
+       * looks like one moment's measurement and is not: the newest readings
+       * span weeks, because some providers publish daily and some monthly.
+       * In month mode the risk is the other one -- the population changes
+       * from month to month, so a rise in the figure can be a rise in who
+       * reported rather than in the water. */
+      (current ? summaryCoverage(current.coverage)
+        : monthly ? monthlyCoverage(monthly) : "")
   });
 }
 

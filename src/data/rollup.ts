@@ -1,10 +1,82 @@
-import type { Reservoir } from "../types";
+import { readBaseline } from "../state/baseline";
+import type { BaselineId, Reservoir } from "../types";
 import { STORAGE_CLASSES, storageClass } from "../viz/classes";
 
 export interface ClassCount {
   label: string;
   color: string;
   count: number;
+}
+
+/**
+ * What a combined figure was added up from, in time.
+ *
+ * A regional total is the newest reading from each reservoir, and those
+ * readings were not taken on the same day: a daily provider answers for
+ * yesterday and a month-end one answers for the last day of last month. Both
+ * belong in the total -- the alternative is a total that omits 78 reservoirs
+ * for three weeks of every month -- but a figure presented without this is a
+ * figure a reader will take for one moment's measurement.
+ *
+ * The freshness split is published by combined full level as well as by count,
+ * because ten small late reservoirs and one enormous late reservoir are not
+ * the same warning and a count cannot tell them apart.
+ */
+export interface RollupCoverage {
+  /** The oldest and newest reading behind the total, or null with no rows. */
+  earliestDate: string | null;
+  latestDate: string | null;
+  /** Reservoirs read inside their own update schedule, and those not. */
+  currentCount: number;
+  lateCount: number;
+  /** The same division by combined full level rather than by count. */
+  currentCapacityAf: number;
+  lateCapacityAf: number;
+  /** Share of the combined full level read inside its own schedule. */
+  percentCapacityCurrent: number | null;
+  /** How the reservoirs divide by how often their provider publishes. */
+  dailyCount: number;
+  monthlyCount: number;
+}
+
+/**
+ * One kind of full level, and how much of the denominator it is.
+ *
+ * "Percent full" adds three different definitions of full together, and a
+ * reservoir measured against a maximum level reads lower than the same
+ * reservoir measured against a normal one. ADR-046 forbids subtracting shares
+ * with different denominators; this is the milder relative, a single share
+ * whose denominator is not one thing. It stays a valid ratio, and the way to
+ * keep it honest is to say what it divides by.
+ */
+export interface BasisShare {
+  basis: string;
+  label: string;
+  count: number;
+  capacityAf: number;
+}
+
+/**
+ * The words for each `capacity_basis` the pipeline publishes, plus the one it
+ * cannot publish: a reservoir with no traceable capacity falls back to its
+ * highest recorded storage, which is a floor rather than a capacity, and
+ * `sizeBasis` has always made that substitution silently.
+ */
+const BASIS_LABELS: Record<string, string> = {
+  normal_storage: "Normal full level",
+  max_storage: "Maximum level",
+  awdb_reservoir_metadata: "Level published with the readings"
+};
+/** The key `basisShares` reports the fallback under. */
+export const RECORD_MAX_BASIS = "record_max";
+
+export function basisOf(reservoir: Reservoir): string {
+  return reservoir.capacity_af === null ? RECORD_MAX_BASIS
+    : reservoir.capacity_basis ?? RECORD_MAX_BASIS;
+}
+
+export function basisLabel(basis: string): string {
+  return BASIS_LABELS[basis] ?? "Highest recorded storage";
 }
 
 export interface StatewideRollup {
@@ -17,9 +89,16 @@ export interface StatewideRollup {
   normalAf: number;
   percentOfNormal: number | null;
   normalCovers: number;
+  /** The share of the combined full level the normal comparison covers. */
+  normalCoversCapacityAf: number;
+  /** The period `percentOfNormal` was measured against. */
+  normalBaseline: BaselineId;
   stale: number;
   belowHalf: number;
   classes: ClassCount[];
+  coverage: RollupCoverage;
+  /** Largest share of the denominator first. */
+  basisShares: BasisShare[];
 }
 
 export type ReservoirGeography = "utah" | "connected";
@@ -32,6 +111,19 @@ export interface StatewideRollupOptions {
   lakePowell: LakePowellChoice;
   /** Defaults to excluded, like Lake Powell, for the same reason (ADR-062). */
   lakeMead?: ReservoirInclusion;
+  /**
+   * Which period the combined normal comparison is measured against.
+   *
+   * This used to be no choice at all: the total read `seasonal_normal_af`,
+   * which is the recent period, whatever the reader had selected. So a page
+   * whose map opened on 1991-2020 printed a headline measured against
+   * 2015-2025 and labelled it "of the usual storage for this date". Both
+   * figures were right and they were not the same claim (ADR-041).
+   *
+   * Defaults to "recent" so a caller that has not been given the reader's
+   * choice keeps the answer it had rather than silently changing period.
+   */
+  baseline?: BaselineId;
 }
 
 /**
@@ -60,7 +152,7 @@ const DOMINANT_RESERVOIRS = [LAKE_POWELL, LAKE_MEAD] as const;
  * here, instead of every call site silently reverting to excluding it
  * (ADR-062).
  */
-export const WIDEST_SCOPE: Required<StatewideRollupOptions> = {
+export const WIDEST_SCOPE: Required<Omit<StatewideRollupOptions, "baseline">> = {
   geography: "connected", lakePowell: "include", lakeMead: "include"
 };
 
@@ -123,6 +215,41 @@ export function isLate(reservoir: Reservoir): boolean {
   return reservoir.is_stale;
 }
 
+/** When each reading was taken, and how much of the total was read recently. */
+function coverageOf(
+  reservoirs: readonly Reservoir[], capacityAf: number
+): RollupCoverage {
+  const dates = reservoirs.map((reservoir) => reservoir.as_of).filter(Boolean).sort();
+  const late = reservoirs.filter(isLate);
+  const lateCapacityAf = late.reduce((total, row) => total + sizeBasis(row), 0);
+  return {
+    earliestDate: dates[0] ?? null,
+    latestDate: dates[dates.length - 1] ?? null,
+    currentCount: reservoirs.length - late.length,
+    lateCount: late.length,
+    currentCapacityAf: capacityAf - lateCapacityAf,
+    lateCapacityAf,
+    percentCapacityCurrent: capacityAf > 0
+      ? (capacityAf - lateCapacityAf) / capacityAf * 100 : null,
+    dailyCount: reservoirs.filter((row) => row.data_frequency === "daily").length,
+    monthlyCount: reservoirs.filter((row) => row.data_frequency === "monthly").length
+  };
+}
+
+/** What the combined full level divides into, largest share first. */
+function basisShares(reservoirs: readonly Reservoir[]): BasisShare[] {
+  const shares = new Map<string, BasisShare>();
+  for (const reservoir of reservoirs) {
+    const basis = basisOf(reservoir);
+    const found = shares.get(basis)
+      ?? { basis, label: basisLabel(basis), count: 0, capacityAf: 0 };
+    found.count += 1;
+    found.capacityAf += sizeBasis(reservoir);
+    shares.set(basis, found);
+  }
+  return [...shares.values()].sort((a, b) => b.capacityAf - a.capacityAf);
+}
+
 export function statewideRollup(
   allReservoirs: readonly Reservoir[],
   options: StatewideRollupOptions
@@ -132,9 +259,17 @@ export function statewideRollup(
     reservoirs.reduce((total, reservoir) => total + (pick(reservoir) ?? 0), 0);
   const storageAf = sum((reservoir) => reservoir.current_storage_af);
   const capacityAf = sum(sizeBasis);
-  const withNormal = reservoirs.filter((reservoir) => reservoir.seasonal_normal_af !== null);
+  /* The reader's period, not whichever one the payload happened to write into
+   * the flat `seasonal_*` fields. `readBaseline` is the same reader every
+   * other surface uses, so the total and the reservoir it is made of can no
+   * longer disagree about which years "normal" means. */
+  const baseline = options.baseline ?? "recent";
+  const normals = new Map(reservoirs
+    .map((reservoir) => [reservoir, readBaseline(reservoir, baseline)] as const)
+    .filter(([, found]) => found !== null));
+  const withNormal = [...normals.keys()];
   const normalAf = withNormal.reduce((total, reservoir) =>
-    total + (reservoir.seasonal_normal_af ?? 0), 0);
+    total + (normals.get(reservoir)?.normal_af ?? 0), 0);
   const storageWithNormal = withNormal.reduce((total, reservoir) =>
     total + reservoir.current_storage_af, 0);
 
@@ -155,6 +290,10 @@ export function statewideRollup(
     normalAf,
     percentOfNormal: normalAf > 0 ? storageWithNormal / normalAf * 100 : null,
     normalCovers: withNormal.length,
+    normalCoversCapacityAf: withNormal.reduce((total, row) => total + sizeBasis(row), 0),
+    normalBaseline: baseline,
+    coverage: coverageOf(reservoirs, capacityAf),
+    basisShares: basisShares(reservoirs),
     stale: reservoirs.filter(isLate).length,
     belowHalf: reservoirs.filter((reservoir) => {
       const percent = percentFull(reservoir);

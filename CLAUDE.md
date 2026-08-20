@@ -276,7 +276,7 @@ Tests about *where* a reservoir is must read the roster, never
 **`cos(lat)` is the sphere's exact area element, not a rough projection**
 (ADR-055). The drought engine measures equal area already, so "move it to
 Albers" is not an accuracy fix — measured, the area model is worth 0.004
-points and the sampling is worth 0.069, against a rounding boundary of 0.05.
+points, against a rounding boundary of 0.05.
 Albers and geodesic agree on these polygons to 0.1 ppm. **Geodesic is the
 measure of record for any area this project states**, and it lives in
 `tests/test_area_model.py` as an oracle: `geographiclib` is in
@@ -284,6 +284,18 @@ measure of record for any area this project states**, and it lives in
 which stays at numpy, pandas and requests. If the published precision ever
 tightens past 0.1 of a point, reach for a finer step first and exact clipping
 second — never for a projection.
+
+**The sampling step is the term that mattered, and it has moved.** At 0.01
+degrees, 59 of the 844 shares the drought engine publishes would round to a
+different tenth than a fine reference gives. `DEFAULT_STEP` is 0.002, where
+that falls to 5 — the engine's own floor, since those five sit on a rounding
+boundary and no step settles them. It costs about 70 seconds a morning, in a
+job that runs once a day and otherwise waits on other people's services.
+`tools/measure_drought_convergence.py` measures it again and writes nothing;
+run it before moving the step. Passing `--output` to
+`compute_drought_coverage.py` now implies `--no-history`, because a trial run
+redirected away from the committed coverage file used to rewrite the committed
+archive anyway.
 
 **Retired routes preserve bookmarks, not runtimes** (ADR-031). Keep
 `legacy/`, `maplibre/`, and `explore.html` as small accessible redirects. Do

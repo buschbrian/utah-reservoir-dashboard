@@ -135,3 +135,10 @@ body {
   line-height: 1.5;
 }
 .methods-disclaimer p:last-child { margin-block-end: 0; }
+
+/* The sentences the payload fills. They are empty until the fetch resolves,
+ * and an empty paragraph must not leave a gap in the prose above it -- so the
+ * margin comes with the text rather than with the element. */
+.methods-live:empty {
+  display: none;
+}

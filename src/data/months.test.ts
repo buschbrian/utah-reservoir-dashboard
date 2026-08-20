@@ -116,3 +116,55 @@ describe("how a month reads", () => {
     }
   });
 });
+
+/*
+ * A twelve-month series can change population between one month and the
+ * next: a reservoir that reported in March and went quiet in April leaves
+ * the April figure entirely, which is the right missing-data behaviour and
+ * also means the two months describe two different sets of reservoirs.
+ *
+ * The ratio stays honest -- only reporting reservoirs are on either side of
+ * it -- so the fix is not to change the arithmetic but to publish the
+ * population beside it.
+ */
+describe("the population behind each month", () => {
+  it("reports the scope it was drawn from, not only who answered", () => {
+    for (const month of months) {
+      const rollup = monthlyRollup(reservoirs, month);
+      expect(rollup.scopeCount, month).toBe(reservoirs.length);
+      expect(rollup.reporting, month).toBeLessThanOrEqual(rollup.scopeCount);
+      expect(rollup.capacityAf, month).toBeLessThanOrEqual(rollup.scopeCapacityAf);
+    }
+  });
+
+  it("reports coverage by combined full level, not only by count", () => {
+    const scopeCapacity = reservoirs.reduce((total, row) => total + sizeBasis(row), 0);
+    for (const month of months) {
+      const rollup = monthlyRollup(reservoirs, month);
+      expect(rollup.scopeCapacityAf, month).toBeCloseTo(scopeCapacity, 6);
+      expect(rollup.percentCapacityReporting, month)
+        .toBeCloseTo(rollup.capacityAf / scopeCapacity * 100, 6);
+    }
+  });
+
+  /* The reason the two numbers are both published: a month can lose thirty
+   * small reservoirs and barely move by volume, or lose one large one and
+   * barely move by count. A reader watching only the count sees neither. */
+  it("keeps the reporting denominator matched to its own numerator", () => {
+    for (const month of months) {
+      const rollup = monthlyRollup(reservoirs, month);
+      if (rollup.reporting === 0) {
+        expect(rollup.percentFull, month).toBeNull();
+        continue;
+      }
+      const reporting = reservoirs.filter((reservoir) => {
+        const mean = reservoir.monthly.find((row) => row.month === month)?.mean_af;
+        return mean !== null && mean !== undefined && Number.isFinite(mean)
+          && sizeBasis(reservoir) > 0;
+      });
+      expect(rollup.reporting, month).toBe(reporting.length);
+      expect(rollup.capacityAf, month)
+        .toBeCloseTo(reporting.reduce((total, row) => total + sizeBasis(row), 0), 6);
+    }
+  });
+});

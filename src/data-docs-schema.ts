@@ -87,7 +87,10 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("source", "text", "Boundary publisher."),
     f("level", "digits", "Size of the drainage areas, as the length of their code."),
     f("boundaries", "file name", "Boundary file used for assignment."),
-    f("assignment_rule", "text", "Point used to place a reservoir in a drainage area."),
+    f("assignment_rule", "text",
+      "Point used to place a reservoir in a drainage area. The dam or outlet, which "
+      + "makes the assigned area the reservoir's outlet area rather than the land that "
+      + "fills it."),
     f("unit_count", "drainage areas", "Number of published drainage areas."),
     f("assigned", "reservoirs", "Records with a drainage-area assignment."),
     f("unassigned", "reservoirs", "Records without an assignment."),
@@ -123,11 +126,16 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("record_min_af", "acre-feet", "Lowest storage in the requested record."),
     f("pct_of_record_max", "percent", "Current storage divided by the highest recorded storage."),
     f("capacity_af", "acre-feet", "Reviewed reservoir full level, or null when unavailable."),
-    f("capacity_basis", "identifier", "Source field used for the full level."),
+    f("capacity_basis", "identifier",
+      "Source field used for the full level. Three appear, and they do not mean the "
+      + "same thing, so a total of full levels is a total of mixed definitions."),
     f("pct_of_capacity", "percent", "Current storage divided by the reviewed full level."),
     f("seasonal_percentile", "percent", "Rank against earlier readings near the same date."),
-    f("seasonal_normal_af", "acre-feet", "Middle earlier-year reading near the same date."),
-    f("pct_of_seasonal_normal", "percent", "Current storage divided by the weekly normal value."),
+    f("seasonal_normal_af", "acre-feet",
+      "Middle earlier-year reading near the same date, for the recent period only. "
+      + "Read `baselines` instead where the period matters."),
+    f("pct_of_seasonal_normal", "percent",
+      "Current storage divided by the weekly normal value, for the recent period only."),
     f("seasonal_sample_years", "years", "Number of earlier calendar years in the weekly comparison."),
     f("baselines", "object", "The same comparison against each period on offer.", true),
     f("change_7d_af", "acre-feet", "Storage change over about seven days."),
@@ -145,8 +153,11 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("years_of_record", "years", "Length of the usable record."),
     f("in_utah", "true or false", "Whether the provider point is in Utah."),
     f("intersects_utah", "true or false", "Whether the reviewed waterbody reaches Utah."),
-    f("huc6", "identifier", "Six-digit drainage-area code."),
-    f("huc6_name", "text", "Six-digit drainage-area name."),
+    f("huc6", "identifier",
+      "Six-digit code of the drainage area holding the dam or outlet. It is not the "
+      + "area that fills the reservoir: water can arrive from many areas upstream, and "
+      + "in some cases from another river system."),
+    f("huc6_name", "text", "Name of the drainage area holding the dam or outlet."),
     f("huc_assignment_point", "longitude, latitude", "Point used for drainage-area assignment."),
     f("huc_assignment_source", "text", "Evidence used for the assignment point."),
     f("state", "state code", "State holding the published point. One state."),
