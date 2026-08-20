@@ -136,21 +136,7 @@ const sharedFilter = [...new Set(inScope.map((reservoir) => reservoir.huc6))]
       reservoir.huc6 === drainage && classOf(reservoir) === storageClass).length
   })))
   .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
-/* A subregion the default scope holds more than one basin of, for the link a
- * reader shares after choosing a region rather than a single drainage area.
- *
- * Derived from the payload the way everything here is: `huc6.slice(0, 4)`,
- * because codes are fixed-width and nest and a subregion code is published
- * nowhere -- only its name is, in `watersheds.subregions`. More than one
- * basin inside it is the point of the fixture: it makes the expected count an
- * answer no six-digit choice could have produced, so a page that quietly
- * substituted a basin for the region cannot pass.
- *
- * `applyScope` used to hold the reader's choice against the six-digit basin
- * list by equality, so a four-digit code was reset to "all drainage areas"
- * before it reached `matchesFilter` -- which prefix-matches, and always did.
- * The page answered a subregion link with the whole roster and said so in the
- * summary, which is a shared link silently ignored. */
+
 const sharedSubregion = [...new Set(inScope
   .map((reservoir) => reservoir.huc6)
   .filter((code) => typeof code === "string")
@@ -229,6 +215,35 @@ const filterState = [...new Set(inScope.flatMap(statesOf))].sort()
     count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length
   }))
   .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+/* A state that narrows the storage map's default scope without emptying it,
+ * and a reservoir outside it. Derived from the payload rather than named, so
+ * the morning refresh cannot turn this red on its own -- and `statesOf` is
+ * the water's states (ADR-060), which is the question the control asks. */
+const storageState = [...new Set(inScope.flatMap(statesOf))].sort()
+  .map((code) => ({
+    code,
+    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length
+  }))
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+const outsideStorageState = storageState
+  ? inScope.find((reservoir) => !statesOf(reservoir).includes(storageState.code))
+  : null;
+
+/* A subregion the default scope holds more than one basin of, for the link a
+ * reader shares after choosing a region rather than a single drainage area.
+ *
+ * Derived from the payload the way everything here is: `huc6.slice(0, 4)`,
+ * because codes are fixed-width and nest and a subregion code is published
+ * nowhere -- only its name is, in `watersheds.subregions`. More than one
+ * basin inside it is the point of the fixture: it makes the expected count an
+ * answer no six-digit choice could have produced, so a page that quietly
+ * substituted a basin for the region cannot pass.
+ *
+ * `applyScope` used to hold the reader's choice against the six-digit basin
+ * list by equality, so a four-digit code was reset to "all drainage areas"
+ * before it reached `matchesFilter` -- which prefix-matches, and always did.
+ * The page answered a subregion link with the whole roster and said so in the
+ * summary, which is a shared link silently ignored. */
 const stateRows = filterState
   ? inScope.filter((reservoir) => statesOf(reservoir).includes(filterState.code))
   : [];
@@ -2923,6 +2938,74 @@ for (const viewport of VIEWPORTS) {
     check(bySubregion.summary.includes(`in ${sharedSubregion?.label}`),
       `${label}: the summary reads "${bySubregion.summary}" and does not ` +
       "name the subregion the reader asked for");
+
+    /* `?state=` on the storage map (S3a). The slice that added it committed
+     * no coverage of its own, so this is where it is held: a state narrows
+     * the reservoirs, leaves every drawn area alone -- decision D5, the areas
+     * are context here and context is the point -- and says so in words. */
+    check(Boolean(storageState),
+      `${label}: no state narrows the storage map's scope without emptying it`);
+    await tab.goto(`${URL}?state=${storageState?.code}`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    const byState = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      listShown: document.querySelectorAll(
+        '#start-panel .list-btn:not(.list-btn-excluded)').length
+    }));
+    check(byState.ready.stateFilter === storageState?.code,
+      `${label}: a ?state= link reported ${byState.ready.stateFilter}, ` +
+      "so the link was ignored");
+    check(byState.ready.shown === storageState?.count,
+      `${label}: the state showed ${byState.ready.shown} reservoirs, ` +
+      `expected ${storageState?.count}`);
+    check(byState.listShown === byState.ready.shown,
+      `${label}: the list showed ${byState.listShown}, the map reported ` +
+      `${byState.ready.shown}`);
+    /* D5: on this surface the drainage areas are context, so a state choice
+     * narrows the reservoirs and draws every area regardless. The snow and
+     * drought maps do the opposite, and that difference is deliberate. */
+    check(byState.ready.drainageAreas === 75,
+      `${label}: a state choice left ${byState.ready.drainageAreas} drawn ` +
+      "areas, expected all 75 -- they are context on this map");
+    /* A state is a *scope*, not a filter, and this page has always drawn the
+     * two differently: geography and the dominant-reservoir switches narrow
+     * what is on the map, while the search box, the drainage-area select and
+     * the reporting choice dim what is already there. State joins the first
+     * group -- a reader who asks for one state is saying where they are, not
+     * which of the reservoirs in front of them to highlight. That is why the
+     * subregion case above asserts the opposite for `?area=`. */
+    check(byState.ready.drawn === storageState?.count,
+      `${label}: a state scope drew ${byState.ready.drawn} reservoirs, ` +
+      `expected ${storageState?.count} -- state narrows the map, unlike the ` +
+      "drainage-area filter, which dims it");
+    check(byState.summary.trim().length > 0,
+      `${label}: a state choice produced no summary sentence`);
+
+    /* A link naming both a state and a reservoir outside it. The reservoir
+     * wins: a reader following a link to one reservoir must not find it
+     * missing, so the scope widens back and the summary says why. */
+    check(Boolean(outsideStorageState),
+      `${label}: every reservoir in scope is in ${storageState?.code}, ` +
+      "so the widening case cannot be exercised");
+    await tab.goto(
+      `${URL}?state=${storageState?.code}&reservoir=${encodeURIComponent(outsideStorageState?.name ?? "")}`,
+      { waitUntil: "domcontentloaded", timeout: 60000 });
+    await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
+    const widened = await tab.evaluate(() => ({
+      ready: window.__dashboardReady,
+      summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? ""
+    }));
+    check(widened.ready.selected === outsideStorageState?.name,
+      `${label}: the linked reservoir is "${widened.ready.selected}", ` +
+      `expected "${outsideStorageState?.name}" -- a state filter dropped a deep link`);
+    check(widened.ready.shown === expectedReservoirs,
+      `${label}: the scope did not widen for the linked reservoir ` +
+      `(${widened.ready.shown} of ${expectedReservoirs})`);
+    check(widened.summary.includes(outsideStorageState?.name ?? "\u0000"),
+      `${label}: the summary does not name the reservoir it widened for: ` +
+      `"${widened.summary}"`);
 
     // Two digits is a region, and the only difference from a subregion is the
     // name: nothing publishes region names, so the code is said in words.
