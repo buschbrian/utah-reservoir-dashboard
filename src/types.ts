@@ -79,6 +79,16 @@ export interface Reservoir {
   capacity_basis: string | null;
   pct_of_capacity: NullableNumber;
   seasonal_percentile: NullableNumber;
+  /**
+   * The same comparison as a position among the earlier years.
+   *
+   * `seasonal_rank` counts from the lowest and `seasonal_rank_of` is the
+   * earlier years plus this reading, so 3 of 11 reads "third-lowest of
+   * eleven". Optional because they arrive from the pipeline: a payload
+   * written before them still answers with the percentage.
+   */
+  seasonal_rank?: NullableNumber;
+  seasonal_rank_of?: NullableNumber;
   seasonal_normal_af: NullableNumber;
   pct_of_seasonal_normal: NullableNumber;
   seasonal_sample_years: number;
@@ -349,8 +359,44 @@ export interface ClimateNormalsMeta {
   minimum_years: number;
 }
 
+/**
+ * What this roster holds for one state, and what it is known to miss.
+ *
+ * The counts are the payload's own arithmetic. `status` and the source fields
+ * are a reviewed judgement about the world outside it, which no amount of
+ * counting could produce -- and without which a row reading "8 reservoirs" is
+ * indistinguishable from a state that only has eight.
+ */
+export interface StateCoverage {
+  tracked_reservoir_count: number;
+  tracked_reference_capacity_af: number;
+  daily_count: number;
+  monthly_count: number;
+  current_count: number;
+  climate_baseline_count: number;
+  /** "more to add", "not machine readable", "none found", "not reviewed". */
+  status: string;
+  known_additional_source: string | null;
+  known_additional_source_url: string | null;
+  known_additional_about: number | null;
+  note: string;
+}
+
+export interface SourceCoverage {
+  /** When the sources were last checked, not when the counts were computed. */
+  reviewed: string;
+  /** Which of ADR-060's three questions the grouping asked. */
+  basis: string;
+  note: string;
+  states: Record<string, StateCoverage>;
+}
+
 export interface ReservoirPayload {
   schema_version?: number;
+  /** The calculations behind the derived values, separate from the shape. */
+  method_version?: string;
+  /** How complete the roster is, state by state. Optional: it arrives. */
+  coverage?: SourceCoverage;
   generated_at: string;
   start_date: string;
   /** Optional while payloads generated before the disclosure remain readable. */

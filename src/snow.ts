@@ -45,6 +45,7 @@ import {
   mapDayValues,
   monthReadings,
   newestHeadline,
+  newestReading,
   normalPeriodLabel,
   observedPeak,
   measuredScope,
@@ -747,10 +748,17 @@ function renderSnow(
       reading.className = "snow-site-reading";
       const parts: string[] = [];
       const latest = newestHeadline(points, floor);
+      const newest = latest ?? newestReading(points);
       if (latest) {
         parts.push(`Newest value: ${formatPercent(latest.percent)} of normal ` +
           `on ${formatDate(latest.date)}, from ${latest.reportingSites} of ` +
           `${rollup.site_count} sites.`);
+      } else if (newest?.meanInches !== null && newest?.meanInches !== undefined) {
+        /* Same rule as the page's own headline: the depth leads where the
+         * ratio has nothing to divide by. */
+        parts.push(`Newest value: ${newest.meanInches.toFixed(1)} inches of ` +
+          `snow water on ${formatDate(newest.date)}. There is too little ` +
+          "normal snow for this date to compare against.");
       }
       const peak = seasonHighPoint(points, floor);
       if (peak) {
@@ -844,11 +852,24 @@ function renderSnow(
      * two unmelted stations become the page's largest numbers. */
     const floor = headlineFloor(rows.length, 2);
     const latest = newestHeadline(curve, floor);
-    setKpi("now", latest ? formatPercent(latest.percent) : "—");
+    /* Percent of normal needs a normal worth dividing by, and in October
+     * there is not one: 147 sites reporting produced 266% of normal against
+     * a mean normal of a quarter inch. Where the comparison cannot carry a
+     * headline, the depth does -- the number that still means something when
+     * the ratio does not. The curve below keeps drawing the ratio either
+     * way (`MEANINGFUL_NORMAL_INCHES`). */
+    const reading = latest ?? newestReading(curve);
+    setKpi("now", latest ? formatPercent(latest.percent)
+      : reading?.meanInches !== null && reading?.meanInches !== undefined
+        ? `${reading.meanInches.toFixed(1)} in`
+        : "—");
     setKpi("now-note", latest
       ? `Of normal on ${formatDate(latest.date)}, the newest day when at ` +
         `least half the sites gave a value (${latest.reportingSites} of ${rows.length})`
-      : "Too few sites have values yet this season");
+      : reading
+        ? `Snow water on ${formatDate(reading.date)}. There is too little ` +
+          "normal snow for this date to compare against"
+        : "Too few sites have values yet this season");
     const peak = seasonHighPoint(curve, floor);
     setKpi("peak", peak ? formatPercent(peak.percent) : "—");
     setKpi("peak-note", peak

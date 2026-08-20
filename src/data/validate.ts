@@ -21,6 +21,16 @@ function hasNullableNumber(value: unknown): value is number | null {
   return value === null || hasNumber(value);
 }
 
+/* A number, null, or absent entirely.
+ *
+ * The shape a field takes while it is arriving. The pipeline publishes it
+ * from today; the committed payload predates it until the next refresh, and
+ * refusing that payload would take the site down to add a field to it. A
+ * wrong type is still refused -- absent and wrong are different faults. */
+function optionalNullableNumber(value: unknown): value is number | null | undefined {
+  return value === undefined || hasNullableNumber(value);
+}
+
 /* A list of two-letter state codes, or absent. Empty is allowed and means
  * something: a reservoir whose point falls in no state, or one whose drainage
  * area is unassigned, has no states to name and must not be given any. */
@@ -121,6 +131,11 @@ function isReservoir(value: unknown): value is Reservoir {
     hasNullableString(value.capacity_basis) &&
     hasNullableNumber(value.pct_of_capacity) &&
     hasNullableNumber(value.seasonal_percentile) &&
+    /* Optional: they arrive from the pipeline, and a payload written before
+     * they did is still a valid payload. `undefined` passes, a wrong type
+     * does not. */
+    optionalNullableNumber(value.seasonal_rank) &&
+    optionalNullableNumber(value.seasonal_rank_of) &&
     hasNullableNumber(value.seasonal_normal_af) &&
     hasNullableNumber(value.pct_of_seasonal_normal) &&
     hasNumber(value.seasonal_sample_years) &&

@@ -4,6 +4,7 @@ import type { OpeningRosters, OpeningSelection } from "./data/opening-scope";
 import {
   isLate,
   reservoirInScope,
+  sizeBasis,
   statewideRollup,
   WIDEST_SCOPE,
   type LakePowellChoice,
@@ -485,6 +486,20 @@ export interface TrendPoint {
    */
   scopeCount: number;
   percentCapacityReporting: number | null;
+  /**
+   * The same month over the reservoirs that reported in *every* month drawn.
+   *
+   * The series beside it changes population between points, so a move in it
+   * can be a move in the water, a move in who reported, or both. This one
+   * cannot: it is one fixed set of reservoirs measured twelve times, so every
+   * move in it is a move in the water.
+   *
+   * It answers a narrower question than the series it sits beside -- a cohort
+   * of 116 rather than 196 -- which is why it accompanies that series rather
+   * than replacing it. Null when no reservoir reported every month.
+   */
+  cohortPercent: number | null;
+  cohortCount: number;
 }
 
 /**
@@ -504,8 +519,11 @@ export interface TrendPoint {
  * that some reservoir reported then, not that the last year contains it.
  */
 export function monthlyTrend(reservoirs: readonly Reservoir[]): TrendPoint[] {
-  return monthKeys(reservoirs).slice(-12).map((month, index) => {
+  const months = monthKeys(reservoirs).slice(-12);
+  const cohort = fixedCohort(reservoirs, months);
+  return months.map((month, index) => {
     const rollup = monthlyRollup(reservoirs, month);
+    const cohortRollup = cohort.length > 0 ? monthlyRollup(cohort, month) : null;
     return {
       id: index + 1,
       month,
@@ -515,8 +533,35 @@ export function monthlyTrend(reservoirs: readonly Reservoir[]): TrendPoint[] {
       storageAf: rollup.storageAf,
       reporting: rollup.reporting,
       scopeCount: rollup.scopeCount,
-      percentCapacityReporting: rollup.percentCapacityReporting
+      percentCapacityReporting: rollup.percentCapacityReporting,
+      cohortPercent: cohortRollup?.percentFull === null
+        || cohortRollup?.percentFull === undefined
+        ? null : Number(cohortRollup.percentFull.toFixed(1)),
+      cohortCount: cohort.length
     };
+  });
+}
+
+/**
+ * Reservoirs that reported every one of the months drawn.
+ *
+ * Chosen once for the whole series rather than per point: a cohort that
+ * changed between months would be the thing it exists to rule out. A
+ * reservoir with no usable size basis is excluded here too, because it
+ * cannot contribute to either side of the ratio and would otherwise shrink
+ * the cohort for every month without ever appearing in one.
+ */
+export function fixedCohort(
+  reservoirs: readonly Reservoir[], months: readonly string[]
+): Reservoir[] {
+  if (months.length === 0) return [];
+  return reservoirs.filter((reservoir) => {
+    if (sizeBasis(reservoir) <= 0) return false;
+    const reported = new Map(reservoir.monthly.map((row) => [row.month, row.mean_af]));
+    return months.every((month) => {
+      const mean = reported.get(month);
+      return mean !== null && mean !== undefined && Number.isFinite(mean);
+    });
   });
 }
 

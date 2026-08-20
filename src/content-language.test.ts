@@ -260,6 +260,22 @@ describe("user text", () => {
     expect(drought).toMatch(/not a test of one against the other/i);
   });
 
+  /*
+   * Three P1 corrections, each of which a later edit could quietly undo
+   * because the page reads fine without them.
+   */
+  it("keeps the statistical caveats the estimators earned", async () => {
+    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+
+    // A percent of normal needs a normal worth dividing by.
+    expect(methods).toMatch(/266% of normal/);
+    expect(methods).toMatch(/below one inch/);
+    // How complete the roster is, and that "none found" is not "complete".
+    expect(methods).toContain("How complete this is");
+    expect(methods).toMatch(/does not mean complete/i);
+    expect(methods).toContain('data-live="coverage-note"');
+  });
+
   it("keeps the glossary the retired overview used to carry", async () => {
     // explore.html defined these before it became a redirect. The definitions
     // moved here; this test is what notices if they are dropped again.

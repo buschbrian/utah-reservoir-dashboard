@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { readPayload } from "../data/payload-fixture";
 import { storageColor } from "../viz/classes";
 import { headlinePercent } from "../viz/symbols";
-import { describeReservoir, lateMessage, monthlyDetail, providerName } from "./detail";
+import {
+  describeReservoir, lateMessage, monthlyDetail, providerName, rankWithYears
+} from "./detail";
 import { createSelectionStore, findReservoir, normalizeSelectionValue } from "./selection";
 import { loadLegacyApi } from "../data/legacy-harness";
 
@@ -341,12 +343,19 @@ describe("what the panel says about its own basis", () => {
     expect(maximumRow).not.toBe(normalRow);
   });
 
+  /*
+   * A rank without its sample size is the failure this guards; which form it
+   * takes is not. "3rd-lowest of 12" names the population it is a position
+   * in, and "18.2%, out of 11 earlier years" names it beside the share --
+   * both satisfy the rule, and the ordinal is the one that cannot be read as
+   * more precise than eleven years support.
+   */
   it("gives every history rank the number of years behind it", () => {
     for (const view of views) {
       const rank = view.rows.find((row) => row.label === "History rank")?.value ?? "";
       if (rank === "—") continue;
       expect(rank, `${view.name} states a rank with no sample size`)
-        .toMatch(/out of \d+ earlier years?/);
+        .toMatch(/(out of \d+ earlier years?)|(-lowest of \d+)/);
     }
   });
 
@@ -354,5 +363,58 @@ describe("what the panel says about its own basis", () => {
    * of eleven reads exactly like a percentile out of a hundred. */
   it("warns that a rank from this record is an indication, not a measurement", () => {
     expect(views[0]?.note).toContain("indication rather than a measurement");
+  });
+});
+
+/*
+ * The history rank, said as a position rather than only as a percentage.
+ *
+ * The percentage was the whole answer, and with eleven earlier years behind
+ * it the reachable values are about nine points apart -- so every value in
+ * between is unreachable, and two ranks four points apart are the same rank.
+ * A reader has no way to know that from "18.2%" alone.
+ */
+describe("how the history rank reads", () => {
+  it("leads with the position and keeps the percentage", () => {
+    expect(rankWithYears(18.2, 11, 3, 12)).toBe("3rd-lowest of 12, 18.2%");
+    expect(rankWithYears(0, 10, 1, 11)).toBe("1st-lowest of 11, 0.0%");
+    expect(rankWithYears(100, 10, 11, 11)).toBe("11th-lowest of 11, 100.0%");
+  });
+
+  it("spells the awkward ordinals correctly", () => {
+    expect(rankWithYears(50, 30, 11, 31)).toContain("11th-lowest");
+    expect(rankWithYears(50, 30, 12, 31)).toContain("12th-lowest");
+    expect(rankWithYears(50, 30, 13, 31)).toContain("13th-lowest");
+    expect(rankWithYears(50, 30, 21, 31)).toContain("21st-lowest");
+    expect(rankWithYears(50, 30, 22, 31)).toContain("22nd-lowest");
+    expect(rankWithYears(50, 30, 23, 31)).toContain("23rd-lowest");
+  });
+
+  /* The fields arrive from the pipeline. A payload written before they did
+   * must still answer, rather than losing the row. */
+  it("falls back to the percentage and year count without them", () => {
+    expect(rankWithYears(18.2, 11)).toBe("18.2%, out of 11 earlier years");
+    expect(rankWithYears(18.2, 1)).toBe("18.2%, out of 1 earlier year");
+  });
+
+  it("says nothing it cannot support", () => {
+    expect(rankWithYears(null, 11, 3, 12)).toBe("—");
+    expect(rankWithYears(18.2, 0)).toBe("18.2%");
+    // One "earlier year" that is only this reading is not a population.
+    expect(rankWithYears(18.2, 0, 1, 1)).toBe("18.2%");
+  });
+
+  /* Whatever the payload holds today, the two forms must not disagree about
+   * direction: the top position and 100% have to arrive together. */
+  it("agrees with the percentage across the published payload", () => {
+    for (const reservoir of reservoirs) {
+      const rank = reservoir.seasonal_rank ?? null;
+      const rankOf = reservoir.seasonal_rank_of ?? null;
+      if (rank === null || rankOf === null) continue;
+      expect(rank, reservoir.name).toBeGreaterThanOrEqual(1);
+      expect(rank, reservoir.name).toBeLessThanOrEqual(rankOf);
+      expect(rankWithYears(reservoir.seasonal_percentile, 0, rank, rankOf),
+        reservoir.name).toContain("-lowest of ");
+    }
   });
 });

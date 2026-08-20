@@ -13,6 +13,9 @@ import {
   monthReadings,
   payloadAtLevel,
   newestHeadline,
+  newestReading,
+  percentIsMeaningful,
+  MEANINGFUL_NORMAL_INCHES,
   percentOfNormal,
   payloadForState,
   observedPeak,
@@ -776,5 +779,76 @@ describe("the areas the snow map draws", () => {
       .map((rollup) => rollup.huc6)
       .filter((huc6) => !narrowed.areas.some((a) => a.huc6 === huc6));
     expect(dropped.sort()).toEqual(["180400", "180800"]);
+  });
+});
+
+/*
+ * A ratio needs a denominator worth dividing by, and in October there is not
+ * one. Measured on the 2026 water year: 147 sites reported on 27 October --
+ * far past any count floor -- and produced 266% of normal against a mean
+ * normal of 0.24 inches. The reporting floor cannot catch that, because the
+ * sites genuinely are reporting.
+ */
+describe("the denominator floor", () => {
+  const point = (over: Partial<CurvePoint>): CurvePoint => ({
+    date: "2025-10-27", percent: 266, reportingSites: 147, ...over
+  });
+
+  it("refuses a percentage with almost no normal behind it", () => {
+    expect(percentIsMeaningful(point({ normalInches: 0.24 }))).toBe(false);
+    expect(percentIsMeaningful(point({ normalInches: 0 }))).toBe(false);
+  });
+
+  it("accepts one with a real normal behind it", () => {
+    expect(percentIsMeaningful(point({ normalInches: MEANINGFUL_NORMAL_INCHES })))
+      .toBe(true);
+    expect(percentIsMeaningful(point({ normalInches: 8.4 }))).toBe(true);
+  });
+
+  /* A curve built before the normal travelled with it is judged on the
+   * reporting floor alone, exactly as it was. Absent and zero are different. */
+  it("judges a curve without normals on the reporting floor alone", () => {
+    expect(percentIsMeaningful(point({}))).toBe(true);
+    expect(percentIsMeaningful(point({ normalInches: null }))).toBe(true);
+  });
+
+  it("has nothing to say about a day with no percentage", () => {
+    expect(percentIsMeaningful(point({ percent: null, normalInches: 8.4 })))
+      .toBe(false);
+  });
+
+  it("keeps a headline off a day the denominator cannot support", () => {
+    const curve: CurvePoint[] = [
+      { date: "2026-03-07", percent: 61, reportingSites: 200, normalInches: 8.4 },
+      { date: "2026-10-27", percent: 266, reportingSites: 147, normalInches: 0.24 }
+    ];
+    // The newest day is not the headline; the newest day that can carry one is.
+    expect(newestHeadline(curve, 10)?.date).toBe("2026-03-07");
+    // And the newest reading is still reachable, so the page can show depth.
+    expect(newestReading(curve)?.date).toBe("2026-10-27");
+  });
+
+  /* The curve keeps drawing the ratio either way: a hole cut in October and
+   * again at melt-out would hide the shape of the season, which is what the
+   * curve is for. */
+  it("does not remove the percentage from the published curve", () => {
+    const curve = regionCurve(payload);
+    const thin = curve.filter((entry) =>
+      entry.normalInches !== null && entry.normalInches !== undefined
+      && entry.normalInches < MEANINGFUL_NORMAL_INCHES
+      && entry.reportingSites >= 10);
+    expect(thin.length).toBeGreaterThan(0);
+    expect(thin.some((entry) => entry.percent !== null)).toBe(true);
+  });
+
+  /* The normal and the percentage must describe one set of stations: a site
+   * with no reading contributes to neither. */
+  it("averages the normal over the sites that reported that day", () => {
+    for (const entry of regionCurve(payload)) {
+      if (entry.percent === null) continue;
+      expect(entry.normalInches, entry.date).not.toBeNull();
+      expect(entry.normalInches, entry.date).toBeGreaterThanOrEqual(0);
+      expect(entry.meanInches, entry.date).not.toBeNull();
+    }
   });
 });

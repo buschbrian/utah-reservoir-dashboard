@@ -394,6 +394,19 @@ function trendTooltipFormatter(
           : `${point.reporting} of ${point.scopeCount}, `
             + `${formatPercent(point.percentCapacityReporting)} of the full level`
       });
+      /* The same month over one fixed set of reservoirs. Where this and the
+       * figure above disagree, the difference is the reporting set changing
+       * rather than the water -- which is the whole reason a reader needs
+       * both. Percent only: the cohort's combined storage is a different and
+       * smaller quantity, and putting it under the same word as the headline
+       * would invite the two to be compared. */
+      if (point.cohortPercent !== null && measure !== "storage") {
+        rows.push({
+          label: "Same reservoirs every month",
+          value: `${formatPercent(point.cohortPercent)}, `
+            + `${point.cohortCount} reservoirs`
+        });
+      }
     }
     return chartTooltip(point?.label ?? key, rows);
   }) as TooltipFormatter;

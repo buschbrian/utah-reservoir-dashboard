@@ -14,6 +14,7 @@ import {
   subregionOptions,
   filterAndSort,
   filterOverview,
+  fixedCohort,
   monthlyTrend,
   overviewScope,
   watershedOptions
@@ -443,5 +444,74 @@ describe("the geographic controls against the scope controls", () => {
     expect(all.length).toBeGreaterThan(1);
     expect(codes(geographicChoices(widest,
       { state: "all", subregion: all[0]! }, names).subregions)).toEqual(all);
+  });
+});
+
+/*
+ * A twelve-month series drawn from a population that changes between points.
+ *
+ * The arithmetic per month is right -- only reporting reservoirs are on
+ * either side of the ratio -- and the series across months still compares
+ * two different sets. Measured on the payload of 2026-08-19, the newest
+ * month covered 79% of the combined full level where the eleven before it
+ * covered about 100%, and the July-to-August fall read four points steeper
+ * than the same reservoirs measured across both months.
+ */
+describe("the population behind the twelve-month trend", () => {
+  const reservoirs = readPayload().reservoirs;
+  const points = monthlyTrend(reservoirs);
+
+  it("draws twelve months, oldest first", () => {
+    expect(points.length).toBeLessThanOrEqual(12);
+    expect([...points].map((point) => point.month).sort())
+      .toEqual(points.map((point) => point.month));
+  });
+
+  it("carries the population behind every point, not only the thin ones", () => {
+    for (const point of points) {
+      expect(point.scopeCount, point.month).toBe(reservoirs.length);
+      expect(point.reporting, point.month).toBeLessThanOrEqual(point.scopeCount);
+      expect(point.percentCapacityReporting, point.month).not.toBeUndefined();
+    }
+  });
+
+  /* The cohort is chosen once for the whole series. A cohort that changed
+   * between months would be the very thing it exists to rule out. */
+  it("measures one fixed set of reservoirs across every month", () => {
+    const cohort = fixedCohort(reservoirs, points.map((point) => point.month));
+    for (const point of points) {
+      expect(point.cohortCount, point.month).toBe(cohort.length);
+    }
+    for (const reservoir of cohort) {
+      for (const point of points) {
+        const entry = reservoir.monthly.find((row) => row.month === point.month);
+        expect(entry?.mean_af, `${reservoir.name} in ${point.month}`)
+          .not.toBeNull();
+      }
+    }
+  });
+
+  it("draws its cohort from the reservoirs handed in and no others", () => {
+    const names = new Set(reservoirs.map((reservoir) => reservoir.name));
+    for (const reservoir of fixedCohort(reservoirs, points.map((p) => p.month))) {
+      expect(names.has(reservoir.name)).toBe(true);
+    }
+    // A month nothing reported leaves no cohort, rather than everything.
+    expect(fixedCohort(reservoirs, ["1900-01"])).toEqual([]);
+    // And no months is no cohort, not every reservoir.
+    expect(fixedCohort(reservoirs, [])).toEqual([]);
+  });
+
+  /* Where the two series disagree, the difference is the reporting set. The
+   * assertion is that they are computed from different populations and both
+   * stay inside the possible range -- never that they agree, because the
+   * months where they do not are the ones worth drawing. */
+  it("keeps both series inside the range a share can take", () => {
+    for (const point of points) {
+      expect(point.percent, point.month).toBeGreaterThanOrEqual(0);
+      if (point.cohortPercent === null) continue;
+      expect(point.cohortPercent, point.month).toBeGreaterThanOrEqual(0);
+      expect(point.cohortCount, point.month).toBeGreaterThan(0);
+    }
   });
 });

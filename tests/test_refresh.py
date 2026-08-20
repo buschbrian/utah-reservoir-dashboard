@@ -783,3 +783,107 @@ def test_the_refresh_hour_puts_every_western_zone_on_one_date():
             assert 1 <= local.hour <= 22, (
                 f"the refresh starts at {local.hour:02d}:00 Pacific, close "
                 "enough to a date boundary that the zone choice matters")
+
+
+# --- every year gets one vote ---------------------------------------------
+
+def test_a_dense_year_does_not_outvote_a_sparse_one():
+    """The estimator's whole point, in the case that motivated it.
+
+    Ten years at 1000 reported once a month, one year at 100 reported every
+    day. Pooling the readings gives the dense year about thirty times the
+    weight of each sparse one, so it drags the median down and the "normal"
+    becomes a fact about who reports often. One value per year puts the median
+    back where the years say it is.
+    """
+    dense_year = TODAY.year - 1
+    rows = []
+    for year in range(TODAY.year - 11, TODAY.year):
+        if year == dense_year:
+            for day in pd.date_range(f"{year}-06-08", f"{year}-06-22", freq="D"):
+                rows.append((day, 100.0))
+        else:
+            rows.append((pd.Timestamp(f"{year}-06-15"), 1000.0))
+    index = pd.DatetimeIndex([row[0] for row in rows])
+    series = pd.Series([row[1] for row in rows], index=index)
+
+    yearly = R.annual_seasonal_values(series, pd.Timestamp(f"{TODAY.year}-06-15"))
+    assert len(yearly) == 11
+    assert yearly[dense_year] == 100.0
+    # Ten years at 1000 and one at 100: the years say 1000.
+    assert float(yearly.median()) == 1000.0
+    # Pooled, the fifteen daily readings would have pulled it well below.
+    window = R.seasonal_window(series, pd.Timestamp(f"{TODAY.year}-06-15"))
+    assert float(window.median()) < 1000.0
+
+
+def test_the_sample_size_is_years_not_readings():
+    """`sample_years` must count the sample the statistic actually has."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    series = pd.Series(np.linspace(900, 1100, len(index)), index=index)
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Daily", 994, 40.0, -111.0, frame, TODAY)
+
+    prior = R.annual_seasonal_values(
+        R.prior_years(series, TODAY), TODAY)
+    assert record["seasonal_sample_years"] == len(prior)
+    assert record["seasonal_sample_years"] == TODAY.year - 2015
+
+
+def test_the_rank_is_ordinal_and_names_what_it_is_of():
+    """"Third-lowest of eleven" cannot be read as more precise than it is."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    # Each prior year flat at its own level, rising with the year, so the
+    # ordering of the annual representatives is known exactly.
+    values = np.where(index.year < TODAY.year,
+                      (index.year - 2014) * 100.0, 250.0)
+    series = pd.Series(values, index=index)
+
+    prior_count = TODAY.year - 2015
+    rank = R.seasonal_rank(series, TODAY, 250.0)
+    assert rank is not None
+    # Prior years sit at 100, 200, 300, ...; 250 is above exactly two of them.
+    assert rank == (3, prior_count + 1)
+
+    # The lowest reading ever must read as first of its own population, and
+    # the percentile beside it as a true zero.
+    lowest = R.seasonal_rank(series, TODAY, 1.0)
+    assert lowest == (1, prior_count + 1)
+    assert R.seasonal_percentile(series, TODAY, 1.0) == 0.0
+
+
+def test_a_reservoir_with_no_prior_years_has_no_rank():
+    """No years to be ordinal of; say so rather than invent a first place."""
+    index = pd.date_range(f"{TODAY.year}-01-01", TODAY, freq="D")
+    series = pd.Series(np.linspace(100, 50, len(index)), index=index)
+    assert R.seasonal_rank(series, TODAY, 50.0) is None
+
+    frame = pd.DataFrame({"date": index, "storage_af": series.to_numpy()})
+    record = R.summarize("Brand New", 993, 40.0, -111.0, frame, TODAY)
+    assert record["seasonal_rank"] is None
+    assert record["seasonal_rank_of"] is None
+    json.dumps(record)
+
+
+def test_the_rank_and_the_percentile_agree_about_direction():
+    """Two forms of one comparison. They may not disagree about which way."""
+    index = pd.date_range("2015-01-01", TODAY, freq="D")
+    values = np.where(index.year < TODAY.year,
+                      (index.year - 2014) * 100.0, 250.0)
+    series = pd.Series(values, index=index)
+    for current in (50.0, 250.0, 450.0, 10_000.0):
+        rank, of = R.seasonal_rank(series, TODAY, current)
+        percentile = R.seasonal_percentile(series, TODAY, current)
+        assert 1 <= rank <= of
+        # Both count the same prior years, so the highest rank and a
+        # percentile of 100 have to arrive together.
+        assert (rank == of) == (percentile == 100.0)
+
+
+def test_the_pipeline_publishes_the_estimator_it_used():
+    """A field can keep its name while the statistic under it changes."""
+    assert R.METHOD_VERSION
+    import tools.build_normal_baselines as B
+    assert B.METHOD_VERSION == R.METHOD_VERSION, (
+        "the two baselines are published to be compared with each other, so "
+        "they must be built by the same estimator")
