@@ -116,7 +116,10 @@ body {
    reason and the same fix as `.level-control` above: appended when the
    reference export resolves, and `min-width: 0` because an unbreakable
    select otherwise refuses to shrink and widens the whole page at 360px. */
-.filterbar-controls > .where-control {
+/* Scoped to the control rather than to one host's wrapper: the snow and
+ * drought bars use `.filterbar-controls`, the storage panel uses `.filters`,
+ * and a rule naming only the first silently stopped applying to the third. */
+.where-control {
   display: grid;
   gap: .5rem;
   min-width: 0;

@@ -51,11 +51,17 @@ const NOTHING_CHOSEN: OpeningSelection = { state: "all", area: null };
 
 export interface WhereControl {
   element: HTMLElement;
-  /** Reflect a selection the page adopted from somewhere else, such as a
-   * link, without treating it as a reader interaction -- `onChange` is not
-   * called. */
-  set(selection: OpeningSelection): void;
 }
+
+/* No `set()`, deliberately, and unlike `createLevelControl` which has one.
+ *
+ * All three hosts build this control from a selection that is already final:
+ * the storage and snow pages widen for a deep link *before* constructing it,
+ * and the drought page has no widening at all. Nothing reassigns the scope
+ * afterwards, so a method to push a later selection in would never be
+ * called, and an unreachable method is not insurance -- it is untested code
+ * that reads as a supported path. When S5 adds a stored choice that can
+ * arrive after first paint, that is the caller that earns it back. */
 
 export interface WhereControlOptions {
   /**
@@ -93,11 +99,22 @@ function buildAxisSelect(
   return select;
 }
 
-/** Replaces `select`'s options with `axis.options`, marking `axis.value`
- * selected, and sets the element's `value` to match -- the same two-step
- * `createLevelControl` uses (a `selected` attribute for first paint, an
- * assigned `.value` for a select being rebuilt after the component has
- * already upgraded). */
+/**
+ * Replaces `select`'s options with `axis.options` and marks `axis.value`
+ * selected.
+ *
+ * The `selected` attribute alone, not the attribute and an assigned `.value`.
+ * This is not what `createLevelControl` does and the two are not the same
+ * shape: that control builds its options once and never rebuilds them, using
+ * `.value` only in a separate method, while this one rebuilds every axis on
+ * every render because the lists below a change are different lists.
+ *
+ * Setting both was redundant rather than racy -- `document.createElement`
+ * upgrades a registered Calcite element synchronously, and `calcite-select`
+ * re-reads its options on a microtask, so the attribute is always seen. The
+ * second write is dropped rather than explained, because two lines doing one
+ * thing need a reason and there was none.
+ */
 function fillAxisSelect(select: HTMLElement, axis: WhereAxis): void {
   select.replaceChildren();
   for (const option of axis.options) {
@@ -107,7 +124,6 @@ function fillAxisSelect(select: HTMLElement, axis: WhereAxis): void {
     if (option.value === axis.value) node.setAttribute("selected", "");
     select.append(node);
   }
-  (select as unknown as { value: string }).value = axis.value;
 }
 
 /**
@@ -177,11 +193,5 @@ export function createWhereControl(
   fillAxisSelect(subregionSelect, view.subregion);
   fillAxisSelect(areaSelect, view.area);
 
-  return {
-    element: wrapper,
-    set(next: OpeningSelection): void {
-      selection = next;
-      render();
-    }
-  };
+  return { element: wrapper };
 }
