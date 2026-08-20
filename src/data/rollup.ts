@@ -124,6 +124,12 @@ export interface StatewideRollupOptions {
    * choice keeps the answer it had rather than silently changing period.
    */
   baseline?: BaselineId;
+  /**
+   * Fewest earlier years a reservoir must have before its requested baseline
+   * belongs in the combined comparison. Defaults to zero for payloads that
+   * predate the declared minimum.
+   */
+  minimumBaselineYears?: number;
 }
 
 /**
@@ -152,7 +158,9 @@ const DOMINANT_RESERVOIRS = [LAKE_POWELL, LAKE_MEAD] as const;
  * here, instead of every call site silently reverting to excluding it
  * (ADR-062).
  */
-export const WIDEST_SCOPE: Required<Omit<StatewideRollupOptions, "baseline">> = {
+export const WIDEST_SCOPE: Required<Pick<
+  StatewideRollupOptions, "geography" | "lakePowell" | "lakeMead"
+>> = {
   geography: "connected", lakePowell: "include", lakeMead: "include"
 };
 
@@ -264,9 +272,11 @@ export function statewideRollup(
    * other surface uses, so the total and the reservoir it is made of can no
    * longer disagree about which years "normal" means. */
   const baseline = options.baseline ?? "recent";
+  const minimumBaselineYears = options.minimumBaselineYears ?? 0;
   const normals = new Map(reservoirs
     .map((reservoir) => [reservoir, readBaseline(reservoir, baseline)] as const)
-    .filter(([, found]) => found !== null));
+    .filter(([, found]) =>
+      found !== null && found.sample_years >= minimumBaselineYears));
   const withNormal = [...normals.keys()];
   const normalAf = withNormal.reduce((total, reservoir) =>
     total + (normals.get(reservoir)?.normal_af ?? 0), 0);

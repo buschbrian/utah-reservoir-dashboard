@@ -72,6 +72,7 @@ import { createDroughtMap } from "./ui/drought-map";
 import { RESERVOIR_REFERENCE_LAYER_ID } from "./ui/layers";
 import type { ReservoirReference } from "./ui/layers";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
+import { wireMobileFilterDisclosure } from "./ui/mobile-filter-disclosure";
 import {
   mapExtentFromBox
 } from "./viz/extent";
@@ -280,12 +281,15 @@ function renderDrought(
 
   content.innerHTML = `
     ${scopeSentence ? `<p id="drought-scope-summary" class="filter-status">${scopeSentence}</p>` : ""}
-    <section class="dashboard-filterbar" aria-labelledby="drought-filter-heading">
+    <section class="dashboard-filterbar mobile-filterbar" aria-labelledby="drought-filter-heading">
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Land conditions</p><h2 id="drought-filter-heading">Narrow the drainage areas</h2></div>
-        <div class="filterbar-head-actions"><calcite-button id="drought-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every area</calcite-button></div>
+        <button id="drought-filter-toggle" class="mobile-filter-toggle" type="button"
+          aria-controls="drought-filter-controls drought-filter-actions"
+          aria-expanded="false">Show filters</button>
+        <div id="drought-filter-actions" class="filterbar-head-actions"><calcite-button id="drought-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every area</calcite-button></div>
       </div>
-      <div class="filterbar-controls">
+      <div id="drought-filter-controls" class="filterbar-controls">
         <label>Show areas with<select id="drought-worse">
           <option value="">Any conditions</option>
           ${DROUGHT_CLASSES.map((entry) => `<option value="${entry.key}">${entry.label} (${entry.code}) or worse</option>`).join("")}
@@ -351,6 +355,9 @@ function renderDrought(
   const sortSelect = content.querySelector<HTMLSelectElement>("#drought-sort");
   const statusLine = content.querySelector<HTMLElement>("#drought-status");
   const resetButton = content.querySelector<HTMLElement>("#drought-reset");
+  const filterbar = content.querySelector<HTMLElement>(".mobile-filterbar");
+  const filterToggle = content.querySelector<HTMLButtonElement>("#drought-filter-toggle");
+  if (filterbar && filterToggle) wireMobileFilterDisclosure(filterbar, filterToggle);
   const scatterHost = content.querySelector<HTMLElement>("#drought-scatter-host");
   const gapHost = content.querySelector<HTMLElement>("#drought-gap-host");
   const severityHost = content.querySelector<HTMLElement>("#drought-severity-host");

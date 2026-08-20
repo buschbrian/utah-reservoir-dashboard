@@ -105,10 +105,10 @@ const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"
  * It was the waterbodies touching Utah until the roster went west. That
  * default was hiding two thirds of the site's own subject, and the geography
  * control still offers the narrower reading one choice away. */
-const inScope = payload.reservoirs.filter((reservoir) =>
-  reservoir.rise_item_id !== 509 &&
-  reservoir.name.trim().toLowerCase() !== "lake powell" &&
-  reservoir.name.trim().toLowerCase() !== "lake mead");
+const isDominantReservoir = (reservoir) =>
+  [509, 6124].includes(reservoir.rise_item_id) ||
+  ["lake powell", "lake mead"].includes(reservoir.name.trim().toLowerCase());
+const inScope = payload.reservoirs.filter((reservoir) => !isDominantReservoir(reservoir));
 const expectedReservoirs = inScope.length;
 /* The reservoirs the ranking chart can rank: those with a readable headline
  * percentage, computed the way src/viz/symbols.ts computes it. Derived from
@@ -226,9 +226,12 @@ const filterState = [...new Set(inScope.flatMap(statesOf))].sort()
 const storageState = [...new Set(inScope.flatMap(statesOf))].sort()
   .map((code) => ({
     code,
-    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length
+    count: inScope.filter((reservoir) => statesOf(reservoir).includes(code)).length,
+    hasDominantReservoir: payload.reservoirs.some((reservoir) =>
+      isDominantReservoir(reservoir) && statesOf(reservoir).includes(code))
   }))
-  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
+  .find((candidate) => candidate.count > 0 && candidate.count < inScope.length
+    && !candidate.hasDominantReservoir);
 const outsideStorageState = storageState
   ? inScope.find((reservoir) => !statesOf(reservoir).includes(storageState.code))
   : null;
@@ -514,6 +517,59 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
   : {});
 
+/* The first-visit chooser is the only surface the ordinary page contexts
+ * deliberately skip. Exercise it in the system state that exposed two
+ * independent failures: dark text tokens on a white fallback card, and a
+ * closed native dialog left visible by the class's `display: flex` rule. */
+{
+  const context = await browser.newContext({
+    viewport: VIEWPORTS[2], colorScheme: "dark"
+  });
+  const tab = await context.newPage();
+  const label = "First-visit chooser (dark, small-phone)";
+  console.log(`\n=== ${label}`);
+  await tab.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await tab.waitForSelector("dialog.opening-splash[open]", { timeout: 90000 });
+
+  const opened = await tab.locator("dialog.opening-splash").evaluate((dialog) => {
+    const style = getComputedStyle(dialog);
+    const luminance = (colour) => {
+      const channels = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      const linear = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
+    };
+    const foreground = luminance(style.color);
+    const background = luminance(style.backgroundColor);
+    const contrast = (Math.max(foreground, background) + .05)
+      / (Math.min(foreground, background) + .05);
+    return {
+      contrast, display: style.display, open: dialog.hasAttribute("open"),
+      theme: document.documentElement.dataset.theme
+    };
+  });
+  console.log("  opened:", JSON.stringify(opened));
+  check(opened.theme === "dark", `${label}: the dark preference was not applied`);
+  check(opened.open && opened.display === "flex", `${label}: the chooser did not open`);
+  check(opened.contrast >= 4.5,
+    `${label}: text contrast is ${opened.contrast.toFixed(2)}:1, expected at least 4.5:1`);
+
+  await tab.getByRole("button", { name: "Show the whole west" }).click();
+  await tab.waitForFunction(() =>
+    !document.querySelector("dialog.opening-splash")?.hasAttribute("open"));
+  const closed = await tab.locator("dialog.opening-splash").evaluate((dialog) => ({
+    display: getComputedStyle(dialog).display,
+    rectangles: dialog.getClientRects().length
+  }));
+  console.log("  closed:", JSON.stringify(closed));
+  check(closed.display === "none" && closed.rectangles === 0,
+    `${label}: the closed chooser remains visible (${closed.display}, `
+      + `${closed.rectangles} layout rectangle(s))`);
+  await context.close();
+}
+
 for (const viewport of VIEWPORTS) {
   const context = await newPageContext(browser, viewport);
   const tab = await context.newPage();
@@ -760,8 +816,39 @@ for (const viewport of VIEWPORTS) {
     // change on the hidden desktop panel would make the phone run meaningless.
     const mobile = viewport.width < 768;
     const controls = mobile ? "#start-sheet" : "#start-panel";
+    if (mobile) {
+      /* The phone's primary task is the map. The storage sheet is modal and
+       * 82% of the viewport, so opening it automatically turns a map link
+       * into a full-screen form. Prove the page opens on the map, then open
+       * the real control before exercising the sheet below. */
+      const openingSurface = await tab.evaluate(() => {
+        const sheet = document.querySelector("#start-sheet");
+        const toggle = document.querySelector("#controls-toggle");
+        const map = document.querySelector(".map-stage")?.getBoundingClientRect();
+        return {
+          opened: sheet?.hasAttribute("opened") ?? false,
+          togglePressed: toggle?.getAttribute("aria-pressed"),
+          mapHeight: map?.height ?? 0
+        };
+      });
+      check(openingSurface.opened === false,
+        `${label}: the modal storage summary covers the map on first load`);
+      check(openingSurface.togglePressed === "false",
+        `${label}: the storage-summary action reports open on first load`);
+      check(openingSurface.mapHeight > viewport.height / 2,
+        `${label}: the opening map is only ${openingSurface.mapHeight}px tall`);
+      await tab.locator("#controls-toggle").click();
+      await tab.waitForFunction(
+        "document.querySelector('#start-sheet')?.hasAttribute('opened')",
+        { timeout: 5000 });
+    }
     check(await tab.locator(`${controls} [data-filter="storage"]`).isVisible(),
       `${label}: the storage level filter is not visible`);
+    check(await tab.locator(`${controls} [data-large-reservoirs]`).isVisible(),
+      `${label}: the whole-West view hides the very large reservoir controls`);
+    check(await tab.locator(`${controls} [data-large-reservoir="powell"]`).isVisible()
+      && await tab.locator(`${controls} [data-large-reservoir="mead"]`).isVisible(),
+    `${label}: the whole-West view does not offer both large reservoirs`);
     /* Both of ADR-011's dimensions are the reader's to choose. The map opens
      * on every published reservoir now, so the dimension to exercise is the
      * *narrowing* one -- Utah's waterbodies alone. It was the other way round
@@ -1503,6 +1590,59 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
     check(await tab.locator("arcgis-charts-action-bar").count() === 0,
       `${label}: an empty collapsible chart rail is still rendered`);
+
+    /* The phone opens on the summary instead of several long supporting panels. Each
+     * disclosure must still reveal its complete content before the rest of
+     * this test drives the controls. Desktop keeps all three areas open and
+     * does not expose phone-only buttons. */
+    const mobileDisclosures = await tab.evaluate(() => ({
+      weeklyHeight: document.querySelector("#weekly-summary")?.getBoundingClientRect().height ?? 0,
+      filterHeight: document.querySelector(".mobile-filterbar")?.getBoundingClientRect().height ?? 0,
+      settingsHeight: document.querySelector(".chart-settings")?.getBoundingClientRect().height ?? 0,
+      buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+        "overview-table-toggle"].map((id) => ({
+        id,
+        display: getComputedStyle(document.getElementById(id)).display,
+        expanded: document.getElementById(id)?.getAttribute("aria-expanded")
+      })),
+      content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls",
+        "overview-table-scroll"]
+        .map((id) => getComputedStyle(document.getElementById(id)).display)
+    }));
+    if (viewport.width <= 672) {
+      check(mobileDisclosures.buttons.every((button) => button.display !== "none"
+        && button.expanded === "false"),
+      `${label}: phone disclosures do not start closed`);
+      check(mobileDisclosures.content.every((display) => display === "none"),
+        `${label}: a phone disclosure still shows its long content`);
+      check(mobileDisclosures.weeklyHeight < 220
+        && mobileDisclosures.filterHeight < 120
+        && mobileDisclosures.settingsHeight < 180,
+      `${label}: compact cards are ${mobileDisclosures.weeklyHeight}px, ` +
+        `${mobileDisclosures.filterHeight}px and ${mobileDisclosures.settingsHeight}px tall`);
+      for (const id of ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+        "overview-table-toggle"]) {
+        await tab.locator(`#${id}`).click();
+      }
+      const opened = await tab.evaluate(() => ({
+        buttons: ["weekly-toggle", "overview-filter-toggle", "chart-settings-toggle",
+          "overview-table-toggle"]
+          .map((id) => document.getElementById(id)?.getAttribute("aria-expanded")),
+        content: ["weekly-sections", "overview-filter-controls", "chart-settings-controls",
+          "overview-table-scroll"]
+          .map((id) => getComputedStyle(document.getElementById(id)).display)
+      }));
+      check(opened.buttons.every((expanded) => expanded === "true")
+        && opened.content.every((display) => display !== "none"),
+      `${label}: a phone disclosure did not reveal its content`);
+      /* The filter and chart controls stay open for the interactions below;
+       * the digest can return to its compact state. */
+      await tab.locator("#weekly-toggle").click();
+    } else {
+      check(mobileDisclosures.buttons.every((button) => button.display === "none")
+        && mobileDisclosures.content.every((display) => display !== "none"),
+      `${label}: desktop hides content or shows a phone disclosure button`);
+    }
     const chartSettings = await tab.evaluate(() => {
       const row = document.querySelector(".chart-settings");
       const grid = document.querySelector(".overview-chart-grid");
@@ -1561,6 +1701,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
 
     const rankedChart = await tab.locator("#capacity-chart arcgis-chart").evaluate((chart) => ({
       sort: chart.model?.getSortOrder(),
+      categoryFormat: chart.model?.getAxisValueFormat(0),
       order: [...(chart.model?.orderByList ?? [])],
       source: chart.layer?.source?.toArray()
         ?.map((graphic) => graphic.attributes?.label) ?? []
@@ -1569,6 +1710,41 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       `${label}: the reservoir chart overrides the selected rank with ${rankedChart.sort}`);
     check(JSON.stringify(rankedChart.order) === JSON.stringify(rankedChart.source),
       `${label}: the reservoir chart did not preserve its selected rank`);
+    check(rankedChart.categoryFormat?.type === "category"
+      && rankedChart.categoryFormat?.characterLimit === null,
+    `${label}: the reservoir chart still shortens category names`);
+
+    /* The category charts carry many more names than the trend, scatter and
+     * histogram. Their hosts grow with those names, and the box plot turns
+     * sideways so every category reads as a row instead of a clipped,
+     * diagonal fragment. The count comes from each chart's own source, not
+     * from today's payload. */
+    const categoryCharts = await tab.evaluate(() =>
+      ["capacity-chart", "watershed-chart", "spread-chart"].map((id) => {
+        const host = document.getElementById(id);
+        const chart = host?.querySelector("arcgis-chart");
+        const source = chart?.layer?.source?.toArray() ?? [];
+        const categories = new Set(source.map((graphic) => id === "spread-chart"
+          ? graphic.attributes?.grouping : graphic.attributes?.label));
+        return {
+          id,
+          expectedRows: categories.size,
+          rows: Number(host?.style.getPropertyValue("--chart-category-count") ?? 0),
+          height: host?.getBoundingClientRect().height ?? 0,
+          format: chart?.model?.getAxisValueFormat(0),
+          rotated: chart?.model?.rotatedState
+        };
+      }));
+    for (const chart of categoryCharts) {
+      check(chart.rows === chart.expectedRows && chart.rows > 0,
+        `${label}: #${chart.id} sized for ${chart.rows} of ${chart.expectedRows} categories`);
+      check(chart.height >= chart.rows * 16,
+        `${label}: #${chart.id} gives ${chart.height}px to ${chart.rows} category rows`);
+      check(chart.format?.type === "category" && chart.format?.characterLimit === null,
+        `${label}: #${chart.id} still shortens category names`);
+      check(chart.rotated === true,
+        `${label}: #${chart.id} does not put categories into readable rows`);
+    }
     for (const host of ["#capacity-chart", "#trend-chart", "#normal-chart",
       "#distribution-chart", "#spread-chart"]) {
       check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>
@@ -2176,6 +2352,64 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
   check(hover.inside, `${label}: the ${layerId} card extends outside the map`);
 }
 
+/**
+ * The Snowpack and Drought pages share one phone disclosure. Prove both its
+ * compact opening state and the complete form it reveals; desktop keeps the
+ * same always-open bar it had before this control existed.
+ */
+async function exerciseMobileFilterDisclosure(tab, check, label, prefix, viewport) {
+  const selector = `#${prefix}-filter-toggle`;
+  const opening = await tab.evaluate((toggleSelector) => {
+    const toggle = document.querySelector(toggleSelector);
+    const bar = toggle?.closest(".dashboard-filterbar");
+    const controlled = (toggle?.getAttribute("aria-controls") ?? "")
+      .split(/\s+/).filter(Boolean)
+      .map((id) => ({ id, display: getComputedStyle(document.getElementById(id)).display }));
+    return {
+      toggleDisplay: toggle ? getComputedStyle(toggle).display : null,
+      expanded: toggle?.getAttribute("aria-expanded"),
+      controlled,
+      height: bar ? Math.round(bar.getBoundingClientRect().height) : null
+    };
+  }, selector);
+  const mobile = viewport.width <= 672;
+  if (!mobile) {
+    check(opening.toggleDisplay === "none",
+      `${label}: the phone-only filter button is visible on desktop`);
+    check(opening.controlled.length > 0
+      && opening.controlled.every((entry) => entry.display !== "none"),
+    `${label}: desktop hides part of the filter form`);
+    return false;
+  }
+
+  check(opening.toggleDisplay !== null && opening.toggleDisplay !== "none",
+    `${label}: the filter disclosure is not visible on a phone`);
+  check(opening.expanded === "false",
+    `${label}: the filter disclosure reports open on first load`);
+  check(opening.controlled.length > 0
+    && opening.controlled.every((entry) => entry.display === "none"),
+  `${label}: the ${opening.height}px filter card opens with its form expanded`);
+  check(opening.height !== null && opening.height < 150,
+    `${label}: the collapsed filter card is ${opening.height}px tall`);
+
+  await tab.locator(selector).click();
+  const expanded = await tab.evaluate((toggleSelector) => {
+    const toggle = document.querySelector(toggleSelector);
+    return {
+      expanded: toggle?.getAttribute("aria-expanded"),
+      text: toggle?.textContent?.trim(),
+      controlled: (toggle?.getAttribute("aria-controls") ?? "")
+        .split(/\s+/).filter(Boolean)
+        .map((id) => getComputedStyle(document.getElementById(id)).display)
+    };
+  }, selector);
+  check(expanded.expanded === "true" && expanded.text === "Hide filters",
+    `${label}: opening the filter form leaves the button at "${expanded.text}"`);
+  check(expanded.controlled.every((display) => display !== "none"),
+    `${label}: the filter disclosure does not reveal the complete form`);
+  return true;
+}
+
 /* The snowpack view (ADR-021). Loaded through a drainage-area deep link so
  * the shared `?area=` vocabulary is proven, then switched to the whole
  * region. The readiness counts protect against a page that paints the shell
@@ -2210,6 +2444,9 @@ for (const viewport of VIEWPORTS) {
       `${label}: ${linked.tableRows} site rows rendered, readiness reported ${linked.ready?.tableRows}`);
     check(linked.tableRows < linked.ready?.sites,
       `${label}: a narrowed view shows ${linked.tableRows} of ${linked.ready?.sites} sites`);
+
+    const snowFiltersOpened = await exerciseMobileFilterDisclosure(
+      tab, check, label, "snow", viewport);
 
     await tab.selectOption("#snow-area", "all");
     await tab.waitForFunction(
@@ -2316,6 +2553,7 @@ for (const viewport of VIEWPORTS) {
       `${label}: the chosen site is not in the address bar (${siteState.search})`);
     check(siteState.nameButtons === siteState.ready?.tableRows,
       `${label}: ${siteState.nameButtons} site name buttons for ${siteState.ready?.tableRows} rows`);
+    if (snowFiltersOpened) await tab.locator("#snow-filter-toggle").click();
     /* Last, on a settled page: every control is wired, every table is
      * filled, and the shadow roots have rendered their real controls. */
     checkLabelFonts(check, label, labelFonts);
@@ -2348,6 +2586,8 @@ for (const viewport of VIEWPORTS) {
       waitUntil: "domcontentloaded", timeout: 60000
     });
     await tab.waitForFunction(() => window.__droughtReady !== undefined, { timeout: 60000 });
+    const droughtFiltersOpened = await exerciseMobileFilterDisclosure(
+      tab, check, label, "drought", viewport);
     const state = await tab.evaluate(() => ({
       ready: window.__droughtReady,
       rows: document.querySelectorAll(".drought-row").length,
@@ -2566,6 +2806,7 @@ for (const viewport of VIEWPORTS) {
       "usdm-classes", "Drought class");
     await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
       "reservoir-reference", "Reservoir,");
+    if (droughtFiltersOpened) await tab.locator("#drought-filter-toggle").click();
     /* Last, on a settled page: every control is wired, every table is
      * filled, and the shadow roots have rendered their real controls. */
     checkLabelFonts(check, label, labelFonts);
@@ -2985,6 +3226,9 @@ for (const viewport of VIEWPORTS) {
     const byState = await tab.evaluate(() => ({
       ready: window.__dashboardReady,
       summary: document.querySelector('#start-panel [data-filter="summary"]')?.textContent ?? "",
+      scope: document.querySelector('#start-panel [data-value="scope"]')?.textContent ?? "",
+      largeReservoirGroups: [...document.querySelectorAll('[data-large-reservoirs]')]
+        .map((group) => group.hidden),
       listShown: document.querySelectorAll(
         '#start-panel .list-btn:not(.list-btn-excluded)').length
     }));
@@ -2997,6 +3241,11 @@ for (const viewport of VIEWPORTS) {
     check(byState.listShown === byState.ready.shown,
       `${label}: the list showed ${byState.listShown}, the map reported ` +
       `${byState.ready.shown}`);
+    check(byState.largeReservoirGroups.length >= 2
+      && byState.largeReservoirGroups.every(Boolean),
+      `${label}: a state with neither large reservoir still shows its lake controls`);
+    check(!byState.scope.includes("Lake Powell") && !byState.scope.includes("Lake Mead"),
+      `${label}: a state with neither lake has the scope text "${byState.scope}"`);
     /* D5: on this surface the drainage areas are context, so a state choice
      * narrows the reservoirs and draws every area regardless. The snow and
      * drought maps do the opposite, and that difference is deliberate. */
@@ -3440,6 +3689,14 @@ for (const failure of [
           '.where-control calcite-select[label="Which subregion to show"]').length,
         areaSelects: document.querySelectorAll(
           '.where-control calcite-select[label="Which drainage area to show"]').length,
+        filterbar: (() => {
+          const bar = document.querySelector(".dashboard-filterbar");
+          const where = bar?.querySelector(".where-control");
+          return bar && where ? {
+            height: Math.round(bar.getBoundingClientRect().height),
+            whereDisplay: getComputedStyle(where).display
+          } : null;
+        })(),
         viewport: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth
       }));
@@ -3460,6 +3717,12 @@ for (const failure of [
         `subregion ${state.subregionSelects}, drainage area ${state.areaSelects})`);
       check(state.scroll <= state.viewport + 1,
         `${label}: the page scrolls sideways with the where control carrying a link`);
+      if (viewport.name === "desktop" && scenario.label !== "Storage map") {
+        check(state.filterbar?.whereDisplay === "contents",
+          `${label}: the four place selects still occupy one stacked grid cell`);
+        check((state.filterbar?.height ?? Infinity) < 320,
+          `${label}: the filter card is ${state.filterbar?.height}px tall, expected under 320px`);
+      }
       await checkAccessibility(tab, check, label);
     }
 

@@ -27,7 +27,9 @@ import {
 import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
 import { offeredStates } from "./data/state-vocabulary";
 import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
-import { isLate, statewideRollup, type RollupCoverage } from "./data/rollup";
+import {
+  isLakeMead, isLakePowell, isLate, statewideRollup, type RollupCoverage
+} from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
   DEFAULT_SCOPE,
@@ -87,6 +89,7 @@ import {
   setMonthState,
   setRankingCaption,
   setReservoirList,
+  setLargeReservoirAvailability,
   setScopeControl,
   setScopeValue,
   setSummary,
@@ -165,6 +168,8 @@ let openingArea: string | null = null;
  * by the refresh every morning, connected to Utah by drainage but never
  * touching it -- were published and drawn nowhere. */
 let scope: ScopeChoice = { ...DEFAULT_SCOPE };
+/** Which exceptional controls make sense in the current geographic scope. */
+let largeReservoirAvailability = { lakePowell: true, lakeMead: true };
 
 /* `?state=` and `?area=`, resolved once at load (S3a,
  * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md). Module-level, like `scope`
@@ -262,7 +267,8 @@ function updateSummary(): void {
     lakePowell: "include",
     // The reader's own period, so the total and the details panel below it
     // cannot disagree about which years "normal" means (ADR-041).
-    baseline: activeBaselineId
+    baseline: activeBaselineId,
+    minimumBaselineYears: baselineMinimumYears
   }) : null;
   const monthly = month === null ? null : monthlyRollup(inScope, month);
   /* One shape from two, so the card below reads one set of fields whichever
@@ -283,14 +289,20 @@ function updateSummary(): void {
       ? `Published ${formatDate(publishedAt)}`
       : `Average through ${monthLabel(month)}`,
     // Written from the controls rather than fixed in the markup: it read
-    // "excluding Lake Powell" whatever the reader had chosen. Both dominant
-    // reservoirs are named whatever their state, because a total that
-    // silently holds 28 million acre-feet is what ADR-011 and ADR-062 exist
-    // to prevent -- and a card naming one of the two invites the reader to
-    // assume the other is in it.
-    scope: `${scope.geography === "connected" ? "Every reservoir" : "Utah waterbodies only"}, ` +
-      `${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell, ` +
-      `${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead` +
+    // "excluding Lake Powell" whatever the reader had chosen. Every dominant
+    // reservoir available in this place is named whatever its switch state,
+    // because a total that silently holds 28 million acre-feet is what
+    // ADR-011 and ADR-062 exist to prevent. A lake outside the selected place
+    // is omitted; asking a California reader about Lake Mead is not context.
+    scope: [
+      scope.geography === "connected" ? "Every reservoir" : "Utah waterbodies only",
+      ...(largeReservoirAvailability.lakePowell
+        ? [`${scope.lakePowell === "include" ? "including" : "excluding"} Lake Powell`]
+        : []),
+      ...(largeReservoirAvailability.lakeMead
+        ? [`${scope.lakeMead === "include" ? "including" : "excluding"} Lake Mead`]
+        : [])
+    ].join(", ") +
       /* What the total was added up from, in time. A combined percentage
        * looks like one moment's measurement and is not: the newest readings
        * span weeks, because some providers publish daily and some monthly.
@@ -983,6 +995,15 @@ if (!supportsDashboard(browserCapabilities())) {
        * `inScope` by area as well would double-filter the one axis this
        * page already had, and would collapse "N of M" to the narrowed
        * count with no way for a reader to see the wider total again. */
+      const possibleInPlace = overviewScope(published, {
+        ...scope, lakePowell: "include", lakeMead: "include"
+      }).filter((reservoir) =>
+        reservoirInState(reservoir, openingScope.selection.state));
+      largeReservoirAvailability = {
+        lakePowell: possibleInPlace.some(isLakePowell),
+        lakeMead: possibleInPlace.some(isLakeMead)
+      };
+      setLargeReservoirAvailability(largeReservoirAvailability);
       inScope = overviewScope(published, scope)
         .filter((reservoir) => reservoirInState(reservoir, openingScope.selection.state));
       updateSummary();

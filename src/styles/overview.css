@@ -75,6 +75,8 @@ body {
   gap: .5rem 1.25rem;
   align-items: center;
 }
+.mobile-filter-toggle,
+.mobile-disclosure-toggle { display: none; }
 .filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
 /* The site search rides in the head row next to the title rather than
@@ -124,6 +126,12 @@ body {
   gap: .5rem;
   min-width: 0;
 }
+/* Snow and drought place the where control inside the same grid as their
+ * page filters. Leaving its four selects stacked in one grid cell makes that
+ * cell four controls tall and pushes every short sibling to the bottom of a
+ * mostly empty card. Flatten only this host: the storage map's side panel
+ * keeps the deliberate drill-down stack it needs at its narrower width. */
+.filterbar-controls > .where-control { display: contents; }
 .where-control calcite-label {
   min-width: 0;
   --calcite-label-margin-bottom: 0;
@@ -213,9 +221,11 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
   gap: .75rem;
 }
-/* The two charts that read as a ranked list keep the wider column when the
- * grid has room for an odd one out. */
-.overview-chart-grid > :first-child { grid-column: span 1; }
+/* The category-heavy charts need enough room for complete names, and the
+ * histogram's key needs the same full row so it does not leave a half-row
+ * beside the following wide chart. The two compact comparison charts still
+ * share a row on larger screens. */
+.overview-card-wide { grid-column: 1 / -1; }
 
 /* One row owns chart display settings. Keeping it outside the first card
  * prevents the shared measure from reading as a setting for one chart, and
@@ -289,6 +299,11 @@ body {
   text-transform: uppercase;
 }
 .chart-host { position: relative; min-height: 27rem; height: 27rem; overflow: hidden; }
+#capacity-chart,
+#watershed-chart,
+#spread-chart {
+  height: max(27rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+}
 .chart-host arcgis-chart {
   display: flex;
   position: relative;
@@ -475,6 +490,55 @@ body {
   .filterbar-head-search { flex-basis: 100%; }
   .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
   .dashboard-filterbar .reset-button { flex: 0 1 auto; }
+  /* The data pages carry filters, context and display settings that are
+     useful after a reader has seen the headline. A phone keeps each heading
+     visible, then reveals the complete content when the reader asks for it.
+     Desktop keeps the existing always-open layout because these rules never
+     apply there. */
+  .mobile-filter-toggle,
+  .mobile-disclosure-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    padding: .45rem .8rem;
+    color: var(--app-text);
+    background: transparent;
+    border: 1px solid var(--app-accent);
+    border-radius: .3rem;
+    font: 700 .82rem "Avenir Next", Avenir, sans-serif;
+    cursor: pointer;
+  }
+  .mobile-filter-toggle:focus-visible,
+  .mobile-disclosure-toggle:focus-visible {
+    outline: .18rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
+    outline-offset: .12rem;
+  }
+  .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-search,
+  .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-actions,
+  .mobile-filterbar:not(.mobile-filters-open) > .filterbar-controls {
+    display: none;
+  }
+  .mobile-filterbar.mobile-filters-open #overview-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  #overview-filter-actions .switch-label { justify-content: space-between; }
+  #overview-filter-actions .reset-button { width: 100%; }
+  .weekly-card:not(.weekly-open) .weekly-intro,
+  .weekly-card:not(.weekly-open) .weekly-sections {
+    display: none;
+  }
+  .mobile-chart-settings:not(.mobile-chart-settings-open) .chart-settings-copy > p,
+  .mobile-chart-settings:not(.mobile-chart-settings-open) > .chart-settings-controls {
+    display: none;
+  }
+  .mobile-table-card:not(.mobile-table-open) .card-heading p,
+  .mobile-table-card:not(.mobile-table-open) .table-actions,
+  .mobile-table-card:not(.mobile-table-open) > .table-scroll {
+    display: none;
+  }
   /* The headline gets its own line on a phone; the rest pair up. */
   .overview-kpi { flex-basis: 9rem; }
   .overview-kpi-primary { flex-basis: 100%; }
@@ -483,6 +547,11 @@ body {
   .table-actions calcite-button { flex: 1 1 auto; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
+  #capacity-chart,
+  #watershed-chart,
+  #spread-chart {
+    height: max(23rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+  }
 }
 
 /* The chart legend, built from the storage class table so the bars, the map

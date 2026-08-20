@@ -71,6 +71,10 @@ import type {
   BaselineChoice, BaselineId, DroughtCoveragePayload, Reservoir, SnowpackPayload
 } from "./types";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
+import {
+  wireMobileDisclosure,
+  wireMobileFilterDisclosure
+} from "./ui/mobile-filter-disclosure";
 import { THEME_CHANGE_EVENT, wireTheme } from "./ui/theme";
 import { formatAcreFeet, formatDate, formatPercent } from "./viz/format";
 import "./styles/overview.css";
@@ -156,7 +160,11 @@ function updateKpis(
   /* The rows handed in are already the scope the reader chose, so this must
    * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
    * means "do not filter again", which is what makes the toggles work. */
-  const rollup = statewideRollup(reservoirs, { ...WIDEST_SCOPE, baseline: period.id });
+  const rollup = statewideRollup(reservoirs, {
+    ...WIDEST_SCOPE,
+    baseline: period.id,
+    minimumBaselineYears: period.minimumYears
+  });
   const signed = (value: number): string =>
     `${value >= 0 ? "+" : ""}${formatAcreFeet(value)}`;
   const years = periodLabel(period.choices, rollup.normalBaseline);
@@ -208,6 +216,7 @@ function updateKpis(
 interface ComparisonPeriod {
   id: BaselineId;
   choices: readonly BaselineChoice[];
+  minimumYears: number;
 }
 
 async function renderOverview(
@@ -238,11 +247,13 @@ async function renderOverview(
       <div class="card-heading">
         <div>
           <h2 id="weekly-heading">What moved this week</h2>
-          <p>The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so a change to the Lake Powell control changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
+          <p class="weekly-intro">The last seven days, worked out from the same files the rest of this site draws. The storage figures follow the reservoirs the scope includes, so a change to the Lake Powell control changes them. The snow and drought figures describe the whole region and cannot follow a reservoir scope, which each of them says. Nothing here is a forecast.</p>
           <p class="weekly-scope" data-weekly="scope" role="status" aria-live="polite"></p>
         </div>
+        <button id="weekly-toggle" class="mobile-disclosure-toggle" type="button"
+          aria-controls="weekly-sections" aria-expanded="false">Show weekly update</button>
       </div>
-      <div class="weekly-sections"></div>
+      <div id="weekly-sections" class="weekly-sections"></div>
     </section>
     <!-- What a shared link's ?state= and ?area= narrowed this page to when
          it opened (slice S3d, docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
@@ -252,7 +263,7 @@ async function renderOverview(
          rather than empty when the reader asked for nothing, so this never
          announces a blank status line. -->
     <p id="opening-scope-summary" class="opening-scope-summary" role="status" hidden></p>
-    <section class="dashboard-filterbar" aria-labelledby="filter-heading">
+    <section class="dashboard-filterbar mobile-filterbar" aria-labelledby="filter-heading">
       <!-- Lake Powell rides with the heading rather than in the row of
            selects below it. It is not the same kind of question they are:
            they narrow the set the reader is studying, and this one decides
@@ -261,13 +272,16 @@ async function renderOverview(
            it read as one more narrowing filter. -->
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
-        <div class="filterbar-head-actions">
+        <button id="overview-filter-toggle" class="mobile-filter-toggle" type="button"
+          aria-controls="overview-filter-actions overview-filter-controls"
+          aria-expanded="false">Show filters</button>
+        <div id="overview-filter-actions" class="filterbar-head-actions">
           <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
           <label class="switch-label" for="lake-mead-toggle"><span>Include Lake Mead</span><input id="lake-mead-toggle" type="checkbox" role="switch" /></label>
           <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
-      <div class="filterbar-controls">
+      <div id="overview-filter-controls" class="filterbar-controls">
         <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name, drainage area or county" autocomplete="off" /></label>
         <label>State<select id="state-filter"><option value="all">All states</option></select></label>
         <label>Subregion<select id="subregion-filter"><option value="all">All subregions</option></select></label>
@@ -293,20 +307,22 @@ async function renderOverview(
       </div>
       <div class="class-bar" data-classes role="group" aria-labelledby="class-heading"></div>
     </section>
-    <section class="chart-settings" aria-labelledby="chart-settings-heading">
+    <section class="chart-settings mobile-chart-settings" aria-labelledby="chart-settings-heading">
       <div class="chart-settings-copy">
         <p class="eyebrow">Chart display</p>
         <h2 id="chart-settings-heading">Choose how the charts show the filtered data</h2>
         <p>The filters above change every chart and the table. Each setting here says which charts it changes.</p>
       </div>
-      <div class="chart-settings-controls">
+      <button id="chart-settings-toggle" class="mobile-disclosure-toggle" type="button"
+        aria-controls="chart-settings-controls" aria-expanded="false">Show chart options</button>
+      <div id="chart-settings-controls" class="chart-settings-controls">
         <label>Largest reservoirs shown<select id="chart-limit"><option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="25">Top 25</option><option value="0">All</option></select></label>
         <label>Storage charts measure<select id="chart-measure"><option value="percent">Percent full</option><option value="storage">Acre-feet stored</option></select></label>
         <label>Largest reservoirs ordered by<select id="chart-rank"><option value="capacity">Capacity</option><option value="storage">Storage</option><option value="percent">Percent full</option><option value="name">Name</option></select></label>
       </div>
     </section>
     <div class="overview-chart-grid">
-      <section class="overview-card" aria-labelledby="capacity-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="capacity-heading">
         <div class="card-heading">
           <div><h2 id="capacity-heading">Largest reservoirs</h2><p>Click a bar to narrow everything below to that reservoir. Your choice appears in the search box above, and clearing it brings the rest back.</p></div>
           <span class="sdk-badge">Bar chart</span>
@@ -314,7 +330,7 @@ async function renderOverview(
         <div id="capacity-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
-      <section class="overview-card" aria-labelledby="watershed-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="watershed-heading">
         <div class="card-heading"><div><h2 id="watershed-heading">Drainage-area conditions</h2><p>Combined storage divided by the combined full level within each area. Click a bar to filter to it.</p></div><span class="sdk-badge">Bar chart</span></div>
         <div id="watershed-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
@@ -328,7 +344,7 @@ async function renderOverview(
         <div id="normal-chart" class="chart-host" aria-busy="true"></div>
         <div class="chart-legend" data-legend></div>
       </section>
-      <section class="overview-card" aria-labelledby="distribution-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="distribution-heading">
         <div class="card-heading"><div><h2 id="distribution-heading">How full, across all of them</h2><p>Reservoirs sorted into ten equal bands of percent full, with the mean, the middle value, and the range the middle half of them fall in. These reservoirs differ in size, purpose and operating rules, so they are not one population with a shape to fit a curve to.</p></div><span class="sdk-badge">Histogram</span></div>
         <div id="distribution-chart" class="chart-host" aria-busy="true"></div>
         <!-- Under the chart, not beside it. The histogram is the widest thing
@@ -338,15 +354,52 @@ async function renderOverview(
         <ul class="overlay-key" id="distribution-key"
           aria-label="What the lines across the histogram mean"></ul>
       </section>
-      <section class="overview-card" aria-labelledby="spread-heading">
+      <section class="overview-card overview-card-wide" aria-labelledby="spread-heading">
         <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">Box plot</span></div>
         <div id="spread-chart" class="chart-host" aria-busy="true"></div>
       </section>
     </div>
-    <section class="overview-card table-card" aria-labelledby="table-heading">
-      <div class="card-heading"><div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div><div class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div></div>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="Reservoir table, scrolls sideways"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
+    <section class="overview-card table-card mobile-table-card" aria-labelledby="table-heading">
+      <div class="card-heading">
+        <div><h2 id="table-heading">Reservoir detail</h2><p>Exact values for the same filtered records shown above.</p></div>
+        <button id="overview-table-toggle" class="mobile-disclosure-toggle" type="button"
+          aria-controls="overview-table-actions overview-table-scroll"
+          aria-expanded="false">Show table</button>
+        <div id="overview-table-actions" class="table-actions"><label class="sort-control">Sort rows<select id="reservoir-sort"><option value="capacity">Capacity</option><option value="name">Name</option><option value="storage">Current storage</option><option value="percent">Percent full</option><option value="updated">Observation date</option></select></label><calcite-button id="download-overview-csv" appearance="outline" icon-start="export" scale="s">Download filtered table (CSV file)</calcite-button></div>
+      </div>
+      <div id="overview-table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Reservoir table, scrolls sideways"><table class="overview-table"><thead><tr><th>Reservoir</th><th>Drainage area</th><th>Full</th><th>Storage (acre-feet)</th><th>Capacity (acre-feet)</th><th>Observed</th></tr></thead><tbody id="reservoir-rows"></tbody></table></div>
     </section>`;
+
+  const weeklyCard = document.querySelector<HTMLElement>("#weekly-summary");
+  const weeklyToggle = document.querySelector<HTMLButtonElement>("#weekly-toggle");
+  if (weeklyCard && weeklyToggle) {
+    wireMobileDisclosure(weeklyCard, weeklyToggle, {
+      openClass: "weekly-open",
+      openLabel: "Hide weekly update",
+      closedLabel: "Show weekly update"
+    });
+  }
+  const filterbar = document.querySelector<HTMLElement>("#overview-content .mobile-filterbar");
+  const filterToggle = document.querySelector<HTMLButtonElement>("#overview-filter-toggle");
+  if (filterbar && filterToggle) wireMobileFilterDisclosure(filterbar, filterToggle);
+  const chartSettings = document.querySelector<HTMLElement>(".mobile-chart-settings");
+  const chartSettingsToggle = document.querySelector<HTMLButtonElement>("#chart-settings-toggle");
+  if (chartSettings && chartSettingsToggle) {
+    wireMobileDisclosure(chartSettings, chartSettingsToggle, {
+      openClass: "mobile-chart-settings-open",
+      openLabel: "Hide chart options",
+      closedLabel: "Show chart options"
+    });
+  }
+  const tableCard = document.querySelector<HTMLElement>(".mobile-table-card");
+  const tableToggle = document.querySelector<HTMLButtonElement>("#overview-table-toggle");
+  if (tableCard && tableToggle) {
+    wireMobileDisclosure(tableCard, tableToggle, {
+      openClass: "mobile-table-open",
+      openLabel: "Hide table",
+      closedLabel: "Show table"
+    });
+  }
 
   /* One legend per chart, built from the class table rather than by the
    * chart SDK: the bars, the map circles and this all read the same rows, so
@@ -963,7 +1016,8 @@ try {
   await renderOverview(payload.reservoirs, payload.generated_at,
     payload.watersheds?.subregions ?? [], openingScope, openingRosters, {
       id: choices.some((choice) => choice.id === preferred) ? preferred : "recent",
-      choices
+      choices,
+      minimumYears: payload.climate_normals?.minimum_years ?? 0
     });
 } catch (error) {
   console.error("Reservoir overview failed:", error);

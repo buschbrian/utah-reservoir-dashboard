@@ -459,6 +459,29 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
  * from font metrics, and would otherwise widen the panel and the page. */
 .filters calcite-label { min-width: 0; margin-block-start: .5rem; }
 .filters calcite-select { min-width: 0; width: 100%; }
+.filters .large-reservoirs {
+  display: grid;
+  gap: .5rem;
+  min-width: 0;
+  margin: .875rem 0 0;
+  padding: .75rem;
+  border: 1px solid var(--app-border);
+  border-radius: .4rem;
+}
+.filters .large-reservoirs legend {
+  padding-inline: .25rem;
+  font-size: .8125rem;
+  font-weight: 700;
+}
+.filters .large-reservoirs p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.filters .large-reservoirs calcite-label { margin-block-start: 0; }
+.filters .large-reservoirs[hidden],
+.filters [data-large-reservoir][hidden] { display: none; }
 .filter-summary { margin: .75rem 0 .5rem; }
 /* Calcite sets its own `display` on the host, which wins over the user-agent
  * `[hidden] { display: none }` -- so the reset button needs to be hidden by a
@@ -906,15 +929,19 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   max-height: min(42rem, calc(100dvh - 1.5rem));
   /* `dvh` so a phone's collapsing address bar cannot leave the skip under
    * it; `vh` is the tallest the viewport ever gets, not the tallest it is. */
-  display: flex;
+  /* A class selector beats the browser's `dialog:not([open])` rule. Keep the
+   * closed state explicit here, or `dialog.close()` removes modality while
+   * this card stays visibly stranded over the map. */
+  display: none;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--panel-border, #c7d0da);
+  border: 1px solid var(--app-border);
   border-radius: .5rem;
   padding: 1.25rem;
-  background: var(--panel-bg, #fff);
-  color: inherit;
+  background: var(--app-surface-raised);
+  color: var(--app-text);
 }
+.opening-splash[open] { display: flex; }
 
 .opening-splash::backdrop { background: rgb(15 23 42 / .45); }
 
@@ -963,7 +990,7 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
   font-size: .8rem;
   text-transform: none;
   letter-spacing: .01em;
-  color: var(--muted, #52616b);
+  color: var(--app-muted);
 }
 .splash-places h3:first-child { margin-top: .15rem; }
 
@@ -978,16 +1005,18 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .splash-skip {
   font: inherit;
   padding: .4rem .7rem;
-  border: 1px solid var(--panel-border, #c7d0da);
+  border: 1px solid var(--app-border);
   border-radius: .35rem;
-  background: var(--surface-2, #f3f6f9);
-  color: inherit;
+  background: var(--app-surface);
+  color: var(--app-text);
   cursor: pointer;
 }
 .splash-place:hover,
-.splash-skip:hover { background: var(--surface-3, #e7edf3); }
+.splash-skip:hover {
+  background: color-mix(in srgb, var(--app-accent) 12%, var(--app-surface));
+}
 .splash-place:focus-visible,
-.splash-skip:focus-visible { outline: 2px solid var(--focus, #1b3e82); outline-offset: 2px; }
+.splash-skip:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 
 /* Fixed at the bottom of the dialog, never inside the scroll. A reader who
  * wants the whole west is answering, not declining, and the answer should
