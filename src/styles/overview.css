@@ -75,6 +75,7 @@ body {
   gap: .5rem 1.25rem;
   align-items: center;
 }
+.mobile-filter-toggle { display: none; }
 .filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
 /* The site search rides in the head row next to the title rather than
@@ -481,6 +482,33 @@ body {
   .filterbar-head-search { flex-basis: 100%; }
   .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
   .dashboard-filterbar .reset-button { flex: 0 1 auto; }
+  /* Snow and drought gain four place controls after their first paint. A
+     phone does not need to spend its entire opening screen on that form.
+     Keep the filter's heading and current status visible, then reveal the
+     complete form when the reader asks for it. Desktop keeps the existing
+     always-open bar because this rule never applies there. */
+  .mobile-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    padding: .45rem .8rem;
+    color: var(--app-text);
+    background: transparent;
+    border: 1px solid var(--app-accent);
+    border-radius: .3rem;
+    font: 700 .82rem "Avenir Next", Avenir, sans-serif;
+    cursor: pointer;
+  }
+  .mobile-filter-toggle:focus-visible {
+    outline: .18rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
+    outline-offset: .12rem;
+  }
+  .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-search,
+  .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-actions,
+  .mobile-filterbar:not(.mobile-filters-open) > .filterbar-controls {
+    display: none;
+  }
   /* The headline gets its own line on a phone; the rest pair up. */
   .overview-kpi { flex-basis: 9rem; }
   .overview-kpi-primary { flex-basis: 100%; }

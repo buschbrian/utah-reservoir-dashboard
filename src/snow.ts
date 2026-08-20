@@ -81,6 +81,7 @@ import { createWhereControl } from "./ui/where-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
+import { wireMobileFilterDisclosure } from "./ui/mobile-filter-disclosure";
 import { wireTheme } from "./ui/theme";
 import { NO_VALUE_LABEL, SNOW_CLASSES, snowClassIndex } from "./viz/snow-classes";
 import {
@@ -277,15 +278,18 @@ function renderSnow(
   const days = regionPoints.map((point) => point.date);
   content.innerHTML = `
     <p id="snow-scope-summary" class="filter-status" role="status" hidden></p>
-    <section class="dashboard-filterbar" aria-labelledby="snow-filter-heading">
+    <section class="dashboard-filterbar mobile-filterbar" aria-labelledby="snow-filter-heading">
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Mountain snow</p><h2 id="snow-filter-heading">Choose a drainage area</h2></div>
+        <button id="snow-filter-toggle" class="mobile-filter-toggle" type="button"
+          aria-controls="snow-filter-search snow-filter-controls snow-filter-actions"
+          aria-expanded="false">Show filters</button>
         <!-- Beside the title rather than in the control row below: this search
              narrows the site table further down the page, not the drainage
              area the rest of the row is choosing among. -->
-        <label class="filterbar-head-search">Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
+        <label id="snow-filter-search" class="filterbar-head-search">Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
       </div>
-      <div class="filterbar-controls">
+      <div id="snow-filter-controls" class="filterbar-controls">
         <label>Drainage area<select id="snow-area"><option value="all">The whole region</option></select></label>
         <label>Elevation<select id="snow-elev">${ELEVATION_BANDS.map((band) => `<option value="${band}">${elevationBandLabel(band)}</option>`).join("")}</select></label>
         <label>Reporting<select id="snow-reporting">
@@ -294,7 +298,7 @@ function renderSnow(
           <option value="late">Late data only</option>
         </select></label>
       </div>
-      <div class="filterbar-head-actions"><calcite-button id="snow-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every site</calcite-button></div>
+      <div id="snow-filter-actions" class="filterbar-head-actions"><calcite-button id="snow-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every site</calcite-button></div>
     </section>
     <p id="snow-status" class="filter-status" role="status"></p>
     <section class="overview-kpis" aria-label="Snow measurement summary">
@@ -370,6 +374,9 @@ function renderSnow(
   const elevSelect = document.querySelector<HTMLSelectElement>("#snow-elev");
   const statusSelect = document.querySelector<HTMLSelectElement>("#snow-reporting");
   const resetButton = document.querySelector<HTMLElement>("#snow-reset");
+  const filterbar = document.querySelector<HTMLElement>("#snow-content .mobile-filterbar");
+  const filterToggle = document.querySelector<HTMLButtonElement>("#snow-filter-toggle");
+  if (filterbar && filterToggle) wireMobileFilterDisclosure(filterbar, filterToggle);
   const spreadHost = document.querySelector<HTMLElement>("#snow-spread");
   const mapHost = document.querySelector<HTMLElement>("#snow-map-host");
   const daySlider = document.querySelector<HTMLElement & { value?: number }>("#snow-day");

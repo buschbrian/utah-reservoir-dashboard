@@ -2250,6 +2250,64 @@ async function checkViewMapHover(tab, check, label, hostId, cardId, layerId, exp
   check(hover.inside, `${label}: the ${layerId} card extends outside the map`);
 }
 
+/**
+ * The Snowpack and Drought pages share one phone disclosure. Prove both its
+ * compact opening state and the complete form it reveals; desktop keeps the
+ * same always-open bar it had before this control existed.
+ */
+async function exerciseMobileFilterDisclosure(tab, check, label, prefix, viewport) {
+  const selector = `#${prefix}-filter-toggle`;
+  const opening = await tab.evaluate((toggleSelector) => {
+    const toggle = document.querySelector(toggleSelector);
+    const bar = toggle?.closest(".dashboard-filterbar");
+    const controlled = (toggle?.getAttribute("aria-controls") ?? "")
+      .split(/\s+/).filter(Boolean)
+      .map((id) => ({ id, display: getComputedStyle(document.getElementById(id)).display }));
+    return {
+      toggleDisplay: toggle ? getComputedStyle(toggle).display : null,
+      expanded: toggle?.getAttribute("aria-expanded"),
+      controlled,
+      height: bar ? Math.round(bar.getBoundingClientRect().height) : null
+    };
+  }, selector);
+  const mobile = viewport.width <= 672;
+  if (!mobile) {
+    check(opening.toggleDisplay === "none",
+      `${label}: the phone-only filter button is visible on desktop`);
+    check(opening.controlled.length > 0
+      && opening.controlled.every((entry) => entry.display !== "none"),
+    `${label}: desktop hides part of the filter form`);
+    return false;
+  }
+
+  check(opening.toggleDisplay !== null && opening.toggleDisplay !== "none",
+    `${label}: the filter disclosure is not visible on a phone`);
+  check(opening.expanded === "false",
+    `${label}: the filter disclosure reports open on first load`);
+  check(opening.controlled.length > 0
+    && opening.controlled.every((entry) => entry.display === "none"),
+  `${label}: the ${opening.height}px filter card opens with its form expanded`);
+  check(opening.height !== null && opening.height < 150,
+    `${label}: the collapsed filter card is ${opening.height}px tall`);
+
+  await tab.locator(selector).click();
+  const expanded = await tab.evaluate((toggleSelector) => {
+    const toggle = document.querySelector(toggleSelector);
+    return {
+      expanded: toggle?.getAttribute("aria-expanded"),
+      text: toggle?.textContent?.trim(),
+      controlled: (toggle?.getAttribute("aria-controls") ?? "")
+        .split(/\s+/).filter(Boolean)
+        .map((id) => getComputedStyle(document.getElementById(id)).display)
+    };
+  }, selector);
+  check(expanded.expanded === "true" && expanded.text === "Hide filters",
+    `${label}: opening the filter form leaves the button at "${expanded.text}"`);
+  check(expanded.controlled.every((display) => display !== "none"),
+    `${label}: the filter disclosure does not reveal the complete form`);
+  return true;
+}
+
 /* The snowpack view (ADR-021). Loaded through a drainage-area deep link so
  * the shared `?area=` vocabulary is proven, then switched to the whole
  * region. The readiness counts protect against a page that paints the shell
@@ -2284,6 +2342,9 @@ for (const viewport of VIEWPORTS) {
       `${label}: ${linked.tableRows} site rows rendered, readiness reported ${linked.ready?.tableRows}`);
     check(linked.tableRows < linked.ready?.sites,
       `${label}: a narrowed view shows ${linked.tableRows} of ${linked.ready?.sites} sites`);
+
+    const snowFiltersOpened = await exerciseMobileFilterDisclosure(
+      tab, check, label, "snow", viewport);
 
     await tab.selectOption("#snow-area", "all");
     await tab.waitForFunction(
@@ -2390,6 +2451,7 @@ for (const viewport of VIEWPORTS) {
       `${label}: the chosen site is not in the address bar (${siteState.search})`);
     check(siteState.nameButtons === siteState.ready?.tableRows,
       `${label}: ${siteState.nameButtons} site name buttons for ${siteState.ready?.tableRows} rows`);
+    if (snowFiltersOpened) await tab.locator("#snow-filter-toggle").click();
     /* Last, on a settled page: every control is wired, every table is
      * filled, and the shadow roots have rendered their real controls. */
     checkLabelFonts(check, label, labelFonts);
@@ -2422,6 +2484,8 @@ for (const viewport of VIEWPORTS) {
       waitUntil: "domcontentloaded", timeout: 60000
     });
     await tab.waitForFunction(() => window.__droughtReady !== undefined, { timeout: 60000 });
+    const droughtFiltersOpened = await exerciseMobileFilterDisclosure(
+      tab, check, label, "drought", viewport);
     const state = await tab.evaluate(() => ({
       ready: window.__droughtReady,
       rows: document.querySelectorAll(".drought-row").length,
@@ -2640,6 +2704,7 @@ for (const viewport of VIEWPORTS) {
       "usdm-classes", "Drought class");
     await checkViewMapHover(tab, check, label, "drought-map-host", "drought-map-hover",
       "reservoir-reference", "Reservoir,");
+    if (droughtFiltersOpened) await tab.locator("#drought-filter-toggle").click();
     /* Last, on a settled page: every control is wired, every table is
      * filled, and the shadow roots have rendered their real controls. */
     checkLabelFonts(check, label, labelFonts);
