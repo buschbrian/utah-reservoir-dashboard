@@ -65,6 +65,7 @@ export interface BasisShare {
 const BASIS_LABELS: Record<string, string> = {
   normal_storage: "Normal full level",
   max_storage: "Maximum level",
+  reclamation_project_record: "Full level published by the reservoir operator",
   awdb_reservoir_metadata: "Level published with the readings"
 };
 /** The key `basisShares` reports the fallback under. */

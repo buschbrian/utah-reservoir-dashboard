@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { reservoirSymbol, sizeDomain } from "../viz/symbols";
 import {
-  isLakeMead, isLakePowell, percentFull, isLate, RECORD_MAX_BASIS, reservoirInScope,
-  sizeBasis, statewideRollup
+  basisLabel, isLakeMead, isLakePowell, percentFull, isLate, RECORD_MAX_BASIS,
+  reservoirInScope, sizeBasis, statewideRollup
 } from "./rollup";
 import type { Reservoir } from "../types";
 import { validateReservoirPayload } from "./validate";
@@ -406,6 +406,11 @@ describe("what a combined figure is made of", () => {
       expect(share.label).not.toBe(share.basis);
       expect(share.label.length).toBeGreaterThan(0);
     }
+  });
+
+  it("names an owner project record as a full-level source", () => {
+    expect(basisLabel("reclamation_project_record"))
+      .toBe("Full level published by the reservoir operator");
   });
 
   /*

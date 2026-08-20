@@ -6,6 +6,7 @@ import { headlinePercent } from "../viz/symbols";
 import {
   OVERVIEW_COLUMNS,
   TABLE_COLUMNS,
+  capacitySource,
   overviewCsv,
   overviewCsvFilename,
   reservoirCsvFilename,
@@ -15,6 +16,15 @@ import {
 } from "./export";
 
 describe("CSV serialization", () => {
+  it("credits an operator record when it resolves a capacity conflict", () => {
+    const reservoir = readPayload().reservoirs.find(
+      (row) => row.capacity_basis === "reclamation_project_record");
+
+    expect(reservoir).toBeDefined();
+    expect(capacitySource(reservoir!)).toBe("Bureau of Reclamation project record");
+    expect(overviewCsv([reservoir!])).toContain("Bureau of Reclamation project record");
+  });
+
   it("keeps the declared header order and raw numeric values", () => {
     const reservoir = readPayload().reservoirs[0];
     expect(reservoir).toBeDefined();

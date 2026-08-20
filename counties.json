@@ -1,7 +1,7 @@
 {
   "source": "Esri Living Atlas, USA Census Counties (U.S. Census Bureau 2020 boundaries)",
   "source_layer": "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Counties/FeatureServer/0",
-  "retrieved": "2026-08-19",
+  "retrieved": "2026-08-20",
   "assignment_point": "published_point",
   "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
   "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
@@ -438,6 +438,72 @@
       "county_name": "Nevada County",
       "state": "CA"
     },
+    "10774": {
+      "name": "Folsom Lake",
+      "county_fips": "06067",
+      "county_name": "Sacramento County",
+      "state": "CA"
+    },
+    "10782": {
+      "name": "Lake Berryessa",
+      "county_fips": "06095",
+      "county_name": "Solano County",
+      "state": "CA"
+    },
+    "10787": {
+      "name": "Lake Cachuma",
+      "county_fips": "06083",
+      "county_name": "Santa Barbara County",
+      "state": "CA"
+    },
+    "10794": {
+      "name": "Keswick Reservoir",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "10798": {
+      "name": "Lewiston Lake",
+      "county_fips": "06105",
+      "county_name": "Trinity County",
+      "state": "CA"
+    },
+    "10807": {
+      "name": "Millerton Lake",
+      "county_fips": "06039",
+      "county_name": "Madera County",
+      "state": "CA"
+    },
+    "10827": {
+      "name": "Whiskeytown Lake",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "10837": {
+      "name": "Spring Creek Reservoir",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "10843": {
+      "name": "New Melones Lake",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "10854": {
+      "name": "Trinity Lake",
+      "county_fips": "06105",
+      "county_name": "Trinity County",
+      "state": "CA"
+    },
+    "10864": {
+      "name": "Shasta Lake",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
     "10UT03JJ:UT:BOR": {
       "name": "Settlement Canyon",
       "county_fips": "49045",
@@ -660,6 +726,24 @@
       "county_name": "Yakima County",
       "state": "WA"
     },
+    "129059": {
+      "name": "Agate Reservoir",
+      "county_fips": "41029",
+      "county_name": "Jackson County",
+      "state": "OR"
+    },
+    "129300": {
+      "name": "Billy Clapp Lake",
+      "county_fips": "53025",
+      "county_name": "Grant County",
+      "state": "WA"
+    },
+    "129465": {
+      "name": "Banks Lake",
+      "county_fips": "53025",
+      "county_name": "Grant County",
+      "state": "WA"
+    },
     "13010500:WY:BOR": {
       "name": "Jackson Lake",
       "county_fips": "56039",
@@ -670,6 +754,12 @@
       "name": "Palisades Reservoir",
       "county_fips": "16019",
       "county_name": "Bonneville County",
+      "state": "ID"
+    },
+    "130357": {
+      "name": "Black Canyon Reservoir",
+      "county_fips": "16045",
+      "county_name": "Gem County",
       "state": "ID"
     },
     "13042000:ID:BOR": {
@@ -701,6 +791,12 @@
       "county_fips": "16077",
       "county_name": "Power County",
       "state": "ID"
+    },
+    "130821": {
+      "name": "Haystack Reservoir",
+      "county_fips": "41031",
+      "county_name": "Jefferson County",
+      "state": "OR"
     },
     "13083500:ID:BOR": {
       "name": "Oakley Reservoir",
@@ -737,6 +833,12 @@
       "county_fips": "32007",
       "county_name": "Elko County",
       "state": "NV"
+    },
+    "131804": {
+      "name": "Lake Walcott",
+      "county_fips": "16067",
+      "county_name": "Minidoka County",
+      "state": "ID"
     },
     "13182500:OR:BOR": {
       "name": "Lake Owyhee",
@@ -804,6 +906,12 @@
       "county_name": "Valley County",
       "state": "ID"
     },
+    "132563": {
+      "name": "Potholes Reservoir",
+      "county_fips": "53025",
+      "county_name": "Grant County",
+      "state": "WA"
+    },
     "13266900:ID:BOR": {
       "name": "Mann Creek Reservoir",
       "county_fips": "16087",
@@ -834,10 +942,28 @@
       "county_name": "Union County",
       "state": "OR"
     },
+    "132896": {
+      "name": "Mann Lake",
+      "county_fips": "16069",
+      "county_name": "Nez Perce County",
+      "state": "ID"
+    },
     "13289700:ID:BOR": {
       "name": "Brownlee Reservoir",
       "county_fips": "16087",
       "county_name": "Washington County",
+      "state": "ID"
+    },
+    "133021": {
+      "name": "Scooteney Reservoir",
+      "county_fips": "53021",
+      "county_name": "Franklin County",
+      "state": "WA"
+    },
+    "133227": {
+      "name": "Soldiers Meadow Reservoir",
+      "county_fips": "16069",
+      "county_name": "Nez Perce County",
       "state": "ID"
     },
     "13326000:OR:BOR": {
@@ -851,6 +977,12 @@
       "county_fips": "16035",
       "county_name": "Clearwater County",
       "state": "ID"
+    },
+    "134092": {
+      "name": "Rifle Gap Reservoir",
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "state": "CO"
     },
     "14019151:OR:BOR": {
       "name": "Cold Springs",
@@ -1056,6 +1188,12 @@
       "county_name": "Summit County",
       "state": "UT"
     },
+    "319": {
+      "name": "Eden Reservoir",
+      "county_fips": "56037",
+      "county_name": "Sweetwater County",
+      "state": "WY"
+    },
     "337": {
       "name": "Flaming Gorge",
       "county_fips": "49009",
@@ -1110,11 +1248,23 @@
       "county_name": "Wasatch County",
       "state": "UT"
     },
+    "504": {
+      "name": "Lake Nighthorse",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
+    },
     "509": {
       "name": "Lake Powell",
       "county_fips": "49037",
       "county_name": "San Juan County",
       "state": "UT"
+    },
+    "520": {
+      "name": "Lemon Reservoir",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
     },
     "544": {
       "name": "Lost Creek",

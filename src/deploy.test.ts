@@ -42,6 +42,13 @@ const COMMITTED_BUT_UNPUBLISHED = [
   "utah-boundary.geojson"
 ];
 
+/* Reviewed pipeline inputs. The public reference export carries the evidence
+ * readers need; copying either roster would publish a second application
+ * contract beside it. */
+const SOURCE_ONLY_ROSTERS = [
+  "admitted_reservoirs.json", "admitted_rise_reservoirs.json"
+];
+
 const RUNTIME_DATA = [
   "reservoirs.json", "snow_sites.json", "snowpack.json",
   "reference.json", "capacities.json"
@@ -374,6 +381,13 @@ describe("a data-only commit deploys on its own", () => {
        * committed GeoJSON looks like the others and is not. */
       expect(config, `${file} is copied into the deploy`)
         .not.toContain(`"${file}"`);
+    }
+  });
+
+  it("keeps reviewed admission rosters source-only", async () => {
+    const config = await read("vite.config.ts");
+    for (const file of SOURCE_ONLY_ROSTERS) {
+      expect(config, `${file} is copied into the deploy`).not.toContain(`"${file}"`);
     }
   });
 });

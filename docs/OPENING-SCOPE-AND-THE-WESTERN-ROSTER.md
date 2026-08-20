@@ -4,6 +4,20 @@ Scoped 2026-08-19, on `main` with 54 test files and 718 unit tests green. This
 document covers **two pieces of work that look separate and are one**: taking
 the reservoir roster west, and letting a reader choose what they open on.
 
+## Delivery update: R2, 2026-08-20
+
+The second ordered roster slice is complete. Twenty-five Bureau-only daily
+storage items were admitted after provider-point, reviewed-dam-point and dam-
+identity deduplication (ADR-069). The configured roster is now 228; the
+delivery-day payload publishes 223 and names five withdrawn. Reservoirs now
+represent 43 of the 75 drawn drainage areas, adding Lower Sacramento, San
+Joaquin and Central California Coastal. The tables below preserve the
+measurements and projections as they stood when this plan ordered the work.
+
+R3 remains the next roster slice: the non-federal sources, starting with the
+Colorado and California reviews already measured in
+`CDSS-CDEC-API-REVIEW.md`.
+
 It continues [`INITIAL-SCOPE-SELECTION.md`](INITIAL-SCOPE-SELECTION.md), which
 settled the splash's expensive decisions, and
 [`WESTERN-RESERVOIR-ADMISSION.md`](WESTERN-RESERVOIR-ADMISSION.md), which

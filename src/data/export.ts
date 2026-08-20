@@ -40,6 +40,9 @@ export function reservoirIdentifier(reservoir: Reservoir): string | number | nul
 }
 
 export function capacitySource(reservoir: Reservoir): string {
+  if (reservoir.capacity_basis === "reclamation_project_record") {
+    return "Bureau of Reclamation project record";
+  }
   if (reservoir.capacity_basis === "awdb_reservoir_metadata") {
     return "Natural Resources Conservation Service";
   }

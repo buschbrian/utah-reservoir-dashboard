@@ -151,7 +151,7 @@ function describeDenominator(rollup: StatewideRollup): string {
   const named = shares
     .map((share) => `${share.label.toLowerCase()} ${share.count}`)
     .join(", ");
-  return `Full levels of ${shares.length} kinds: ${named}`;
+  return `Full levels: ${named}`;
 }
 
 function updateKpis(

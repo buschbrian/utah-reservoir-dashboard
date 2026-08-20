@@ -3,6 +3,32 @@
 Run 2026-08-19 against the live RISE catalogue and the USACE National
 Inventory of Dams, on `main` at 198 published reservoirs.
 
+## Delivered 2026-08-20
+
+R2 admits the 25 reviewed daily items below through
+`admitted_rise_reservoirs.json` and ADR-069. County assignments, closed-period
+baselines, the daily payload and the public reference export were rebuilt in
+the same change. Twenty-four additions have a usable 1991 through 2020
+baseline; Scooteney has no observations in that closed period and reports no
+comparison for it.
+
+The audit is now committed as `tools/audit_rise_reservoirs.py` and remains
+reproducible after admission by comparing against the pre-R2 roster. A rerun
+on 2026-08-20 found 39 daily storage catalog items and 38 with usable
+observations, one fewer catalog item than the run recorded below. The reviewed
+stages did not move: 37 after the dam-point check, 28 passing the admission
+rules and 25 new dam identities.
+
+Three capacity conflicts were resolved before delivery. Billy Clapp Lake uses
+21,200 acre-feet from the Bureau's Pinto Dam project record, Keswick Reservoir
+uses 23,800 from the Bureau's California program record, and Lake Cachuma uses
+205,000 from the Bradbury Dam project record. Each row retains the national
+inventory values, dam identity and point beside the selected operator record.
+
+Open question 2 is answered: the matched dam identifier is the identity check
+of record. Open question 1 remains separate; the three already-published
+monthly stations do not change provider or history in R2.
+
 R1 admitted the AWDB west. This is the other federal source: the reservoirs
 Reclamation publishes through RISE that AWDB does not carry, or carries less
 often.

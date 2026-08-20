@@ -7,6 +7,23 @@ and is not listed here.
 
 ### Added
 
+- **Twenty-five more western reservoirs from the Bureau of Reclamation.** The
+  R2 audit narrows 1,012 catalogue locations to 38 usable daily storage series,
+  removes Lake Mead by its reviewed dam point and Blue Mesa, Navajo and McPhee
+  by dam identity, and admits 25 new reservoirs (ADR-069). The delivery-day
+  payload now publishes 223 reservoirs and names five withdrawn; 43 of the 75
+  drawn drainage areas hold at least one. Shasta, Trinity, New Melones,
+  Berryessa and Folsom add the major California storage the federal roster was
+  missing. Twenty-four additions have a 1991 through 2020 comparison; Scooteney
+  accurately reports that the closed period has no observations.
+
+- **A reservoir operator can resolve a documented full-level conflict.** The
+  national dam inventory remains the default and still supplies identity and
+  outlet points. Billy Clapp, Keswick and Cachuma retain that evidence but use
+  explicit Bureau project records for their selected full levels. The details
+  panel, combined summaries and CSV export name this basis instead of presenting
+  it as a national inventory value.
+
 - **The maps cover the west.** Seventy-five drainage areas instead of
   fourteen: everything draining to the Pacific, plus the Great Basin, which
   drains nowhere. The drought map has a real measurement for every one of them

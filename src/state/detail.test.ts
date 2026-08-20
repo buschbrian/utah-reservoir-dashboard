@@ -357,6 +357,16 @@ describe("what the panel says about its own basis", () => {
     expect(maximumRow).not.toBe(normalRow);
   });
 
+  it("names a full level resolved from the reservoir operator's record", () => {
+    const reservoir = reservoirs.find(
+      (row) => row.capacity_basis === "reclamation_project_record");
+
+    expect(reservoir).toBeDefined();
+    const capacity = describeReservoir(reservoir!, "#000").rows
+      .find((row) => row.label === "Capacity")?.value ?? "";
+    expect(capacity).toContain("published by the reservoir operator");
+  });
+
   /*
    * A rank without its sample size is the failure this guards; which form it
    * takes is not. "3rd-lowest of 12" names the population it is a position
