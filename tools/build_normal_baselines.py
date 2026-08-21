@@ -170,6 +170,15 @@ DEFAULT_WORKERS = 6
 # count is what lets a reader -- and the pipeline -- refuse to lean on it.
 MIN_YEARS_FOR_A_NORMAL = 10
 
+#: Every provider whose records can appear in this file. Kept as one table so
+#: adding a fetch path cannot leave the committed normals carrying records
+#: whose source metadata names no publisher.
+SOURCES = {
+    "rise": "https://data.usbr.gov/rise-api",
+    "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
+    "cdec": "https://cdec.water.ca.gov/",
+}
+
 
 def fetch_period(reservoir: dict) -> pd.DataFrame:
     """The reservoir's readings across the climate period, and only those.
@@ -519,10 +528,7 @@ def main() -> int:
             "once and committed, because a normal over a closed period does "
             "not change."
         ),
-        "sources": {
-            "rise": "https://data.usbr.gov/rise-api",
-            "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
-        },
+        "sources": SOURCES,
         "reservoirs": records,
     }
 

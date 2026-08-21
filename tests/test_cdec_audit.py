@@ -298,4 +298,3 @@ def test_bon_tempe_is_the_station_the_cutoff_exists_for():
     cutoff = quiet_cutoff(_time.struct_time((2026, 8, 20, 0, 0, 0, 0, 0, 0)))
     assert reading_day("2023-3-1 00:00") < cutoff
     assert reading_day("2026-8-1 00:00") > cutoff
-
