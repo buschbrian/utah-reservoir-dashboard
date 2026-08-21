@@ -705,6 +705,12 @@ function renderDrought(
    * `renderDrought` is ever called (see the comment on `resolveOpening`'s
    * caller), so a picked value takes the path a shared link already takes
    * rather than a re-render this page has no function for.
+   *
+   * The one host that keeps all four axes, so `finest` is left at its
+   * default (ADR-071). The storage and snow pages stop this control above
+   * their own drainage-area picker; this page has no such picker, and
+   * `?area=` filters the drought map and opens the row it names (D4), so
+   * the area axis here is the only way a reader reaches one area at all.
    */
   if (opening) {
     const control = createWhereControl(opening.rosters, openingSelection, (selection) => {

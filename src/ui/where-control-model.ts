@@ -1,8 +1,8 @@
 /*
  * The pure half of the where control (S4,
- * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md): what each of its four
- * selects offers, what it shows as chosen, and what a reader's raw pick
- * turns into. Kept apart from `where-control.ts`, which imports this module
+ * docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md): which of its four axes a
+ * host builds, what each one offers, what it shows as chosen, and what a
+ * reader's raw pick turns into. Kept apart from `where-control.ts`, which imports this module
  * and does the actual DOM building, because nothing in this codebase can
  * exercise a custom element outside a browser (no `jsdom` here -- the same
  * split `ui/hover-content.ts`/`ui/hover.ts` already use, and importing a
@@ -61,12 +61,46 @@ export interface WhereAxis {
   options: readonly WhereOption[];
 }
 
-/** The four axes `createWhereControl` builds a select for. */
+/** The four axes. `createWhereControl` builds a select for as many of them
+ * as its host asked for -- always a prefix of `AXIS_ORDER`, never all four
+ * on a page that owns its own drainage-area control (ADR-071) -- but this
+ * view always carries the whole set, because each axis is narrowed by the
+ * ones above it whether or not they are on screen. */
 export interface WhereControlView {
   state: WhereAxis;
   region: WhereAxis;
   subregion: WhereAxis;
   area: WhereAxis;
+}
+
+/** One axis of the drill-down, named. */
+export type WhereAxisName = keyof WhereControlView;
+
+/**
+ * The four axes coarsest first. This is the drill-down's own order -- each
+ * axis is narrowed by every axis before it -- and it is what makes "stop at
+ * this one" a prefix rather than a set.
+ */
+export const AXIS_ORDER: readonly WhereAxisName[] = ["state", "region", "subregion", "area"];
+
+/**
+ * The axes a host that asked to stop at `finest` gets: that one and
+ * everything coarser, never anything finer.
+ *
+ * A prefix and not a subset, because the axes are not independent. Each
+ * one's options are `resolveOpeningScope`'s answer under everything above
+ * it, so a control offering basins with no subregion select above them
+ * would offer whichever basins the *last link* happened to narrow to, with
+ * no way to change that narrowing -- a list whose contents a reader cannot
+ * see the reason for. Coarse without fine is a shorter drill-down; fine
+ * without coarse is a broken one.
+ *
+ * Lives here rather than beside the DOM building for the reason the whole
+ * module split exists: this is a decision with a rule behind it, and a rule
+ * a Node test can call is a rule that stays true.
+ */
+export function offeredAxes(finest: WhereAxisName): readonly WhereAxisName[] {
+  return AXIS_ORDER.slice(0, AXIS_ORDER.indexOf(finest) + 1);
 }
 
 /**

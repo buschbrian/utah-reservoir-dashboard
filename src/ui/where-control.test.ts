@@ -19,11 +19,14 @@ import type { DrainageArea, DrainageAreaBox } from "../data/boundaries";
 import type { OpeningRosters, OpeningSelection } from "../data/opening-scope";
 import {
   ALL_VALUE,
+  AXIS_ORDER,
   nextSelectionForArea,
   nextSelectionForRegion,
   nextSelectionForState,
   nextSelectionForSubregion,
-  whereControlView
+  offeredAxes,
+  whereControlView,
+  type WhereAxisName
 } from "./where-control-model";
 
 function box(west: number, south: number, east: number, north: number): DrainageAreaBox {
@@ -225,5 +228,46 @@ describe("nextSelectionForArea", () => {
   it("falls back to the subregion on 'All drainage areas', dropping only the basin", () => {
     expect(nextSelectionForArea({ state: "all", area: "140101" }, ALL_VALUE))
       .toEqual({ state: "all", area: "1401" });
+  });
+});
+
+/*
+ * Which axes a host gets (ADR-071). `createWhereControl` builds the selects
+ * and cannot be called here, but the rule it applies is this function, and
+ * the rule is what the storage and snow pages depend on: a page that owns
+ * its own drainage-area control must not be handed a second one.
+ */
+describe("offeredAxes", () => {
+  it("gives the whole drill-down by default, in drill-down order", () => {
+    expect(offeredAxes("area")).toEqual(["state", "region", "subregion", "area"]);
+    expect(offeredAxes("area")).toEqual([...AXIS_ORDER]);
+  });
+
+  it("stops at the named axis and offers nothing finer", () => {
+    expect(offeredAxes("subregion")).toEqual(["state", "region", "subregion"]);
+    expect(offeredAxes("region")).toEqual(["state", "region"]);
+    expect(offeredAxes("state")).toEqual(["state"]);
+  });
+
+  it("never drops a coarser axis to keep a finer one", () => {
+    /* A prefix, always: the finer lists are `resolveOpeningScope`'s answer
+     * under the coarser choices, so a basin select with no subregion select
+     * above it would show a list a reader has no way to change. */
+    for (const finest of AXIS_ORDER) {
+      const offered = offeredAxes(finest);
+      expect(offered).toEqual(AXIS_ORDER.slice(0, offered.length));
+      expect(offered[offered.length - 1]).toBe(finest);
+    }
+  });
+
+  it("keeps the storage and snow pages one step above their own picker", () => {
+    /* The three real callers, spelled out so a change to any of them fails
+     * here rather than only in the browser suite. Snow's follows `?level=`;
+     * drought owns no drainage-area picker and keeps all four. */
+    const snowFinest = (level: number): WhereAxisName => level >= 6 ? "subregion" : "region";
+    expect(offeredAxes(snowFinest(6))).not.toContain("area");
+    expect(offeredAxes(snowFinest(4))).not.toContain("subregion");
+    expect(offeredAxes("subregion")).not.toContain("area");
+    expect(offeredAxes("area")).toContain("area");
   });
 });
