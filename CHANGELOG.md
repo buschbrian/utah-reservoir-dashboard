@@ -232,6 +232,18 @@ and is not listed here.
 
 ### Fixed
 
+- **A single-source refresh stopped naming the reservoirs the other
+  providers had withdrawn.** `refresh_reservoirs.py --source rise` republishes
+  the other providers from the last payload, and a withdrawn reservoir is not
+  in the part of it that merge reads -- it left `reservoirs` entirely and is
+  stated in the envelope instead (ADR-056). So a partial refresh published
+  `withdrawn_count: 0` and quietly stopped saying that any of them had gone,
+  which is the silence that record exists to prevent. The notices are carried
+  now, matched on the provider rather than the reservoir, and their age is
+  recomputed from the date they already publish so a carried notice cannot
+  say a reservoir is 477 days late beside a date 484 days ago. Nothing is
+  re-derived from a reading: a carried notice still holds no measurement.
+
 - **The subregion drought figures were a week behind the map they belong
   to.** Every offered hydrologic level is measured from the same weekly
   polygons, and a reader who switches from basins to subregions fetches a

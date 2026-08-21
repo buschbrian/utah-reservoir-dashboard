@@ -516,6 +516,247 @@ def test_the_withdrawal_notice_carries_no_measurement():
 
 # --- previous-output loading ---------------------------------------------
 
+
+# --- carrying a withdrawal through a partial refresh (ADR-056) -----------
+
+RISE = "Bureau of Reclamation RISE"
+AWDB = "USDA NRCS AWDB"
+
+AWDB_NOTICE = {
+    "name": "Montpelier Reservoir",
+    "as_of": "2025-04-30",
+    "days_stale": 477,
+    "source_label": AWDB,
+    "reason": "no reading inside the publication window",
+}
+
+
+def _previous_payload(path, reservoirs, withdrawn):
+    """Write the shape a morning's run leaves behind: roster, then notices."""
+    path.write_text(json.dumps({
+        "withdraw_after_days": R.WITHDRAW_AFTER_DAYS,
+        "withdrawn_count": len(withdrawn),
+        "withdrawn": withdrawn,
+        "reservoirs": reservoirs,
+    }))
+    return path
+
+
+def _single_source_run(path, fetched, refreshed=(RISE,), today=TODAY):
+    """Replay what `--source <one>` does: merge, partition, carry, state.
+
+    These are main()'s own steps in main()'s order, ending where the envelope
+    does -- with notices rather than records -- so a failure here is the
+    failure the pipeline would publish. `refreshed` is what main() reads off
+    the records it fetched: the labels of the feeds it actually spoke to.
+    """
+    previous = R.load_previous(path)
+    stations = {r["source_station_id"] for r in fetched}
+    records = list(fetched)
+    records.extend(record for station, record in previous.items()
+                   if station not in stations)
+    records, withdrawn = R.partition_by_age(records)
+    withdrawn.extend(R.carry_withdrawals(
+        R.load_previous_withdrawals(path), set(refreshed), today))
+    withdrawn.sort(key=lambda r: -(r.get("days_stale") or 0))
+    return records, [R.withdrawal_notice(r) for r in withdrawn]
+
+
+def test_a_single_source_merge_keeps_the_other_sources_withdrawal_notices(tmp_path):
+    """ADR-056: a withdrawal is always stated, partial refresh or not.
+
+    A withdrawn reservoir is not in `reservoirs`, so the merge that carries
+    the unrefreshed source cannot see it, and `partition_by_age` cannot
+    re-derive the notice from a record that is not there -- the notice holds
+    no reading, which is the point of it. Until it was carried here, a
+    single-source run wrote `withdrawn_count: 0` and silently stopped naming
+    five reservoirs with nothing having happened to them, which is precisely
+    the silence ADR-056 exists to prevent.
+    """
+    path = _previous_payload(
+        tmp_path / "reservoirs.json",
+        reservoirs=[{"name": "Deer Creek", "source_station_id": "919",
+                     "source_label": RISE, "days_stale": 1}],
+        withdrawn=[AWDB_NOTICE])
+
+    records, withdrawn = _single_source_run(
+        path,
+        fetched=[{"name": "Deer Creek", "source_station_id": "919",
+                  "source_label": RISE, "days_stale": 0, "fetch_ok": True}],
+        refreshed=[RISE])
+
+    assert [r["name"] for r in records] == ["Deer Creek"]
+    assert [n["name"] for n in withdrawn] == ["Montpelier Reservoir"]
+    assert withdrawn[0]["source_label"] == AWDB
+    assert withdrawn[0]["days_stale"] > R.WITHDRAW_AFTER_DAYS
+
+
+def test_a_carried_notice_still_carries_no_measurement(tmp_path):
+    """Carrying it forward must not smuggle back what withdrawing removed."""
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[],
+        withdrawn=[{**AWDB_NOTICE, "current_storage_af": 1200.0,
+                    "pct_of_record_max": 12.0}])
+
+    _, withdrawn = _single_source_run(path, fetched=[])
+
+    assert withdrawn[0]["name"] == "Montpelier Reservoir"
+    for key in ("current_storage_af", "pct_of_record_max"):
+        assert key not in withdrawn[0], key
+
+
+def test_the_refreshed_sources_own_notices_are_not_carried(tmp_path):
+    """This run attempted every station of the feed it refreshed.
+
+    Whatever those reservoirs did, they have been answered for: published if
+    they came back, written into `withdrawn` from today's reading if they did
+    not. Carrying the old notice would state one of them twice.
+    """
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[],
+        withdrawn=[AWDB_NOTICE, {**AWDB_NOTICE, "name": "Elkhead Reservoir",
+                                 "source_label": RISE}])
+
+    _, only_awdb = _single_source_run(path, fetched=[], refreshed=[RISE])
+    _, only_rise = _single_source_run(path, fetched=[], refreshed=[AWDB])
+
+    assert [n["name"] for n in only_awdb] == ["Montpelier Reservoir"]
+    assert [n["name"] for n in only_rise] == ["Elkhead Reservoir"]
+
+
+def test_a_reservoir_this_run_republished_is_not_also_withdrawn(tmp_path):
+    """The station came back, so its old notice is history, not news."""
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[], withdrawn=[AWDB_NOTICE])
+
+    records, withdrawn = _single_source_run(
+        path,
+        fetched=[{"name": "Montpelier Reservoir", "source_label": AWDB,
+                  "source_station_id": "10069500:ID:BOR", "days_stale": 0,
+                  "fetch_ok": True}],
+        refreshed=[AWDB])
+
+    assert [r["name"] for r in records] == ["Montpelier Reservoir"]
+    assert withdrawn == []
+
+
+def test_a_reservoir_this_run_refetched_and_still_withdrew_is_stated_once(tmp_path):
+    """Re-derived from today's reading, not stated twice from two places."""
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[], withdrawn=[AWDB_NOTICE])
+
+    age = R.WITHDRAW_AFTER_DAYS + 9
+    records, withdrawn = _single_source_run(
+        path,
+        fetched=[{"name": "Montpelier Reservoir", "source_label": AWDB,
+                  "source_station_id": "10069500:ID:BOR",
+                  "as_of": str((TODAY - pd.Timedelta(days=age)).date()),
+                  "days_stale": age}],
+        refreshed=[AWDB])
+
+    assert records == []
+    assert [n["name"] for n in withdrawn] == ["Montpelier Reservoir"]
+    assert withdrawn[0]["days_stale"] == age
+
+
+def test_a_carried_notice_names_the_age_its_own_date_implies(tmp_path):
+    """`as_of` and `days_stale` are one fact printed twice.
+
+    Left at the value the notice was written with, a reservoir carried for a
+    week says it is 477 days late beside a date 484 days ago. Recomputing is
+    a subtraction over a date the notice already publishes; the reading it
+    was withdrawn for is still not published.
+    """
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[], withdrawn=[AWDB_NOTICE])
+
+    _, withdrawn = _single_source_run(path, fetched=[])
+
+    expected = int((TODAY - pd.Timestamp("2025-04-30")).days)
+    assert withdrawn[0]["days_stale"] == expected
+    assert withdrawn[0]["as_of"] == "2025-04-30"
+
+
+def test_the_worst_withdrawal_is_stated_first_however_it_arrived(tmp_path):
+    """A carried notice and a re-derived one sort together, not in blocks."""
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[],
+        withdrawn=[{**AWDB_NOTICE, "name": "Carried far",
+                    "as_of": "2016-09-30"},
+                   {**AWDB_NOTICE, "name": "Carried near",
+                    "as_of": "2025-04-30"}])
+
+    # Measured from the near notice's own date rather than written down, so
+    # the ordering this asserts cannot come apart as the calendar moves.
+    between = int((TODAY - pd.Timestamp("2025-04-30")).days) + 1
+    _, withdrawn = _single_source_run(
+        path,
+        fetched=[{"name": "Refetched", "source_station_id": "c",
+                  "source_label": RISE,
+                  "as_of": str((TODAY - pd.Timedelta(days=between)).date()),
+                  "days_stale": between}],
+        refreshed=[RISE])
+
+    assert [n["name"] for n in withdrawn] == [
+        "Carried far", "Refetched", "Carried near"]
+
+
+def test_a_notice_naming_a_source_this_run_cannot_see_is_kept(tmp_path):
+    """An older payload, or a feed since renamed.
+
+    Kept, because the cost of holding one notice too long is a reader told
+    about a reservoir that is not there, and the cost of dropping it is the
+    silence ADR-056 was written against.
+    """
+    path = _previous_payload(
+        tmp_path / "reservoirs.json", reservoirs=[],
+        withdrawn=[{**AWDB_NOTICE, "source_label": "A feed since renamed"},
+                   {k: v for k, v in AWDB_NOTICE.items() if k != "source_label"}])
+
+    _, withdrawn = _single_source_run(path, fetched=[], refreshed=[RISE, AWDB])
+
+    assert len(withdrawn) == 2
+
+
+def test_the_partial_refresh_path_actually_carries_the_notices():
+    """The helper above replays main()'s steps; this holds main() to them.
+
+    Every test in this section drives the functions rather than the run, which
+    is what makes them fast and free of the network -- and would let the whole
+    behaviour be correct while `main` never called it. A source check, for the
+    same reason `deploy.test.ts` reads a workflow: the property is that the
+    partial-refresh branch reaches the carry, and nothing else can see it.
+    """
+    source = (Path(__file__).resolve().parent.parent
+              / "refresh_reservoirs.py").read_text(encoding="utf-8")
+    body = source[source.index("def main("):]
+    partial = body[body.index("records, withdrawn = partition_by_age(records)"):]
+
+    assert "carry_withdrawals(" in partial
+    assert "load_previous_withdrawals(OUTPUT_PATH)" in partial
+    # Sorted after the carry, or the worst withdrawal is not stated first
+    # whenever a carried notice is the worst one.
+    assert partial.index("carry_withdrawals(") < partial.index("withdrawn.sort(")
+
+
+def test_load_previous_withdrawals_survives_every_shape_it_may_meet(tmp_path):
+    """It reads the file `load_previous` reads, and fails the same way."""
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+    array_shaped = tmp_path / "array.json"
+    array_shaped.write_text(json.dumps([{"name": "A"}]))
+    pre_adr = tmp_path / "old.json"
+    pre_adr.write_text(json.dumps({"reservoirs": []}))
+    stated = tmp_path / "stated.json"
+    _previous_payload(stated, reservoirs=[], withdrawn=[AWDB_NOTICE])
+
+    assert R.load_previous_withdrawals(tmp_path / "missing.json") == []
+    assert R.load_previous_withdrawals(broken) == []
+    assert R.load_previous_withdrawals(array_shaped) == []
+    assert R.load_previous_withdrawals(pre_adr) == []
+    assert [n["name"] for n in R.load_previous_withdrawals(stated)] == [
+        "Montpelier Reservoir"]
+
 def test_load_previous_accepts_both_file_shapes_and_survives_garbage(tmp_path):
     """Indexed by station id since ADR-066. This is what `carry_forward`
     reads, so a name index would republish one reservoir's last reading under

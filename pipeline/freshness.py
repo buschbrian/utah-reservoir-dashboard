@@ -66,6 +66,10 @@ def withdrawal_notice(record: dict) -> dict:
     the figure. This is the name, when it was last real, and how long ago
     that was -- enough for a reader to know the roster changed and why, and
     not enough for anything to chart it.
+
+    The source label is here to be read as well as displayed: it is the only
+    field that says which feed a notice belongs to, and `carry_withdrawals`
+    is what asks.
     """
     return {
         "name": record.get("name"),
@@ -74,3 +78,45 @@ def withdrawal_notice(record: dict) -> dict:
         "source_label": record.get("source_label"),
         "reason": "no reading inside the publication window",
     }
+
+
+def carry_withdrawals(notices: list[dict], refreshed: set[str],
+                      today: pd.Timestamp) -> list[dict]:
+    """Keep the notices belonging to the sources this run did not refresh.
+
+    A single-source run republishes the other source from the last payload,
+    and a withdrawn reservoir is not in the part of it the merge reads. The
+    notices are carried here instead, so ADR-056's promise that a withdrawal
+    is always stated survives a partial refresh.
+
+    Matched on the source rather than on the reservoir, because the source is
+    what a notice can say. ADR-056 fixes its fields at name, date, age, source
+    label and reason precisely so that nothing downstream can find a
+    measurement in one, and a station id is not among them. It does not need
+    to be: `--source` selects a whole feed, so this run attempted every
+    station of every source it refreshed, and each of those reservoirs has
+    already been answered for -- published if it came back, and written into
+    `withdrawn` from today's reading by `partition_by_age` if it did not.
+    Carrying one of those would state it twice.
+
+    A notice naming a source this run cannot see -- an older payload, or a
+    feed since renamed -- is kept. The cost of keeping one too long is a
+    reader told about a reservoir that is not there; the cost of dropping one
+    is the silence ADR-056 was written against.
+
+    The age is recomputed against today, because `as_of` and `days_stale` are
+    one fact printed twice and a carried notice would otherwise say a
+    reservoir is 477 days late beside a date 484 days ago. That is a
+    subtraction over a date the notice already publishes; the reading it was
+    withdrawn for is still not published.
+    """
+    carried = []
+    for notice in notices:
+        if notice.get("source_label") in refreshed:
+            continue
+        entry = dict(notice)
+        as_of = pd.Timestamp(entry.get("as_of"))
+        if not pd.isna(as_of):
+            entry["days_stale"] = int((today - as_of).days)
+        carried.append(entry)
+    return carried

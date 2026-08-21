@@ -102,7 +102,7 @@ from pipeline.history import (  # noqa: F401
     monthly_history, value_asof
 )
 from pipeline.freshness import (  # noqa: F401
-    carry_forward, partition_by_age, withdrawal_notice
+    carry_forward, carry_withdrawals, partition_by_age, withdrawal_notice
 )
 from pipeline.geography import (  # noqa: F401
     attach_counties, attach_watersheds, dam_points
@@ -552,6 +552,29 @@ def load_previous(path: Path) -> dict[str, dict]:
             if isinstance(r, dict) and r.get("source_station_id")}
 
 
+def load_previous_withdrawals(path: Path) -> list[dict]:
+    """The withdrawal notices the last published payload states.
+
+    Read separately from `load_previous` because they are not in the same
+    place: a withdrawn reservoir leaves `reservoirs` entirely and is stated in
+    the envelope instead (ADR-056). Nothing else can recover one -- the notice
+    deliberately carries no measurement, so a run that has lost it cannot
+    re-derive it by partitioning what it fetched.
+    """
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text())
+    except ValueError:
+        return []
+    if not isinstance(payload, dict):
+        return []
+    notices = payload.get("withdrawn", [])
+    if not isinstance(notices, list):
+        return []
+    return [n for n in notices if isinstance(n, dict) and n.get("name")]
+
+
 def _problem_table(problems: list[dict]) -> list[str]:
     rows = ["| Reservoir | As of | Days stale | Note |", "| --- | --- | ---: | --- |"]
     for r in problems:
@@ -786,7 +809,14 @@ def main() -> int:
     # scheduled feeds. Preserve the other source instead of turning a partial
     # refresh into a partial dashboard.
     selected_stations = set(rise_targets) | set(awdb_targets) | set(cdec_targets)
+    refreshed_sources: set[str] = set()
     if args.source != "all":
+        # Which feeds this run actually spoke to, read from what it fetched
+        # rather than from a flag-to-label table that could drift away from
+        # the labels the records themselves carry. Three providers now, and a
+        # fourth would need no change here.
+        refreshed_sources = {r["source_label"] for r in records
+                             if r.get("source_label")}
         records.extend(record for station, record in previous.items()
                        if station not in selected_stations)
 
@@ -820,6 +850,19 @@ def main() -> int:
             record["stale_after_days"] = STALE_AFTER_DAYS
 
     records, withdrawn = partition_by_age(records)
+
+    if args.source != "all":
+        # The merge above cannot carry a withdrawal, because `load_previous`
+        # reads `reservoirs` and ADR-056's whole point is that a withdrawn
+        # reservoir is not in there. Without this, a run refreshing one source
+        # published `withdrawn_count: 0` and quietly stopped naming every
+        # reservoir the other sources have withdrawn -- exactly the silence
+        # that record exists to prevent. These are notices rather than
+        # records; `withdrawal_notice` is written to pass one through
+        # unchanged, so the envelope below does not need to know.
+        withdrawn.extend(carry_withdrawals(
+            load_previous_withdrawals(OUTPUT_PATH), refreshed_sources, today))
+        withdrawn.sort(key=lambda r: -(r.get("days_stale") or 0))
 
     watersheds = attach_watersheds(records)
     counties = attach_counties(records)
