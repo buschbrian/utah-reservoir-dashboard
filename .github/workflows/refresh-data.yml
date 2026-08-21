@@ -1,18 +1,24 @@
 name: Refresh reservoir data
 
+# What this workflow does is in scripts/refresh-daily.sh, and what its issues
+# say is in tools/feed_issue_report.py. Both are runnable and tested locally.
+# What stays here is what only GitHub can do: when to run, what the run may
+# touch, and the `gh` calls that maintain the three self-healing issues.
+#
+# See docs/operations/data-refresh.md.
+
 on:
   schedule:
     # 12:00 UTC = 6am Mountain Time (MDT, UTC-6). Drifts to 5am during
-    # standard time (MST, UTC-7) since GitHub Actions cron doesn't adjust
-    # for DST -- acceptable for a daily, non-time-critical data refresh.
-    # (The script itself no longer depends on this: it computes "today" in
-    # Mountain Time regardless of when the run fires.)
+    # standard time since GitHub Actions cron doesn't adjust for DST --
+    # acceptable for a daily, non-time-critical data refresh. The script
+    # computes "today" in Mountain Time regardless of when the run fires.
     - cron: "0 12 * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
-  issues: write # so the run can open and close its own staleness issue
+  issues: write # so the run can open and close its own staleness issues
 
 # A scheduled run and a manual run overlapping would have both jobs pushing
 # reservoirs.json from the same base commit; the second push then fails on a
@@ -31,135 +37,25 @@ jobs:
         with:
           python-version: "3.11"
 
-      # Pinned deliberately. These were unpinned, which means the daily job
-      # silently picks up major releases -- pandas 3.0 changed groupby.apply
-      # semantics and deprecated Timestamp.utcnow(), either of which would
-      # have broken the refresh on whatever morning it happened to land.
+      # Pinned deliberately. Unpinned, the daily job silently picks up major
+      # releases -- pandas 3.0 changed groupby.apply semantics and deprecated
+      # Timestamp.utcnow(), either of which would have broken the refresh on
+      # whatever morning it happened to land.
       - name: Install dependencies
         run: pip install -r requirements-pipeline.txt
 
-      # Self-healing attempt #1: a transient RISE outage should cost the run
-      # a few minutes, not a day of data. The script already retries each
-      # HTTP request, but a failure that takes down the whole run (RISE down
-      # for a minute, more than half the reservoirs unreachable) needs a
-      # retry at this level too. Three attempts, backing off 1/3/9 minutes,
-      # all well inside the daily cadence.
-      - name: Pull fresh reservoir data
+      # Every stage, its retries, its reverts and the published file list.
+      # `id: refresh` is still how the issue steps below read the counts:
+      # refresh_reservoirs.py writes them to $GITHUB_OUTPUT itself.
+      - name: Refresh, verify and commit the published data
         id: refresh
         env:
           PYTHONUNBUFFERED: "1"
-        run: |
-          for attempt in 1 2 3; do
-            echo "::group::Refresh attempt $attempt"
-            if python refresh_reservoirs.py; then
-              echo "::endgroup::"
-              exit 0
-            fi
-            echo "::endgroup::"
-            if [ "$attempt" -lt 3 ]; then
-              delay=$((60 * 3 ** (attempt - 1)))
-              echo "::warning title=Refresh retry::Attempt $attempt failed; retrying in ${delay}s"
-              sleep "$delay"
-            fi
-          done
-          echo "::error title=Refresh failed::All 3 attempts failed; reservoirs.json left untouched"
-          exit 1
+        run: scripts/refresh-daily.sh
 
-      # The Drought Monitor changes weekly. A service interruption must not
-      # block current reservoir readings, so keep the last verified polygons
-      # when this independent download fails.
-      - name: Pull current drought polygons
-        run: |
-          if ! python tools/fetch_drought_monitor.py; then
-            echo "::warning title=Drought download failed::Keeping the last verified GeoJSON"
-          fi
-
-      # The two drought files have to describe the same week in the same
-      # commit, and this step is the reason they do.
-      #
-      # The polygons were being fetched here from the day this job learned
-      # about drought, but the coverage figures the drought view actually
-      # renders were only ever recomputed by hand. So the first Thursday the
-      # monitor published, this job would commit new polygons beside week-old
-      # coverage -- and the drought view refuses to draw that mismatch by
-      # design, because two files describing two different weeks is a
-      # pipeline fault a reader must not have to notice. Worse, the deploy
-      # chains off *this* workflow completing rather than off CI passing, so
-      # the broken pair would go live and CI would only turn red afterwards.
-      #
-      # The recompute is deterministic, carries no timestamps and takes about
-      # ten seconds for all 75 units, so it runs every day rather than only
-      # when the download reports a change: a coverage file that somehow fell
-      # behind is then repaired by the next run instead of waiting for someone
-      # to notice.
-      #
-      # Once per offered level (ADR-064). Both files are computed from the one
-      # download, so either failing means both are suspect and the polygons go
-      # back -- a reader who changes the level must never cross a week
-      # boundary doing it. The archive is HUC-6 only, which is what
-      # `--no-history` says here and what `merge_history` refuses to have
-      # otherwise (ADR-063).
-      - name: Recompute drought coverage by drainage area
-        run: |
-          if ! python tools/compute_drought_coverage.py \
-            || ! python tools/compute_drought_coverage.py --scope west-huc4 --no-history; then
-            echo "::warning title=Coverage failed::Reverting the polygons so the pair stays on one week"
-            git checkout -- data/drought/usdm-current.geojson
-          fi
-
-      # Belt and braces, and cheap. If the two files disagree for any reason
-      # this step has not thought of, both are put back to the last commit
-      # where they agreed. Publishing yesterday's drought week is a small,
-      # honest loss; publishing two different weeks is a broken page.
-      - name: Refuse to publish two different drought weeks
-        run: |
-          if ! python tools/check_drought_pair.py; then
-            echo "::warning title=Drought files mismatched::Restoring all of them from the last commit"
-            git checkout -- data/drought/usdm-current.geojson \
-              data/drought/usdm-huc6.json data/drought/usdm-huc4.json
-          fi
-
-      # Snow measurements have their own payload and failure mode. The
-      # reviewed inventory is committed; a short provider response is retried
-      # one station at a time and never replaces the last complete file.
-      - name: Pull current snow measurements
-        run: |
-          if ! python refresh_snowpack.py; then
-            echo "::warning title=Snow download failed::Keeping the last complete snow payload"
-          fi
-
-      - name: Commit and push if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Both drought files or neither: the steps above guarantee they
-          # agree, and staging them together is what keeps that true of the
-          # commit as well as of the working tree.
-          git add reservoirs.json snow_sites.json snowpack.json \
-            data/drought/usdm-current.geojson data/drought/usdm-huc6.json \
-            data/drought/usdm-huc6-history.json
-          if git diff --cached --quiet; then
-            echo "No data changes today."
-            exit 0
-          fi
-          git commit -m "Daily reservoir data refresh"
-          # The push can lose a race with another workflow committing to the
-          # same branch; rebase and retry rather than failing the run and
-          # throwing away a good pull.
-          for attempt in 1 2 3; do
-            if git push; then exit 0; fi
-            echo "Push rejected (attempt $attempt); rebasing onto the remote."
-            git pull --rebase origin "${GITHUB_REF_NAME}" || true
-            sleep $((attempt * 5))
-          done
-          exit 1
-
-      # The monitor publishes each Thursday. When it does not, nothing in
-      # this job fails -- the last verified week is still on the page, marked
-      # with its age -- so the only way anyone finds out is if someone looks.
-      # This is the same self-healing issue pattern the stale-feed alert
-      # uses: it opens when the release is late, updates while it stays late,
-      # and closes itself when a new map arrives.
+      # The monitor publishes each Thursday. When it does not, nothing above
+      # fails -- the last verified week is still on the page, marked with its
+      # age -- so the only way anyone finds out is if someone looks.
       - name: Check the drought release age
         id: drought_age
         run: python tools/check_drought_pair.py --github-output
@@ -171,22 +67,14 @@ jobs:
           DAYS: ${{ steps.drought_age.outputs.days_old }}
           RELEASE: ${{ steps.drought_age.outputs.release_date }}
           MAP_WEEK: ${{ steps.drought_age.outputs.map_date }}
+        # Values reach the shell through the environment rather than through
+        # ${{ }} interpolation: a reservoir name or a table row carrying a
+        # quote would otherwise be pasted into the command line.
         run: |
-          TITLE="The Drought Monitor has not published for $DAYS days"
-          {
-            printf '%s\n\n' "The newest drought map this project holds describes the week of **$MAP_WEEK** and was released on **$RELEASE**, which is **$DAYS** days ago."
-            printf '%s\n\n' "A new map is normally published every Thursday. The drought page keeps showing this one and states its age, so nothing is presented as more current than it is -- but the figures stop tracking conditions on the ground while this is open."
-            printf '%s\n\n' "Check the producer at https://droughtmonitor.unl.edu/ before assuming this is a fault in this pipeline."
-            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
-          } > drought-issue.md
-          gh label create late-drought --color 730000 \
-            --description 'The U.S. Drought Monitor has missed its weekly release' 2>/dev/null || true
-          EXISTING=$(gh issue list --state open --label late-drought --limit 1 --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            gh issue edit "$EXISTING" --title "$TITLE" --body-file drought-issue.md
-          else
-            gh issue create --title "$TITLE" --body-file drought-issue.md --label late-drought
-          fi
+          TITLE=$(python tools/feed_issue_report.py drought \
+            --days "$DAYS" --release "$RELEASE" --map-week "$MAP_WEEK" \
+            --body-file drought-issue.md)
+          scripts/gh-selfhealing-issue.sh open drought "$TITLE" drought-issue.md
 
       - name: Close the late-drought issue once a new map arrives
         if: steps.drought_age.outputs.late == 'false'
@@ -194,16 +82,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MAP_WEEK: ${{ steps.drought_age.outputs.map_date }}
         run: |
-          EXISTING=$(gh issue list --state open --label late-drought --limit 1 --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "A drought map for the week of $MAP_WEEK is published and the coverage figures were recomputed from it. Closing automatically."
-          fi
+          scripts/gh-selfhealing-issue.sh close drought \
+            "A drought map for the week of $MAP_WEEK is published and the coverage figures were recomputed from it. Closing automatically."
 
-      # Self-healing attempt #2: the staleness alert manages its own issue.
       # An open issue is the state "some feed is quiet"; the run closes it as
-      # soon as that stops being true, so nobody has to remember to. This is
-      # the part that turns a warning on a page nobody reads into something
-      # that arrives on its own and goes away on its own.
+      # soon as that stops being true, so nobody has to remember to.
       - name: Open or update the stale-feed issue
         if: steps.refresh.outputs.stale_count != '0' && steps.refresh.outputs.stale_count != ''
         env:
@@ -212,46 +95,24 @@ jobs:
           STALE_NAMES: ${{ steps.refresh.outputs.stale_names }}
           STALE_TABLE: ${{ steps.refresh.outputs.stale_table }}
         run: |
-          TITLE="Reservoir feeds have gone quiet ($STALE_NAMES)"
-          # Built with printf into a file rather than an inline heredoc: a
-          # heredoc indented to match this YAML block would carry those
-          # spaces into the issue body, and four leading spaces is a Markdown
-          # code block.
-          {
-            printf '%s\n\n' "The refresh found **$STALE_COUNT** reservoir(s) later than their expected source cadence."
-            printf '%s\n\n' "$STALE_TABLE"
-            printf '%s\n\n' "A reservoir lands here when its newest reading exceeds its cadence threshold (2 days for daily data; 45 days for month-end data), or when the refresh cannot reach its source. Its last known value is still published and drawn on the map, marked stale — it is not presented as current. Past 60 days it stops being published at all and moves to the withdrawn-feed issue (ADR-056)."
-            printf '%s\n\n' "This issue is maintained automatically: it updates on every refresh and closes itself once every feed is reporting again."
-            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
-          } > issue-body.md
-          gh label create stale-feed --color b45309 \
-            --description 'A reservoir source stopped reporting on its expected cadence' 2>/dev/null || true
-          EXISTING=$(gh issue list --state open --label stale-feed --limit 1 --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            gh issue edit "$EXISTING" --title "$TITLE" --body-file issue-body.md
-            echo "Updated issue #$EXISTING"
-          else
-            gh issue create --title "$TITLE" --body-file issue-body.md --label stale-feed
-          fi
+          TITLE=$(python tools/feed_issue_report.py stale \
+            --count "$STALE_COUNT" --names "$STALE_NAMES" --table "$STALE_TABLE" \
+            --body-file issue-body.md)
+          scripts/gh-selfhealing-issue.sh open stale "$TITLE" issue-body.md
 
       - name: Close the stale-feed issue once every feed recovers
         if: steps.refresh.outputs.stale_count == '0'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(gh issue list --state open --label stale-feed --limit 1 --json number --jq '.[0].number')
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "All reservoir feeds are reporting again as of $(date -u '+%Y-%m-%d'). Closing automatically."
-            echo "Closed issue #$EXISTING"
-          else
-            echo "All feeds fresh, no open issue."
-          fi
+          scripts/gh-selfhealing-issue.sh close stale \
+            "All reservoir feeds are reporting again as of $(date -u '+%Y-%m-%d'). Closing automatically."
 
       # Withdrawal gets its own issue rather than a section in the one above,
-      # because it is a different fact with a different remedy. Stale is
-      # "watch this"; withdrawn is "this reservoir left the map, and someone
-      # has to decide whether the feed is coming back or the reservoir needs
-      # re-sourcing". Same self-healing shape, so it also closes itself.
+      # because it is a different fact with a different remedy. Stale is "watch
+      # this"; withdrawn is "this reservoir left the map, and someone has to
+      # decide whether the feed is coming back or the reservoir needs
+      # re-sourcing".
       - name: Open or update the withdrawn-feed issue
         if: steps.refresh.outputs.withdrawn_count != '0' && steps.refresh.outputs.withdrawn_count != ''
         env:
@@ -260,34 +121,15 @@ jobs:
           WITHDRAWN_NAMES: ${{ steps.refresh.outputs.withdrawn_names }}
           WITHDRAWN_TABLE: ${{ steps.refresh.outputs.withdrawn_table }}
         run: |
-          TITLE="Reservoirs withdrawn for out-of-season data ($WITHDRAWN_NAMES)"
-          {
-            printf '%s\n\n' "The refresh withdrew **$WITHDRAWN_COUNT** reservoir(s) from the published payload. They are **not on the map, not in the list, and not in any total.**"
-            printf '%s\n\n' "$WITHDRAWN_TABLE"
-            printf '%s\n\n' "A reservoir lands here when its newest reading is more than 60 days old. Being late and being from another season are different faults, and the second one is not fixed by a label: a spring reading standing in an August column is an accurate measurement of spring, and the regional storage total sums current storage with no freshness filter, so a carried-forward figure would be added into a total presented as now. See ADR-056."
-            printf '%s\n\n' "**What to decide:** whether the source is coming back, or whether the reservoir needs re-sourcing or retiring from the roster. Nothing is deleted — a withdrawn reservoir returns on its own the morning its source resumes, because the roster it is read from is committed and this judgement is made fresh on every run."
-            printf '%s\n\n' "This issue is maintained automatically: it updates on every refresh and closes itself once every reservoir is inside the publication window again."
-            printf '%s\n' "Last checked $(date -u '+%Y-%m-%d %H:%M UTC') · [refresh run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
-          } > withdrawn-body.md
-          gh label create withdrawn-feed --color b91c1c \
-            --description 'A reservoir is too far out of date to publish beside the others' 2>/dev/null || true
-          EXISTING=$(gh issue list --state open --label withdrawn-feed --limit 1 --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            gh issue edit "$EXISTING" --title "$TITLE" --body-file withdrawn-body.md
-            echo "Updated issue #$EXISTING"
-          else
-            gh issue create --title "$TITLE" --body-file withdrawn-body.md --label withdrawn-feed
-          fi
+          TITLE=$(python tools/feed_issue_report.py withdrawn \
+            --count "$WITHDRAWN_COUNT" --names "$WITHDRAWN_NAMES" --table "$WITHDRAWN_TABLE" \
+            --body-file withdrawn-body.md)
+          scripts/gh-selfhealing-issue.sh open withdrawn "$TITLE" withdrawn-body.md
 
       - name: Close the withdrawn-feed issue once every reservoir is back in range
         if: steps.refresh.outputs.withdrawn_count == '0'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(gh issue list --state open --label withdrawn-feed --limit 1 --json number --jq '.[0].number')
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "Every reservoir is inside the publication window again as of $(date -u '+%Y-%m-%d'), and all are published. Closing automatically."
-            echo "Closed issue #$EXISTING"
-          else
-            echo "Nothing withdrawn, no open issue."
-          fi
+          scripts/gh-selfhealing-issue.sh close withdrawn \
+            "Every reservoir is inside the publication window again as of $(date -u '+%Y-%m-%d'), and all are published. Closing automatically."

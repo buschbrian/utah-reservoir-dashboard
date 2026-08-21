@@ -1,0 +1,173 @@
+{
+  "$comment": [
+    "Who owns each committed data file, in a form a program can read.",
+    "",
+    "Prose said this in four places and none of them was checked, so a file",
+    "could be hand-edited, or written by a pipeline and never committed, and",
+    "nothing noticed. tests/test_generated_files.py holds this table to the",
+    "repository: every path here exists, every writer here exists, and every",
+    "committed data file is classified by it.",
+    "",
+    "`staged_by_refresh` is the list scripts/refresh-daily.sh commits. It is",
+    "read from this file rather than retyped into a workflow, which is how",
+    "data/drought/usdm-huc4.json came to be recomputed every morning and",
+    "committed on none of them."
+  ],
+  "classes": {
+    "generated-daily": "Rewritten by the scheduled refresh. Never hand-edit; change the writer and run it.",
+    "generated-weekly": "Downloaded by the scheduled refresh when the producer publishes. Never hand-edit.",
+    "generated-archive": "Append-only history written by a generator. Never hand-edit, never rewrite in place.",
+    "derived-on-demand": "Rebuilt by a named tool when its inputs change, not by the daily job.",
+    "reviewed-by-hand": "Edited by a person, carrying the evidence for each entry.",
+    "frozen": "Retained for compatibility and parity checks. Do not regenerate."
+  },
+  "files": [
+    {
+      "path": "reservoirs.json",
+      "class": "generated-daily",
+      "writer": "refresh_reservoirs.py",
+      "staged_by_refresh": true,
+      "note": "The published reservoir payload. This commit is the deploy (ADR-002)."
+    },
+    {
+      "path": "snowpack.json",
+      "class": "generated-daily",
+      "writer": "refresh_snowpack.py",
+      "staged_by_refresh": true
+    },
+    {
+      "path": "snow_sites.json",
+      "class": "generated-daily",
+      "writer": "refresh_snowpack.py",
+      "staged_by_refresh": true
+    },
+    {
+      "path": "data/drought/usdm-current.geojson",
+      "class": "generated-weekly",
+      "writer": "tools/fetch_drought_monitor.py",
+      "staged_by_refresh": true,
+      "note": "Verified exclusive polygons. Reverted rather than published alone when coverage fails."
+    },
+    {
+      "path": "data/drought/usdm-huc6.json",
+      "class": "generated-daily",
+      "writer": "tools/compute_drought_coverage.py",
+      "staged_by_refresh": true,
+      "note": "The default level. Must describe the same week as the polygons."
+    },
+    {
+      "path": "data/drought/usdm-huc4.json",
+      "class": "generated-daily",
+      "writer": "tools/compute_drought_coverage.py --scope west-huc4 --no-history",
+      "staged_by_refresh": true,
+      "note": "The other offered level (ADR-064). A reader who changes the level fetches this file, so it is committed with the others or it strands them on another week."
+    },
+    {
+      "path": "data/drought/usdm-huc6-history.json",
+      "class": "generated-archive",
+      "writer": "tools/compute_drought_coverage.py",
+      "staged_by_refresh": true,
+      "note": "One level only; merge_history refuses a payload at another."
+    },
+    {
+      "path": "reference.json",
+      "class": "derived-on-demand",
+      "writer": "tools/build_reference_export.py",
+      "staged_by_refresh": false,
+      "note": "Derived from capacities, counties and the boundary files. tests/test_refresh.py runs the same --check comparison, so drift fails the build."
+    },
+    {
+      "path": "normals.json",
+      "class": "derived-on-demand",
+      "writer": "tools/build_normal_baselines.py",
+      "staged_by_refresh": false,
+      "note": "A median over a period that has ended cannot change. Network job; every run merges."
+    },
+    {
+      "path": "counties.json",
+      "class": "derived-on-demand",
+      "writer": "tools/build_county_assignments.py",
+      "staged_by_refresh": false
+    },
+    {
+      "path": "capacities.json",
+      "class": "derived-on-demand",
+      "writer": "tools/build_capacity_table.py",
+      "staged_by_refresh": false
+    },
+    {
+      "path": "data/us-land.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_us_land_mask.py",
+      "staged_by_refresh": false,
+      "note": "A missing mask stops the drought run rather than reporting border basins as drought-free (ADR-059)."
+    },
+    {
+      "path": "data/watersheds/west-huc2.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_watershed_scope.py",
+      "staged_by_refresh": false
+    },
+    {
+      "path": "data/watersheds/west-huc4.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_watershed_scope.py",
+      "staged_by_refresh": false
+    },
+    {
+      "path": "data/watersheds/west-huc6.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_watershed_scope.py",
+      "staged_by_refresh": false,
+      "note": "The drawn scope. Committed for reproducible analysis, never copied to dist/."
+    },
+    {
+      "path": "data/watersheds/west-huc8.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_watershed_scope.py",
+      "staged_by_refresh": false
+    },
+    {
+      "path": "data/watersheds/upper-colorado-huc6.geojson",
+      "class": "derived-on-demand",
+      "writer": "tools/fetch_watershed_scope.py",
+      "staged_by_refresh": false,
+      "note": "The ten-basin research scope. Registered, not published."
+    },
+    {
+      "path": "admitted_reservoirs.json",
+      "class": "reviewed-by-hand",
+      "writer": null,
+      "staged_by_refresh": false,
+      "note": "Reviewed Conservation Service admissions."
+    },
+    {
+      "path": "admitted_rise_reservoirs.json",
+      "class": "reviewed-by-hand",
+      "writer": null,
+      "staged_by_refresh": false,
+      "note": "Reviewed Reclamation admissions."
+    },
+    {
+      "path": "admitted_cdec_reservoirs.json",
+      "class": "reviewed-by-hand",
+      "writer": null,
+      "staged_by_refresh": false,
+      "note": "Reviewed California admissions, plus the withheld block naming every candidate kept out and the finding behind it. A waiver with no reason is refused by the loader."
+    },
+    {
+      "path": "huc6.geojson",
+      "class": "frozen",
+      "writer": null,
+      "staged_by_refresh": false,
+      "note": "The fourteen-area Utah-connected historical scope, kept for compatibility and parity checks."
+    },
+    {
+      "path": "utah-boundary.geojson",
+      "class": "frozen",
+      "writer": null,
+      "staged_by_refresh": false,
+      "note": "Retired as a published mask by ADR-067; retained for parity."
+    }
+  ]
+}

@@ -83,10 +83,22 @@ describe("a data-only commit deploys on its own", () => {
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
   });
 
+  /*
+   * The refresh sequence moved out of the workflow and into
+   * `scripts/refresh-daily.sh`, so these assertions follow it: what they hold
+   * is a property of the job, not of YAML. The workflow still has to call it.
+   */
   it("commits the payload that the deploy publishes", async () => {
-    const refresh = await read(".github/workflows/refresh-data.yml");
-    expect(refresh).toContain("git add reservoirs.json");
+    const refresh = await read("scripts/refresh-daily.sh");
+    const workflow = await read(".github/workflows/refresh-data.yml");
+
+    expect(workflow).toContain("scripts/refresh-daily.sh");
+    expect(refresh).toContain("git add");
     expect(refresh).toMatch(/git push/);
+    /* The staged set is read from the manifest rather than typed here. It was
+     * typed into the workflow, and usdm-huc4.json -- computed every morning --
+     * was left out of it for its whole first week. */
+    expect(refresh).toContain("generated-files.json");
   });
 
   /*
@@ -155,7 +167,7 @@ describe("a data-only commit deploys on its own", () => {
   });
 
   it("recomputes the drought coverage from the polygons it just downloaded", async () => {
-    const refresh = await read(".github/workflows/refresh-data.yml");
+    const refresh = await read("scripts/refresh-daily.sh");
     const download = refresh.indexOf("tools/fetch_drought_monitor.py");
     const recompute = refresh.indexOf("tools/compute_drought_coverage.py");
 
@@ -164,22 +176,32 @@ describe("a data-only commit deploys on its own", () => {
       .toBeGreaterThan(download);
   });
 
-  it("stages both drought files together, or neither", async () => {
-    const refresh = await read(".github/workflows/refresh-data.yml");
-    /* One `git add`, both files. Staging them in separate commands would let
-     * a failure between the two commit one week of polygons beside another
-     * week of coverage, which is the exact state the page refuses to draw. */
-    const staged = refresh.slice(refresh.indexOf("git add reservoirs.json"));
-    const line = staged.slice(0, staged.indexOf("if git diff"));
+  it("stages every drought file together, or none of them", async () => {
+    /* One `git add`, every file. Staging them in separate commands would let
+     * a failure between two of them commit one week of polygons beside
+     * another week of coverage, which is the exact state the page refuses to
+     * draw. The list is the manifest's, so a level added to the site cannot
+     * be left out of the commit. */
+    const manifest = JSON.parse(await read("data/generated-files.json")) as {
+      files: { path: string; staged_by_refresh: boolean }[];
+    };
+    const staged = manifest.files
+      .filter((entry) => entry.staged_by_refresh).map((entry) => entry.path);
 
-    expect(line).toContain("data/drought/usdm-current.geojson");
-    expect(line).toContain("data/drought/usdm-huc6.json");
+    for (const file of ["data/drought/usdm-current.geojson",
+      "data/drought/usdm-huc6.json", "data/drought/usdm-huc4.json"]) {
+      expect(staged, `${file} is computed every morning and must be committed`)
+        .toContain(file);
+    }
+
+    const refresh = await read("scripts/refresh-daily.sh");
+    expect(refresh.slice(refresh.indexOf("git add"))).toContain("published_files");
   });
 
   it("checks the week before the commit and can put every file back", async () => {
-    const refresh = await read(".github/workflows/refresh-data.yml");
+    const refresh = await read("scripts/refresh-daily.sh");
     const check = refresh.indexOf("tools/check_drought_pair.py");
-    const commit = refresh.indexOf("git add reservoirs.json");
+    const commit = refresh.indexOf("git add");
 
     expect(check).toBeGreaterThanOrEqual(0);
     expect(check, "the week is checked while every file can still be restored")
@@ -195,7 +217,7 @@ describe("a data-only commit deploys on its own", () => {
   });
 
   it("recomputes the coverage at every level the site offers", async () => {
-    const refresh = await read(".github/workflows/refresh-data.yml");
+    const refresh = await read("scripts/refresh-daily.sh");
     /* Both from the one download. Either failing means both are suspect,
      * which is why they share a revert. */
     expect(refresh).toContain("tools/compute_drought_coverage.py --scope west-huc4");
