@@ -129,6 +129,32 @@ cannot narrow twice. `WIDEST_SCOPE` remains for callers that must still pass an
 options object, and its `Required` is what makes admitting the next dominant
 reservoir a compile error rather than a silent exclusion.
 
+## One drainage-area control to a page (ADR-071)
+
+Three pages carry the shared **where control** — a state select and as much of
+the region → subregion → drainage-area drill-down as the host asks for
+(`finest`). Two of them already own a drainage-area control of their own, and
+the shared one **stops one step above it**:
+
+| Page | Its own control | The where control offers |
+|---|---|---|
+| Storage | `[data-filter="drainage"]` — the basins the map holds, plus the coarser code a link opened on | state → region → subregion |
+| Snow | `#snow-area` — the areas with a publishable figure at `?level=`, with site counts | state → region → subregion at level 6, state → region at level 4 |
+| Drought | none | the whole drill-down |
+
+The reason is that both controls answer one question. On snow both write
+`?area=`; on storage `?area=` is the legacy spelling of the `?drainage=` the
+filter writes, and D5 leaves it to that filter rather than narrowing the roster
+with it. The page-owned control is the one that can answer it, because it is
+built from what the page draws: the published roster holds 24 basins with no
+snow measurement site in them, so offering those on the snow page offers a
+choice that empties it.
+
+`offeredAxes` in `where-control-model.ts` is the rule, and it takes a **prefix
+and never a subset** — each axis's options are `resolveOpeningScope`'s answer
+under the axes above it, so a basin list with no subregion select above it is a
+list a reader cannot see the reason for or change.
+
 ## A county is where a thing is; a drainage area is where its water goes
 
 (ADR-058, ADR-060.) Counties are a *search and filter* axis and never a

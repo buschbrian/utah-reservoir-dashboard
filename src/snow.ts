@@ -253,6 +253,17 @@ function formatInches(value: number | null): string {
  * this page is a mean over a different set of sites once the area or the
  * state narrows, so a picked value takes the path a shared link already
  * takes rather than a re-render this page has no function for.
+ *
+ * It stops one step above `#snow-area`, this page's own drainage-area
+ * picker, and does not repeat it (ADR-071). `#snow-area` is built from
+ * `basinChoices` -- the areas this payload has a publishable figure for, at
+ * the size `?level=` is drawing them, with each one's site count in the
+ * label. The shared control is built from the published roster, which holds
+ * 24 basins with no measurement site in them at all; offering those here
+ * would be offering a choice that empties the page. So the two never both
+ * name the same tier: at level 6 this control ends at subregion and
+ * `#snow-area` carries the basins, and at level 4 it ends at region and
+ * `#snow-area` carries the subregions.
  */
 function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
   const host = document.querySelector<HTMLElement>("#snow-content .filterbar-controls");
@@ -265,7 +276,7 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
       window.location.replace(`${window.location.pathname}${query}`);
     /* Large, because the native selects it sits beside are a third taller
      * than a Calcite control at the default scale. */
-  }, { scale: "l" });
+  }, { scale: "l", finest: level >= 6 ? "subregion" : "region" });
   if (control) host.append(control.element);
 }
 

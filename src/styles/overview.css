@@ -113,10 +113,11 @@ body {
   letter-spacing: .01em;
 }
 /* The where control (S4, docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) is
-   four `calcite-label`-wrapped selects stacked inside one grid cell, the same
-   reason and the same fix as `.level-control` above: appended when the
-   reference export resolves, and `min-width: 0` because an unbreakable
-   select otherwise refuses to shrink and widens the whole page at 360px. */
+   three or four `calcite-label`-wrapped selects stacked inside one grid cell
+   -- how many is the host's to say (ADR-071) -- the same reason and the same
+   fix as `.level-control` above: appended when the reference export resolves,
+   and `min-width: 0` because an unbreakable select otherwise refuses to
+   shrink and widens the whole page at 360px. */
 /* Scoped to the control rather than to one host's wrapper: the snow and
  * drought bars use `.filterbar-controls`, the storage panel uses `.filters`,
  * and a rule naming only the first silently stopped applying to the third. */
@@ -126,9 +127,9 @@ body {
   min-width: 0;
 }
 /* Snow and drought place the where control inside the same grid as their
- * page filters. Leaving its four selects stacked in one grid cell makes that
- * cell four controls tall and pushes every short sibling to the bottom of a
- * mostly empty card. Flatten only this host: the storage map's side panel
+ * page filters. Leaving its selects stacked in one grid cell makes that cell
+ * three or four controls tall and pushes every short sibling to the bottom of
+ * a mostly empty card. Flatten only this host: the storage map's side panel
  * keeps the deliberate drill-down stack it needs at its narrower width. */
 .filterbar-controls > .where-control { display: contents; }
 .where-control calcite-label {
