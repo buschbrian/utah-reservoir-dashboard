@@ -97,7 +97,9 @@ ADR-008, then ADR-032 and ADR-061.**
   [ADR-028](ADR-028-use-equal-bands-and-a-colorblind-safe-ramp.md),
   [ADR-032](ADR-032-one-colour-language-per-map-across-pages.md),
   [ADR-038](ADR-038-split-the-snow-classes-and-move-to-a-scientific-colour-map.md),
-  [ADR-039](ADR-039-draw-percent-full-with-a-sequential-ramp.md)
+  [ADR-039](ADR-039-draw-percent-full-with-a-sequential-ramp.md),
+  [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md),
+  [ADR-075](ADR-075-draw-the-spread-chart-rather-than-configure-it.md)
 - Layers and basemaps: [ADR-033](ADR-033-open-every-map-on-the-oceans-basemap.md),
   [ADR-042](ADR-042-sink-the-basemaps-reference-layers-below-the-data.md),
   [ADR-061](ADR-061-reference-geometry-over-continuous-data-only.md)
@@ -196,6 +198,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md) | Divide by a figure the water has not been seen above | Accepted; narrows ADR-003's implementation, not its reasoning |
 | [ADR-073](ADR-073-draw-the-regions-too-and-read-them-from-their-own-publisher.md) | Draw the regions too, and read them from their own publisher | Accepted; extends ADR-064 to a third level |
 | [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md) | Compare the week with the one before it | Accepted; narrows ADR-063's one-archive decision |
+| [ADR-075](ADR-075-draw-the-spread-chart-rather-than-configure-it.md) | Draw the spread chart rather than configure it | Accepted |
 
 ## Relationship to the historical journal
 

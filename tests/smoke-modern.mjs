@@ -1582,6 +1582,10 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       { waitUntil: "domcontentloaded", timeout: 60000 });
     const CHART_HOSTS = ["#capacity-chart", "#watershed-chart", "#trend-chart",
       "#normal-chart", "#distribution-chart", "#spread-chart"];
+    /* Five of the six are the charts SDK. The spread chart is hand-built SVG
+     * since ADR-075, because the SDK could not give a box plot one colour per
+     * box; it is checked on its own further down. */
+    const SDK_CHART_HOSTS = CHART_HOSTS.filter((host) => host !== "#spread-chart");
     /* A real function, not a string. Playwright evaluates a string as an
        expression, so an arrow-function source text evaluates to a Function
        object -- which is truthy, so the wait returned at once and the next
@@ -1592,8 +1596,8 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
     const overviewReady = await tab.evaluate(() => window.__overviewReady);
     check(overviewReady.lakePowellExcluded === false,
       `${label}: readiness signal reports Lake Powell out of the opening scope`);
-    check(await tab.locator("arcgis-chart").count() === CHART_HOSTS.length,
-      `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
+    check(await tab.locator("arcgis-chart").count() === SDK_CHART_HOSTS.length,
+      `${label}: ${await tab.locator("arcgis-chart").count()} of ${SDK_CHART_HOSTS.length} charts rendered`);
     check(await tab.locator("arcgis-charts-action-bar").count() === 0,
       `${label}: an empty collapsible chart rail is still rendered`);
 
@@ -1726,12 +1730,11 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
      * diagonal fragment. The count comes from each chart's own source, not
      * from today's payload. */
     const categoryCharts = await tab.evaluate(() =>
-      ["capacity-chart", "watershed-chart", "spread-chart"].map((id) => {
+      ["capacity-chart", "watershed-chart"].map((id) => {
         const host = document.getElementById(id);
         const chart = host?.querySelector("arcgis-chart");
         const source = chart?.layer?.source?.toArray() ?? [];
-        const categories = new Set(source.map((graphic) => id === "spread-chart"
-          ? graphic.attributes?.grouping : graphic.attributes?.label));
+        const categories = new Set(source.map((graphic) => graphic.attributes?.label));
         return {
           id,
           expectedRows: categories.size,
@@ -1752,7 +1755,7 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
         `${label}: #${chart.id} does not put categories into readable rows`);
     }
     for (const host of ["#capacity-chart", "#trend-chart", "#normal-chart",
-      "#distribution-chart", "#spread-chart"]) {
+      "#distribution-chart"]) {
       check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>
         typeof chart.tooltipFormatter === "function"),
       `${label}: ${host} has no arranged pointer summary`);
@@ -1765,7 +1768,41 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
      * SVG charts, and the canvas ones are held to what they computed: the
      * SDK reports its own statistics on `arcgisDataProcessComplete`, which
      * is a stronger claim than "some pixels are lit" anyway. */
-    const svgCharts = ["#capacity-chart", "#watershed-chart", "#trend-chart", "#spread-chart"];
+    /* The spread chart, on its own terms. It is hand-built SVG (ADR-075) and
+     * the properties worth holding are the ones the SDK version could not
+     * deliver: one colour per box, taken from the class table, and a row per
+     * drainage area with its whole name in it. */
+    const spread = await tab.evaluate(() => {
+      const host = document.getElementById("spread-chart");
+      const boxes = [...(host?.querySelectorAll(".spread-box") ?? [])];
+      const names = [...(host?.querySelectorAll(".spread-name") ?? [])]
+        .map((node) => node.textContent ?? "");
+      return {
+        rows: host?.querySelectorAll(".spread-row").length ?? 0,
+        fills: boxes.map((node) => node.getAttribute("fill")),
+        widest: boxes.reduce(
+          (most, node) => Math.max(most, node.getBoundingClientRect().width), 0),
+        truncated: names.filter((name) => name.endsWith("…")).length,
+        longest: names.reduce((most, name) => Math.max(most, name.length), 0),
+        busy: host?.getAttribute("aria-busy")
+      };
+    });
+    check(spread.rows > 1, `${label}: #spread-chart drew ${spread.rows} rows`);
+    check(spread.widest > 3, `${label}: #spread-chart drew no boxes`);
+    /* The whole reason this chart left the SDK. A box plot there is one
+     * series however many categories it has, and every colour API is per
+     * series, so every box came out the same colour whatever renderer it was
+     * given. More than one distinct fill here is the fix, asserted. */
+    check(new Set(spread.fills).size > 1,
+      `${label}: #spread-chart drew every box in one colour (${spread.fills.length} boxes, `
+      + `${new Set(spread.fills).size} colour)`);
+    check(spread.truncated === 0,
+      `${label}: #spread-chart shortened ${spread.truncated} area names`);
+    check(spread.longest > 12,
+      `${label}: #spread-chart names look clipped, longest is ${spread.longest} characters`);
+    check(spread.busy === "false", `${label}: #spread-chart still reports itself busy`);
+
+    const svgCharts = ["#capacity-chart", "#watershed-chart", "#trend-chart"];
     for (const host of svgCharts) {
       check(await tab.locator(`${host} arcgis-chart`).evaluate((chart) =>
         [...(chart.shadowRoot?.querySelectorAll("svg rect, svg path, svg circle") ?? [])]
@@ -1835,11 +1872,16 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       check(await tab.getAttribute(host, "aria-busy") === "false",
         `${label}: ${host} still reports itself as loading`);
     }
-    for (const host of CHART_HOSTS) {
+    for (const host of SDK_CHART_HOSTS) {
       check(await tab.locator(`${host} arcgis-chart`)
         .evaluate((chart) => Boolean(chart.aria?.label)),
       `${label}: ${host} has no accessible name`);
     }
+    /* The spread chart names itself on its own root, because it is an SVG
+     * rather than a component with an `aria` property. */
+    check(await tab.locator("#spread-chart svg")
+      .evaluate((svg) => Boolean(svg.getAttribute("aria-label"))),
+    `${label}: #spread-chart has no accessible name`);
 
     /* The month axis, which sorted alphabetically twice before it sorted by
      * time: first as month names, then as year-plus-abbreviation. The
