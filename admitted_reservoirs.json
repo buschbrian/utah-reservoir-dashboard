@@ -344,8 +344,8 @@
       "huc6": "140200",
       "huc6_name": "Gunnison",
       "capacity": {
-        "capacity_af": 748430.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 938469.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 748430.0,
         "max_storage_af": 938469.0,
         "nid_storage_af": 940700.0,
@@ -354,7 +354,8 @@
         "dam_lon": -107.33421,
         "dam_lat": 38.45331,
         "match_distance_km": 0.034,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 748,430 acre-feet is not the figure these readings are measured against: 829,145 acre-feet has been observed here since 2015. The same inventory record's max storage of 938,469 contains it (ADR-072)."
       }
     },
     "09009340:CO:BOR": {
@@ -542,8 +543,8 @@
       "huc6": "140200",
       "huc6_name": "Gunnison",
       "capacity": {
-        "capacity_af": 920.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 1450.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 920.0,
         "max_storage_af": 1450.0,
         "nid_storage_af": 1450.0,
@@ -552,7 +553,8 @@
         "dam_lon": -106.66391,
         "dam_lat": 38.35501,
         "match_distance_km": 0.018,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 920 acre-feet is not the figure these readings are measured against: 1,046 acre-feet has been observed here since 2015. The same inventory record's max storage of 1,450 contains it (ADR-072)."
       }
     },
     "09009170:CO:BOR": {
@@ -608,8 +610,8 @@
       "huc6": "140401",
       "huc6_name": "Upper Green",
       "capacity": {
-        "capacity_af": 39700.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 54400.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 39700.0,
         "max_storage_af": 54400.0,
         "nid_storage_af": 54400.0,
@@ -618,7 +620,8 @@
         "dam_lon": -109.42871,
         "dam_lat": 42.24861,
         "match_distance_km": 0.125,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 39,700 acre-feet is not the figure these readings are measured against: 51,963 acre-feet has been observed here since 2015. The same inventory record's max storage of 54,400 contains it (ADR-072)."
       }
     },
     "09223100:WY:BOR": {
@@ -1048,8 +1051,8 @@
       "huc6": "160501",
       "huc6_name": "Truckee",
       "capacity": {
-        "capacity_af": 32870.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 40870.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 32870.0,
         "max_storage_af": 40870.0,
         "nid_storage_af": 41141.0,
@@ -1058,7 +1061,8 @@
         "dam_lon": -120.09551,
         "dam_lat": 39.39011,
         "match_distance_km": 0.16,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 32,870 acre-feet is not the figure these readings are measured against: 40,850 acre-feet has been observed here since 2015. The same inventory record's max storage of 40,870 contains it (ADR-072)."
       }
     },
     "10338400:CA:BOR": {
@@ -1136,8 +1140,8 @@
       "huc6": "160501",
       "huc6_name": "Truckee",
       "capacity": {
-        "capacity_af": 10400.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 12700.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 10400.0,
         "max_storage_af": 12700.0,
         "nid_storage_af": 12700.0,
@@ -1146,7 +1150,8 @@
         "dam_lon": -119.9071,
         "dam_lat": 39.17299,
         "match_distance_km": 0.136,
-        "match_confirmed_by": "position"
+        "match_confirmed_by": "position",
+        "denominator_note": "The conservation pool of 10,400 acre-feet is not the figure these readings are measured against: 12,200 acre-feet has been observed here since 2015. The same inventory record's max storage of 12,700 contains it (ADR-072)."
       }
     },
     "10340300:CA:BOR": {
@@ -2258,8 +2263,8 @@
       "huc6": "170502",
       "huc6_name": "Middle Snake-Powder",
       "capacity": {
-        "capacity_af": 13307.0,
-        "capacity_basis": "max_storage",
+        "capacity_af": 20495.0,
+        "capacity_basis": "nid_storage",
         "normal_storage_af": null,
         "max_storage_af": 13307.0,
         "nid_storage_af": 20495.0,
@@ -2268,7 +2273,8 @@
         "dam_lon": -117.78101,
         "dam_lat": 45.01271,
         "match_distance_km": 0.046,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "Observed at 16,017 acre-feet, above the max storage of 13,307 it was divided by. The same record's nid storage of 20,495 contains it (ADR-072)."
       }
     },
     "13272500:OR:BOR": {
@@ -2412,8 +2418,8 @@
       "huc6": "170701",
       "huc6_name": "Middle Columbia",
       "capacity": {
-        "capacity_af": 4326.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 14091.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 4326.0,
         "max_storage_af": 14091.0,
         "nid_storage_af": 14091.0,
@@ -2422,7 +2428,8 @@
         "dam_lon": -119.54454,
         "dam_lat": 45.34706,
         "match_distance_km": 0.031,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 4,326 acre-feet is not the figure these readings are measured against: 7,478 acre-feet has been observed here since 2015. The same inventory record's max storage of 14,091 contains it (ADR-072)."
       }
     },
     "14097310:OR:BOR": {
@@ -2676,8 +2683,8 @@
       "huc6": "170900",
       "huc6_name": "Willamette",
       "capacity": {
-        "capacity_af": 155000.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 455000.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 155000.0,
         "max_storage_af": 455000.0,
         "nid_storage_af": 455000.0,
@@ -2686,7 +2693,8 @@
         "dam_lon": -122.25011,
         "dam_lat": 44.72174,
         "match_distance_km": 0.052,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 155,000 acre-feet is not the figure these readings are measured against: 426,115 acre-feet has been observed here since 2015. The same inventory record's max storage of 455,000 contains it (ADR-072)."
       }
     },
     "14149150:OR:BOR": {
@@ -2698,8 +2706,8 @@
       "huc6": "170900",
       "huc6_name": "Willamette",
       "capacity": {
-        "capacity_af": 22200.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 29900.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 22200.0,
         "max_storage_af": 29900.0,
         "nid_storage_af": 29900.0,
@@ -2708,7 +2716,8 @@
         "dam_lon": -122.8082,
         "dam_lat": 43.9212,
         "match_distance_km": 0.393,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 22,200 acre-feet is not the figure these readings are measured against: 26,981 acre-feet has been observed here since 2015. The same inventory record's max storage of 29,900 contains it (ADR-072)."
       }
     },
     "14155000:OR:BOR": {
@@ -2808,8 +2817,8 @@
       "huc6": "170900",
       "huc6_name": "Willamette",
       "capacity": {
-        "capacity_af": 160000.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 430000.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 160000.0,
         "max_storage_af": 430000.0,
         "nid_storage_af": 430000.0,
@@ -2818,7 +2827,8 @@
         "dam_lon": -122.54886,
         "dam_lat": 44.45007,
         "match_distance_km": 0.037,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 160,000 acre-feet is not the figure these readings are measured against: 408,133 acre-feet has been observed here since 2015. The same inventory record's max storage of 430,000 contains it (ADR-072)."
       }
     },
     "14202965:OR:BOR": {
@@ -3006,8 +3016,8 @@
       "huc6": "171100",
       "huc6_name": "Puget Sound",
       "capacity": {
-        "capacity_af": 26000.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 136700.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 26000.0,
         "max_storage_af": 136700.0,
         "nid_storage_af": 136700.0,
@@ -3016,7 +3026,8 @@
         "dam_lon": -121.78656,
         "dam_lat": 47.27821,
         "match_distance_km": 0.157,
-        "match_confirmed_by": "position"
+        "match_confirmed_by": "position",
+        "denominator_note": "The conservation pool of 26,000 acre-feet is not the figure these readings are measured against: 75,200 acre-feet has been observed here since 2015. The same inventory record's max storage of 136,700 contains it (ADR-072)."
       }
     },
     "12193000:WA:BOR": {
@@ -3226,8 +3237,8 @@
       "huc6": "180200",
       "huc6_name": "Upper Sacramento",
       "capacity": {
-        "capacity_af": 8800.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 11400.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 8800.0,
         "max_storage_af": 11400.0,
         "nid_storage_af": 11400.0,
@@ -3236,7 +3247,8 @@
         "dam_lon": -120.50993,
         "dam_lat": 42.24283,
         "match_distance_km": 0.061,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 8,800 acre-feet is not the figure these readings are measured against: 9,700 acre-feet has been observed here since 2015. The same inventory record's max storage of 11,400 contains it (ADR-072)."
       }
     },
     "11338500:OR:BOR": {
@@ -3248,8 +3260,8 @@
       "huc6": "180200",
       "huc6_name": "Upper Sacramento",
       "capacity": {
-        "capacity_af": 62500.0,
-        "capacity_basis": "normal_storage",
+        "capacity_af": 65000.0,
+        "capacity_basis": "max_storage",
         "normal_storage_af": 62500.0,
         "max_storage_af": 65000.0,
         "nid_storage_af": 65000.0,
@@ -3258,7 +3270,8 @@
         "dam_lon": -120.61804,
         "dam_lat": 42.12198,
         "match_distance_km": 0.105,
-        "match_confirmed_by": "name and position"
+        "match_confirmed_by": "name and position",
+        "denominator_note": "The conservation pool of 62,500 acre-feet is not the figure these readings are measured against: 68,930 acre-feet has been observed here since 2015. The same inventory record's max storage of 65,000 contains it (ADR-072)."
       }
     }
   },

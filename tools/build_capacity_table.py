@@ -309,24 +309,39 @@ def main() -> int:
         print(f"{name:<18} {str(normal):>12} {str(maximum):>12} {str(nid):>12} "
               f"{str(record_max):>12}  {dam.get(name_field)}")
 
-        # Order matters. normal_storage (conservation pool) is the figure
-        # that tracks reality: for reservoirs that have it, it lands within a
-        # percent of the storage actually observed since 2015 (Strawberry
-        # 1,105,910 vs 1,106,560 observed; Rockport 62,120 vs 62,372).
-        # nid_storage is the maximum pool *including flood surcharge* and is
-        # the worst choice of the three -- Lake Powell has no normal_storage,
-        # and taking nid_storage gave 29,875,000 af against a real full pool
-        # nearer 25,000,000, quietly understating how empty it is. Fall back
-        # to max_storage before nid_storage.
-        denominator = normal or maximum or nid
-        basis = ("normal_storage" if normal else
-                 "max_storage" if maximum else "nid_storage")
+        # Order matters, and so does what the water has done. The preference
+        # is normal_storage (conservation pool) first, then max_storage, then
+        # nid_storage: the conservation pool is the figure that tracks reality
+        # for almost every reservoir here, landing within a percent of the
+        # storage actually observed since 2015 (Strawberry 1,105,910 vs
+        # 1,106,560; Rockport 62,120 vs 62,372), while the headline figure is
+        # the worst of the three -- Lake Powell has no normal_storage, and
+        # taking nid_storage gave 29,875,000 af against a real full pool
+        # nearer 25,000,000, quietly understating how empty it is.
+        #
+        # The preference is a preference and not a rule on its own, because
+        # for a handful of reservoirs the conservation pool is not the figure
+        # the readings are measured against at all: the Corps flood-control
+        # projects report gross storage, and Detroit's series stands at
+        # 346,757 acre-feet against a 155,000 pool. `denominator_for` offers
+        # each figure in turn and takes the first the observed record fits
+        # inside, so the pool keeps every reservoir it describes and loses the
+        # ones it does not (ADR-072).
+        denominator, basis = admission.denominator_for(
+            {"normal_storage_af": normal, "max_storage_af": maximum,
+             "nid_storage_af": nid},
+            record_max)
         if denominator is None:
             keep_or_report(station, name, "no usable storage figure in the inventory")
             continue
-        # The load-bearing check: we have observed this reservoir since 2015,
-        # so a capacity below what we have already seen in it means the match
-        # is wrong -- not that it overflowed for a decade.
+        # The load-bearing check, and now the *residual* one: we have observed
+        # this reservoir since 2015, so a capacity below what we have already
+        # seen in it means the match is wrong -- not that it overflowed for a
+        # decade. `denominator_for` above has already tried every figure the
+        # record holds, so reaching here means none of them contains the
+        # water. That is either a wrong dam or a surcharge above every
+        # published pool (ADR-065), and neither is a denominator this tool can
+        # choose between.
         if record_max and denominator < record_max * 0.9:
             keep_or_report(
                 station, name,

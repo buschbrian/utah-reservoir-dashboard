@@ -30,7 +30,7 @@ than bundled. **Start with ADR-002.**
 
 ### Reservoir admission, identity and source authority
 Which reservoirs are published, how one is identified, and which figure is the
-denominator. **Start with ADR-070, then ADR-003.**
+denominator. **Start with ADR-070, then ADR-072, then ADR-003.**
 
 - Current: [ADR-003](ADR-003-capacity-from-the-national-inventory-of-dams.md),
   [ADR-015](ADR-015-confirm-a-dam-by-position-before-name.md),
@@ -39,7 +39,8 @@ denominator. **Start with ADR-070, then ADR-003.**
   [ADR-065](ADR-065-the-ceiling-is-the-largest-figure-the-record-holds.md),
   [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md),
   [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md),
-  [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md)
+  [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md),
+  [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md)
 - Freshness and withdrawal:
   [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md)
 - Procedure: [`docs/operations/source-admission.md`](../operations/source-admission.md)
@@ -190,6 +191,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md) | Deduplicate reservoirs by dam identity | Accepted |
 | [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md) | Where the operator publishes a full level, that is the denominator | Accepted; narrows ADR-003's implementation, not its reasoning |
 | [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md) | One drainage-area control to a page | Accepted |
+| [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md) | Divide by a figure the water has not been seen above | Accepted; narrows ADR-003's implementation, not its reasoning |
 
 ## Relationship to the historical journal
 

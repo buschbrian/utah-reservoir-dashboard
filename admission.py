@@ -286,6 +286,80 @@ def largest_published_pool(dam):
     return max(figures) if figures else None
 
 
+#: The published figures a denominator may be chosen from, smallest-intent
+#: first. Order is the preference, not the size: a conservation pool is what
+#: an operator means by "full" (ADR-003) and tracks the water for almost
+#: every reservoir here -- Strawberry's is 1,105,910 against 1,106,560
+#: observed. The maximum pool is the gross pool including the flood space
+#: above that. The headline figure is last for the reason
+#: `build_capacity_table` records: Lake Powell has no conservation pool and
+#: its headline 29,875,000 sits well above a real full pool nearer
+#: 25,000,000, which quietly understates how empty it is.
+DENOMINATOR_FIGURES = (
+    ("normal_storage", "normal_storage_af"),
+    ("max_storage", "max_storage_af"),
+    ("nid_storage", "nid_storage_af"),
+)
+
+
+def denominator_for(dam, observed_max_af=None):
+    """The figure a percentage divides by, and which of the record's it is.
+
+    The preference is ADR-003's and unchanged: the conservation pool, then
+    the maximum pool, then the headline figure. What is added is a condition
+    on the first choice that the record can answer for itself -- **the
+    denominator must be a figure the water has not been seen above.**
+
+    A percentage is a claim that a reservoir holds this much of what it can
+    hold, and a reservoir observed at 275% of its denominator is not making
+    that claim about anything. Four of these are Corps flood-control
+    projects whose Conservation Service series report gross storage while
+    the inventory's conservation pool describes the summer pool underneath
+    it: Detroit reports 346,757 acre-feet against a 155,000 pool and a
+    455,000 maximum, and has been watched holding 426,115. The pool is not
+    wrong about the pool. It is the wrong figure to divide a gross reading
+    by, and the same record already publishes the right one.
+
+    So each figure is offered in turn and the first one the observed record
+    fits inside wins. The surcharge allowance is `SURCHARGE_ALLOWANCE`, the
+    same one ADR-065 measured for real operation above a published pool, so
+    a reservoir a percent or two over its conservation pool keeps it and
+    goes on publishing just above 100 -- which is true, and is what a
+    surcharge is.
+
+    Where no published figure contains the record, this returns the ordinary
+    first preference and leaves the disagreement standing. That case is not
+    a denominator to choose between; it is either a wrong dam or a surcharge
+    above every pool the inventory names (ADR-065), and `discrepancies` and
+    `holds_more_than_the_dam` are what answer it. No reservoir in the
+    inventory-derived roster is in that position once this rule is applied.
+
+    This chooses among the *inventory's* three figures only. Where the
+    provider that publishes the readings also publishes a full level, that
+    figure wins over all of them and never reaches here (`preferred_capacity`,
+    ADR-070).
+
+    `observed_max_af` of None means the record says nothing, which is not
+    evidence either way -- the first published figure wins, exactly as
+    before.
+
+    Returns `(capacity_af, capacity_basis)`, both None when the inventory
+    publishes no usable figure at all.
+    """
+    offered = [(basis, positive(dam.get(field)))
+               for basis, field in DENOMINATOR_FIGURES]
+    offered = [(basis, value) for basis, value in offered if value]
+    if not offered:
+        return None, None
+    if positive(observed_max_af):
+        ceiling = observed_max_af / (1 + SURCHARGE_ALLOWANCE)
+        for basis, value in offered:
+            if value >= ceiling:
+                return value, basis
+    basis, value = offered[0]
+    return value, basis
+
+
 def holds_more_than_the_dam(dam, observed_max_af):
     """True when the reservoir has held more water than the dam can contain.
 
