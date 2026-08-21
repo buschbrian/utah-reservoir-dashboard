@@ -39,7 +39,9 @@ import type { DrainageScope } from "../data/boundaries";
 import type { StorageContext } from "../drought-model";
 import type { UsdmPolygons } from "../data/usdm-load";
 import type { DroughtUnit } from "../types";
+import type { DroughtChange } from "../drought-model";
 import { DROUGHT_CLASSES } from "../viz/drought-classes";
+import { changeColor } from "../viz/change-classes";
 import {
   DRAINAGE_LABEL_SIZE_PX, LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT_BOLD
 } from "../viz/label-scales";
@@ -65,6 +67,7 @@ import {
 } from "./view-map";
 
 const CLASS_LAYER_ID = "usdm-classes";
+const CHANGE_LAYER_ID = "usdm-change";
 const OUTLINE_LAYER_ID = "drainage-outlines";
 const OUTLINE_CASING_LAYER_ID = "drainage-outline-casing";
 
@@ -108,6 +111,14 @@ export interface DroughtMapStatus {
    * until the reader is close enough for them to mean anything, so this
    * reports that the layer is there, not that it is on screen. */
   countyBoundaries: boolean;
+  /** Which of the two surfaces is drawn. Its own field rather than something
+   * a test infers from layer visibility: what the map is showing is a fact
+   * the page has an answer for, and a readiness field reports one fact. */
+  mode: DroughtMapMode;
+  /** Areas the change surface could colour. Zero means the comparison is
+   * unavailable, which is what keeps the control off the page rather than
+   * offering a mode that draws nothing. */
+  changeAreas: number;
 }
 
 /** What the map needs to describe an area under the pointer: the coverage
@@ -115,6 +126,26 @@ export interface DroughtMapStatus {
 export interface DroughtMapContext {
   units: readonly DroughtUnit[];
   storage: ReadonlyMap<string, StorageContext>;
+  /** Each area's move since the week before, keyed by code. Empty when there
+   * is nothing to compare against, which is what leaves the change mode
+   * unavailable rather than showing a map of "no change" (ADR-074). */
+  changes: ReadonlyMap<string, DroughtChange>;
+}
+
+/** What the map is drawing. Two answers to two questions: how dry it is now,
+ * and how much that moved in a week. Never both at once -- the monitor's
+ * palette and the change palette are two colour languages, and a map wearing
+ * both would be asking the reader to hold two scales for one set of shapes
+ * (ADR-032). */
+export type DroughtMapMode = "classes" | "change";
+
+export interface DroughtMapController {
+  status: DroughtMapStatus;
+  /** Switches which of the two surfaces is drawn. A layer visibility change,
+   * deliberately not a redraw: the polygons and the outlines are the same
+   * either way and refetching them to change a fill would cost the reader a
+   * blank map for the width of a network round trip. */
+  setMode(mode: DroughtMapMode): void;
 }
 
 export async function createDroughtMap(
@@ -125,7 +156,7 @@ export async function createDroughtMap(
   reservoirs: readonly ReservoirReference[],
   context: DroughtMapContext,
   boundaries: ReferenceLayers
-): Promise<DroughtMapStatus> {
+): Promise<DroughtMapController> {
   const droughtLayer = new GraphicsLayer({ id: CLASS_LAYER_ID });
   for (const feature of usdm.features) {
     const entry = DROUGHT_CLASSES[feature.level];
@@ -214,6 +245,46 @@ export async function createDroughtMap(
    * grows with the scope like every other. The treatment is in the label
    * symbol below, which is where the note about it lives.
    */
+  /*
+   * The week-over-week fill, one symbol per area and no geometry in the
+   * browser.
+   *
+   * A unique-value renderer keyed on the area's own code says "this area is
+   * this colour" without the page ever holding a coordinate -- the same trick
+   * `ui/snow-map.ts` uses to colour basins by their snow figure, and the
+   * reason neither map pays the 935 KB a bulk geometry query costs.
+   *
+   * Areas with no comparison get no entry and fall through to the default,
+   * which is nothing at all rather than the middle class: an area the
+   * previous week did not publish has not "held steady" (ADR-059's rule,
+   * applied to a change rather than to a share).
+   *
+   * Hidden until the reader asks for it. Both fills are built once because
+   * switching is a visibility change; see `setMode`.
+   */
+  const changeInfos = [...context.changes.values()]
+    .map((change) => ({ value: change.huc6, color: changeColor(change.points) }))
+    .filter((entry): entry is { value: string; color: string } => entry.color !== null)
+    .map((entry) => ({
+      value: entry.value,
+      symbol: {
+        type: "simple-fill",
+        color: hexRgba(entry.color, 0.6),
+        outline: { color: [0, 0, 0, 0], width: 0 }
+      }
+    }));
+  const changeLayer = createWatershedLayer({
+    id: CHANGE_LAYER_ID,
+    level,
+    codes,
+    renderer: {
+      type: "unique-value",
+      field: codeField,
+      uniqueValueInfos: changeInfos
+    }
+  });
+  changeLayer.visible = false;
+
   const outlineLayer = createWatershedLayer({
     id: OUTLINE_LAYER_ID,
     level,
@@ -288,6 +359,8 @@ export async function createDroughtMap(
     reservoirs: reference.drawn,
     reservoirLabels: reference.labelled,
     reservoirsShown: reference.layer.visible,
+    mode: "classes",
+    changeAreas: changeInfos.length,
     stateBoundaries: boundaries.states !== null,
     countyBoundaries: boundaries.counties !== null
   };
@@ -342,6 +415,11 @@ export async function createDroughtMap(
   const map = new ArcGISMap({
     layers: [
       droughtLayer,
+      /* Directly over the classes and under the outlines, because it
+         replaces them rather than sitting beside them: only one of the two
+         is ever visible, and both are continuous surfaces the reference
+         geometry above is meant to locate (ADR-061). */
+      changeLayer,
       casingLayer,
       outlineLayer,
       ...(boundaries.states ? [boundaries.states] : []),
@@ -431,5 +509,13 @@ export async function createDroughtMap(
   await viewReadyWithin(element);
   status.viewReady = Boolean(element.view?.ready);
 
-  return status;
+  return {
+    status,
+    setMode(mode) {
+      const change = mode === "change";
+      changeLayer.visible = change;
+      droughtLayer.visible = !change;
+      status.mode = mode;
+    }
+  };
 }

@@ -2764,8 +2764,14 @@ for (const viewport of VIEWPORTS) {
        * before any core is drawn, and one layer cannot order that across
        * features -- a neighbour's casing would paint over a shared edge.
        * The names ride the core layer's label pass (ADR-047). */
-      ["usdm-classes", "drainage-outline-casing", "drainage-outlines",
-        ...boundaryLayers, "reservoir-reference"]);
+      /* The change fill sits directly over the classes and under the
+       * outlines, because it replaces them rather than joining them: only
+       * one of the two is ever visible (ADR-074), and both are continuous
+       * surfaces the reference geometry above is there to locate. The map
+       * opens on the classes, so this is the stacking order and not what is
+       * on screen -- `mapMode` is the field that reports the second. */
+      ["usdm-classes", "usdm-change", "drainage-outline-casing",
+        "drainage-outlines", ...boundaryLayers, "reservoir-reference"]);
     /* The label ladder: at the opening view the states and the drainage areas
      * are named and the reservoirs are not, which is the whole point of the
      * thresholds -- the drainage areas are this map's subject and the

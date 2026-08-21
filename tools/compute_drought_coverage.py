@@ -91,6 +91,8 @@ BOUNDARIES_PATH = (
     ROOT / watershed_scopes.get_scope(watershed_scopes.DEFAULT_SCOPE).output)
 LAND_PATH = ROOT / "data" / "us-land.geojson"
 OUTPUT_PATH = ROOT / "data" / "drought" / "usdm-huc6.json"
+#: The default scope's archive. Kept as a name because callers and tests
+#: reach for it; `history_path` is what derives any other level's.
 HISTORY_PATH = ROOT / "data" / "drought" / "usdm-huc6-history.json"
 #: Fine enough that a published tenth is the engine's answer rather than the
 #: grid's. See the module docstring for what each candidate step was measured
@@ -538,6 +540,24 @@ def coverage_path(level: int) -> Path:
     return ROOT / "data" / "drought" / f"usdm-huc{level}.json"
 
 
+def history_path(level: int) -> Path:
+    """Where a level's archive is published, named the same way.
+
+    One archive per level, because `merge_history` refuses to join weeks
+    measured at two of them -- the weeks join on their codes, and codes of two
+    widths in one file are two series wearing one name. That refusal used to
+    mean the coarser levels ran with `--no-history`, which cost them the
+    `previous` block the archive produces and left the week-over-week
+    comparison available at HUC-6 and nowhere else (ADR-074).
+
+    An archive grows with the area count, which is the reason ADR-063 gave for
+    keeping one: at HUC-8 it would reach 30 MB against 3.9 at HUC-6. These two
+    go the other way -- 44 areas and 5 against 75 -- so the whole set costs
+    about 1.65 times the one file that existed before.
+    """
+    return ROOT / "data" / "drought" / f"usdm-huc{level}-history.json"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--drought", type=Path, default=DROUGHT_PATH)
@@ -549,7 +569,8 @@ def main() -> int:
                         help="override the scope's committed boundary file")
     parser.add_argument("--output", type=Path, default=None,
                         help="override the output path the level implies")
-    parser.add_argument("--history", type=Path, default=HISTORY_PATH)
+    parser.add_argument("--history", type=Path, default=None,
+                        help="Defaults to the archive for the scope's own level.")
     parser.add_argument("--land", type=Path, default=LAND_PATH,
                         help="the land mask the monitor's extent follows")
     parser.add_argument("--no-history", action="store_true",
@@ -560,12 +581,15 @@ def main() -> int:
     scope = watershed_scopes.get_scope(args.scope)
     boundaries_path = args.boundaries or (ROOT / scope.output)
     output_path = args.output or coverage_path(scope.level)
+    explicit_history = args.history is not None
+    if args.history is None:
+        args.history = history_path(scope.level)
     # An experiment redirected away from the committed coverage file must not
     # write the committed archive either. `--output` alone used to do exactly
     # that: it moved the file the run was measured by and still merged the
     # week into `usdm-huc6-history.json`, so a run at a trial step silently
     # rewrote published figures. Naming `--history` explicitly still opts in.
-    if args.output is not None and args.history == HISTORY_PATH:
+    if args.output is not None and not explicit_history:
         args.no_history = True
     drought = json.loads(args.drought.read_text(encoding="utf-8"))
     boundaries = json.loads(boundaries_path.read_text(encoding="utf-8"))

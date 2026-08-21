@@ -97,19 +97,25 @@ if ! "$python_bin" tools/fetch_drought_monitor.py; then
   warn "Drought download failed" "Keeping the last verified GeoJSON"
 fi
 
-# 3. Coverage, once per offered level (ADR-064). Both are computed from the one
-# download, so either failing means both are suspect and the polygons go back:
-# a reader who changes the level must never cross a week boundary doing it. The
-# archive is one level, which is what --no-history says here and what
-# merge_history refuses to have otherwise.
+# 3. Coverage, once per offered level (ADR-064, ADR-073). All three are
+# computed from the one download, so any of them failing means all are suspect
+# and the polygons go back: a reader who changes the level must never cross a
+# week boundary doing it.
+#
+# Each level keeps its own archive, named for the level the same way its
+# coverage file is. merge_history still refuses to hold two levels in one file
+# -- the weeks join on their codes, and codes of two widths are two series
+# wearing one name -- and one file each is the answer to that, rather than one
+# level with a history and the others without. It is what gives every level a
+# previous week to compare against (ADR-074).
 #
 # Recomputed every day rather than only when the download reports a change: it
 # is deterministic, carries no timestamps, and takes about a minute, so a
 # coverage file that somehow fell behind is repaired by the next run instead of
 # waiting for someone to notice.
 if ! "$python_bin" tools/compute_drought_coverage.py \
-   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc4 --no-history \
-   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc2 --no-history; then
+   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc4 \
+   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc2; then
   warn "Coverage failed" "Reverting the polygons so the set stays on one week"
   git checkout -- data/drought/usdm-current.geojson
 fi

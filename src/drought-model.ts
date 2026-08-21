@@ -7,7 +7,7 @@
  * region living on savings. The join is by drainage area, the geography both
  * payloads already share.
  */
-import type { DroughtUnit, Reservoir } from "./types";
+import type { DroughtPreviousWeek, DroughtUnit, Reservoir } from "./types";
 import { DROUGHT_CLASSES, type DroughtClass } from "./viz/drought-classes";
 
 /** The monitor releases on Thursdays. One missed release plus a margin. */
@@ -404,4 +404,114 @@ export function byStorageGap(
   return points
     .map((point) => ({ ...point, gap: point.storagePercent - point.dryPercent }))
     .sort((a, b) => a.gap - b.gap || a.name.localeCompare(b.name));
+}
+
+/* ------------------------------------------------------------------ */
+/* What changed since last week                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The class a week-over-week change is measured at.
+ *
+ * The same one `DRYNESS_CLASS` uses and the same one `weeklyDrought` counts
+ * by, and deliberately not a separate constant with the same value: severe
+ * drought is where the monitor's own impact language turns from developing
+ * conditions to actual shortage, and a page that measured "how dry" at one
+ * class and "how much drier" at another would be answering two questions in
+ * one column.
+ */
+export const CHANGE_CLASS = DRYNESS_CLASS;
+
+/**
+ * A tenth of a point is the published precision, so anything smaller is
+ * rounding rather than weather. Shared by every surface that draws a change,
+ * so a map, a column and a chart cannot disagree about whether an area moved.
+ */
+export const CHANGE_EPSILON = 0.05;
+
+/** One drainage area's move since the week before. */
+export interface DroughtChange {
+  huc6: string;
+  name: string;
+  /** The share of land at `CHANGE_CLASS` or worse, this week and last. */
+  nowPercent: number;
+  thenPercent: number;
+  /** Signed, in points of land. Positive is drier. */
+  points: number;
+  /** Which way, with rounding already applied. */
+  direction: "worse" | "better" | "same";
+}
+
+/**
+ * Every area's move since the week the payload carries beside this one.
+ *
+ * Returns an empty list when there is nothing to compare against, which is a
+ * real state and not a failure: an archive holds one week the first time it
+ * is written, and the coarser levels' archives started later than the basin
+ * one (ADR-074). A caller says so in words rather than drawing a map of
+ * zeroes, which would state "nothing changed" about a week nobody measured.
+ *
+ * An unmeasured area is skipped rather than differenced at zero, the same
+ * rule every other figure on this page follows (ADR-059): no denominator
+ * means no share, and no share means no change.
+ *
+ * Areas absent from last week's list are skipped too. That is not the same
+ * as "did not move" -- it is an area the previous run did not publish, and
+ * the honest answer is to leave it out of a comparison rather than to invent
+ * a baseline of zero and report the whole of this week's share as a rise.
+ */
+export function droughtChanges(
+  units: readonly DroughtUnit[],
+  previous: DroughtPreviousWeek | null | undefined
+): DroughtChange[] {
+  if (!previous) return [];
+  const before = new Map(
+    previous.units.map((unit) => [unit.huc6, unit.percent_of_area_at_least]));
+  const changes: DroughtChange[] = [];
+  for (const unit of units) {
+    const was = before.get(unit.huc6);
+    if (!was || !isMeasured(unit)) continue;
+    const nowPercent = unit.percent_of_area_at_least[CHANGE_CLASS];
+    const thenPercent = was[CHANGE_CLASS];
+    const points = Number((nowPercent - thenPercent).toFixed(1));
+    changes.push({
+      huc6: unit.huc6,
+      name: unit.huc6_name,
+      nowPercent,
+      thenPercent,
+      points,
+      direction: points > CHANGE_EPSILON ? "worse"
+        : points < -CHANGE_EPSILON ? "better"
+        : "same"
+    });
+  }
+  return changes;
+}
+
+/** The changes keyed by area, for a surface that has a code and wants the
+ * move. A map rather than a repeated `find`: the drought map's renderer asks
+ * once per area and the table asks once per row. */
+export function changesByArea(
+  changes: readonly DroughtChange[]
+): Map<string, DroughtChange> {
+  return new Map(changes.map((change) => [change.huc6, change]));
+}
+
+/** The biggest moves first, each direction's largest at the top of its own
+ * end. Sorted by signed value rather than magnitude, so the chart reads as a
+ * ranking from driest-moving to wettest-moving rather than interleaving the
+ * two. */
+export function byChange(changes: readonly DroughtChange[]): DroughtChange[] {
+  return [...changes].sort((left, right) => right.points - left.points);
+}
+
+/** How many areas went each way, for the sentence above the chart. */
+export function changeCounts(
+  changes: readonly DroughtChange[]
+): { worse: number; better: number; same: number } {
+  return {
+    worse: changes.filter((change) => change.direction === "worse").length,
+    better: changes.filter((change) => change.direction === "better").length,
+    same: changes.filter((change) => change.direction === "same").length
+  };
 }
