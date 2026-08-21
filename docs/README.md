@@ -49,6 +49,7 @@ the test is right and the prose is the bug.
 | [Western source candidates](WESTERN-SOURCE-CANDIDATES.md) | Survey of non-federal and additional federal services, fetched live. |
 | [Colorado and California API review](CDSS-CDEC-API-REVIEW.md) | Measured source value, limits and integration cost. |
 | [Upstream trace scoping](UPSTREAM-TRACE-SCOPING.md) | What it would take to say what drains to a reservoir. Measured against the USGS network index; nothing built. |
+| [Water-body and navigation scoping](WATER-BODY-AND-NAVIGATION-SCOPING.md) | Name normalization, lake-versus-reservoir type, nested navigation, reopening the chooser, and the six states still unsourced. Measured against the committed payloads; nothing built. |
 
 ## Historical material
 
@@ -69,9 +70,16 @@ remaining documented product work is:
 2. review automatically reported late and withdrawn feeds;
 3. re-measure vendor accessibility exceptions and the content policy when the
    SDK changes; and
-4. complete the human visual review that headless Chromium cannot supply; and
+4. complete the human visual review that headless Chromium cannot supply;
 5. decide whether to build the upstream trace scoped in
-   [`UPSTREAM-TRACE-SCOPING.md`](UPSTREAM-TRACE-SCOPING.md).
+   [`UPSTREAM-TRACE-SCOPING.md`](UPSTREAM-TRACE-SCOPING.md); and
+6. work the five items scoped in
+   [`WATER-BODY-AND-NAVIGATION-SCOPING.md`](WATER-BODY-AND-NAVIGATION-SCOPING.md)
+   — reopening the opening chooser, then water-body names and type from the
+   National Hydrography Dataset, then nesting the drainage and county menus,
+   then the remaining reservoir sources for Arizona, Nevada, Idaho, Oregon,
+   Washington and Wyoming. That document carries the order and the reason for
+   it.
 
 The repository wiki is a reader-oriented summary. The repository remains the
 source of truth for implementation details, measurements and decisions.
