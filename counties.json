@@ -1,7 +1,7 @@
 {
   "source": "Esri Living Atlas, USA Census Counties (U.S. Census Bureau 2020 boundaries)",
   "source_layer": "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Counties/FeatureServer/0",
-  "retrieved": "2026-08-20",
+  "retrieved": "2026-08-21",
   "assignment_point": "published_point",
   "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
   "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
@@ -1206,6 +1206,12 @@
       "county_name": "Lincoln County",
       "state": "WY"
     },
+    "4003399B": {
+      "name": "Overland Reservoir",
+      "county_fips": "08029",
+      "county_name": "Delta County",
+      "state": "CO"
+    },
     "432": {
       "name": "Huntington North",
       "county_fips": "49015",
@@ -1362,6 +1368,12 @@
       "county_name": "Plumas County",
       "state": "CA"
     },
+    "ALSRESCO": {
+      "name": "Alsbury Reservoir",
+      "county_fips": "08077",
+      "county_name": "Mesa County",
+      "state": "CO"
+    },
     "ANT": {
       "name": "Antelope Lake",
       "county_fips": "06063",
@@ -1398,11 +1410,23 @@
       "county_name": "Shasta County",
       "state": "CA"
     },
+    "BKIRESCO": {
+      "name": "Buckeye Reservoir",
+      "county_fips": "08085",
+      "county_name": "Montrose County",
+      "state": "CO"
+    },
     "BLB": {
       "name": "Black Butte",
       "county_fips": "06103",
       "county_name": "Tehama County",
       "state": "CA"
+    },
+    "BLURESCO": {
+      "name": "Upper Blue Reservoir",
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "state": "CO"
     },
     "BQC": {
       "name": "Bouquet Canyon",
@@ -1656,6 +1680,18 @@
       "county_name": "Mono County",
       "state": "CA"
     },
+    "HARTLKCO": {
+      "name": "Heart Lake Reservoir",
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "state": "CO"
+    },
+    "HAVRESCO": {
+      "name": "Haviland Lake Reservoir",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
+    },
     "HDG": {
       "name": "Lake Hodges",
       "county_fips": "06073",
@@ -1775,6 +1811,12 @@
       "county_fips": "06017",
       "county_name": "El Dorado County",
       "state": "CA"
+    },
+    "LONRESCO": {
+      "name": "Long Hollow Reservoir",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
     },
     "LOP": {
       "name": "Lopez Lake",
@@ -1932,6 +1974,12 @@
       "county_name": "Calaveras County",
       "state": "CA"
     },
+    "PEARLACO": {
+      "name": "Pearl Lake",
+      "county_fips": "08107",
+      "county_name": "Routt County",
+      "state": "CO"
+    },
     "PNF": {
       "name": "Pine Flat Dam",
       "county_fips": "06019",
@@ -1979,6 +2027,12 @@
       "county_fips": "06039",
       "county_name": "Madera County",
       "state": "CA"
+    },
+    "REDRESCO": {
+      "name": "Red Mesa Reservoir",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO"
     },
     "RLF": {
       "name": "Relief",
@@ -2135,6 +2189,12 @@
       "county_fips": "06073",
       "county_name": "San Diego County",
       "state": "CA"
+    },
+    "SWARESCO": {
+      "name": "Stillwater Reservoir",
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "state": "CO"
     },
     "TAB": {
       "name": "Thermalito Afterbay",

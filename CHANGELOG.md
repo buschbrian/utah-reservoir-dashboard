@@ -7,6 +7,23 @@ and is not listed here.
 
 ### Added
 
+- **Colorado is on the roster: ten reservoirs from the state's own telemetry.**
+  The readings come from the Colorado Division of Water Resources, the fourth
+  provider beside Reclamation, the Conservation Service and California's
+  department, and they put the Colorado headwaters' small reservoirs -- Pearl
+  Lake, Stillwater, Buckeye, Upper Blue among them -- on the same map as the
+  federal projects downstream of them. The projection of 119 additions was
+  never scoped to the drawn drainages: 91 of the state's storage stations sit
+  on the eastern slope, whose water reaches the Mississippi basin and which
+  the maps do not draw, so ten is what the geography allows and three more
+  candidates are held with findings in `admitted_cdss_reservoirs.json`.
+
+- **A fourth provider means a fourth name everywhere a provider is named** --
+  the methods page's live counts, the CSV export, the details panel and the
+  data dictionary among them. The tables are exhaustive on purpose: an
+  unnamed provider fails in tests rather than reaching a reader as
+  "undefined".
+
 - **California is on the roster: 142 reservoirs, 25.7 million acre-feet of
   full level.** The site publishes 365 reservoirs instead of 223, and
   California is now its largest state by count -- 160 of them. The readings
@@ -22,6 +39,13 @@ and is not listed here.
   makes a new request: the same two files carry more rows.
 
 ### Changed
+
+- **A reservoir too young to hold either comparison publishes no comparison
+  choice at all.** Colorado's 2025-vintage stations arrived with no baseline
+  a percentage could be measured against, and the record named `recent` as
+  its opening period anyway -- offering a comparison that does not exist.
+  The runtime validator refused it, correctly; the pipeline now omits the
+  baselines block when both comparisons are empty.
 
 - **Where the operator publishes a full level, that is what a percentage
   divides by** (ADR-070). The dam inventory's conservation pool was the

@@ -59,20 +59,18 @@ evidence about a date, never a description of the present.
 
 ## Current work
 
-The typed ArcGIS application, western geography, opening choice, federal and
-California reservoir rosters, 637-site snow network, drought views,
-accessibility gates and compatibility redirects are in production. The
+The typed ArcGIS application, western geography, opening choice, federal,
+California and Colorado reservoir rosters, 637-site snow network, drought
+views, accessibility gates and compatibility redirects are in production. The
 remaining documented product work is:
 
-1. decide whether Colorado's smaller but broad reservoir network follows
-   California;
-2. settle the 21 California candidates held for source disagreements, each
+1. settle the 21 California candidates held for source disagreements, each
    named with its finding in `admitted_cdec_reservoirs.json`;
-3. review automatically reported late and withdrawn feeds;
-4. re-measure vendor accessibility exceptions and the content policy when the
+2. review automatically reported late and withdrawn feeds;
+3. re-measure vendor accessibility exceptions and the content policy when the
    SDK changes; and
-5. complete the human visual review that headless Chromium cannot supply; and
-6. decide whether to build the upstream trace scoped in
+4. complete the human visual review that headless Chromium cannot supply; and
+5. decide whether to build the upstream trace scoped in
    [`UPSTREAM-TRACE-SCOPING.md`](UPSTREAM-TRACE-SCOPING.md).
 
 The repository wiki is a reader-oriented summary. The repository remains the

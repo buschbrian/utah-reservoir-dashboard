@@ -12,9 +12,9 @@ import json
 from pathlib import Path
 
 from .constants import (
-    ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_RESERVOIRS_PATH,
-    ADMITTED_RISE_RESERVOIRS_PATH, BASE_AWDB_RESERVOIRS,
-    BASE_RISE_RESERVOIRS, CAPACITY_PATH,
+    ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_CDSS_RESERVOIRS_PATH,
+    ADMITTED_RESERVOIRS_PATH, ADMITTED_RISE_RESERVOIRS_PATH,
+    BASE_AWDB_RESERVOIRS, BASE_RISE_RESERVOIRS, CAPACITY_PATH,
 )
 
 
@@ -187,6 +187,34 @@ CDEC_RESERVOIRS = {
 }
 
 
+def load_admitted_cdss_reservoirs(
+    path: Path = ADMITTED_CDSS_RESERVOIRS_PATH,
+) -> dict[str, dict]:
+    """Load the reviewed Colorado Division of Water Resources stations.
+
+    The fourth provider, held to the same shape and the same validations as
+    the other three -- which is this file's loader applied unchanged, because
+    the contract does not vary with the agency: the station fetched with, the
+    point, the matched dam and the denominator, committed together.
+
+    What differs is where the denominator comes from. This provider publishes
+    no full level of its own, so every capacity here is the National
+    Inventory of Dams' (`capacity_basis` `normal_storage` / `max_storage` /
+    `nid_storage`), and ADR-070's preferred-figure rule never fires for it.
+    """
+    return load_admitted_cdec_reservoirs(path)
+
+
+ADMITTED_CDSS_RESERVOIRS = load_admitted_cdss_reservoirs()
+CDSS_RESERVOIRS = {
+    abbrev: (
+        row["name"], row["lat"], row["lon"],
+        row["capacity"]["capacity_af"], row["cadence"],
+    )
+    for abbrev, row in ADMITTED_CDSS_RESERVOIRS.items()
+}
+
+
 ADMITTED_RESERVOIRS = load_admitted_reservoirs()
 AWDB_RESERVOIRS = {
     **BASE_AWDB_RESERVOIRS,
@@ -204,7 +232,8 @@ AWDB_RESERVOIRS = {
 #: `ALL_RESERVOIR_NAMES` was this set of names until ADR-066. The names are
 #: still what a reader sees and what `--only` accepts; they are simply no
 #: longer what the roster is keyed by, because two reservoirs may share one.
-ALL_RESERVOIR_IDS = set(RESERVOIRS) | set(AWDB_RESERVOIRS) | set(CDEC_RESERVOIRS)
+ALL_RESERVOIR_IDS = (set(RESERVOIRS) | set(AWDB_RESERVOIRS)
+                     | set(CDEC_RESERVOIRS) | set(CDSS_RESERVOIRS))
 
 #: What each station is called, by that same identity. One place builds it, so
 #: a label and its station cannot come apart.
@@ -212,6 +241,7 @@ RESERVOIR_NAMES = {
     **{station: entry[0] for station, entry in RESERVOIRS.items()},
     **{station: entry[0] for station, entry in AWDB_RESERVOIRS.items()},
     **{station: entry[0] for station, entry in CDEC_RESERVOIRS.items()},
+    **{station: entry[0] for station, entry in CDSS_RESERVOIRS.items()},
 }
 
 ALL_RESERVOIR_NAMES = set(RESERVOIR_NAMES.values())
@@ -242,4 +272,6 @@ def load_capacities() -> dict[str, dict]:
         **{station: row["capacity"] for station, row in ADMITTED_RESERVOIRS.items()},
         **{station: row["capacity"]
            for station, row in ADMITTED_CDEC_RESERVOIRS.items()},
+        **{station: row["capacity"]
+           for station, row in ADMITTED_CDSS_RESERVOIRS.items()},
     }

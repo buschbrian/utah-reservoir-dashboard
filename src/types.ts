@@ -1,5 +1,5 @@
 export type DataFrequency = "daily" | "monthly";
-export type SourceKey = "rise" | "awdb" | "cdec";
+export type SourceKey = "rise" | "awdb" | "cdec" | "cdss";
 export type NullableNumber = number | null;
 
 export interface MonthlyRecord {

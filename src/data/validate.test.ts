@@ -14,7 +14,7 @@ function validPayload(): Record<string, unknown> {
     stale_after_days_by_cadence: { daily: 2, monthly: 45 },
     source: "Official reservoir storage sources",
     sources: [{ key: "rise", label: "Reclamation", url: "https://example.com", cadence: "daily" }],
-    source_counts: { rise: 1, awdb: 0, cdec: 0 },
+    source_counts: { rise: 1, awdb: 0, cdec: 0, cdss: 0 },
     reservoir_count: 1,
     stale_count: 0,
     capacity_count: 1,

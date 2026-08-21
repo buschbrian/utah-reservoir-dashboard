@@ -17,15 +17,15 @@ Two rules before any figure below is read:
 
 | file | raw | gzip |
 |---|---:|---:|
-| `snowpack.json` | 3,607 KB | **322 KB** |
-| `reservoirs.json` | 2,003 KB | 215.2 KB |
+| `snowpack.json` | 3,629 KB | **304 KB** |
+| `reservoirs.json` | 2,055 KB | 220.8 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
-| `reference.json` | 126.6 KB | 22.5 KB |
+| `reference.json` | 132.7 KB | 23.6 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
 
-The two storage figures were re-measured 2026-08-20, after R3 admitted
-California; the section at the end of this file has the arithmetic. The
+The two storage figures were re-measured 2026-08-21, after R3 admitted
+Colorado; the section at the end of this file has the arithmetic. The
 `reference.json` note immediately below is older than they are and is kept for
 what it recorded at the time.
 
@@ -316,6 +316,23 @@ was weakened by the change of unit.
 
 `normals.json` is 1,343 KB and does not ship, nor do the county assignment and
 admission files.
+
+## Colorado joins the roster (2026-08-21)
+
+R3's second state source adds ten daily reservoirs and, again, no browser
+request. The public storage payload is **2,103,924 bytes raw and 226,128
+bytes (220.8 KB) gzipped** with `gzip -9`, against 215.2 KB after California.
+It publishes 375 active reservoirs and five withdrawal notices, so the
+increase is about 5.6 KB compressed for the observations of the ten
+additions -- small reservoirs with short published history cost little on the
+wire.
+
+`reference.json` is **135,822 bytes raw and 24,820 bytes (24.2 KB) gzipped**,
+against 22.5 KB: ten more reviewed capacity records with their inventory
+evidence. The fourth provider costs the envelope one `sources` row, four
+counts and a coverage-table note.
+
+`normals.json` is 1,368 KB and does not ship.
 
 ## The Bureau-only west (2026-08-20)
 

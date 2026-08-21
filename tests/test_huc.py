@@ -173,6 +173,18 @@ BOUNDARY_MARGIN_EXCEPTIONS = {
     "Coyote Res-Sta Clara",
     # 1.78 km and 1.70 km, both in Mono-Owens Lakes.
     "Gem  Lake",
+    # R3's Colorado additions, both reviewed the same way: the provider point
+    # and the reviewed dam point were measured separately and agree on the
+    # area, which is what makes them close calls rather than doubtful
+    # assignments.
+    #
+    # Heart Lake Reservoir: 392 m and 400 m from the 140100 / 140500 line,
+    # both landing in Colorado Headwaters -- more than five times the
+    # committed generalization clear of it.
+    "Heart Lake Reservoir",
+    # Upper Blue Reservoir: 889 m (provider) and 843 m (dam), also both in
+    # Colorado Headwaters.
+    "Upper Blue Reservoir",
 }
 
 

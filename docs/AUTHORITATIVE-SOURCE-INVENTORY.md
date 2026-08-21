@@ -130,10 +130,21 @@ denominator decision this rule required is recorded as ADR-070 -- where the
 provider that publishes the readings also publishes a full level, that figure
 is the denominator, and it carries its own citation in the reviewed roster.
 
-Twenty-one candidates are still held where the dam, the full level or the
-series disagree, and each is named with its finding in
-`admitted_cdec_reservoirs.json` rather than published over. Colorado remains
-the next coverage-of-places source and is unstarted.
+Twenty-one California candidates are still held where the dam, the full level
+or the series disagree, and each is named with its finding in
+`admitted_cdec_reservoirs.json` rather than published over.
+
+**Colorado followed on 2026-08-21, scoped to the drawn drainages.** The
+service's telemetry carries storage for 142 stations; 91 sit on the eastern
+slope, whose drainages reach the Mississippi basin and are outside the drawn
+western scope, so ten stations were admitted (`admitted_cdss_reservoirs.json`)
+and three held with findings. This provider publishes no full level of its
+own, so ADR-070 never fires for it: every denominator is the dam inventory's,
+chosen per ADR-072 as the smallest record figure the water has not been seen
+above. Its daily refresh costs about 400,000 rows against the service's own
+published 600,000-row daily quota, which the admission review records as an
+operating constraint rather than a problem -- nothing else may share that
+quota on a refresh morning.
 
 ## Review boundary
 

@@ -46,7 +46,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from refresh_reservoirs import (  # noqa: E402
-    ALL_RESERVOIR_IDS, AWDB_RESERVOIRS, CDEC_RESERVOIRS, RESERVOIRS,
+    ALL_RESERVOIR_IDS, AWDB_RESERVOIRS, CDEC_RESERVOIRS, CDSS_RESERVOIRS,
+    RESERVOIRS,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -129,13 +130,13 @@ def main() -> int:
 
     # `ALL_RESERVOIR_IDS` is the roster the refresh itself works from -- the
     # Reclamation table, every AWDB station, and every reviewed California
-    # one. All three are keyed by the station and put the name at 0, lat at 1
-    # and lon at 2; indexed rather than unpacked, because the tuples are
-    # different lengths and only their first three fields line up.
+    # and Colorado one. All four are keyed by the station and put the name at
+    # 0, lat at 1 and lon at 2; indexed rather than unpacked, because the
+    # tuples are different lengths and only their first three fields line up.
     roster: dict[str, tuple[str, float, float]] = {}
     for station in ALL_RESERVOIR_IDS:
         row = (RESERVOIRS.get(station) or AWDB_RESERVOIRS.get(station)
-               or CDEC_RESERVOIRS.get(station))
+               or CDEC_RESERVOIRS.get(station) or CDSS_RESERVOIRS.get(station))
         if row is None:
             missing_config.append(station)
             continue

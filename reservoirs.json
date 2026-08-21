@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "method_version": "storage-normal-annual-3",
-  "generated_at": "2026-08-21T20:12:27+00:00",
+  "generated_at": "2026-08-21T22:28:25+00:00",
   "start_date": "2015-01-01",
   "normal_period": {
     "start_year": 2015,
@@ -28,14 +28,14 @@
   ],
   "default_baseline": "climate",
   "climate_normals": {
-    "built": "2026-08-20",
+    "built": "2026-08-21",
     "file": "normals.json",
     "method_version": "storage-normal-annual-3",
-    "available_count": 314,
+    "available_count": 320,
     "minimum_years": 10
   },
   "coverage": {
-    "reviewed": "2026-08-19",
+    "reviewed": "2026-08-21",
     "basis": "waterbody_states",
     "note": "These are the reservoirs this site tracks, not all the stored water in a state.",
     "states": {
@@ -62,21 +62,21 @@
         "status": "more to add",
         "known_additional_source": "California Data Exchange Center",
         "known_additional_source_url": "https://cdec.water.ca.gov/",
-        "known_additional_about": 140,
-        "note": "Publishes current storage for 154 reservoirs, most of which this site does not read."
+        "known_additional_about": null,
+        "note": "Read since 2026-08-20. The candidates admitted over or held behind a screen are named, with their findings, in admitted_cdec_reservoirs.json."
       },
       "CO": {
-        "tracked_reservoir_count": 30,
-        "tracked_reference_capacity_af": 3425950.0,
-        "daily_count": 25,
+        "tracked_reservoir_count": 40,
+        "tracked_reference_capacity_af": 3458609.0,
+        "daily_count": 35,
         "monthly_count": 5,
-        "current_count": 30,
-        "climate_baseline_count": 30,
+        "current_count": 40,
+        "climate_baseline_count": 36,
         "status": "more to add",
         "known_additional_source": "Colorado Division of Water Resources",
         "known_additional_source_url": "https://dwr.state.co.us/rest/get/help",
-        "known_additional_about": 110,
-        "note": "Publishes current storage for 128 reservoirs, most of which this site does not read."
+        "known_additional_about": 95,
+        "note": "Read since 2026-08-21 for the ten storage stations inside the drawn drainages. About 95 further reservoirs report on the eastern slope, whose drainages reach the Mississippi basin and are not drawn."
       },
       "ID": {
         "tracked_reservoir_count": 25,
@@ -189,7 +189,7 @@
     "daily": 2,
     "monthly": 45
   },
-  "source": "Bureau of Reclamation RISE API, USDA NRCS AWDB and the California Data Exchange Center",
+  "source": "Bureau of Reclamation RISE API, USDA NRCS AWDB, the California Data Exchange Center and the Colorado Division of Water Resources",
   "sources": [
     {
       "key": "rise",
@@ -208,16 +208,23 @@
       "label": "California Data Exchange Center",
       "url": "https://cdec.water.ca.gov/",
       "cadence": "daily or monthly by station"
+    },
+    {
+      "key": "cdss",
+      "label": "Colorado Division of Water Resources",
+      "url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "cadence": "daily"
     }
   ],
   "source_counts": {
     "rise": 55,
     "awdb": 168,
-    "cdec": 142
+    "cdec": 142,
+    "cdss": 10
   },
-  "reservoir_count": 365,
+  "reservoir_count": 375,
   "stale_count": 20,
-  "capacity_count": 365,
+  "capacity_count": 375,
   "withdraw_after_days": 60,
   "withdrawn_count": 5,
   "withdrawn": [
@@ -263,9 +270,9 @@
     "boundaries": "west-huc6.geojson",
     "assignment_rule": "the dam or outlet point, not the middle of the water",
     "unit_count": 75,
-    "assigned": 365,
+    "assigned": 375,
     "unassigned": 0,
-    "assigned_by_dam": 338,
+    "assigned_by_dam": 348,
     "in_utah": 58,
     "intersects_utah": 60,
     "subregions": [
@@ -440,7 +447,7 @@
   "counties": {
     "source": "Esri Living Atlas, USA Census Counties",
     "assignment_rule": "the published waterbody point, not the dam",
-    "assigned": 365,
+    "assigned": 375,
     "unassigned": 0,
     "county_count": 157,
     "state_count": 11
@@ -11930,55 +11937,55 @@
       "stale_after_days": 2,
       "lat": 37.95,
       "lon": -119.783,
-      "as_of": "2026-08-20",
-      "days_stale": 1,
+      "as_of": "2026-08-19",
+      "days_stale": 2,
       "is_stale": false,
       "fetch_ok": true,
-      "current_storage_af": 321870.0,
+      "current_storage_af": 322820.0,
       "record_max_af": 377830.0,
       "record_min_af": 342.0,
-      "pct_of_record_max": 85.2,
+      "pct_of_record_max": 85.4,
       "capacity_af": 360000.0,
       "capacity_basis": "cdec_reservoir_report",
-      "pct_of_capacity": 89.4,
+      "pct_of_capacity": 89.7,
       "seasonal_percentile": 45.5,
       "seasonal_rank": 6,
       "seasonal_rank_of": 12,
-      "seasonal_normal_af": 327008.0,
+      "seasonal_normal_af": 327963.0,
       "pct_of_seasonal_normal": 98.4,
       "seasonal_sample_years": 11,
       "baselines": {
         "recent": {
-          "normal_af": 327008.0,
+          "normal_af": 327963.0,
           "pct_of_normal": 98.4,
           "sample_years": 11,
           "covers_full_period": true,
           "first_obs": "2015-01-01"
         },
         "climate": {
-          "normal_af": 327581.0,
-          "pct_of_normal": 98.3,
+          "normal_af": 328631.5,
+          "pct_of_normal": 98.2,
           "sample_years": 30,
           "covers_full_period": true,
           "first_obs": "1991-01-01"
         },
         "default": "climate"
       },
-      "change_7d_af": -6284.0,
-      "change_7d_pct": -1.9,
-      "change_7d_reference_date": "2026-08-13",
+      "change_7d_af": -5907.0,
+      "change_7d_pct": -1.8,
+      "change_7d_reference_date": "2026-08-12",
       "change_7d_elapsed_days": 7,
-      "change_30d_af": -24780.0,
+      "change_30d_af": -24610.0,
       "change_30d_pct": -7.1,
-      "change_30d_reference_date": "2026-07-21",
+      "change_30d_reference_date": "2026-07-20",
       "change_30d_elapsed_days": 30,
-      "change_365d_af": 4159.0,
-      "change_365d_pct": 1.3,
-      "change_365d_reference_date": "2025-08-20",
+      "change_365d_af": 3975.0,
+      "change_365d_pct": 1.2,
+      "change_365d_reference_date": "2025-08-19",
       "change_365d_elapsed_days": 365,
       "peak_this_year_af": 362142.0,
       "peak_this_year_date": "2026-05-24",
-      "pct_of_peak_this_year": 88.9,
+      "pct_of_peak_this_year": 89.1,
       "monthly": [
         {
           "month": "2025-09",
@@ -12092,17 +12099,17 @@
         },
         {
           "month": "2026-08",
-          "mean_af": 330228.65,
-          "min_af": 321870.0,
+          "mean_af": 330668.58,
+          "min_af": 322820.0,
           "max_af": 338514.0,
-          "end_af": 321870.0,
-          "days": 20,
+          "end_af": 322820.0,
+          "days": 19,
           "normal_af": 330471.71,
           "climate_normal_af": 331270.97
         }
       ],
       "first_obs": "2015-01-01",
-      "n_obs": 4229,
+      "n_obs": 4228,
       "years_of_record": 11.6,
       "in_utah": false,
       "intersects_utah": false,
@@ -14178,51 +14185,51 @@
       "stale_after_days": 2,
       "lat": 37.967,
       "lon": -119.917,
-      "as_of": "2026-08-20",
-      "days_stale": 1,
+      "as_of": "2026-08-19",
+      "days_stale": 2,
       "is_stale": false,
       "fetch_ok": true,
-      "current_storage_af": 245227.0,
+      "current_storage_af": 245398.0,
       "record_max_af": 364768.0,
       "record_min_af": 234.0,
-      "pct_of_record_max": 67.2,
+      "pct_of_record_max": 67.3,
       "capacity_af": 273500.0,
       "capacity_basis": "cdec_reservoir_report",
       "pct_of_capacity": 89.7,
       "seasonal_percentile": 72.7,
       "seasonal_rank": 9,
       "seasonal_rank_of": 12,
-      "seasonal_normal_af": 239051.0,
-      "pct_of_seasonal_normal": 102.6,
+      "seasonal_normal_af": 239909.0,
+      "pct_of_seasonal_normal": 102.3,
       "seasonal_sample_years": 11,
       "baselines": {
         "recent": {
-          "normal_af": 239051.0,
-          "pct_of_normal": 102.6,
+          "normal_af": 239909.0,
+          "pct_of_normal": 102.3,
           "sample_years": 11,
           "covers_full_period": true,
           "first_obs": "2015-01-01"
         },
         "climate": {
-          "normal_af": 244455.0,
-          "pct_of_normal": 100.3,
+          "normal_af": 244969.5,
+          "pct_of_normal": 100.2,
           "sample_years": 30,
           "covers_full_period": true,
           "first_obs": "1991-01-01"
         },
         "default": "climate"
       },
-      "change_7d_af": -3088.0,
-      "change_7d_pct": -1.2,
-      "change_7d_reference_date": "2026-08-13",
+      "change_7d_af": -3260.0,
+      "change_7d_pct": -1.3,
+      "change_7d_reference_date": "2026-08-12",
       "change_7d_elapsed_days": 7,
-      "change_30d_af": -10047.0,
-      "change_30d_pct": -3.9,
-      "change_30d_reference_date": "2026-07-21",
+      "change_30d_af": -10228.0,
+      "change_30d_pct": -4.0,
+      "change_30d_reference_date": "2026-07-20",
       "change_30d_elapsed_days": 30,
-      "change_365d_af": -1201.0,
-      "change_365d_pct": -0.5,
-      "change_365d_reference_date": "2025-08-20",
+      "change_365d_af": -1373.0,
+      "change_365d_pct": -0.6,
+      "change_365d_reference_date": "2025-08-19",
       "change_365d_elapsed_days": 365,
       "peak_this_year_af": 268108.0,
       "peak_this_year_date": "2026-05-24",
@@ -14340,17 +14347,17 @@
         },
         {
           "month": "2026-08",
-          "mean_af": 248391.9,
-          "min_af": 245227.0,
+          "mean_af": 248558.47,
+          "min_af": 245398.0,
           "max_af": 251059.0,
-          "end_af": 245227.0,
-          "days": 20,
+          "end_af": 245398.0,
+          "days": 19,
           "normal_af": 243283.65,
           "climate_normal_af": 246733.32
         }
       ],
       "first_obs": "2015-01-01",
-      "n_obs": 4229,
+      "n_obs": 4228,
       "years_of_record": 11.6,
       "in_utah": false,
       "intersects_utah": false,
@@ -68998,6 +69005,206 @@
       ]
     },
     {
+      "name": "Stillwater Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "SWARESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 40.026752,
+      "lon": -107.12424,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 309.68,
+      "record_max_af": 4381.59,
+      "record_min_af": 0.0,
+      "pct_of_record_max": 7.1,
+      "capacity_af": 6088.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 5.1,
+      "seasonal_percentile": 0.0,
+      "seasonal_rank": 1,
+      "seasonal_rank_of": 4,
+      "seasonal_normal_af": 2518.84,
+      "pct_of_seasonal_normal": 12.3,
+      "seasonal_sample_years": 3,
+      "baselines": {
+        "recent": {
+          "normal_af": 2518.84,
+          "pct_of_normal": 12.3,
+          "sample_years": 3,
+          "covers_full_period": true,
+          "first_obs": "2022-12-04"
+        },
+        "climate": null,
+        "default": "recent"
+      },
+      "change_7d_af": -15.67,
+      "change_7d_pct": -4.8,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -29.09,
+      "change_30d_pct": -8.6,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -160.86,
+      "change_365d_pct": -34.2,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 1636.3,
+      "peak_this_year_date": "2026-05-15",
+      "pct_of_peak_this_year": 18.9,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 580.73,
+          "min_af": 477.19,
+          "max_af": 676.83,
+          "end_af": 676.83,
+          "days": 30,
+          "normal_af": 2856.84,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 780.9,
+          "min_af": 681.92,
+          "max_af": 865.81,
+          "end_af": 861.52,
+          "days": 31,
+          "normal_af": 2647.06,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 927.7,
+          "min_af": 874.05,
+          "max_af": 982.76,
+          "end_af": 982.76,
+          "days": 30,
+          "normal_af": 2514.12,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 1053.67,
+          "min_af": 987.6,
+          "max_af": 1104.6,
+          "end_af": 1104.6,
+          "days": 31,
+          "normal_af": 2375.84,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 1159.05,
+          "min_af": 1106.72,
+          "max_af": 1196.36,
+          "end_af": 1196.36,
+          "days": 31,
+          "normal_af": 2334.92,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 1230.71,
+          "min_af": 1185.95,
+          "max_af": 1271.6,
+          "end_af": 1271.6,
+          "days": 28,
+          "normal_af": 2294.21,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 1320.24,
+          "min_af": 1273.74,
+          "max_af": 1445.49,
+          "end_af": 1445.49,
+          "days": 31,
+          "normal_af": 2229.56,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 1475.0,
+          "min_af": 1386.42,
+          "max_af": 1541.75,
+          "end_af": 1541.75,
+          "days": 30,
+          "normal_af": 2188.86,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 1574.52,
+          "min_af": 1535.12,
+          "max_af": 1636.3,
+          "end_af": 1535.69,
+          "days": 31,
+          "normal_af": 2414.7,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 1448.44,
+          "min_af": 1065.84,
+          "max_af": 1627.9,
+          "end_af": 1065.84,
+          "days": 30,
+          "normal_af": 3195.17,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 485.29,
+          "min_af": 329.81,
+          "max_af": 1026.42,
+          "end_af": 329.89,
+          "days": 31,
+          "normal_af": 3112.54,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 319.74,
+          "min_af": 297.12,
+          "max_af": 329.89,
+          "end_af": 309.68,
+          "days": 20,
+          "normal_af": 2528.63,
+          "climate_normal_af": null
+        }
+      ],
+      "first_obs": "2022-12-04",
+      "n_obs": 1356,
+      "years_of_record": 3.7,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140500",
+      "huc6_name": "White-Yampa",
+      "connected_states": [
+        "CO",
+        "UT",
+        "WY"
+      ],
+      "huc_assignment_point": [
+        -107.12058,
+        40.03001
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
+      ]
+    },
+    {
       "name": "Browns Draw",
       "rise_item_id": null,
       "source_key": "awdb",
@@ -69398,6 +69605,103 @@
       "state": "CA",
       "waterbody_states": [
         "CA"
+      ]
+    },
+    {
+      "name": "Overland Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "4003399B",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 39.08861,
+      "lon": -107.642686,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 59.47,
+      "record_max_af": 3581.07,
+      "record_min_af": 58.22,
+      "pct_of_record_max": 1.7,
+      "capacity_af": 5828.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 1.0,
+      "seasonal_percentile": null,
+      "seasonal_rank": null,
+      "seasonal_rank_of": null,
+      "seasonal_normal_af": null,
+      "pct_of_seasonal_normal": null,
+      "seasonal_sample_years": 0,
+      "change_7d_af": -1.54,
+      "change_7d_pct": -2.5,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -2.89,
+      "change_30d_pct": -4.6,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": null,
+      "change_365d_pct": null,
+      "change_365d_reference_date": null,
+      "change_365d_elapsed_days": null,
+      "peak_this_year_af": 3581.07,
+      "peak_this_year_date": "2026-06-12",
+      "pct_of_peak_this_year": 1.7,
+      "monthly": [
+        {
+          "month": "2026-06",
+          "mean_af": 2677.33,
+          "min_af": 1699.54,
+          "max_af": 3581.07,
+          "end_af": 1699.54,
+          "days": 19,
+          "normal_af": null,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 425.06,
+          "min_af": 58.42,
+          "max_af": 1588.57,
+          "end_af": 58.42,
+          "days": 31,
+          "normal_af": null,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 59.41,
+          "min_af": 58.22,
+          "max_af": 61.01,
+          "end_af": 59.47,
+          "days": 20,
+          "normal_af": null,
+          "climate_normal_af": null
+        }
+      ],
+      "first_obs": "2026-06-12",
+      "n_obs": 70,
+      "years_of_record": 0.2,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140200",
+      "huc6_name": "Gunnison",
+      "connected_states": [
+        "CO"
+      ],
+      "huc_assignment_point": [
+        -107.64558,
+        39.07834
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08029",
+      "county_name": "Delta County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
       ]
     },
     {
@@ -70006,6 +70310,212 @@
       "state": "UT",
       "waterbody_states": [
         "UT"
+      ]
+    },
+    {
+      "name": "Pearl Lake",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "PEARLACO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 40.779421,
+      "lon": -106.888969,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 5584.23,
+      "record_max_af": 5917.35,
+      "record_min_af": 4592.66,
+      "pct_of_record_max": 94.4,
+      "capacity_af": 5592.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 99.9,
+      "seasonal_percentile": 27.3,
+      "seasonal_rank": 4,
+      "seasonal_rank_of": 12,
+      "seasonal_normal_af": 5646.17,
+      "pct_of_seasonal_normal": 98.9,
+      "seasonal_sample_years": 11,
+      "baselines": {
+        "recent": {
+          "normal_af": 5646.17,
+          "pct_of_normal": 98.9,
+          "sample_years": 11,
+          "covers_full_period": true,
+          "first_obs": "2015-01-01"
+        },
+        "climate": {
+          "normal_af": 5605.0,
+          "pct_of_normal": 99.6,
+          "sample_years": 19,
+          "covers_full_period": false,
+          "first_obs": "2001-09-16"
+        },
+        "default": "climate"
+      },
+      "change_7d_af": -15.77,
+      "change_7d_pct": -0.3,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -67.26,
+      "change_30d_pct": -1.2,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -61.94,
+      "change_365d_pct": -1.1,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 5829.29,
+      "peak_this_year_date": "2026-03-23",
+      "pct_of_peak_this_year": 95.8,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 5638.57,
+          "min_af": 5632.85,
+          "max_af": 5646.98,
+          "end_af": 5642.49,
+          "days": 30,
+          "normal_af": 5611.37,
+          "climate_normal_af": 5446.09
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 5666.55,
+          "min_af": 5641.57,
+          "max_af": 5681.89,
+          "end_af": 5681.64,
+          "days": 31,
+          "normal_af": 5602.92,
+          "climate_normal_af": 5506.79
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 5689.48,
+          "min_af": 5681.85,
+          "max_af": 5703.38,
+          "end_af": 5703.38,
+          "days": 30,
+          "normal_af": 5630.92,
+          "climate_normal_af": 5457.8
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 5743.23,
+          "min_af": 5705.03,
+          "max_af": 5776.98,
+          "end_af": 5776.98,
+          "days": 31,
+          "normal_af": 5644.05,
+          "climate_normal_af": 5503.84
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 5781.87,
+          "min_af": 5776.4,
+          "max_af": 5788.86,
+          "end_af": 5777.77,
+          "days": 31,
+          "normal_af": 5650.05,
+          "climate_normal_af": 5599.89
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 5788.43,
+          "min_af": 5776.31,
+          "max_af": 5802.84,
+          "end_af": 5800.69,
+          "days": 28,
+          "normal_af": 5718.08,
+          "climate_normal_af": 5621.43
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 5797.21,
+          "min_af": 5730.99,
+          "max_af": 5829.29,
+          "end_af": 5730.99,
+          "days": 31,
+          "normal_af": 5728.5,
+          "climate_normal_af": 5636.11
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 5793.78,
+          "min_af": 5741.97,
+          "max_af": 5820.54,
+          "end_af": 5820.54,
+          "days": 30,
+          "normal_af": 5666.01,
+          "climate_normal_af": 5605.92
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 5743.84,
+          "min_af": 5698.09,
+          "max_af": 5818.42,
+          "end_af": 5755.86,
+          "days": 31,
+          "normal_af": 5738.41,
+          "climate_normal_af": 5738.79
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 5728.44,
+          "min_af": 5696.93,
+          "max_af": 5752.59,
+          "end_af": 5696.93,
+          "days": 30,
+          "normal_af": 5702.45,
+          "climate_normal_af": 5692.24
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 5664.25,
+          "min_af": 5639.89,
+          "max_af": 5693.94,
+          "end_af": 5639.89,
+          "days": 31,
+          "normal_af": 5655.41,
+          "climate_normal_af": 5630.5
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 5607.6,
+          "min_af": 5584.23,
+          "max_af": 5636.5,
+          "end_af": 5584.23,
+          "days": 20,
+          "normal_af": 5657.27,
+          "climate_normal_af": 5574.43
+        }
+      ],
+      "first_obs": "2015-01-01",
+      "n_obs": 4250,
+      "years_of_record": 11.6,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140500",
+      "huc6_name": "White-Yampa",
+      "connected_states": [
+        "CO",
+        "UT",
+        "WY"
+      ],
+      "huc_assignment_point": [
+        -106.88891,
+        40.78001
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08107",
+      "county_name": "Routt County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
       ]
     },
     {
@@ -70622,6 +71132,212 @@
       "state": "UT",
       "waterbody_states": [
         "UT"
+      ]
+    },
+    {
+      "name": "Long Hollow Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "LONRESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 37.058166,
+      "lon": -108.174993,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 160.0,
+      "record_max_af": 5160.9,
+      "record_min_af": 0.0,
+      "pct_of_record_max": 3.1,
+      "capacity_af": 5309.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 3.0,
+      "seasonal_percentile": 45.5,
+      "seasonal_rank": 6,
+      "seasonal_rank_of": 12,
+      "seasonal_normal_af": 228.22,
+      "pct_of_seasonal_normal": 70.1,
+      "seasonal_sample_years": 11,
+      "baselines": {
+        "recent": {
+          "normal_af": 228.22,
+          "pct_of_normal": 70.1,
+          "sample_years": 11,
+          "covers_full_period": true,
+          "first_obs": "2015-02-06"
+        },
+        "climate": {
+          "normal_af": 285.03,
+          "pct_of_normal": 56.1,
+          "sample_years": 6,
+          "covers_full_period": false,
+          "first_obs": "2015-02-06"
+        },
+        "default": "recent"
+      },
+      "change_7d_af": -2.45,
+      "change_7d_pct": -1.5,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -88.09,
+      "change_30d_pct": -35.5,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": 11.86,
+      "change_365d_pct": 8.0,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 703.74,
+      "peak_this_year_date": "2026-03-10",
+      "pct_of_peak_this_year": 22.7,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 117.15,
+          "min_af": 114.0,
+          "max_af": 120.26,
+          "end_af": 114.0,
+          "days": 30,
+          "normal_af": 187.65,
+          "climate_normal_af": 193.38
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 133.31,
+          "min_af": 112.0,
+          "max_af": 150.0,
+          "end_af": 147.0,
+          "days": 31,
+          "normal_af": 166.21,
+          "climate_normal_af": 192.62
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 165.91,
+          "min_af": 142.47,
+          "max_af": 221.1,
+          "end_af": 221.1,
+          "days": 30,
+          "normal_af": 170.87,
+          "climate_normal_af": 205.71
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 296.14,
+          "min_af": 225.66,
+          "max_af": 361.8,
+          "end_af": 361.8,
+          "days": 31,
+          "normal_af": 280.56,
+          "climate_normal_af": 323.81
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 431.4,
+          "min_af": 366.25,
+          "max_af": 489.99,
+          "end_af": 489.99,
+          "days": 31,
+          "normal_af": 458.85,
+          "climate_normal_af": 598.47
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 562.6,
+          "min_af": 494.12,
+          "max_af": 645.56,
+          "end_af": 645.56,
+          "days": 28,
+          "normal_af": 665.18,
+          "climate_normal_af": 889.99
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 667.56,
+          "min_af": 631.16,
+          "max_af": 703.74,
+          "end_af": 631.16,
+          "days": 31,
+          "normal_af": 1186.62,
+          "climate_normal_af": 1492.29
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 616.09,
+          "min_af": 604.71,
+          "max_af": 632.33,
+          "end_af": 604.71,
+          "days": 30,
+          "normal_af": 1346.36,
+          "climate_normal_af": 2000.43
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 565.25,
+          "min_af": 514.09,
+          "max_af": 604.01,
+          "end_af": 514.09,
+          "days": 31,
+          "normal_af": 1308.75,
+          "climate_normal_af": 1900.3
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 471.63,
+          "min_af": 410.53,
+          "max_af": 513.7,
+          "end_af": 410.53,
+          "days": 30,
+          "normal_af": 600.55,
+          "climate_normal_af": 682.36
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 285.74,
+          "min_af": 170.89,
+          "max_af": 402.82,
+          "end_af": 170.89,
+          "days": 31,
+          "normal_af": 385.21,
+          "climate_normal_af": 405.81
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 162.15,
+          "min_af": 160.0,
+          "max_af": 165.02,
+          "end_af": 160.0,
+          "days": 20,
+          "normal_af": 242.22,
+          "climate_normal_af": 293.22
+        }
+      ],
+      "first_obs": "2015-02-06",
+      "n_obs": 4124,
+      "years_of_record": 11.5,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140801",
+      "huc6_name": "Upper San Juan",
+      "connected_states": [
+        "AZ",
+        "CO",
+        "NM"
+      ],
+      "huc_assignment_point": [
+        -108.17515,
+        37.05816
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
       ]
     },
     {
@@ -72672,6 +73388,205 @@
       ]
     },
     {
+      "name": "Heart Lake Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "HARTLKCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 39.771753,
+      "lon": -107.319038,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 1659.77,
+      "record_max_af": 3082.45,
+      "record_min_af": 389.5,
+      "pct_of_record_max": 53.8,
+      "capacity_af": 3088.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 53.7,
+      "seasonal_percentile": 0.0,
+      "seasonal_rank": 1,
+      "seasonal_rank_of": 5,
+      "seasonal_normal_af": 2047.09,
+      "pct_of_seasonal_normal": 81.1,
+      "seasonal_sample_years": 4,
+      "baselines": {
+        "recent": {
+          "normal_af": 2047.09,
+          "pct_of_normal": 81.1,
+          "sample_years": 4,
+          "covers_full_period": true,
+          "first_obs": "2021-10-06"
+        },
+        "climate": null,
+        "default": "recent"
+      },
+      "change_7d_af": -80.77,
+      "change_7d_pct": -4.6,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -372.64,
+      "change_30d_pct": -18.3,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -83.91,
+      "change_365d_pct": -4.8,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 2568.3,
+      "peak_this_year_date": "2026-06-09",
+      "pct_of_peak_this_year": 64.6,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 1513.05,
+          "min_af": 1399.96,
+          "max_af": 1645.93,
+          "end_af": 1399.96,
+          "days": 30,
+          "normal_af": 1757.79,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 1338.6,
+          "min_af": 1270.93,
+          "max_af": 1392.58,
+          "end_af": 1270.93,
+          "days": 31,
+          "normal_af": 1493.66,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 1191.45,
+          "min_af": 1133.88,
+          "max_af": 1264.5,
+          "end_af": 1133.88,
+          "days": 30,
+          "normal_af": 1345.36,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 1087.43,
+          "min_af": 1032.92,
+          "max_af": 1132.92,
+          "end_af": 1032.92,
+          "days": 31,
+          "normal_af": 1220.52,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 998.6,
+          "min_af": 944.94,
+          "max_af": 1037.4,
+          "end_af": 944.94,
+          "days": 31,
+          "normal_af": 1110.18,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 916.89,
+          "min_af": 903.69,
+          "max_af": 940.73,
+          "end_af": 904.6,
+          "days": 28,
+          "normal_af": 1026.01,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 869.37,
+          "min_af": 843.29,
+          "max_af": 903.96,
+          "end_af": 885.79,
+          "days": 31,
+          "normal_af": 956.04,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 1045.53,
+          "min_af": 909.56,
+          "max_af": 1179.91,
+          "end_af": 1179.91,
+          "days": 30,
+          "normal_af": 903.32,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 1693.64,
+          "min_af": 1187.18,
+          "max_af": 2409.72,
+          "end_af": 2409.72,
+          "days": 31,
+          "normal_af": 1336.65,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 2478.84,
+          "min_af": 2316.55,
+          "max_af": 2568.3,
+          "end_af": 2316.55,
+          "days": 30,
+          "normal_af": 2783.75,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 2100.91,
+          "min_af": 1921.69,
+          "max_af": 2299.66,
+          "end_af": 1921.69,
+          "days": 31,
+          "normal_af": 2521.47,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 1771.5,
+          "min_af": 1659.77,
+          "max_af": 1907.58,
+          "end_af": 1659.77,
+          "days": 20,
+          "normal_af": 2101.79,
+          "climate_normal_af": null
+        }
+      ],
+      "first_obs": "2021-10-06",
+      "n_obs": 1780,
+      "years_of_record": 4.9,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140100",
+      "huc6_name": "Colorado Headwaters",
+      "connected_states": [
+        "CO",
+        "UT"
+      ],
+      "huc_assignment_point": [
+        -107.31892,
+        39.77168
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08045",
+      "county_name": "Garfield County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
+      ]
+    },
+    {
       "name": "Stevens Creek Reservoir",
       "rise_item_id": null,
       "source_key": "cdec",
@@ -73279,6 +74194,211 @@
       ]
     },
     {
+      "name": "Buckeye Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "BKIRESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 38.436699,
+      "lon": -109.044426,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 0.0,
+      "record_max_af": 2484.0,
+      "record_min_af": 0.0,
+      "pct_of_record_max": 0.0,
+      "capacity_af": 2483.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 0.0,
+      "seasonal_percentile": 0.0,
+      "seasonal_rank": 1,
+      "seasonal_rank_of": 12,
+      "seasonal_normal_af": 999.83,
+      "pct_of_seasonal_normal": 0.0,
+      "seasonal_sample_years": 11,
+      "baselines": {
+        "recent": {
+          "normal_af": 999.83,
+          "pct_of_normal": 0.0,
+          "sample_years": 11,
+          "covers_full_period": true,
+          "first_obs": "2015-01-01"
+        },
+        "climate": {
+          "normal_af": 999.83,
+          "pct_of_normal": 0.0,
+          "sample_years": 13,
+          "covers_full_period": false,
+          "first_obs": "2007-10-24"
+        },
+        "default": "climate"
+      },
+      "change_7d_af": -8.02,
+      "change_7d_pct": -100.0,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -43.14,
+      "change_30d_pct": -100.0,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -2.03,
+      "change_365d_pct": -100.0,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 742.6,
+      "peak_this_year_date": "2026-04-01",
+      "pct_of_peak_this_year": 0.0,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 5.84,
+          "min_af": 3.1,
+          "max_af": 10.72,
+          "end_af": 7.0,
+          "days": 30,
+          "normal_af": 539.41,
+          "climate_normal_af": 585.18
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 18.88,
+          "min_af": 4.49,
+          "max_af": 41.85,
+          "end_af": 13.67,
+          "days": 31,
+          "normal_af": 283.21,
+          "climate_normal_af": 289.79
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 74.0,
+          "min_af": 12.94,
+          "max_af": 141.92,
+          "end_af": 141.92,
+          "days": 30,
+          "normal_af": 387.5,
+          "climate_normal_af": 336.4
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 209.6,
+          "min_af": 144.34,
+          "max_af": 282.35,
+          "end_af": 282.35,
+          "days": 31,
+          "normal_af": 425.09,
+          "climate_normal_af": 395.42
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 341.99,
+          "min_af": 286.44,
+          "max_af": 390.94,
+          "end_af": 390.94,
+          "days": 31,
+          "normal_af": 385.78,
+          "climate_normal_af": 420.57
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 445.8,
+          "min_af": 394.51,
+          "max_af": 503.26,
+          "end_af": 503.26,
+          "days": 28,
+          "normal_af": 391.24,
+          "climate_normal_af": 418.84
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 596.86,
+          "min_af": 510.08,
+          "max_af": 728.34,
+          "end_af": 728.34,
+          "days": 31,
+          "normal_af": 442.85,
+          "climate_normal_af": 471.84
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 705.03,
+          "min_af": 676.09,
+          "max_af": 742.6,
+          "end_af": 676.09,
+          "days": 30,
+          "normal_af": 583.07,
+          "climate_normal_af": 643.53
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 588.61,
+          "min_af": 522.49,
+          "max_af": 667.29,
+          "end_af": 522.49,
+          "days": 31,
+          "normal_af": 634.7,
+          "climate_normal_af": 1193.11
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 379.89,
+          "min_af": 195.4,
+          "max_af": 516.99,
+          "end_af": 195.4,
+          "days": 30,
+          "normal_af": 1179.86,
+          "climate_normal_af": 1722.6
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 77.01,
+          "min_af": 36.79,
+          "max_af": 182.81,
+          "end_af": 58.85,
+          "days": 31,
+          "normal_af": 1359.23,
+          "climate_normal_af": 1360.04
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 19.65,
+          "min_af": 0.0,
+          "max_af": 55.94,
+          "end_af": 0.0,
+          "days": 20,
+          "normal_af": 1060.62,
+          "climate_normal_af": 1060.62
+        }
+      ],
+      "first_obs": "2015-01-01",
+      "n_obs": 3981,
+      "years_of_record": 11.6,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140300",
+      "huc6_name": "Upper Colorado-Dolores",
+      "connected_states": [
+        "CO",
+        "UT"
+      ],
+      "huc_assignment_point": [
+        -109.04558,
+        38.43834
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08085",
+      "county_name": "Montrose County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
+      ]
+    },
+    {
       "name": "Soldiers Meadow Reservoir",
       "rise_item_id": 133227,
       "source_key": "rise",
@@ -73687,6 +74807,211 @@
       "state": "UT",
       "waterbody_states": [
         "UT"
+      ]
+    },
+    {
+      "name": "Upper Blue Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "BLURESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 39.385729,
+      "lon": -106.100872,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 0.0,
+      "record_max_af": 2117.09,
+      "record_min_af": 0.0,
+      "pct_of_record_max": 0.0,
+      "capacity_af": 2140.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 0.0,
+      "seasonal_percentile": 0.0,
+      "seasonal_rank": 1,
+      "seasonal_rank_of": 12,
+      "seasonal_normal_af": 2090.24,
+      "pct_of_seasonal_normal": 0.0,
+      "seasonal_sample_years": 11,
+      "baselines": {
+        "recent": {
+          "normal_af": 2090.24,
+          "pct_of_normal": 0.0,
+          "sample_years": 11,
+          "covers_full_period": true,
+          "first_obs": "2015-05-26"
+        },
+        "climate": {
+          "normal_af": 1946.08,
+          "pct_of_normal": 0.0,
+          "sample_years": 24,
+          "covers_full_period": true,
+          "first_obs": "1991-01-01"
+        },
+        "default": "climate"
+      },
+      "change_7d_af": 0.0,
+      "change_7d_pct": null,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": 0.0,
+      "change_30d_pct": null,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -2089.95,
+      "change_365d_pct": -100.0,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 18.97,
+      "peak_this_year_date": "2026-03-29",
+      "pct_of_peak_this_year": 0.0,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 1824.17,
+          "min_af": 1321.1,
+          "max_af": 2092.59,
+          "end_af": 1321.1,
+          "days": 30,
+          "normal_af": 2089.01,
+          "climate_normal_af": 1831.95
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 840.92,
+          "min_af": 183.03,
+          "max_af": 1287.02,
+          "end_af": 183.03,
+          "days": 31,
+          "normal_af": 1337.35,
+          "climate_normal_af": 1143.39
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 15.57,
+          "min_af": 0.0,
+          "max_af": 146.83,
+          "end_af": 0.0,
+          "days": 30,
+          "normal_af": 151.24,
+          "climate_normal_af": 223.36
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 31,
+          "normal_af": null,
+          "climate_normal_af": 50.05
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 31,
+          "normal_af": null,
+          "climate_normal_af": 194.64
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 28,
+          "normal_af": null,
+          "climate_normal_af": 274.16
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 3.3,
+          "min_af": 0.0,
+          "max_af": 18.97,
+          "end_af": 18.35,
+          "days": 31,
+          "normal_af": null,
+          "climate_normal_af": 142.09
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 0.24,
+          "min_af": 0.0,
+          "max_af": 7.16,
+          "end_af": 0.0,
+          "days": 30,
+          "normal_af": 19.11,
+          "climate_normal_af": 35.28
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 0.28,
+          "min_af": 0.0,
+          "max_af": 8.74,
+          "end_af": 0.0,
+          "days": 31,
+          "normal_af": 127.68,
+          "climate_normal_af": 252.78
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 30,
+          "normal_af": 1145.56,
+          "climate_normal_af": 1152.43
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 31,
+          "normal_af": 2084.28,
+          "climate_normal_af": 1969.45
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 0.0,
+          "min_af": 0.0,
+          "max_af": 0.0,
+          "end_af": 0.0,
+          "days": 20,
+          "normal_af": 2091.93,
+          "climate_normal_af": 1946.3
+        }
+      ],
+      "first_obs": "2015-05-26",
+      "n_obs": 2389,
+      "years_of_record": 11.2,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140100",
+      "huc6_name": "Colorado Headwaters",
+      "connected_states": [
+        "CO",
+        "UT"
+      ],
+      "huc_assignment_point": [
+        -106.10113,
+        39.38529
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08117",
+      "county_name": "Summit County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
       ]
     },
     {
@@ -74291,6 +75616,212 @@
       "huc_assignment_source": "nid_dam_point",
       "county_fips": "08109",
       "county_name": "Saguache County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
+      ]
+    },
+    {
+      "name": "Red Mesa Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "REDRESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 37.166093,
+      "lon": -108.141924,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 35.07,
+      "record_max_af": 1233.33,
+      "record_min_af": 0.0,
+      "pct_of_record_max": 2.8,
+      "capacity_af": 1176.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 3.0,
+      "seasonal_percentile": 10.0,
+      "seasonal_rank": 2,
+      "seasonal_rank_of": 11,
+      "seasonal_normal_af": 270.19,
+      "pct_of_seasonal_normal": 13.0,
+      "seasonal_sample_years": 10,
+      "baselines": {
+        "recent": {
+          "normal_af": 270.19,
+          "pct_of_normal": 13.0,
+          "sample_years": 10,
+          "covers_full_period": true,
+          "first_obs": "2015-01-01"
+        },
+        "climate": {
+          "normal_af": 280.62,
+          "pct_of_normal": 12.5,
+          "sample_years": 13,
+          "covers_full_period": false,
+          "first_obs": "2007-10-19"
+        },
+        "default": "climate"
+      },
+      "change_7d_af": 1.2,
+      "change_7d_pct": 3.5,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": 20.78,
+      "change_30d_pct": 145.5,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": 1.37,
+      "change_365d_pct": 4.1,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 754.83,
+      "peak_this_year_date": "2026-04-07",
+      "pct_of_peak_this_year": 4.6,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 46.45,
+          "min_af": 38.49,
+          "max_af": 57.11,
+          "end_af": 57.11,
+          "days": 30,
+          "normal_af": 287.31,
+          "climate_normal_af": 278.11
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 288.66,
+          "min_af": 58.07,
+          "max_af": 464.84,
+          "end_af": 464.84,
+          "days": 31,
+          "normal_af": 281.74,
+          "climate_normal_af": 250.47
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 483.44,
+          "min_af": 464.64,
+          "max_af": 501.62,
+          "end_af": 501.62,
+          "days": 30,
+          "normal_af": 295.82,
+          "climate_normal_af": 266.0
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 548.4,
+          "min_af": 503.34,
+          "max_af": 577.88,
+          "end_af": 577.88,
+          "days": 31,
+          "normal_af": 324.25,
+          "climate_normal_af": 330.55
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 610.34,
+          "min_af": 579.04,
+          "max_af": 661.81,
+          "end_af": 661.81,
+          "days": 31,
+          "normal_af": 466.89,
+          "climate_normal_af": 502.07
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 676.25,
+          "min_af": 664.54,
+          "max_af": 693.46,
+          "end_af": 693.46,
+          "days": 28,
+          "normal_af": 623.92,
+          "climate_normal_af": 656.87
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 720.75,
+          "min_af": 694.16,
+          "max_af": 738.07,
+          "end_af": 738.07,
+          "days": 31,
+          "normal_af": 773.18,
+          "climate_normal_af": 859.16
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 701.55,
+          "min_af": 569.49,
+          "max_af": 754.83,
+          "end_af": 569.49,
+          "days": 30,
+          "normal_af": 848.67,
+          "climate_normal_af": 1001.92
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 338.09,
+          "min_af": 159.61,
+          "max_af": 554.46,
+          "end_af": 159.61,
+          "days": 31,
+          "normal_af": 790.16,
+          "climate_normal_af": 1122.94
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 71.99,
+          "min_af": 8.35,
+          "max_af": 141.74,
+          "end_af": 8.35,
+          "days": 30,
+          "normal_af": 549.06,
+          "climate_normal_af": 920.43
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 13.62,
+          "min_af": 8.27,
+          "max_af": 22.78,
+          "end_af": 22.78,
+          "days": 31,
+          "normal_af": 451.9,
+          "climate_normal_af": 553.34
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 31.15,
+          "min_af": 23.36,
+          "max_af": 35.07,
+          "end_af": 35.07,
+          "days": 20,
+          "normal_af": 289.99,
+          "climate_normal_af": 288.15
+        }
+      ],
+      "first_obs": "2015-01-01",
+      "n_obs": 4123,
+      "years_of_record": 11.6,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140801",
+      "huc6_name": "Upper San Juan",
+      "connected_states": [
+        "AZ",
+        "CO",
+        "NM"
+      ],
+      "huc_assignment_point": [
+        -108.14224,
+        37.16668
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
       "state": "CO",
       "waterbody_states": [
         "CO"
@@ -74904,6 +76435,411 @@
       "state": "UT",
       "waterbody_states": [
         "UT"
+      ]
+    },
+    {
+      "name": "Haviland Lake Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "HAVRESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 37.532021,
+      "lon": -107.807296,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 399.98,
+      "record_max_af": 510.64,
+      "record_min_af": 271.94,
+      "pct_of_record_max": 78.3,
+      "capacity_af": 526.0,
+      "capacity_basis": "normal_storage",
+      "pct_of_capacity": 76.0,
+      "seasonal_percentile": 25.0,
+      "seasonal_rank": 2,
+      "seasonal_rank_of": 5,
+      "seasonal_normal_af": 422.9,
+      "pct_of_seasonal_normal": 94.6,
+      "seasonal_sample_years": 4,
+      "baselines": {
+        "recent": {
+          "normal_af": 422.9,
+          "pct_of_normal": 94.6,
+          "sample_years": 4,
+          "covers_full_period": true,
+          "first_obs": "2022-05-04"
+        },
+        "climate": null,
+        "default": "recent"
+      },
+      "change_7d_af": -4.21,
+      "change_7d_pct": -1.0,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": -14.02,
+      "change_30d_pct": -3.4,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -6.57,
+      "change_365d_pct": -1.6,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 483.88,
+      "peak_this_year_date": "2026-04-02",
+      "pct_of_peak_this_year": 82.7,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 404.01,
+          "min_af": 401.0,
+          "max_af": 407.79,
+          "end_af": 402.0,
+          "days": 30,
+          "normal_af": 436.85,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 434.06,
+          "min_af": 401.03,
+          "max_af": 458.93,
+          "end_af": 458.93,
+          "days": 31,
+          "normal_af": 437.81,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 465.92,
+          "min_af": 458.98,
+          "max_af": 476.06,
+          "end_af": 475.08,
+          "days": 30,
+          "normal_af": 451.55,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 475.52,
+          "min_af": 474.09,
+          "max_af": 479.93,
+          "end_af": 475.33,
+          "days": 31,
+          "normal_af": 471.13,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 474.37,
+          "min_af": 473.07,
+          "max_af": 476.56,
+          "end_af": 473.07,
+          "days": 31,
+          "normal_af": 471.06,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 475.81,
+          "min_af": 472.97,
+          "max_af": 481.8,
+          "end_af": 481.8,
+          "days": 28,
+          "normal_af": 472.57,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 476.77,
+          "min_af": 474.03,
+          "max_af": 483.27,
+          "end_af": 474.06,
+          "days": 31,
+          "normal_af": 475.4,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 476.31,
+          "min_af": 472.29,
+          "max_af": 483.88,
+          "end_af": 475.02,
+          "days": 30,
+          "normal_af": 473.5,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 469.38,
+          "min_af": 461.25,
+          "max_af": 474.79,
+          "end_af": 461.25,
+          "days": 31,
+          "normal_af": 471.07,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 447.49,
+          "min_af": 431.1,
+          "max_af": 460.35,
+          "end_af": 431.1,
+          "days": 30,
+          "normal_af": 461.57,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 418.76,
+          "min_af": 414.0,
+          "max_af": 429.73,
+          "end_af": 414.18,
+          "days": 31,
+          "normal_af": 444.11,
+          "climate_normal_af": null
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 404.41,
+          "min_af": 399.98,
+          "max_af": 412.53,
+          "end_af": 399.98,
+          "days": 20,
+          "normal_af": 425.37,
+          "climate_normal_af": null
+        }
+      ],
+      "first_obs": "2022-05-04",
+      "n_obs": 1570,
+      "years_of_record": 4.3,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140801",
+      "huc6_name": "Upper San Juan",
+      "connected_states": [
+        "AZ",
+        "CO",
+        "NM"
+      ],
+      "huc_assignment_point": [
+        -107.8074,
+        37.53266
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08067",
+      "county_name": "La Plata County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
+      ]
+    },
+    {
+      "name": "Alsbury Reservoir",
+      "rise_item_id": null,
+      "source_key": "cdss",
+      "source_label": "Colorado Division of Water Resources",
+      "source_url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+      "source_station_id": "ALSRESCO",
+      "data_frequency": "daily",
+      "stale_after_days": 2,
+      "lat": 39.332774,
+      "lon": -107.483256,
+      "as_of": "2026-08-20",
+      "days_stale": 1,
+      "is_stale": false,
+      "fetch_ok": true,
+      "current_storage_af": 37.2,
+      "record_max_af": 226.14,
+      "record_min_af": 37.0,
+      "pct_of_record_max": 16.5,
+      "capacity_af": 429.0,
+      "capacity_basis": "max_storage",
+      "pct_of_capacity": 8.7,
+      "seasonal_percentile": 9.1,
+      "seasonal_rank": 2,
+      "seasonal_rank_of": 12,
+      "seasonal_normal_af": 38.46,
+      "pct_of_seasonal_normal": 96.7,
+      "seasonal_sample_years": 11,
+      "baselines": {
+        "recent": {
+          "normal_af": 38.46,
+          "pct_of_normal": 96.7,
+          "sample_years": 11,
+          "covers_full_period": true,
+          "first_obs": "2015-01-01"
+        },
+        "climate": {
+          "normal_af": 41.05,
+          "pct_of_normal": 90.6,
+          "sample_years": 20,
+          "covers_full_period": false,
+          "first_obs": "2000-01-17"
+        },
+        "default": "climate"
+      },
+      "change_7d_af": 0.0,
+      "change_7d_pct": 0.0,
+      "change_7d_reference_date": "2026-08-13",
+      "change_7d_elapsed_days": 7,
+      "change_30d_af": 0.0,
+      "change_30d_pct": 0.0,
+      "change_30d_reference_date": "2026-07-21",
+      "change_30d_elapsed_days": 30,
+      "change_365d_af": -0.11,
+      "change_365d_pct": -0.3,
+      "change_365d_reference_date": "2025-08-20",
+      "change_365d_elapsed_days": 365,
+      "peak_this_year_af": 51.39,
+      "peak_this_year_date": "2026-05-07",
+      "pct_of_peak_this_year": 72.4,
+      "monthly": [
+        {
+          "month": "2025-09",
+          "mean_af": 37.3,
+          "min_af": 37.3,
+          "max_af": 37.3,
+          "end_af": 37.3,
+          "days": 30,
+          "normal_af": 37.28,
+          "climate_normal_af": 37.9
+        },
+        {
+          "month": "2025-10",
+          "mean_af": 37.26,
+          "min_af": 37.2,
+          "max_af": 37.3,
+          "end_af": 37.2,
+          "days": 31,
+          "normal_af": 37.29,
+          "climate_normal_af": 37.84
+        },
+        {
+          "month": "2025-11",
+          "mean_af": 37.2,
+          "min_af": 37.2,
+          "max_af": 37.2,
+          "end_af": 37.2,
+          "days": 30,
+          "normal_af": 37.29,
+          "climate_normal_af": 37.8
+        },
+        {
+          "month": "2025-12",
+          "mean_af": 37.18,
+          "min_af": 37.12,
+          "max_af": 37.2,
+          "end_af": 37.14,
+          "days": 31,
+          "normal_af": 37.36,
+          "climate_normal_af": 37.76
+        },
+        {
+          "month": "2026-01",
+          "mean_af": 37.13,
+          "min_af": 37.1,
+          "max_af": 37.16,
+          "end_af": 37.14,
+          "days": 31,
+          "normal_af": 37.71,
+          "climate_normal_af": 38.18
+        },
+        {
+          "month": "2026-02",
+          "mean_af": 37.13,
+          "min_af": 37.1,
+          "max_af": 37.17,
+          "end_af": 37.15,
+          "days": 28,
+          "normal_af": 38.12,
+          "climate_normal_af": 37.97
+        },
+        {
+          "month": "2026-03",
+          "mean_af": 39.01,
+          "min_af": 37.1,
+          "max_af": 47.12,
+          "end_af": 46.77,
+          "days": 31,
+          "normal_af": 39.5,
+          "climate_normal_af": 40.47
+        },
+        {
+          "month": "2026-04",
+          "mean_af": 48.99,
+          "min_af": 47.12,
+          "max_af": 50.34,
+          "end_af": 50.34,
+          "days": 30,
+          "normal_af": 50.03,
+          "climate_normal_af": 50.03
+        },
+        {
+          "month": "2026-05",
+          "mean_af": 47.25,
+          "min_af": 44.32,
+          "max_af": 51.39,
+          "end_af": 44.32,
+          "days": 31,
+          "normal_af": 140.72,
+          "climate_normal_af": 140.72
+        },
+        {
+          "month": "2026-06",
+          "mean_af": 42.13,
+          "min_af": 38.93,
+          "max_af": 44.27,
+          "end_af": 38.93,
+          "days": 30,
+          "normal_af": 158.48,
+          "climate_normal_af": 187.15
+        },
+        {
+          "month": "2026-07",
+          "mean_af": 37.38,
+          "min_af": 37.2,
+          "max_af": 38.62,
+          "end_af": 37.2,
+          "days": 31,
+          "normal_af": 83.8,
+          "climate_normal_af": 105.32
+        },
+        {
+          "month": "2026-08",
+          "mean_af": 37.2,
+          "min_af": 37.2,
+          "max_af": 37.2,
+          "end_af": 37.2,
+          "days": 20,
+          "normal_af": 39.23,
+          "climate_normal_af": 42.37
+        }
+      ],
+      "first_obs": "2015-01-01",
+      "n_obs": 4199,
+      "years_of_record": 11.6,
+      "in_utah": false,
+      "intersects_utah": false,
+      "huc6": "140100",
+      "huc6_name": "Colorado Headwaters",
+      "connected_states": [
+        "CO",
+        "UT"
+      ],
+      "huc_assignment_point": [
+        -107.48391,
+        39.33334
+      ],
+      "huc_assignment_source": "nid_dam_point",
+      "county_fips": "08077",
+      "county_name": "Mesa County",
+      "state": "CO",
+      "waterbody_states": [
+        "CO"
       ]
     }
   ]

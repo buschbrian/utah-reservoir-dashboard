@@ -1,14 +1,12 @@
 """One adapter per provider, and the retry policy they share.
 
-Three providers answer with storage readings -- Reclamation, the Natural
-Resources Conservation Service, and the California Department of Water
-Resources -- and each has its own URL, its own paging, its own idea of a
-missing value and its own date convention. Everything specific to a provider
-belongs here, so that the rest of the pipeline sees one shape: a frame of
-`date` and `storage_af`, cleaned, sorted and deduplicated.
-
-A fourth provider starts in this module. `SourceKey` on the TypeScript side is
-exhaustive, so it will not compile until every table names it.
+Four providers answer with storage readings -- Reclamation, the Natural
+Resources Conservation Service, the California Department of Water Resources,
+and the Colorado Division of Water Resources -- and each has its own URL, its
+own paging, its own idea of a missing value and its own date convention.
+Everything specific to a provider belongs here, so that the rest of the
+pipeline sees one shape: a frame of `date` and `storage_af`, cleaned, sorted
+and deduplicated.
 """
 
 import datetime as dt
@@ -256,6 +254,93 @@ def fetch_cdec_series(station_id: str, cadence: str,
         # the future -- which costs at most the current month's row, and only
         # if the service ever begins stamping one before the month is over.
         df["date"] = df["date"] + pd.offsets.MonthEnd(0)
+    df = df[df["date"] <= local_today()]
+    return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
+              [["date", "storage_af"]].reset_index(drop=True))
+
+
+#: Colorado's own service. The telemetry `abbrev` is the identity (ADR-066);
+#: storage is published in acre-feet and the daily endpoint folds each day's
+#: readings behind one row (`measCount` says how many stood behind it).
+CDSS_BASE_URL = "https://dwr.state.co.us/Rest/GET/api/v2"
+CDSS_STATIONS_URL = f"{CDSS_BASE_URL}/telemetrystations/telemetrystation"
+CDSS_SERIES_URL = f"{CDSS_BASE_URL}/telemetrystations/telemetrytimeseriesday"
+
+
+def _get_cdss_json(url: str, params: dict):
+    """GET a CDSS envelope, with the same transient-failure policy as the others.
+
+    Two things are this service's own. The answer is always an *envelope* --
+    `{PageNumber, PageCount, ResultCount, ResultList}` -- never a bare list,
+    so the caller reads `ResultList`. And **a station or window with no rows
+    is an HTTP 404 carrying a text body** ("returns zero records from CDSS"),
+    which for every other service means a failure. Here it means "no data":
+    a reservoir whose telemetry stopped in 2021 answers its whole recent
+    history that way. A 404 whose body says zero records is therefore an
+    empty answer, returned as `[]`; any other 404 is still raised, because a
+    reshaped route is a failure and must look like one.
+
+    The service also publishes its own quota -- 1,000 requests and 600,000
+    rows per day, resetting at midnight Mountain -- on `x-rate-*` response
+    headers. Nothing here reads them yet; the refresh's ~400k rows fit, and
+    the audit tools that approach the limit report their own consumption.
+    """
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, params=params, timeout=60)
+            if resp.status_code == 404 and b"zero records" in resp.content:
+                return []
+            resp.raise_for_status()
+            payload = resp.json()
+            if isinstance(payload, dict) and "ResultList" in payload:
+                return payload["ResultList"] or []
+            return payload
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
+
+
+def fetch_cdss_series(abbrev: str, start: str, end: str) -> pd.DataFrame:
+    """Pull a CDSS daily storage series and normalize it to [date, storage_af].
+
+    The same contract the other three providers answer with: a date-sorted
+    frame with nulls dropped, duplicate dates collapsed to the last reading,
+    and nothing dated after today.
+
+    What this service adds:
+
+    **Dates carry no time zone** (`2026-07-01T00:00:00`) and need no
+    correction: unlike California's monthly stamp, the value behind a day's
+    row is that day's reading (its own `measCount` readings folded together),
+    so the date is kept as written. The calendar needs no repair here.
+
+    **No sentinel has been observed** -- dead stations answer 404 rather than
+    publishing a filler value -- but a negative or null `measValue` is dropped
+    anyway, on the same principle as every other provider: no reading and an
+    empty reservoir are different facts.
+    """
+    rows = _get_cdss_json(CDSS_SERIES_URL, {
+        "abbrev": abbrev,
+        "parameter": "STORAGE",
+        "startDate": dt.datetime.strptime(start, "%Y%m%d").date().isoformat(),
+        "endDate": dt.datetime.strptime(end, "%Y%m%d").date().isoformat(),
+        "format": "json",
+    })
+    cleaned = []
+    for value in rows if isinstance(rows, list) else []:
+        reading = value.get("measValue")
+        if not isinstance(reading, (int, float)) or reading < 0:
+            continue
+        cleaned.append({"date": value.get("measDate"), "storage_af": float(reading)})
+    if not cleaned:
+        return pd.DataFrame({"date": pd.Series(dtype="datetime64[ns]"),
+                             "storage_af": pd.Series(dtype="float64")})
+    df = pd.DataFrame(cleaned)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
+    df = df.dropna(subset=["date", "storage_af"])
     df = df[df["date"] <= local_today()]
     return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
               [["date", "storage_af"]].reset_index(drop=True))

@@ -34,6 +34,7 @@ CAPACITY_PATH = ROOT / "capacities.json"
 ADMITTED_RESERVOIRS_PATH = ROOT / "admitted_reservoirs.json"
 ADMITTED_RISE_RESERVOIRS_PATH = ROOT / "admitted_rise_reservoirs.json"
 ADMITTED_CDEC_RESERVOIRS_PATH = ROOT / "admitted_cdec_reservoirs.json"
+ADMITTED_CDSS_RESERVOIRS_PATH = ROOT / "admitted_cdss_reservoirs.json"
 NORMALS_PATH = ROOT / "normals.json"
 COUNTIES_PATH = ROOT / "counties.json"
 EXPORT_PATH = ROOT / "reference.json"
@@ -64,20 +65,23 @@ AWDB_MONTHLY_STALE_AFTER_DAYS = 45
 #:   "none found"         the review looked for another source and found none
 #:
 #: "none found" is not "complete". It is the honest limit of a search.
-SOURCE_COVERAGE_REVIEWED = "2026-08-19"
+SOURCE_COVERAGE_REVIEWED = "2026-08-21"
 SOURCE_COVERAGE = {
     "CO": {"status": "more to add",
            "source": "Colorado Division of Water Resources",
            "url": "https://dwr.state.co.us/rest/get/help",
-           "adds_about": 110,
-           "note": "Publishes current storage for 128 reservoirs, most of "
-                   "which this site does not read."},
+           "adds_about": 95,
+           "note": "Read since 2026-08-21 for the ten storage stations inside "
+                   "the drawn drainages. About 95 further reservoirs report "
+                   "on the eastern slope, whose drainages reach the "
+                   "Mississippi basin and are not drawn."},
     "CA": {"status": "more to add",
            "source": "California Data Exchange Center",
            "url": "https://cdec.water.ca.gov/",
-           "adds_about": 140,
-           "note": "Publishes current storage for 154 reservoirs, most of "
-                   "which this site does not read."},
+           "adds_about": None,
+           "note": "Read since 2026-08-20. The candidates admitted over or "
+                   "held behind a screen are named, with their findings, in "
+                   "admitted_cdec_reservoirs.json."},
     "MT": {"status": "more to add",
            "source": "U.S. Army Corps of Engineers water management",
            "url": "https://water.usace.army.mil/",

@@ -67,7 +67,8 @@ sys.path.insert(0, str(ROOT))
 
 from refresh_reservoirs import (  # noqa: E402
     CANONICAL_YEAR_DAYS, SEASONAL_WINDOW_DAYS, annual_seasonal_values,
-    fetch_awdb_series, fetch_cdec_series, fetch_rise_series, seasonal_window,
+    fetch_awdb_series, fetch_cdss_series, fetch_cdec_series,
+    fetch_rise_series, seasonal_window,
 )
 
 ROSTER_PATH = ROOT / "reservoirs.json"
@@ -87,6 +88,9 @@ ADMITTED_PATH = ROOT / "admitted_reservoirs.json"
 #: roster this does not read is a roster whose reservoirs silently never get
 #: a normal.
 ADMITTED_CDEC_PATH = ROOT / "admitted_cdec_reservoirs.json"
+#: The same, for Colorado -- and the last of them, because this provider's
+#: admission file is the shape the others were generalised from.
+ADMITTED_CDSS_PATH = ROOT / "admitted_cdss_reservoirs.json"
 OUTPUT_PATH = ROOT / "normals.json"
 
 
@@ -128,6 +132,21 @@ def roster_records() -> list[dict]:
         records.append({
             "name": entry["name"],
             "source_key": "cdec",
+            "source_station_id": station,
+            "data_frequency": entry["cadence"],
+            "lat": entry["lat"],
+            "lon": entry["lon"],
+        })
+    if not ADMITTED_CDSS_PATH.exists():
+        return records
+    colorado = json.loads(
+        ADMITTED_CDSS_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    for station, entry in colorado.items():
+        if str(station) in known:
+            continue
+        records.append({
+            "name": entry["name"],
+            "source_key": "cdss",
             "source_station_id": station,
             "data_frequency": entry["cadence"],
             "lat": entry["lat"],
@@ -177,6 +196,7 @@ SOURCES = {
     "rise": "https://data.usbr.gov/rise-api",
     "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
     "cdec": "https://cdec.water.ca.gov/",
+    "cdss": "https://dwr.state.co.us/Rest/GET/api/v2/",
 }
 
 
@@ -196,6 +216,8 @@ def fetch_period(reservoir: dict) -> pd.DataFrame:
     if reservoir["source_key"] == "cdec":
         return fetch_cdec_series(
             reservoir["source_station_id"], reservoir["data_frequency"], start, end)
+    if reservoir["source_key"] == "cdss":
+        return fetch_cdss_series(reservoir["source_station_id"], start, end)
     return fetch_awdb_series(
         reservoir["source_station_id"], reservoir["data_frequency"], start, end)
 

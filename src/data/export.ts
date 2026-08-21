@@ -29,7 +29,8 @@ export function serializeCsv<Row>(
 const PROVIDERS: Record<SourceKey, string> = {
   rise: "Bureau of Reclamation",
   awdb: "Natural Resources Conservation Service",
-  cdec: "California Department of Water Resources"
+  cdec: "California Department of Water Resources",
+  cdss: "Colorado Division of Water Resources"
 };
 
 export function reservoirProvider(reservoir: Reservoir): string {

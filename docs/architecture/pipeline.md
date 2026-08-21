@@ -15,7 +15,7 @@ modules in `pipeline/`:
 |---|---|
 | `pipeline/constants.py` | Paths, thresholds, schema and method versions, source-coverage review. |
 | `pipeline/roster.py` | The committed rosters, capacity evidence and the full-level precedence rule. |
-| `pipeline/providers.py` | One adapter per provider: Reclamation, the Conservation Service, California. |
+| `pipeline/providers.py` | One adapter per provider: Reclamation, the Conservation Service, California, Colorado. |
 | `pipeline/seasonal.py` | The seasonal estimator: window, annual votes, normals, rank, percentile. |
 | `pipeline/freshness.py` | Carry-forward, the withdrawal threshold and the withdrawal notice. |
 | `pipeline/geography.py` | County and drainage-area assignment onto finished records. |

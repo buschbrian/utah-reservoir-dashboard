@@ -35,6 +35,7 @@ follow a file.
 | [`../WESTERN-RESERVOIR-ADMISSION.md`](../WESTERN-RESERVOIR-ADMISSION.md) | First federal western candidate audit. |
 | [`../WESTERN-ROSTER-ADMISSION-REVIEW.md`](../WESTERN-ROSTER-ADMISSION-REVIEW.md) | Candidate-by-candidate capacity and deduplication review. |
 | [`../RISE-ADMISSION-REVIEW.md`](../RISE-ADMISSION-REVIEW.md) | Federal source-only western additions. |
+| [`../COLORADO-ADMISSION-REVIEW.md`](../COLORADO-ADMISSION-REVIEW.md) | The state network scoped to the drawn drainages, and the quota it costs. |
 
 The four **maintained references** that also live in `docs/` are not journals
 and are kept current: `AUTHORITATIVE-SOURCE-INVENTORY.md`, `data-transfer.md`,

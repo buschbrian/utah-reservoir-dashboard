@@ -12,7 +12,7 @@ the module that owns the concern, not in the orchestrator.
 |---|---|
 | `constants.py` | Paths, thresholds, `RESERVOIR_SCHEMA_VERSION`, `METHOD_VERSION`, source coverage. |
 | `roster.py` | Committed rosters, capacity evidence, full-level precedence. |
-| `providers.py` | One adapter per provider. A fourth provider starts here. |
+| `providers.py` | One adapter per provider. A fifth provider starts here. |
 | `seasonal.py` | The estimator: window, annual votes, normals, rank, percentile. |
 | `freshness.py` | Carry-forward, withdrawal threshold, withdrawal notice. |
 | `geography.py` | County and drainage-area assignment onto finished records. |

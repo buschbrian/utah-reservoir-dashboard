@@ -67,8 +67,8 @@ from pipeline import (  # noqa: F401
     seasonal,
 )
 from pipeline.constants import (  # noqa: F401
-    ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_RESERVOIRS_PATH,
-    ADMITTED_RISE_RESERVOIRS_PATH, AWDB_DATA_URL,
+    ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_CDSS_RESERVOIRS_PATH,
+    ADMITTED_RESERVOIRS_PATH, ADMITTED_RISE_RESERVOIRS_PATH, AWDB_DATA_URL,
     AWDB_MONTHLY_STALE_AFTER_DAYS, BASE_AWDB_RESERVOIRS, BASE_RISE_RESERVOIRS,
     CAPACITY_PATH, COUNTIES_PATH, DEFAULT_BASELINE, EXPORT_PATH,
     EXPORT_SCHEMA_VERSION, LOCAL_TZ, METHOD_VERSION, MIN_BASELINE_YEARS,
@@ -77,17 +77,20 @@ from pipeline.constants import (  # noqa: F401
     STALE_AFTER_DAYS, START_DATE, WITHDRAW_AFTER_DAYS, local_today
 )
 from pipeline.roster import (  # noqa: F401
-    ADMITTED_CDEC_RESERVOIRS, ADMITTED_RESERVOIRS, ADMITTED_RISE_RESERVOIRS,
-    ALL_RESERVOIR_IDS, ALL_RESERVOIR_NAMES, AWDB_RESERVOIRS, CDEC_RESERVOIRS,
+    ADMITTED_CDEC_RESERVOIRS, ADMITTED_CDSS_RESERVOIRS, ADMITTED_RESERVOIRS,
+    ADMITTED_RISE_RESERVOIRS, ALL_RESERVOIR_IDS, ALL_RESERVOIR_NAMES,
+    AWDB_RESERVOIRS, CDEC_RESERVOIRS, CDSS_RESERVOIRS,
     REQUIRED_CAPACITY_EVIDENCE, RESERVOIRS, RESERVOIR_NAMES,
-    load_admitted_cdec_reservoirs, load_admitted_reservoirs,
-    load_admitted_rise_reservoirs, load_capacities,
+    load_admitted_cdec_reservoirs, load_admitted_cdss_reservoirs,
+    load_admitted_reservoirs, load_admitted_rise_reservoirs, load_capacities,
     validate_capacity_evidence
 )
 from pipeline.providers import (  # noqa: F401
-    CDEC_DATA_URL, CDEC_MISSING_VALUE, CDEC_STORAGE_SENSOR, MAX_PAGES,
-    RETRY_ATTEMPTS, RETRY_BACKOFF_SECONDS, _get_awdb_json, _get_cdec_json,
-    _get_json, fetch_awdb_series, fetch_cdec_series, fetch_rise_series
+    CDEC_DATA_URL, CDEC_MISSING_VALUE, CDEC_STORAGE_SENSOR, CDSS_BASE_URL,
+    CDSS_SERIES_URL, CDSS_STATIONS_URL, MAX_PAGES, RETRY_ATTEMPTS,
+    RETRY_BACKOFF_SECONDS, _get_awdb_json, _get_cdss_json, _get_cdec_json,
+    _get_json, fetch_awdb_series, fetch_cdss_series, fetch_cdec_series,
+    fetch_rise_series
 )
 from pipeline.seasonal import (  # noqa: F401
     CANONICAL_YEAR_DAYS, annual_seasonal_values, canonical_day,
@@ -253,8 +256,14 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         # --- the same question, asked against a choice of period ---
         # `seasonal_normal_af` above is the recent baseline and stays exactly
         # what it was, so nothing that already reads this payload changes
-        # meaning. `baselines` is the addition.
-        "baselines": baselines,
+        # meaning. `baselines` is the addition -- unless neither comparison
+        # exists, which a reservoir too young to hold one arrives as
+        # (Colorado's 2025 stations). Then the block is left out entirely: a
+        # `default` naming a period with nothing behind it is refused by the
+        # runtime validator, and refusing it is right, because offering a
+        # comparison that does not exist looks like a measurement.
+        **({"baselines": baselines} if baselines["recent"] is not None
+           or baselines["climate"] is not None else {}),
 
         # --- trend ---
         **changes,
@@ -299,6 +308,7 @@ def load_capacity_catalog() -> dict:
     catalog["admitted_reservoirs"] = ADMITTED_RESERVOIRS_PATH.name
     catalog["admitted_rise_reservoirs"] = ADMITTED_RISE_RESERVOIRS_PATH.name
     catalog["admitted_cdec_reservoirs"] = ADMITTED_CDEC_RESERVOIRS_PATH.name
+    catalog["admitted_cdss_reservoirs"] = ADMITTED_CDSS_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)
@@ -661,7 +671,8 @@ def main() -> int:
                              "since a partial run would drop every other reservoir.")
     parser.add_argument("--dry-run", action="store_true",
                         help="compute everything but don't write reservoirs.json")
-    parser.add_argument("--source", choices=("all", "rise", "awdb", "cdec"), default="all",
+    parser.add_argument("--source", choices=("all", "rise", "awdb", "cdec", "cdss"),
+                        default="all",
                         help="refresh one source and merge the other source's previously "
                              "published records (default: all)")
     args = parser.parse_args()
@@ -679,11 +690,13 @@ def main() -> int:
               f"(built {normals.get('built')})")
     print(f"NID capacity records available: {len(capacities)} "
           f"({len(RESERVOIRS)} Reclamation, {len(ADMITTED_RESERVOIRS)} admitted, "
-          f"{len(ADMITTED_CDEC_RESERVOIRS)} California)")
+          f"{len(ADMITTED_CDEC_RESERVOIRS)} California, "
+          f"{len(ADMITTED_CDSS_RESERVOIRS)} Colorado)")
 
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
     cdec_targets = CDEC_RESERVOIRS if args.source in {"all", "cdec"} else {}
+    cdss_targets = CDSS_RESERVOIRS if args.source in {"all", "cdss"} else {}
     if args.only:
         # Named, because a person types a name and not a station triplet. The
         # roster is keyed by station since ADR-066, so a name is resolved to
@@ -695,11 +708,12 @@ def main() -> int:
         rise_targets = {k: v for k, v in RESERVOIRS.items() if k in chosen}
         awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in chosen}
         cdec_targets = {k: v for k, v in CDEC_RESERVOIRS.items() if k in chosen}
+        cdss_targets = {k: v for k, v in CDSS_RESERVOIRS.items() if k in chosen}
         found = {RESERVOIR_NAMES.get(station, station)
                  for station in set(rise_targets) | set(awdb_targets)
-                 | set(cdec_targets)}
+                 | set(cdec_targets) | set(cdss_targets)}
         missing = (wanted - found - set(rise_targets) - set(awdb_targets)
-                   - set(cdec_targets))
+                   - set(cdec_targets) - set(cdss_targets))
         if missing:
             print(f"ERROR: unknown reservoir(s): {', '.join(sorted(missing))}", file=sys.stderr)
             return 2
@@ -801,6 +815,41 @@ def main() -> int:
         ))
         time.sleep(0.2)
 
+    for abbrev, (name, lat, lon, capacity_af, cadence) in cdss_targets.items():
+        try:
+            df = fetch_cdss_series(abbrev, START_DATE, end)
+        except Exception as exc:  # noqa: BLE001
+            reason = (f"CDSS fetch failed after {RETRY_ATTEMPTS} attempts: "
+                      f"{type(exc).__name__}: {exc}")
+            print(f"WARNING: {name} ({abbrev}) -- {reason}")
+            if abbrev in previous:
+                records.append(carry_forward(previous[abbrev], today, reason))
+            continue
+
+        if df.empty:
+            # A station that has gone entirely quiet answers 404, which the
+            # adapter turns into an empty frame -- the same "no usable rows"
+            # state every other provider's quiet feed arrives in.
+            reason = f"CDSS returned no usable {cadence} storage rows"
+            print(f"WARNING: {name} ({abbrev}) -- {reason}")
+            if abbrev in previous:
+                records.append(carry_forward(previous[abbrev], today, reason))
+            continue
+
+        stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
+                       if cadence == "monthly" else STALE_AFTER_DAYS)
+        records.append(summarize(
+            name, None, lat, lon, df, today,
+            ADMITTED_CDSS_RESERVOIRS[abbrev]["capacity"],
+            source_key="cdss", source_label="Colorado Division of Water Resources",
+            source_url="https://dwr.state.co.us/Rest/GET/api/v2/",
+            data_frequency=cadence, stale_after_days=stale_after,
+            change_tolerance_days=45 if cadence == "monthly" else 10,
+            source_station_id=abbrev,
+            normals=normals,
+        ))
+        time.sleep(0.1)
+
     if args.only:
         print(json.dumps(records, indent=2))
         return 0 if records else 1
@@ -808,7 +857,8 @@ def main() -> int:
     # A source-specific refresh is useful for the slower, independently
     # scheduled feeds. Preserve the other source instead of turning a partial
     # refresh into a partial dashboard.
-    selected_stations = set(rise_targets) | set(awdb_targets) | set(cdec_targets)
+    selected_stations = (set(rise_targets) | set(awdb_targets)
+                         | set(cdec_targets) | set(cdss_targets))
     refreshed_sources: set[str] = set()
     if args.source != "all":
         # Which feeds this run actually spoke to, read from what it fetched
@@ -932,8 +982,9 @@ def main() -> int:
         "stale_after_days": STALE_AFTER_DAYS,
         "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
                                          "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},
-        "source": ("Bureau of Reclamation RISE API, USDA NRCS AWDB and the "
-                   "California Data Exchange Center"),
+        "source": ("Bureau of Reclamation RISE API, USDA NRCS AWDB, the "
+                   "California Data Exchange Center and the Colorado "
+                   "Division of Water Resources"),
         "sources": [
             {"key": "rise", "label": "Bureau of Reclamation RISE",
              "url": "https://data.usbr.gov/rise-api", "cadence": "daily"},
@@ -943,11 +994,15 @@ def main() -> int:
             {"key": "cdec", "label": "California Data Exchange Center",
              "url": "https://cdec.water.ca.gov/",
              "cadence": "daily or monthly by station"},
+            {"key": "cdss", "label": "Colorado Division of Water Resources",
+             "url": "https://dwr.state.co.us/Rest/GET/api/v2/",
+             "cadence": "daily"},
         ],
         "source_counts": {
             "rise": sum(1 for r in records if r.get("source_key", "rise") == "rise"),
             "awdb": sum(1 for r in records if r.get("source_key") == "awdb"),
             "cdec": sum(1 for r in records if r.get("source_key") == "cdec"),
+            "cdss": sum(1 for r in records if r.get("source_key") == "cdss"),
         },
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),

@@ -47,11 +47,12 @@ wireTheme();
  */
 function providerCounts(
   reservoirs: readonly Reservoir[]
-): { rise: number; awdb: number; cdec: number } {
+): { rise: number; awdb: number; cdec: number; cdss: number } {
   return {
     rise: reservoirs.filter((reservoir) => reservoir.source_key === "rise").length,
     awdb: reservoirs.filter((reservoir) => reservoir.source_key === "awdb").length,
-    cdec: reservoirs.filter((reservoir) => reservoir.source_key === "cdec").length
+    cdec: reservoirs.filter((reservoir) => reservoir.source_key === "cdec").length,
+    cdss: reservoirs.filter((reservoir) => reservoir.source_key === "cdss").length
   };
 }
 
@@ -178,7 +179,10 @@ async function showPublishedData(): Promise<void> {
       `It covers ${data.reservoirs.length} reservoirs. ` +
       `The Bureau of Reclamation measures ${counts.rise}. ` +
       `The Natural Resources Conservation Service measures ${counts.awdb}. ` +
-      `The California Department of Water Resources measures ${counts.cdec}.`;
+      `The California Department of Water Resources measures ${counts.cdec}.` +
+      (counts.cdss > 0
+        ? ` The Colorado Division of Water Resources measures ${counts.cdss}.`
+        : "");
   } catch (error) {
     console.warn("The published data could not be read for the methods page:", error);
     /* The page is still worth reading without it -- everything else here is

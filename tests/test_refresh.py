@@ -342,12 +342,24 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     assert len(R.CDEC_RESERVOIRS) == 142
     assert sum(1 for row in R.ADMITTED_CDEC_RESERVOIRS.values()
                if row.get("review")) == 5
-    assert len(R.ALL_RESERVOIR_IDS) == 370
+    # R3's second state source: ten of the thirteen in-scope candidates the
+    # Colorado audit screened -- three held with findings in the file itself
+    # (Ivanhoe and Trout Lake above their own record's largest pool; Garnet
+    # Mesa without a usable history yet), and one more candidate refused by
+    # the same screens before review. Ninety-four of the service's storage
+    # stations sit east of the drawn drainages and are nobody's candidate
+    # until the drawn scope reaches the Missouri basin.
+    assert len(R.ADMITTED_CDSS_RESERVOIRS) == 10
+    assert len(R.CDSS_RESERVOIRS) == 10
+    assert len(R.ALL_RESERVOIR_IDS) == 380
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
-    # Three providers, three disjoint sets of station ids. An id in two of
+    # Four providers, four disjoint sets of station ids. An id in two of
     # them is one reservoir fetched twice and summed twice (ADR-069).
     assert not (set(R.CDEC_RESERVOIRS)
                 & (set(R.RESERVOIRS) | set(R.AWDB_RESERVOIRS)))
+    assert not (set(R.CDSS_RESERVOIRS)
+                & (set(R.RESERVOIRS) | set(R.AWDB_RESERVOIRS)
+                   | set(R.CDEC_RESERVOIRS)))
     for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
         assert triplet.count(":") == 2
@@ -1516,3 +1528,79 @@ def test_a_change_that_cannot_be_made_names_no_reference():
     assert record["change_365d_reference_date"] is None
     assert record["change_365d_elapsed_days"] is None
     json.dumps(record)
+
+
+# --- the fourth provider: Colorado's telemetry service ----------------------
+
+def cdss_row(day, value):
+    """A series row as the service writes it: ISO date, no zone."""
+    return {"abbrev": "GRARESCO", "parameter": "STORAGE",
+            "measDate": f"{day}T00:00:00", "measValue": value,
+            "measUnit": "ACFT", "flagA": "O", "flagB": None, "measCount": 96}
+
+
+def test_cdss_answers_the_same_contract_as_the_other_providers(monkeypatch):
+    """Sorted, deduplicated to the last reading, and nothing after today."""
+    later = (R.local_today() + pd.Timedelta(days=3)).strftime("%Y-%m-%d")
+    monkeypatch.setattr(R.providers, "_get_cdss_json", lambda url, params: [
+        cdss_row("2026-08-12", 300),
+        cdss_row("2026-08-10", 100),
+        cdss_row("2026-08-10", 111),
+        cdss_row(later, 999),
+    ])
+    frame = R.fetch_cdss_series("GRARESCO", "20260801", "20261231")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10", "2026-08-12"]
+    assert frame["storage_af"].tolist() == [111.0, 300.0], "last reading wins"
+
+
+def test_cdss_drops_a_negative_rather_than_reading_it(monkeypatch):
+    """No sentinel has been observed on this service -- a quiet station
+    answers 404 instead -- but a value below zero is no more a measurement
+    here than it is anywhere else."""
+    monkeypatch.setattr(R.providers, "_get_cdss_json", lambda url, params: [
+        cdss_row("2026-08-10", -1),
+        cdss_row("2026-08-11", 0),
+        cdss_row("2026-08-12", None),
+        cdss_row("2026-08-13", 250),
+    ])
+    frame = R.fetch_cdss_series("GRARESCO", "20260801", "20260831")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-11", "2026-08-13"]
+    assert frame["storage_af"].tolist() == [0.0, 250.0]
+
+
+def test_cdss_reads_an_empty_window_as_an_answer_not_a_failure(monkeypatch):
+    """A station with no rows answers HTTP 404 whose body says zero records.
+    Gross Reservoir's whole recent history arrives that way; it is an empty
+    series, not an error to retry three times and raise."""
+
+    class Response:
+        status_code = 404
+        content = b'"This URL is properly formatted, but returns zero records from CDSS."'
+
+        def raise_for_status(self):
+            raise AssertionError("a zero-records 404 must not raise")
+
+    monkeypatch.setattr(R.providers.requests, "get",
+                        lambda url, params=None, timeout=None: Response())
+    rows = R.providers._get_cdss_json(R.providers.CDSS_SERIES_URL,
+                                      {"abbrev": "GROSRECO"})
+    assert rows == []
+
+
+def test_the_colorado_roster_is_keyed_by_the_station_and_carries_evidence():
+    """The same shape every other admitted file is held to (ADR-066)."""
+    for abbrev, row in R.ADMITTED_CDSS_RESERVOIRS.items():
+        assert row["station"] == abbrev
+        assert row["cadence"] == "daily"
+        assert R.REQUIRED_CAPACITY_EVIDENCE <= row["capacity"].keys(), abbrev
+
+
+def test_every_colorado_admission_names_its_dam():
+    """This provider publishes no full level, so every denominator is the
+    inventory's -- and a percentage without its dam behind it is not published
+    over just because the state changed."""
+    for abbrev, row in R.ADMITTED_CDSS_RESERVOIRS.items():
+        capacity = row["capacity"]
+        assert capacity["nid_id"], abbrev
+        assert capacity["capacity_basis"] in {
+            "normal_storage", "max_storage", "nid_storage"}, abbrev

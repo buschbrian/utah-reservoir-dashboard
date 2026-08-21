@@ -4,13 +4,16 @@ Status: Measured 2026-08-20. Every figure below came from a live request made
 in this session; nothing is carried over from documentation or from the
 earlier survey in `docs/WESTERN-SOURCE-CANDIDATES.md`.
 
-Current outcome, updated 2026-08-20: **California is published**. 142
-reservoirs joined the roster, 25.7 million acre-feet of full level, and the
-denominator question this review raised is settled as ADR-070 -- where the
-provider that publishes the readings also publishes a full level, that figure
-is what a percentage divides by. Twenty-one candidates are held rather than
-published, each named with its finding in `admitted_cdec_reservoirs.json`.
-Colorado remains a later coverage-of-places source and is unstarted.
+Current outcome, updated 2026-08-21: **both are published**. California
+joined the roster on 2026-08-20 -- 142 reservoirs, 25.7 million acre-feet of
+full level, and the denominator question this review raised settled as
+ADR-070: where the provider that publishes the readings also publishes a full
+level, that figure is what a percentage divides by. Twenty-one California
+candidates are held rather than published, each named with its finding in
+`admitted_cdec_reservoirs.json`. Colorado followed on 2026-08-21 with ten
+reservoirs inside the drawn drainages; the projected 119 was never scoped to
+the drawn geography, and 91 of the state's storage stations sit east of it
+([`COLORADO-ADMISSION-REVIEW.md`](COLORADO-ADMISSION-REVIEW.md)).
 
 `docs/WESTERN-SOURCE-CANDIDATES.md` established that both sources exist, are
 keyless, and carry stable identifiers. This review asks the next question:
@@ -250,6 +253,11 @@ of 229 new stations (89%) could carry a denominator**, and 24 could not.
 2. **Colorado.** 119 reservoirs for 2% more water — worth having for what it
    shows about the headwaters, not for what it adds to a total. Its
    climate-normal build needs quota planning that California's does not.
+   *(Done 2026-08-21, scoped to the drawn drainages: ten reservoirs admitted,
+   three held with findings, and the projected 119 reduced to measured fact —
+   91 of the state's storage stations sit on the eastern slope, outside the
+   drawn western geography. See
+   [`COLORADO-ADMISSION-REVIEW.md`](COLORADO-ADMISSION-REVIEW.md).)*
 3. Re-run `tools/check_reference_freshness.py` after either lands; both would
    add a committed roster with its own review interval.
 
