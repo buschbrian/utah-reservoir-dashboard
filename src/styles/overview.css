@@ -292,10 +292,23 @@ body {
   letter-spacing: .01em;
 }
 .chart-host { position: relative; min-height: 27rem; height: 27rem; overflow: hidden; }
+/* One row per category, tall enough for a category name that wraps.
+ *
+ * 1.25rem was one line of axis text and nothing else, and the drainage-area
+ * names do not fit on one line: the SDK's vertical axis wraps a label it
+ * cannot fit, so "Southern Oregon Coastal" and "Northern California Coastal"
+ * became two lines each in a 20px row and their text ran together --
+ * "Coastal" sitting on "Northern" with no gap between the two areas. The
+ * chart looked like it had lost a row rather than like it had two.
+ *
+ * 1.6rem holds two 11px lines and the leading between them. It is applied to
+ * every category chart rather than only the two with long names, because
+ * which names are long is the reader's filter to change, not a property of
+ * the chart. */
 #capacity-chart,
 #watershed-chart,
 #spread-chart {
-  height: max(27rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+  height: max(27rem, calc(var(--chart-category-count, 0) * 1.6rem + 6rem));
 }
 .chart-host arcgis-chart {
   display: flex;
@@ -540,10 +553,12 @@ body {
   .table-actions calcite-button { flex: 1 1 auto; }
   .sort-control { width: 100%; }
   .chart-host { min-height: 23rem; height: 23rem; }
+  /* The same row height as the wide layout. A narrow card wraps *more*
+     names, not fewer, so this is the width that needs the room most. */
   #capacity-chart,
   #watershed-chart,
   #spread-chart {
-    height: max(23rem, calc(var(--chart-category-count, 0) * 1.25rem + 6rem));
+    height: max(23rem, calc(var(--chart-category-count, 0) * 1.6rem + 6rem));
   }
 }
 
