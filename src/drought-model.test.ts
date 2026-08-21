@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { readDroughtCoverage } from "./data/payload-fixture";
 import {
   areasAtOrWorse,
+  byChange,
   bySeverity,
+  changeCounts,
+  changesByArea,
+  droughtChanges,
   coverageSegments,
   daysOld,
   isLateRelease,
@@ -18,7 +22,7 @@ import {
   unitsAtOrWorse,
   worstClass
 } from "./drought-model";
-import type { DroughtUnit } from "./types";
+import type { DroughtPreviousWeek, DroughtUnit } from "./types";
 
 function unit(
   huc6: string, name: string,
@@ -353,5 +357,85 @@ describe("the opening scope's narrowing (S3c)", () => {
 
   it("matches nothing against an empty chosen set", () => {
     expect(unitsInOpeningScope([colorado, gunnison], new Set())).toEqual([]);
+  });
+});
+
+describe("what changed since last week", () => {
+  const unit = (huc6: string, name: string, d2: number): DroughtUnit => ({
+    huc6, huc6_name: name,
+    percent_of_area: { none: 0, d0: 0, d1: 0, d2, d3: 0, d4: 0 },
+    percent_of_area_at_least: { d0: d2, d1: d2, d2, d3: 0, d4: 0 }
+  });
+  const before = (entries: [string, number][]): DroughtPreviousWeek => ({
+    map_date: "2026-08-11",
+    release_date: "2026-08-13",
+    units: entries.map(([huc6, d2]) => ({
+      huc6, percent_of_area_at_least: { d0: d2, d1: d2, d2, d3: 0, d4: 0 }
+    }))
+  });
+
+  it("signs a change so that positive is drier", () => {
+    const changes = droughtChanges(
+      [unit("140100", "Colorado Headwaters", 60)], before([["140100", 40]]));
+    expect(changes[0]?.points).toBe(20);
+    expect(changes[0]?.direction).toBe("worse");
+    const wetter = droughtChanges(
+      [unit("140100", "Colorado Headwaters", 40)], before([["140100", 60]]));
+    expect(wetter[0]?.points).toBe(-20);
+    expect(wetter[0]?.direction).toBe("better");
+  });
+
+  /* A tenth of a point is the published precision, so anything under half of
+   * one is rounding rather than weather -- and a map that drew it as a move
+   * would report a week of noise as a week of change. */
+  it("reads a move below the published precision as no change", () => {
+    const changes = droughtChanges(
+      [unit("140100", "Colorado Headwaters", 40.04)], before([["140100", 40]]));
+    expect(changes[0]?.direction).toBe("same");
+  });
+
+  /* There is nothing to compare against the first time an archive is
+   * written, which is a real state: the coarser levels' archives started
+   * later than the basin one. An empty list is what lets a caller say so in
+   * words instead of drawing a map of zeroes. */
+  it("compares against nothing rather than against zero", () => {
+    expect(droughtChanges([unit("140100", "A", 40)], null)).toEqual([]);
+    expect(droughtChanges([unit("140100", "A", 40)], undefined)).toEqual([]);
+  });
+
+  /* An area last week did not publish is not an area that was at zero. */
+  it("leaves out an area the previous week does not name", () => {
+    const changes = droughtChanges(
+      [unit("140100", "A", 40), unit("150100", "B", 30)], before([["140100", 10]]));
+    expect(changes.map((change) => change.huc6)).toEqual(["140100"]);
+  });
+
+  it("leaves out an area the monitor does not measure", () => {
+    const unmeasured: DroughtUnit = {
+      huc6: "170101", huc6_name: "Kootenai",
+      measured: { percent_of_area: 0, basis: "no United States land" }
+    };
+    expect(droughtChanges([unmeasured], before([["170101", 10]]))).toEqual([]);
+  });
+
+  it("ranks the driest move first and the wettest last", () => {
+    const changes = droughtChanges(
+      [unit("1", "Rose", 12), unit("2", "Fell", 5), unit("3", "Held", 30)],
+      before([["1", 2], ["2", 25], ["3", 30]]));
+    expect(byChange(changes).map((change) => change.name))
+      .toEqual(["Rose", "Held", "Fell"]);
+  });
+
+  it("counts each direction for the sentence above the chart", () => {
+    const changes = droughtChanges(
+      [unit("1", "Rose", 12), unit("2", "Fell", 5), unit("3", "Held", 30)],
+      before([["1", 2], ["2", 25], ["3", 30]]));
+    expect(changeCounts(changes)).toEqual({ worse: 1, better: 1, same: 1 });
+  });
+
+  it("keys the changes by area for a surface that has a code", () => {
+    const changes = droughtChanges(
+      [unit("140100", "Colorado Headwaters", 60)], before([["140100", 40]]));
+    expect(changesByArea(changes).get("140100")?.points).toBe(20);
   });
 });

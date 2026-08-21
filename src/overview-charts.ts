@@ -454,27 +454,6 @@ function histogramTooltipFormatter(): TooltipFormatter {
     }])) as TooltipFormatter;
 }
 
-function boxTooltipFormatter(): TooltipFormatter {
-  return ((props: {
-    xValue?: Date | number | string;
-    dataContext: Record<string, unknown>;
-  }): string => {
-    const value = (field: string): string => formatPercent(
-      typeof props.dataContext[field] === "number"
-        ? props.dataContext[field] as number : null
-    );
-    return chartTooltip(String(props.xValue ?? "Drainage area"), [
-      { label: "Minimum", value: value("min") },
-      { label: "First quartile", value: value("first_quartile") },
-      { label: "Median", value: value("median") },
-      { label: "Third quartile", value: value("third_quartile") },
-      { label: "Maximum", value: value("max") },
-      { label: "Interquartile range", value: value("iqr") },
-      { label: "Mean", value: value("avg") }
-    ]);
-  }) as TooltipFormatter;
-}
-
 /** The same empty state for every chart, so a filter that matches nothing
  * reads the same way wherever the reader is looking. */
 function showEmpty(host: HTMLElement, message: string): void {
@@ -1076,83 +1055,4 @@ export async function renderArcgisDistributionChart(
   model.setAxisTitleText("Reservoirs", VALUE_AXIS);
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
     histogramTooltipFormatter());
-}
-
-/**
- * The spread of percent-full within each drainage area.
- *
- * The drainage-area bar chart gives one number per area, which hides the
- * thing a water manager most wants: whether an area at 60% is forty
- * reservoirs all near 60, or half of them full and half nearly empty. A box
- * plot answers that directly -- median, quartiles, whiskers and the
- * outliers, which are the individual reservoirs worth opening on the map.
- */
-export async function renderArcgisSpreadChart(
-  host: HTMLElement,
-  values: readonly { id: number; label: string; value: number; group: string }[],
-  ariaLabel: string,
-  isCurrent: () => boolean = () => true
-): Promise<void> {
-  host.replaceChildren();
-  const groups = new Set(values.map((entry) => entry.group));
-  host.style.setProperty("--chart-category-count", String(groups.size));
-  if (values.length < 3 || groups.size === 0) {
-    showEmpty(host, "Too few reservoirs in view to show a spread.");
-    return;
-  }
-
-  const layer = valueLayer(values, "Percent full");
-  await layer.load();
-  const model = await createModel({ layer, chartType: ModelTypes.BoxPlot });
-  if (!isCurrent()) return;
-  model.category = "grouping";
-  model.numericFields = ["value"];
-  model.rotatedState = true;
-  model.chartTitleVisibility = false;
-  model.legendVisibility = false;
-  /* Outliers are the point of this chart rather than noise on it: a single
-   * reservoir far below its neighbours is the one to go and look at. */
-  model.showOutliers = true;
-  model.showMeanLines = true;
-  /* One teal for every box, because the SDK will not colour them separately.
-   *
-   * A box plot draws ONE series however many categories it has, and every
-   * colour API here is per series -- which is why `colorMatch` over a
-   * unique-value renderer, over a class-breaks renderer, and over a
-   * continuous visual variable all came back with one flat colour:
-   * `seriesLength` never rose above 1, so there was never more than one
-   * box's worth of colour to set.
-   *
-   * `splitByField` is the SDK's own way to make more series, and it was
-   * tried here too, split on the storage class so five series could carry
-   * the five class colours. It makes the series, and it also reserves a lane
-   * for every one of them inside every category: each box then drew at a
-   * fifth of its row height, a sliver floating at whatever height its class
-   * happened to sort to. That is the same failure the bar chart above
-   * records for splitting by class, and it is worse here, because a box plot
-   * is read by the height and position of the box itself.
-   *
-   * So the boxes stay one colour, and it is deliberately NOT a class colour:
-   * a quartile is not a storage level, and a box drawn in the class table's
-   * teal-blue would invite the reader to read a spread as a level. Per-area
-   * colour needs this chart hand-built as SVG, the way `viz/drought-gap.ts`
-   * draws the same row-per-area shape with full control of every mark. */
-  model.meanLinesBoxColor = [...CHART_INK.measureSoft];
-  model.setSeriesColor([...CHART_INK.measureSoft], 0);
-  /* Every other chart in this file names its series; this one didn't, so
-   * the tooltip's "Field" row -- the SDK's own label for "which series is
-   * this" -- fell back to the series' generated id instead of a name a
-   * reader would recognize, right above the "Drainage area" row that
-   * already answers the question the field name was trying to. */
-  model.setSeriesName("Percent full", 0);
-  model.setAxisTitleText("Drainage area", 0);
-  model.setAxisValueFormat(0, {
-    type: WebChartTypes.CategoryAxisFormat,
-    characterLimit: null
-  });
-  model.setAxisTitleText("Percent full", VALUE_AXIS);
-  model.setMinBound(PERCENT_AXIS.min, VALUE_AXIS);
-  model.setMaxBound(PERCENT_AXIS.max, VALUE_AXIS);
-  await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
-    boxTooltipFormatter());
 }

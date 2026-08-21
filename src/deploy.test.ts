@@ -189,7 +189,8 @@ describe("a data-only commit deploys on its own", () => {
       .filter((entry) => entry.staged_by_refresh).map((entry) => entry.path);
 
     for (const file of ["data/drought/usdm-current.geojson",
-      "data/drought/usdm-huc6.json", "data/drought/usdm-huc4.json"]) {
+      "data/drought/usdm-huc6.json", "data/drought/usdm-huc4.json",
+      "data/drought/usdm-huc2.json"]) {
       expect(staged, `${file} is computed every morning and must be committed`)
         .toContain(file);
     }
@@ -218,12 +219,18 @@ describe("a data-only commit deploys on its own", () => {
 
   it("recomputes the coverage at every level the site offers", async () => {
     const refresh = await read("scripts/refresh-daily.sh");
-    /* Both from the one download. Either failing means both are suspect,
-     * which is why they share a revert. */
-    expect(refresh).toContain("tools/compute_drought_coverage.py --scope west-huc4");
-    /* The archive is one level (ADR-063); `merge_history` refuses otherwise,
-     * and this is the caller saying so out loud. */
-    expect(refresh).toContain("--scope west-huc4 --no-history");
+    /* All three from the one download. Any of them failing means all are
+     * suspect, which is why they share a revert. */
+    for (const scope of ["west-huc4", "west-huc2"]) {
+      expect(refresh)
+        .toContain(`tools/compute_drought_coverage.py --scope ${scope}`);
+    }
+    /* And each keeps its own archive, which is what gives every level a
+     * previous week to compare against (ADR-074). `merge_history` still
+     * refuses to hold two levels in one file; the answer is one file each,
+     * not one level with a history and two without. */
+    expect(refresh, "a level running with --no-history has no previous week")
+      .not.toContain("--no-history");
   });
 
   it("copies the runtime data into the published output instead of bundling it", async () => {

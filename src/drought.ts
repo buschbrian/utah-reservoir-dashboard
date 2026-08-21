@@ -44,7 +44,11 @@ import {
   DRYNESS_CLASS,
   isLateRelease,
   isMeasured,
+  byChange,
   byStorageGap,
+  changeCounts,
+  changesByArea,
+  droughtChanges,
   orderUnits,
   regionWorst,
   storageAgainstDrought,
@@ -67,6 +71,8 @@ import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { renderDroughtScatter } from "./viz/drought-scatter";
 import { renderDroughtGap } from "./viz/drought-gap";
+import { renderDroughtChange } from "./viz/drought-change";
+import { CHANGE_CLASSES, changeColor, changeLabel } from "./viz/change-classes";
 import { renderDroughtSeverity } from "./viz/drought-severity";
 import type { DroughtCoveragePayload, Reservoir } from "./types";
 import { createDroughtMap } from "./ui/drought-map";
@@ -320,7 +326,7 @@ function renderDrought(
     </section>
     <section class="overview-card" aria-labelledby="drought-map-heading">
       <div class="card-heading">
-        <div><h2 id="drought-map-heading">The drought map</h2><p>The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${scopedUnits.length} drainage areas the figures below describe. Drought does not stop at their edges, so the map draws the wider pattern too.</p></div>
+        <div><h2 id="drought-map-heading">The drought map</h2><p id="drought-map-copy">The monitor's weekly national map in its own colours, for the week of ${formatDate(payload.map_date)}. The outlined shapes are the ${scopedUnits.length} drainage areas the figures below describe. Drought does not stop at their edges, so the map draws the wider pattern too.</p></div>
         <span class="sdk-badge">ArcGIS map</span>
       </div>
       <div id="drought-map-host" class="view-map-host has-inset-legend" aria-busy="true"
@@ -345,11 +351,18 @@ function renderDrought(
       </div>
       <div id="drought-gap-host" class="drought-gap-host"></div>
     </section>
+    <section class="overview-card" aria-labelledby="drought-change-heading">
+      <div class="card-heading">
+        <div><h2 id="drought-change-heading">What changed since last week</h2><p>One bar for each drainage area, measured from the middle. A bar to the right means more of that area's land is in ${dryness.label.toLowerCase()} (${dryness.code}) or worse than a week ago. A bar to the left means less of it is. The unit is points of the area's own land, and both figures are the same measurement of the same ground a week apart. That is why this chart draws a bar and the one above it does not. The scale is the same distance either side of the middle, so a week where everything got wetter still puts no change in the middle.</p></div>
+      </div>
+      <div id="drought-change-host" class="drought-change-host"></div>
+      <p class="drought-chart-note" id="drought-change-note"></p>
+    </section>
     <section class="overview-card table-card" aria-labelledby="drought-areas-heading">
       <div class="card-heading"><div><h2 id="drought-areas-heading">Each drainage area</h2><p>The bar is the share of the area's land in each class, in the same colours as the map above. The figure beside the name is the combined reservoir storage in that area, as a percent of the combined full level.</p></div></div>
       <div class="drought-rows"></div>
       <details class="snow-month-details"><summary>Exact values for every class</summary>
-        <div class="table-scroll" tabindex="0" role="region" aria-label="Drought class table, scrolls sideways"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Drought class table, scrolls sideways"><table class="overview-table"><thead><tr><th>Drainage area</th><th>No drought</th><th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>Extreme or worse</th><th>Change since last week</th></tr></thead><tbody id="drought-table-rows"></tbody></table></div>
       </details>
       <p class="drought-attribution">${payload.attribution}. Read the full national map at <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noreferrer">droughtmonitor.unl.edu</a>.</p>
     </section>`;
@@ -370,6 +383,8 @@ function renderDrought(
   if (filterbar && filterToggle) wireMobileFilterDisclosure(filterbar, filterToggle);
   const scatterHost = content.querySelector<HTMLElement>("#drought-scatter-host");
   const gapHost = content.querySelector<HTMLElement>("#drought-gap-host");
+  const changeHost = content.querySelector<HTMLElement>("#drought-change-host");
+  const changeNote = content.querySelector<HTMLElement>("#drought-change-note");
   const severityHost = content.querySelector<HTMLElement>("#drought-severity-host");
   const severityKey = content.querySelector<HTMLElement>("#drought-severity-key");
   if (worseSelect) worseSelect.value = state.worse ?? "";
@@ -389,13 +404,23 @@ function renderDrought(
   legend.className = "drought-legend map-inset-legend";
   legend.setAttribute("role", "list");
   legend.setAttribute("aria-label", "Drought classes and their map colours");
-  if (legend) {
-    const entries = [
-      { label: NO_DROUGHT_LABEL, color: null },
-      ...DROUGHT_CLASSES.map((entry) => ({
-        label: `${entry.label} (${entry.code})`, color: entry.color as string | null
+  /* The key follows the map. Two surfaces, two colour languages, and a key
+   * left on the classes while the map drew a change would be worse than no
+   * key at all -- it would name the wrong scale with authority. */
+  const fillLegend = (mode: "classes" | "change"): void => {
+    legend.setAttribute("aria-label", mode === "change"
+      ? "Change since last week and its map colours"
+      : "Drought classes and their map colours");
+    const entries = mode === "change"
+      ? CHANGE_CLASSES.map((entry) => ({
+        label: entry.label, color: entry.color as string | null
       }))
-    ];
+      : [
+        { label: NO_DROUGHT_LABEL, color: null },
+        ...DROUGHT_CLASSES.map((entry) => ({
+          label: `${entry.label} (${entry.code})`, color: entry.color as string | null
+        }))
+      ];
     legend.replaceChildren(...entries.map((entry) => {
       const item = document.createElement("span");
       item.className = "drought-legend-item";
@@ -408,7 +433,8 @@ function renderDrought(
       item.append(swatch, label);
       return item;
     }));
-  }
+  };
+  fillLegend("classes");
 
   const rows = content.querySelector<HTMLElement>(".drought-rows");
   const tableBody = content.querySelector<HTMLTableSectionElement>("#drought-table-rows");
@@ -490,6 +516,10 @@ function renderDrought(
   }
 
     if (tableBody) {
+    /* Built once for the whole table rather than per row: the rows call this
+     * up to 75 times and a `find` down the change list each time would be a
+     * quadratic walk to answer one lookup. */
+    const changesHere = changesByArea(droughtChanges(scopedUnits, payload.previous));
     tableBody.replaceChildren(...ordered.map((unit) => {
       const row = document.createElement("tr");
       const name = document.createElement("th");
@@ -498,9 +528,12 @@ function renderDrought(
       row.append(name);
       if (!isMeasured(unit)) {
         /* One spanning sentence, never a row of zeros: zeros here would
-         * read as "no drought" about land the monitor cannot see. */
+         * read as "no drought" about land the monitor cannot see. The span
+         * counts the change column too -- an area with no share has no
+         * change either, and a "No comparison" beside the sentence would be
+         * a second answer to a question already answered. */
         const cell = document.createElement("td");
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.textContent = "The drought monitor does not measure land in this area.";
         row.append(cell);
         return row;
@@ -516,6 +549,22 @@ function renderDrought(
         cell.textContent = formatPercent(value);
         row.append(cell);
       }
+      /* The same move the chart above draws and the map fills with, said in
+       * words. A swatch beside it rather than a coloured cell: the cell's
+       * own text has to keep its contrast in both themes, and a full-strength
+       * class colour behind it would not (ADR-006's rule about text applies
+       * to the text over a fill as much as to the fill). */
+      const changeCell = document.createElement("td");
+      const move = changesHere.get(unit.huc6) ?? null;
+      const swatchColor = changeColor(move ? move.points : null);
+      if (swatchColor) {
+        const swatch = document.createElement("span");
+        swatch.className = "drought-change-swatch";
+        swatch.style.background = swatchColor;
+        changeCell.append(swatch);
+      }
+      changeCell.append(changeLabel(move ? move.points : null));
+      row.append(changeCell);
       return row;
     }));
     }
@@ -570,6 +619,48 @@ function renderDrought(
       if (gapRows === 0) {
         gapHost.replaceChildren(mapStatusNote(
           "No area in view has a reservoir reading to compare against."));
+      }
+    }
+
+    /* The week-over-week move, over the areas in scope rather than the
+     * `worse=` filtered view: this chart is what the week did to the place a
+     * reader chose, and narrowing it by a severity the reader picked would
+     * make it a picture of the filter. Empty when the archive holds one week
+     * -- which is a real state, not a failure (ADR-074) -- and the note says
+     * which of the two reasons applies. */
+    let changeRows = 0;
+    if (changeHost) {
+      const changes = byChange(droughtChanges(scopedUnits, payload.previous));
+      const counts = changeCounts(changes);
+      /* Only the areas that moved. In a quiet week 58 of 75 hold steady, and
+       * drawing each of them as a row with a 1.5-unit mark makes a chart four
+       * times taller than its own content -- a reader scrolls a screen of
+       * blank rows to find six bars. The ones left out are counted in the
+       * note below rather than dropped silently, which is the same bargain
+       * the storage scatter makes for the reservoirs above its axis. */
+      const moved = changes.filter((change) => change.direction !== "same");
+      changeRows = renderDroughtChange(changeHost, moved, {
+        changeLabelText: `in ${dryness.label.toLowerCase()} or worse`,
+        ariaLabel: "Each drainage area, driest move first, showing how many "
+          + "points of its land moved into or out of "
+          + `${dryness.label.toLowerCase()} or worse since last week.`,
+        highlight: state.area
+      });
+      if (changeNote) {
+        if (!payload.previous) {
+          changeNote.textContent = "This is the first week measured at this "
+            + "area size. A comparison needs two.";
+        } else if (changes.length === 0) {
+          changeNote.textContent = "No area in view can be compared with last week.";
+        } else if (changeRows === 0) {
+          changeNote.textContent = `No area in view moved since `
+            + `${formatDate(payload.previous.map_date)}.`;
+        } else {
+          changeNote.textContent =
+            `Compared with ${formatDate(payload.previous.map_date)}: `
+            + `${counts.worse} drier, ${counts.better} wetter. `
+            + `${counts.same} did not move and are not drawn.`;
+        }
       }
     }
 
@@ -840,9 +931,12 @@ function renderDrought(
       if (opening && scopeChosen) {
         mapElement.extent = mapExtentFromBox(opening.scope.box);
       }
-      const mapStatus = await createDroughtMap(
+      const mapChanges = changesByArea(droughtChanges(scopedUnits, payload.previous));
+      const mapController = await createDroughtMap(
         mapElement, card, scope, usdm, reservoirs,
-        { units: scopedUnits, storage: storage ?? new Map() }, boundaries);
+        { units: scopedUnits, storage: storage ?? new Map(), changes: mapChanges },
+        boundaries);
+      const mapStatus = mapController.status;
       // After the component has claimed the host, never before.
       mapHost.append(legend);
       mapHost.setAttribute("aria-busy", "false");
@@ -888,6 +982,49 @@ function renderDrought(
       reservoirToggle.append("Show reservoirs", reservoirSwitch);
       content.querySelector(".filterbar-controls")?.append(reservoirToggle);
 
+      /* What the map draws, offered only when there is a second week to draw
+       * it from. A control that switches to a blank surface is worse than an
+       * absent one: it tells a reader the comparison exists and then shows
+       * them nothing (ADR-074). The chart and the table column say why in
+       * words; a select cannot. */
+      if (mapStatus.changeAreas > 0) {
+        const modeField = document.createElement("label");
+        const modeSelect = document.createElement("select");
+        modeSelect.id = "drought-map-mode";
+        for (const [value, text] of [
+          ["classes", "This week's classes"],
+          ["change", "Change since last week"]
+        ] as const) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = text;
+          modeSelect.append(option);
+        }
+        /* The card's own words follow the map, like the key does. In change
+         * mode the sentence "the monitor's weekly national map in its own
+         * colours" is false, and a description that stays put while the
+         * surface under it changes is the kind of copy a reader stops
+         * trusting. */
+        const mapCopy = content.querySelector<HTMLElement>("#drought-map-copy");
+        const classesCopy = mapCopy?.textContent ?? "";
+        const changeCopy = "How much of each drainage area's land moved into "
+          + `or out of ${dryness.label.toLowerCase()} (${dryness.code}) or worse `
+          + `since ${formatDate(payload.previous?.map_date ?? "")}. `
+          + "Only the drainage areas are coloured here. The monitor's own "
+          + "classes are not drawn in this view.";
+        modeSelect.addEventListener("change", () => {
+          const mode = modeSelect.value === "change" ? "change" : "classes";
+          mapController.setMode(mode);
+          fillLegend(mode);
+          if (mapCopy) mapCopy.textContent = mode === "change" ? changeCopy : classesCopy;
+          window.__droughtReady = {
+            ...(window.__droughtReady ?? {}), mapMode: mode
+          } as NonNullable<typeof window.__droughtReady>;
+        });
+        modeField.append("Map shows", modeSelect);
+        content.querySelector(".filterbar-controls")?.append(modeField);
+      }
+
       window.__droughtReady = {
         ...(window.__droughtReady ?? {}),
         mapClassesDrawn: mapStatus.classesDrawn,
@@ -900,7 +1037,9 @@ function renderDrought(
         mapStateBoundaries: mapStatus.stateBoundaries,
         mapCountyBoundaries: mapStatus.countyBoundaries,
         mapBasemap: mapStatus.basemap,
-        mapViewReady: mapStatus.viewReady
+        mapViewReady: mapStatus.viewReady,
+        mapMode: mapStatus.mode,
+        mapChangeAreas: mapStatus.changeAreas
       } as NonNullable<typeof window.__droughtReady>;
     } catch (error) {
       console.warn("The drought map could not start:", error);

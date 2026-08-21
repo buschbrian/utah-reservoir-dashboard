@@ -259,6 +259,13 @@ interface Window {
     mapCountyBoundaries?: boolean;
     mapBasemap?: boolean;
     mapViewReady?: boolean;
+    /** Which of the two surfaces the map is drawing (ADR-074). */
+    mapMode?: "classes" | "change";
+    /** Areas the change surface can colour. Zero is what keeps the mode
+     * control off the page: a control that switches to a blank map tells a
+     * reader the comparison exists and then shows them nothing. Its own
+     * field because "can it compare" and "is it comparing" are two facts. */
+    mapChangeAreas?: number;
   };
   /* The methods page settles whether or not the payload can be read: the
    * rules on it do not depend on the data. This reports that it finished,

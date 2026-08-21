@@ -605,6 +605,84 @@ export function percentFullValues(reservoirs: readonly Reservoir[]): ValuePoint[
     }));
 }
 
+/** The five numbers a box plot draws for one group, and the points it draws
+ * beside them. */
+export interface SpreadBox {
+  group: string;
+  /** The whiskers: the furthest values still inside 1.5 times the middle
+   * half, which is Tukey's rule and the one the SDK's box plot used. */
+  low: number;
+  high: number;
+  p25: number;
+  median: number;
+  p75: number;
+  /** Every value outside the whiskers, each still carrying its reservoir --
+   * these are the ones worth opening on the map, which is the whole reason
+   * this chart shows them. */
+  outliers: readonly ValuePoint[];
+  count: number;
+}
+
+/**
+ * One box per group, with the reservoirs that fall outside the whiskers.
+ *
+ * The five numbers are the ordinary ones and the whisker rule is Tukey's:
+ * the furthest value still within 1.5 times the middle half of each hinge.
+ * Stated here rather than left to a chart library because the outliers are
+ * this chart's subject -- a single reservoir far below its neighbours is the
+ * one to go and look at -- and "which points are outliers" is exactly what
+ * the rule decides.
+ *
+ * Groups with fewer than `minimum` values are left out. A box drawn over two
+ * reservoirs has quartiles that are just the two values again, and a reader
+ * cannot tell that from a genuinely tight spread.
+ */
+export function spreadBoxes(
+  values: readonly ValuePoint[], minimum = 3
+): SpreadBox[] {
+  const byGroup = new Map<string, ValuePoint[]>();
+  for (const point of values) {
+    if (!Number.isFinite(point.value)) continue;
+    const bucket = byGroup.get(point.group);
+    if (bucket) bucket.push(point);
+    else byGroup.set(point.group, [point]);
+  }
+  const boxes: SpreadBox[] = [];
+  for (const [group, members] of byGroup) {
+    if (members.length < minimum) continue;
+    const sorted = [...members].sort((left, right) => left.value - right.value);
+    const numbers = sorted.map((point) => point.value);
+    /* The same `quantile` the histogram's middle half is drawn from, further
+     * down this file. Two interpolation rules in one module would let the
+     * box's hinges and the key's stated middle half disagree over the same
+     * reservoirs. */
+    const p25 = quantile(numbers, 0.25);
+    const median = quantile(numbers, 0.5);
+    const p75 = quantile(numbers, 0.75);
+    const reach = (p75 - p25) * 1.5;
+    const lowFence = p25 - reach;
+    const highFence = p75 + reach;
+    const inside = numbers.filter((value) => value >= lowFence && value <= highFence);
+    boxes.push({
+      group,
+      low: inside.length > 0 ? inside[0]! : p25,
+      high: inside.length > 0 ? inside[inside.length - 1]! : p75,
+      p25,
+      median,
+      p75,
+      outliers: sorted.filter(
+        (point) => point.value < lowFence || point.value > highFence),
+      count: members.length
+    });
+  }
+  /* Driest first, so the chart is a ranking as well as a spread and the areas
+   * worth looking at are at the top. `localeCompare` on the name breaks a
+   * tie, so two areas with the same middle value keep a stable order between
+   * renders rather than swapping places when the filter changes. */
+  return boxes.sort((left, right) =>
+    left.median - right.median || left.group.localeCompare(right.group));
+}
+
 /**
  * The statistics under the histogram: two it draws, and one it states.
  *

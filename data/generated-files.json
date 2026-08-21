@@ -74,7 +74,21 @@
       "class": "generated-archive",
       "writer": "tools/compute_drought_coverage.py",
       "staged_by_refresh": true,
-      "note": "One level only; merge_history refuses a payload at another."
+      "note": "One archive per level; merge_history refuses a payload at another. This is where the default level's previous week comes from."
+    },
+    {
+      "path": "data/drought/usdm-huc4-history.json",
+      "class": "generated-archive",
+      "writer": "tools/compute_drought_coverage.py --scope west-huc4",
+      "staged_by_refresh": true,
+      "note": "The subregion archive (ADR-074). Started later than the basin one, so it holds fewer weeks and its level says so rather than pretending to a comparison it cannot make."
+    },
+    {
+      "path": "data/drought/usdm-huc2-history.json",
+      "class": "generated-archive",
+      "writer": "tools/compute_drought_coverage.py --scope west-huc2",
+      "staged_by_refresh": true,
+      "note": "The region archive, on the same terms as the subregion one."
     },
     {
       "path": "reference.json",

@@ -322,10 +322,13 @@ body {
  * which names are long is the reader's filter to change, not a property of
  * the chart. */
 #capacity-chart,
-#watershed-chart,
-#spread-chart {
+#watershed-chart {
   height: max(27rem, calc(var(--chart-category-count, 0) * 1.6rem + 6rem));
 }
+/* The spread chart is SVG now and sizes to its own content, so it takes no
+   height from the host at all -- the row height lives in `viz/spread.ts`
+   where the rows are drawn. */
+#spread-chart { min-height: 0; height: auto; overflow: visible; }
 .chart-host arcgis-chart {
   display: flex;
   position: relative;
@@ -334,6 +337,36 @@ body {
   --chart-width: 100%;
   --chart-height: 100%;
 }
+/* The spread chart, hand-built like the drought page's ranked charts and
+   sharing their conventions: a measured name lane, a neutral axis, and marks
+   that carry their own fills from the class table rather than being styled
+   here (ADR-008). The box is the only coloured mark -- a whisker is a reach
+   rather than a level, and an outlier's position already says its value. */
+.spread-chart {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 54rem;
+  margin-inline: auto;
+  block-size: auto;
+}
+.spread-grid { stroke: var(--app-border); stroke-width: 1; }
+.spread-axis { font-size: 10px; fill: var(--app-muted); }
+.spread-name { font-size: 10.5px; fill: var(--app-text); }
+.spread-whisker { stroke: var(--app-muted); stroke-width: 1.4; opacity: .75; }
+.spread-cap { stroke: var(--app-muted); stroke-width: 1.4; opacity: .75; }
+/* The same surface-coloured hairline every other mark on this site wears, so
+   two boxes of the same class in adjacent rows still read as two. */
+.spread-box { stroke: var(--app-surface-raised); stroke-width: 1; }
+/* The middle value, drawn over its own box and needing to hold on the palest
+   class and the deepest alike. */
+.spread-median { stroke: var(--app-surface-raised); stroke-width: 2; }
+.spread-outlier {
+  fill: var(--app-text);
+  stroke: var(--app-surface-raised);
+  stroke-width: 1;
+  opacity: .8;
+}
+
 .chart-empty { display: grid; place-items: center; height: 100%; margin: 0; color: var(--app-muted); }
 /* What a chart could not draw, said under it. Quieter than the card's own
    copy and louder than a caption: it names reservoirs the reader is looking
@@ -595,8 +628,7 @@ body {
   /* The same row height as the wide layout. A narrow card wraps *more*
      names, not fewer, so this is the width that needs the room most. */
   #capacity-chart,
-  #watershed-chart,
-  #spread-chart {
+  #watershed-chart {
     height: max(23rem, calc(var(--chart-category-count, 0) * 1.6rem + 6rem));
   }
 }

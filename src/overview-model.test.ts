@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readPayload } from "./data/payload-fixture";
 import type { OpeningRosters, OpeningSelection } from "./data/opening-scope";
 import {
+  spreadBoxes,
   countyOptions,
   distributionKeyLines,
   distributionStats,
@@ -547,5 +548,68 @@ describe("the population behind the twelve-month trend", () => {
       expect(point.cohortPercent, point.month).toBeGreaterThanOrEqual(0);
       expect(point.cohortCount, point.month).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("the spread within each drainage area", () => {
+  const point = (id: number, label: string, group: string, value: number) =>
+    ({ id, label, group, value });
+
+  it("puts the five numbers where an ordinary box plot does", () => {
+    /* 1..9 in one group: quartiles at 3 and 7, middle at 5, and no value
+     * outside 1.5 times the middle half, so the whiskers are the ends. */
+    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(
+      (value, index) => point(index + 1, `R${index}`, "Area", value));
+    const [box] = spreadBoxes(values);
+    expect(box?.p25).toBe(3);
+    expect(box?.median).toBe(5);
+    expect(box?.p75).toBe(7);
+    expect(box?.low).toBe(1);
+    expect(box?.high).toBe(9);
+    expect(box?.outliers).toEqual([]);
+    expect(box?.count).toBe(9);
+  });
+
+  /* The outliers are this chart's subject: a reservoir far below its
+   * neighbours is the one to go and look at, so it keeps its identity rather
+   * than becoming a bare value. */
+  it("keeps an outlier's reservoir, not just its number", () => {
+    const values = [
+      ...[40, 42, 44, 46, 48, 50].map((value, index) =>
+        point(index + 1, `R${index}`, "Area", value)),
+      point(99, "Lost Lake", "Area", 2)
+    ];
+    const [box] = spreadBoxes(values);
+    expect(box?.outliers.map((entry) => entry.label)).toEqual(["Lost Lake"]);
+    /* And the whisker stops at the furthest value still inside the fence,
+     * never at the outlier itself. */
+    expect(box?.low).toBe(40);
+  });
+
+  /* A box over two reservoirs has quartiles that are just the two values
+   * again, and a reader cannot tell that from a genuinely tight spread. */
+  it("leaves out a group too small to have a spread", () => {
+    const values = [
+      point(1, "A", "Small", 10), point(2, "B", "Small", 20),
+      ...[1, 2, 3].map((value, index) => point(index + 3, `C${index}`, "Big", value))
+    ];
+    expect(spreadBoxes(values).map((box) => box.group)).toEqual(["Big"]);
+  });
+
+  it("orders the driest area first and breaks a tie by name", () => {
+    const values = [
+      ...[1, 2, 3].map((value, index) => point(index + 1, `a${index}`, "Wet", value + 60)),
+      ...[1, 2, 3].map((value, index) => point(index + 4, `b${index}`, "Zed", value)),
+      ...[1, 2, 3].map((value, index) => point(index + 7, `c${index}`, "Ash", value))
+    ];
+    expect(spreadBoxes(values).map((box) => box.group)).toEqual(["Ash", "Zed", "Wet"]);
+  });
+
+  it("ignores a value that is not a number", () => {
+    const values = [
+      ...[1, 2, 3, 4].map((value, index) => point(index + 1, `R${index}`, "Area", value)),
+      point(9, "Broken", "Area", Number.NaN)
+    ];
+    expect(spreadBoxes(values)[0]?.count).toBe(4);
   });
 });

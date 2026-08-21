@@ -41,10 +41,10 @@ import {
   renderArcgisDistributionChart,
   offScaleNote,
   renderArcgisNormalChart,
-  renderArcgisSpreadChart,
   renderArcgisTrendChart,
   storageLegendEntries
 } from "./overview-charts";
+import { renderSpread } from "./viz/spread";
 import {
   filterAndSort,
   filterOverview,
@@ -56,6 +56,7 @@ import {
   openingScopeSummary,
   overviewScope,
   percentFullValues,
+  spreadBoxes,
   countyOptions,
   stateOptions,
   subregionOptions,
@@ -387,8 +388,9 @@ async function renderOverview(
           aria-label="What the lines across the histogram mean"></ul>
       </section>
       <section class="overview-card overview-card-wide" aria-labelledby="spread-heading">
-        <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Median, quartiles and outliers. An area at 60% can be forty reservoirs near 60, or half full and half empty.</p></div><span class="sdk-badge">Box plot</span></div>
+        <div class="card-heading"><div><h2 id="spread-heading">Spread within each drainage area</h2><p>Each row is one drainage area, driest first. The box holds the middle half of its reservoirs and the line inside it is the middle value. The whiskers reach the rest, and every dot beyond them is one reservoir worth opening on the map. The box takes its colour from that area's middle value, in the same colours as the map circles. An area at 60% can be forty reservoirs near 60, or half full and half empty. Areas with fewer than three reservoirs are left out, because a box drawn over two of them is just the two values again.</p></div><span class="sdk-badge">Box plot</span></div>
         <div id="spread-chart" class="chart-host" aria-busy="true"></div>
+        <div class="chart-legend" data-legend></div>
       </section>
     </div>
     <section class="overview-card table-card mobile-table-card" aria-labelledby="table-heading">
@@ -823,8 +825,21 @@ async function renderOverview(
           still),
         renderArcgisDistributionChart(distributionHost, values,
           "How many reservoirs fall in each of ten equal bands of percent full", still),
-        renderArcgisSpreadChart(spreadHost, values,
-          "The spread of percent full within each drainage area", still)
+        Promise.resolve(renderSpread(spreadHost, spreadBoxes(values), {
+          ariaLabel: "The spread of percent full within each drainage area, "
+            + "driest first. Each row is a box for the middle half, a line at "
+            + "the middle value, whiskers for the range and a dot for every "
+            + "reservoir outside them."
+        })).then((drawn) => {
+          if (drawn === 0) {
+            spreadHost.replaceChildren();
+            const empty = document.createElement("p");
+            empty.className = "chart-empty";
+            empty.textContent = "Too few reservoirs in view to show a spread.";
+            spreadHost.append(empty);
+          }
+          spreadHost.setAttribute("aria-busy", "false");
+        })
       ]);
     } catch (error) {
       /* A chart that throws used to leave both hosts reporting `aria-busy`

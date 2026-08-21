@@ -124,6 +124,40 @@
   stroke-width: 1.5;
 }
 
+/* The week-over-week change chart. Same family as the ranked gap chart
+   above it -- same row height, same name lane, same neutral axis ink -- and
+   the bars carry their own fills from CHANGE_CLASSES, never styled here. */
+.drought-change-chart {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 54rem;
+  margin-inline: auto;
+  block-size: auto;
+}
+.drought-change-host { margin-block-start: .5rem; }
+.drought-change-grid { stroke: var(--app-border); stroke-width: 1; }
+/* Zero is not a gridline, it is the thing every bar is measured from. */
+.drought-change-zero { stroke: var(--app-muted); stroke-width: 1.5; opacity: .7; }
+.drought-change-axis { font-size: 10px; fill: var(--app-muted); }
+.drought-change-name { font-size: 10.5px; fill: var(--app-text); }
+/* The same surface-coloured hairline the other charts' marks wear, so two
+   bars of the same class sitting in adjacent rows still read as two. */
+.drought-change-bar { stroke: var(--app-surface-raised); stroke-width: 1; }
+.drought-change-bar.is-chosen { stroke: var(--app-text); stroke-width: 2; }
+/* The change class beside the words in the table, rather than behind them.
+   A full-strength class fill under a cell's own text cannot hold its
+   contrast in both themes; a swatch carries the colour and leaves the text
+   on the surface it was designed for. */
+.drought-change-swatch {
+  display: inline-block;
+  inline-size: .7rem;
+  block-size: .7rem;
+  margin-inline-end: .4rem;
+  border: 1px solid var(--app-border);
+  border-radius: .15rem;
+  vertical-align: -.05rem;
+}
+
 .drought-severity-rect { stroke: var(--app-surface-raised); stroke-width: 1; }
 .drought-severity-value {
   font-size: 11px;
