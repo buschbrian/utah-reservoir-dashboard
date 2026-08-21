@@ -24,7 +24,7 @@ import { describeWeek } from "./viz/weekly-summary";
 import { downloadCsv } from "./data/download";
 import { overviewCsv, overviewCsvFilename } from "./data/export";
 import {
-  isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
+  asScoped, isLakeMead, isLakePowell, isLate, rollupOfScoped, WIDEST_SCOPE,
   type ReservoirGeography, type RollupCoverage, type StatewideRollup
 } from "./data/rollup";
 import { classIndexOf } from "./state/filters";
@@ -157,11 +157,11 @@ function describeDenominator(rollup: StatewideRollup): string {
 function updateKpis(
   reservoirs: readonly Reservoir[], period: ComparisonPeriod
 ): void {
-  /* The rows handed in are already the scope the reader chose, so this must
-   * not apply a second dominant-reservoir filter on top of it -- WIDEST_SCOPE
-   * means "do not filter again", which is what makes the toggles work. */
-  const rollup = statewideRollup(reservoirs, {
-    ...WIDEST_SCOPE,
+  /* The rows handed in are already the scope the reader chose.
+   * `rollupOfScoped` takes no scope dimensions, so a second
+   * dominant-reservoir filter cannot be applied on top of it -- which is what
+   * makes the toggles work. */
+  const rollup = rollupOfScoped(asScoped(reservoirs), {
     baseline: period.id,
     minimumBaselineYears: period.minimumYears
   });
@@ -591,7 +591,7 @@ async function renderOverview(
   const renderClassStrip = (visible: readonly Reservoir[]): void => {
     const host = document.querySelector<HTMLElement>("[data-classes]");
     if (!host) return;
-    const rollup = statewideRollup(visible, WIDEST_SCOPE);
+    const rollup = rollupOfScoped(asScoped(visible));
     const total = rollup.classes.reduce((sum, entry) => sum + entry.count, 0);
     host.replaceChildren(...rollup.classes.map((entry, index) => {
       const button = document.createElement("button");

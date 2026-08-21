@@ -136,26 +136,46 @@ describe("SDK architecture boundaries", () => {
    * The headline is made from the reservoirs the map drew, and from no
    * other set.
    *
-   * `inScope` has already applied all three of ADR-011's and ADR-062's
-   * scope dimensions. `updateSummary` passed its own literal options in
-   * with `geography` pinned to `utah` and `lakeMead` left absent, so
-   * `reservoirInScope` ran a second time and narrowed a set that was
-   * already narrowed: the card read "Every reservoir" above 59 of the 196
-   * the map had drawn, and the reader's Lake Mead switch could not move it.
+   * `inScope` has already applied all three of ADR-011's and ADR-062's scope
+   * dimensions. `updateSummary` passed its own literal options in with
+   * `geography` pinned to `utah` and `lakeMead` left absent, so
+   * `reservoirInScope` ran a second time and narrowed a set that was already
+   * narrowed: the card read "Every reservoir" above 59 of the 196 the map had
+   * drawn, and the reader's Lake Mead switch could not move it.
    *
-   * A source check rather than a behavioural one, because `main.ts` is the
-   * entry point and this call sits inside it. The property being held is
-   * that the call spreads WIDEST_SCOPE -- the way a caller says "already
-   * scoped" -- instead of naming a scope dimension of its own.
+   * This used to be held by reading the call's option object out of the
+   * source and checking it spread `WIDEST_SCOPE`. The guarantee is in the
+   * type system now -- `rollupOfScoped` accepts a branded `ScopedReservoirs`
+   * and no scope dimensions at all, so the second narrowing cannot be
+   * written. What is left to check is that the surfaces which total an
+   * already-scoped set actually use it, rather than reaching back for the
+   * options-object form that can.
    */
-  it("builds the storage headline from the scope the map already applied", async () => {
-    const source = await readFile(resolve(root, "src/main.ts"), "utf8");
-    const call = source.slice(source.indexOf("statewideRollup(inScope, {"));
-    const options = call.slice(0, call.indexOf("})"));
+  it("totals an already-scoped set through the API that cannot re-scope", async () => {
+    const files = await productionTypeScriptFiles(resolve(root, "src"));
+    const offenders: string[] = [];
 
-    expect(options).toContain("...WIDEST_SCOPE");
+    for (const file of files) {
+      // The module that owns both names is where they are defined, and where
+      // `rollupOfScoped` is built out of them.
+      if (file.endsWith("src/data/rollup.ts")) continue;
+      const source = await readFile(file, "utf8");
+      if (source.includes("statewideRollup(") && source.includes("WIDEST_SCOPE")) {
+        offenders.push(file);
+      }
+    }
+
+    expect(offenders,
+      "an already-scoped set is totalled with rollupOfScoped, not statewideRollup + WIDEST_SCOPE"
+    ).toEqual([]);
+  });
+
+  it("keeps the storage headline on the scope the map already applied", async () => {
+    const source = await readFile(resolve(root, "src/main.ts"), "utf8");
+    expect(source).toContain("rollupOfScoped(inScope, {");
     for (const dimension of ["geography:", "lakePowell:", "lakeMead:"]) {
-      expect(options).not.toContain(dimension);
+      expect(source.slice(source.indexOf("rollupOfScoped(inScope, {"),
+        source.indexOf("rollupOfScoped(inScope, {") + 200)).not.toContain(dimension);
     }
   });
 

@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { reservoirSymbol, sizeDomain } from "../viz/symbols";
 import {
-  basisLabel, isLakeMead, isLakePowell, percentFull, isLate, RECORD_MAX_BASIS,
-  reservoirInScope, sizeBasis, statewideRollup
+  asScoped, basisLabel, isLakeMead, isLakePowell, percentFull, isLate,
+  RECORD_MAX_BASIS, reservoirInScope, rollupOfScoped, scopeReservoirs,
+  sizeBasis, statewideRollup, WIDEST_SCOPE
 } from "./rollup";
 import type { Reservoir } from "../types";
 import { validateReservoirPayload } from "./validate";
@@ -529,5 +530,53 @@ describe("which period the combined comparison uses", () => {
     expect(climate.normalCoversCapacityAf)
       .toBeCloseTo(withClimate.reduce((total, row) => total + sizeBasis(row), 0), 6);
     expect(climate.normalCoversCapacityAf).toBeLessThanOrEqual(climate.capacityAf);
+  });
+});
+
+/*
+ * The scope questions, answered once.
+ *
+ * These used to be a rule an agent or a reviewer had to hold in their head --
+ * "pass WIDEST_SCOPE when the rows are already scoped" -- and the failure it
+ * guarded against was silent: a total narrowed twice is still a total, and it
+ * reads as a smaller region rather than as a bug. The brand moves the rule
+ * into the type system; these are the behavioural half.
+ */
+describe("an already-scoped set", () => {
+  it("totals identically whether it is scoped once or asked twice", () => {
+    const scoped = scopeReservoirs(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+    expect(rollupOfScoped(scoped))
+      .toEqual(statewideRollup(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL));
+  });
+
+  it("cannot be narrowed a second time by the totalling call", () => {
+    /* The failure this replaces: `updateSummary` passed `geography: "utah"`
+     * over rows the map had already scoped to the west, and the card read
+     * "Every reservoir" above a third of them. `rollupOfScoped` accepts no
+     * scope dimension, so the same mistake is now a type error. */
+    const scoped = scopeReservoirs(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+    const narrowedByHand = statewideRollup(scoped, {
+      ...WIDEST_SCOPE, geography: "utah"
+    });
+
+    expect(rollupOfScoped(scoped).count).toBeGreaterThan(narrowedByHand.count);
+    // @ts-expect-error a scope dimension is not part of ScopedRollupOptions
+    expect(() => rollupOfScoped(scoped, { geography: "utah" })).not.toThrow();
+  });
+
+  it("keeps carrying the reader's comparison period", () => {
+    const scoped = scopeReservoirs(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+    const recent = rollupOfScoped(scoped, { baseline: "recent" });
+    const climate = rollupOfScoped(scoped, { baseline: "climate" });
+
+    expect(recent.normalBaseline).toBe("recent");
+    expect(climate.normalBaseline).toBe("climate");
+  });
+
+  it("lets a group split out of a scoped set say so", () => {
+    const scoped = scopeReservoirs(payload.reservoirs, CONNECTED_WITH_LAKE_POWELL);
+    const group = scoped.filter((reservoir) => reservoir.huc6 === scoped[0]?.huc6);
+
+    expect(rollupOfScoped(asScoped(group)).count).toBe(group.length);
   });
 });

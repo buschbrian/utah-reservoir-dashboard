@@ -274,6 +274,70 @@ function basisShares(reservoirs: readonly Reservoir[]): BasisShare[] {
   return [...shares.values()].sort((a, b) => b.capacityAf - a.capacityAf);
 }
 
+/**
+ * Rows that have already had every scope question answered.
+ *
+ * The brand is the whole point. "Already scoped" was a fact a caller had to
+ * remember, and the only way to say it was to pass `WIDEST_SCOPE` -- an
+ * options object that means "do not filter again" and looks exactly like an
+ * options object that means "filter by this". A caller that wrote its own
+ * literal instead narrowed a set that was already narrowed: the storage
+ * headline read "Every reservoir" above 59 of the 196 the map had drawn, and
+ * the reader's Lake Mead switch could not move it (ADR-011, ADR-062).
+ *
+ * A `ScopedReservoirs` cannot be produced by filtering by hand, and
+ * `rollupOfScoped` takes no scope dimensions at all, so the second narrowing
+ * is not a rule to remember any more -- it is unsayable.
+ */
+declare const scopedBrand: unique symbol;
+
+export type ScopedReservoirs = readonly Reservoir[] & { readonly [scopedBrand]: true };
+
+/** Everything the combined figure needs that is *not* a scope question. */
+export type ScopedRollupOptions = Pick<
+  StatewideRollupOptions, "baseline" | "minimumBaselineYears"
+>;
+
+/**
+ * Answer every scope question once, and say so in the type.
+ *
+ * This is the only way to make a `ScopedReservoirs`, so the answers are always
+ * a `StatewideRollupOptions` that a reader's controls produced rather than a
+ * literal written from memory at a call site.
+ */
+export function scopeReservoirs(
+  allReservoirs: readonly Reservoir[], options: StatewideRollupOptions
+): ScopedReservoirs {
+  return allReservoirs.filter(
+    (reservoir) => reservoirInScope(reservoir, options)) as unknown as ScopedReservoirs;
+}
+
+/**
+ * Rows the caller has already scoped are rows this project may assert are
+ * scoped -- for a group split out of a scoped set, or a payload fixture whose
+ * every row is deliberately in scope.
+ *
+ * Deliberately named as an assertion rather than a conversion: it is the one
+ * place the guarantee is taken on trust, so it is the one place to look when a
+ * total is wrong.
+ */
+export function asScoped(reservoirs: readonly Reservoir[]): ScopedReservoirs {
+  return reservoirs as unknown as ScopedReservoirs;
+}
+
+/**
+ * Total a set that is already the scope the reader chose.
+ *
+ * It cannot re-scope, because it accepts no scope dimensions. The reader's
+ * comparison period still travels, so a total and the details panel below it
+ * cannot disagree about which years "normal" means (ADR-041).
+ */
+export function rollupOfScoped(
+  reservoirs: ScopedReservoirs, options: ScopedRollupOptions = {}
+): StatewideRollup {
+  return statewideRollup(reservoirs, { ...WIDEST_SCOPE, ...options });
+}
+
 export function statewideRollup(
   allReservoirs: readonly Reservoir[],
   options: StatewideRollupOptions

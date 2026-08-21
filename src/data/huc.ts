@@ -1,7 +1,7 @@
 /*
  * Watershed (HUC6) assignment and capacity-weighted rollups.
  *
- * Phase 1.5 of MODERNIZATION_PLAN.md. Pure arithmetic and geometry with no
+ * Phase 1.5 of docs/history/modernization-2026.md. Pure arithmetic and geometry with no
  * DOM, no network and no SDK in it, so all of it is unit-testable -- which
  * is the point: the map pages already draw the HUC6 boundaries live from the
  * USGS service, but nothing yet says which unit a reservoir belongs to, and

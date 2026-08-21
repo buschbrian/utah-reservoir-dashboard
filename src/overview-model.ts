@@ -2,11 +2,12 @@ import type { Reservoir } from "./types";
 import { monthKeys, monthLabel, monthlyRollup } from "./data/months";
 import type { OpeningRosters, OpeningSelection } from "./data/opening-scope";
 import {
+  asScoped,
   isLate,
-  reservoirInScope,
+  rollupOfScoped,
+  scopeReservoirs,
+  type ScopedReservoirs,
   sizeBasis,
-  statewideRollup,
-  WIDEST_SCOPE,
   type LakePowellChoice,
   type ReservoirInclusion,
   type ReservoirGeography
@@ -165,8 +166,13 @@ export const DEFAULT_SCOPE: ScopeChoice = { geography: "utah", lakePowell: "excl
 export function overviewScope(
   reservoirs: readonly Reservoir[],
   scope: ScopeChoice = DEFAULT_SCOPE
-): Reservoir[] {
-  return reservoirs.filter((reservoir) => reservoirInScope(reservoir, scope));
+): ScopedReservoirs {
+  /* The branded return is the point: rows that leave here have had every
+   * scope question answered, and `rollupOfScoped` is the only way to total
+   * them -- it accepts no scope dimensions, so the second narrowing that
+   * once put 59 reservoirs under a card reading "Every reservoir" cannot be
+   * written any more (ADR-062). */
+  return scopeReservoirs(reservoirs, scope);
 }
 
 /**
@@ -764,11 +770,11 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
     groups.set(label, [...(groups.get(label) ?? []), reservoir]);
   }
   return [...groups].map(([label, group], index) => {
-    /* The group is already scoped by the caller; WIDEST_SCOPE only means
-     * "do not filter them out a second time", not "add them back". A
+    /* One group out of an already-scoped set. `asScoped` is the assertion
+     * that says so, and `rollupOfScoped` cannot narrow it again -- a
      * hand-written option object here once dropped Lake Mead's storage out
      * of its own drainage area's total (ADR-062). */
-    const rollup = statewideRollup(group, WIDEST_SCOPE);
+    const rollup = rollupOfScoped(asScoped(group));
     const percent = Number((rollup.percentFull ?? 0).toFixed(1));
     return {
       id: index + 1,

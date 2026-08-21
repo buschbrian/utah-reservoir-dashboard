@@ -16,7 +16,7 @@
  * measurement -- it would carry the authority of a number. So this refuses
  * to run rather than lie, it is excluded from `npm run build`, and it
  * asserts nothing. It prints a table for a human to paste into
- * MODERNIZATION_PLAN.md.
+ * docs/history/modernization-2026.md.
  *
  * It also reads the live payload only to have something to draw. It makes
  * no claim about reservoir counts or percentages, so a morning's refresh

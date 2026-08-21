@@ -28,7 +28,8 @@ import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/o
 import { offeredStates } from "./data/state-vocabulary";
 import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
 import {
-  isLakeMead, isLakePowell, isLate, statewideRollup, WIDEST_SCOPE,
+  asScoped, isLakeMead, isLakePowell, isLate, rollupOfScoped,
+  type ScopedReservoirs,
   type RollupCoverage
 } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
@@ -150,7 +151,7 @@ let deepLink: Reservoir | null = null;
 /** Everything published, before the scope control narrows it. */
 let published: readonly Reservoir[] = [];
 /** Everything the map is currently drawing. */
-let inScope: readonly Reservoir[] = [];
+let inScope: ScopedReservoirs = asScoped([]);
 /* The subregion names the payload publishes, for the one place this page can
  * be asked about a four-digit area: a shared link. `watersheds.subregions` is
  * in `reservoirs.json` rather than `reference.json` because one copy of a
@@ -269,23 +270,21 @@ function updateSummary(): void {
   /* The headline follows the slider. A summary still reporting today while
    * the map draws last November is the page saying two things at once, and
    * the map is the louder one. */
-  const current = month === null ? statewideRollup(inScope, {
-    /* `inScope` has already answered every scope question -- geography,
-     * Lake Powell and Lake Mead -- so this must not ask any of them a
-     * second time. WIDEST_SCOPE is how a caller says that, and how the
-     * storage charts have said it since ADR-062.
-     *
-     * Two of the three were asked twice here, and both answers were wrong.
-     * `geography` was pinned to `utah`, so the headline counted the
-     * reservoirs whose water touches Utah under a card reading "Every
-     * reservoir": 59 of them, above a map drawing 196. `lakeMead` was
-     * absent, and absent means excluded, so the reader's own switch could
-     * not put Mead into a total the map had already drawn it into.
-     *
-     * The reader's baseline period and its minimum still travel, so the
-     * total and the details panel below it cannot disagree about which
-     * years "normal" means (ADR-041). */
-    ...WIDEST_SCOPE,
+  /* `inScope` has already answered every scope question -- geography, Lake
+   * Powell and Lake Mead -- and its type says so, so `rollupOfScoped` cannot
+   * ask any of them a second time: it takes no scope dimensions at all.
+   *
+   * Two of the three were asked twice here, and both answers were wrong.
+   * `geography` was pinned to `utah`, so the headline counted the reservoirs
+   * whose water touches Utah under a card reading "Every reservoir": 59 of
+   * them, above a map drawing 196. `lakeMead` was absent, and absent means
+   * excluded, so the reader's own switch could not put Mead into a total the
+   * map had already drawn it into.
+   *
+   * The reader's baseline period and its minimum still travel, so the total
+   * and the details panel below it cannot disagree about which years "normal"
+   * means (ADR-041). */
+  const current = month === null ? rollupOfScoped(inScope, {
     baseline: activeBaselineId,
     minimumBaselineYears: baselineMinimumYears
   }) : null;
@@ -1023,8 +1022,11 @@ if (!supportsDashboard(browserCapabilities())) {
         lakeMead: possibleInPlace.some(isLakeMead)
       };
       setLargeReservoirAvailability(largeReservoirAvailability);
-      inScope = overviewScope(published, scope)
-        .filter((reservoir) => reservoirInState(reservoir, openingScope.selection.state));
+      /* Scoped, then narrowed by the reader's state -- which is a place, not
+       * a scope dimension, so the rows are still exactly what the scope
+       * questions answered. `asScoped` is where that is asserted. */
+      inScope = asScoped(overviewScope(published, scope)
+        .filter((reservoir) => reservoirInState(reservoir, openingScope.selection.state)));
       updateSummary();
       renderReservoirList();
       map.drawReservoirs(inScope, percentShown);
