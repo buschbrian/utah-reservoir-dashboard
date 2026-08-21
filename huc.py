@@ -81,17 +81,17 @@ CROSS_BORDER_WATERBODIES = {
             "nhd_permanent_id": "120025290"},
 }
 
-def subregion_roster(codes) -> list[dict]:
-    """The HUC-4 subregions a set of finer codes belongs to, named.
+def coarser_roster(codes, level: int) -> list[dict]:
+    """The areas at `level` that a set of finer codes belongs to, named.
 
-    The codes need nothing published: they are the first four digits of a code
-    every record already carries, because HUC codes are fixed-width (ADR-050).
-    The *names* have to come from somewhere, and this is ADR-048's rule -- the
-    roster, not the polygons -- applied one level up. Eleven entries today.
+    The codes need nothing published: they are the first `level` digits of a
+    code every record already carries, because HUC codes are fixed-width
+    (ADR-050). The *names* have to come from somewhere, and this is ADR-048's
+    rule -- the roster, not the polygons -- applied one level up.
 
-    Read from the committed west-huc4 file, which covers every region any
-    scope here can reach. Absent, the names are empty and a caller labels by
-    code: a filter that says "1401" is worse than one that says "Colorado
+    Read from the committed scope file for that level, which covers every area
+    any scope here can reach. Absent, the names are empty and a caller labels
+    by code: a filter that says "1401" is worse than one that says "Colorado
     Headwaters" and much better than no filter at all.
 
     Published in each surface's own payload rather than in `reference.json`,
@@ -99,24 +99,45 @@ def subregion_roster(codes) -> list[dict]:
     reference -- and one copy of a roster is the point of having a roster.
 
     Lives here rather than in either refresh script because both of them
-    publish it now: the storage payload names the subregions its reservoirs
+    publish it: the storage payload names the coarser areas its reservoirs
     fall in, and the snow payload names the ones its sites do (ADR-064).
+
+    Written for one level and now taking it as an argument (ADR-073). Every
+    offered level below the payload's own needs this, and a second near-copy
+    of it for regions would be a second place for the fallback, the warning
+    and the sort to drift.
     """
     import watershed_scopes
 
+    scope_name = watershed_scopes.DRAWN_SCOPES.get(level)
+    if scope_name is None:
+        raise ValueError(
+            f"no drawn scope at hydrologic level {level}; "
+            f"choose {', '.join(str(k) for k in sorted(watershed_scopes.DRAWN_SCOPES))}")
+    field = watershed_scopes.huc_field(level)
     names: dict[str, str] = {}
-    path = watershed_scopes.ROOT / watershed_scopes.get_scope("west-huc4").output
+    path = watershed_scopes.ROOT / watershed_scopes.get_scope(scope_name).output
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         for feature in payload.get("features") or []:
-            code = feature["properties"].get("huc4")
+            code = feature["properties"].get(field)
             if code:
                 names[code] = feature["properties"].get("name", "")
     else:
-        print(f"WARNING: {path.name} is absent; publishing subregion codes "
+        print(f"WARNING: {path.name} is absent; publishing {field} codes "
               "without names")
-    return [{"huc4": code, "name": names.get(code, "")}
-            for code in sorted({str(c)[:4] for c in codes if c})]
+    return [{field: code, "name": names.get(code, "")}
+            for code in sorted({str(c)[:level] for c in codes if c})]
+
+
+def subregion_roster(codes) -> list[dict]:
+    """The HUC-4 subregions a set of finer codes belongs to, named."""
+    return coarser_roster(codes, 4)
+
+
+def region_roster(codes) -> list[dict]:
+    """The HUC-2 regions a set of finer codes belongs to, named."""
+    return coarser_roster(codes, 2)
 
 
 def _load_utah_polygons(path: Path = UTAH_BOUNDARY_PATH):

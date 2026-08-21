@@ -47,7 +47,7 @@ denominator. **Start with ADR-070, then ADR-072, then ADR-003.**
 
 ### Scope, geography, levels and URL state
 The four different scopes, the hydrologic level, and what a link carries.
-**Start with ADR-063, then ADR-068 and ADR-064.**
+**Start with ADR-063, then ADR-068, ADR-064 and ADR-073.**
 
 - Current: [ADR-010](ADR-010-colorado-and-great-basin-systems-only.md),
   [ADR-013](ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md),
@@ -60,7 +60,8 @@ The four different scopes, the hydrologic level, and what a link carries.
   [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md),
   [ADR-067](ADR-067-retire-the-state-mask.md),
   [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md),
-  [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md)
+  [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md),
+  [ADR-073](ADR-073-draw-the-regions-too-and-read-them-from-their-own-publisher.md)
 - Boundary sourcing: [ADR-024](ADR-024-use-full-resolution-watersheds-for-snow-sites.md),
   [ADR-034](ADR-034-hosted-boundary-layers-with-a-deadline.md),
   [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md)
@@ -192,6 +193,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md) | Where the operator publishes a full level, that is the denominator | Accepted; narrows ADR-003's implementation, not its reasoning |
 | [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md) | One drainage-area control to a page | Accepted |
 | [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md) | Divide by a figure the water has not been seen above | Accepted; narrows ADR-003's implementation, not its reasoning |
+| [ADR-073](ADR-073-draw-the-regions-too-and-read-them-from-their-own-publisher.md) | Draw the regions too, and read them from their own publisher | Accepted; extends ADR-064 to a third level |
 
 ## Relationship to the historical journal
 

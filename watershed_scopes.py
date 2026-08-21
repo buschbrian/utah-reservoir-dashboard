@@ -178,14 +178,13 @@ SCOPES = {
     # ADR-002 refuses for every other name on this site: a table living in
     # TypeScript, silently out of date the day the registry changes.
     #
-    # Deliberately absent from `DRAWN_SCOPES` (OPENING-SCOPE-AND-THE-WESTERN-
-    # ROSTER.md, decision D2). A region is an entry vocabulary a reader
-    # narrows the existing HUC-4 or HUC-6 view with -- `?area=14` -- not a
-    # size the ground is drawn at. Drawing five regions would mean five
-    # drought rows and five storage groups, which is a coarser answer to a
-    # question nobody asked; `build_watershed_sections` already asserts every
-    # entry of `DRAWN_SCOPES` is published, and a published scope that is not
-    # drawn is a state this file already allowed for (`upper-colorado`).
+    # In `DRAWN_SCOPES` since ADR-073, and it was deliberately out of it
+    # before that (OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md, decision D2). That
+    # decision's objection was that five drought rows and five storage groups
+    # are "a coarser answer to a question nobody asked" -- which was true
+    # while a level was something the site chose. ADR-064 made it something
+    # the reader chooses, and nobody is given five regions unasked: HUC-6
+    # stays the default and every map still opens at it.
     "west-huc2": WatershedScope(
         name="west-huc2",
         description="The five hydrologic regions this dashboard covers",
@@ -236,7 +235,12 @@ ROSTER_SCOPE = DEFAULT_SCOPE
 # HUC-8 is absent and that is a decision rather than an omission: 571 areas is
 # eight times the hosted-outline cost measured in ADR-063, and the archive
 # needs its own answer first.
-DRAWN_SCOPES = {6: "west-huc6", 4: "west-huc4"}
+#
+# HUC-2 joined in ADR-073. It costs the opposite of HUC-8: five areas is a
+# fifteenth of the drawn outlines and a fifteenth of the drought rows, and
+# every figure behind them is a sum or a mean over a coarser key that the
+# codes already nest into.
+DRAWN_SCOPES = {6: "west-huc6", 4: "west-huc4", 2: "west-huc2"}
 
 
 def get_scope(name: str) -> WatershedScope:

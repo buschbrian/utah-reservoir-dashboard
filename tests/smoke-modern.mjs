@@ -3572,8 +3572,9 @@ for (const failure of [
       control: state.control, chosen: state.chosen
     }));
     scenario.check(state.ready ?? {});
-    check(state.ready?.levelsOffered === 2,
-      `${scenario.label}: reported ${state.ready?.levelsOffered} area sizes on offer`);
+    check(state.ready?.levelsOffered === 3,
+      `${scenario.label}: reported ${state.ready?.levelsOffered} area sizes on offer, `
+      + "expected regions, subregions and basins (ADR-073)");
     check(state.control >= 1,
       `${scenario.label}: no area-size control was built`);
     check(state.chosen === "4",

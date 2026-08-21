@@ -19,21 +19,33 @@ import {
 
 describe("which service a hydrologic level comes from", () => {
   it("serves every level the project can draw", () => {
-    expect(DRAWABLE_LEVELS).toEqual([4, 6, 8]);
-    for (const level of DRAWABLE_LEVELS) {
+    expect(DRAWABLE_LEVELS).toEqual([2, 4, 6, 8]);
+    for (const level of [4, 6, 8]) {
       expect(watershedServiceUrl(level)).toContain(
         `Watershed_Boundary_Dataset_HUC_${level}s`);
     }
   });
 
-  /* The same organisation the state and county boundaries already come from
-   * (ADR-034), which is why the content policy needs no widening and ADR-004's
-   * no-key rule is untouched. */
-  it("stays on the organisation the other borrowed boundaries come from", () => {
-    for (const level of DRAWABLE_LEVELS) {
+  /* Two publishers of one dataset, asserted as two facts rather than one, so
+   * that neither can move without this saying so.
+   *
+   * Levels 4, 6 and 8 are Esri's Living Atlas republication, on the same
+   * organisation the state and county boundaries come from (ADR-034), which
+   * is why those three needed no content-policy widening. */
+  it("takes its subregions, basins and subbasins from the Living Atlas", () => {
+    for (const level of [4, 6, 8]) {
       expect(watershedServiceUrl(level))
         .toContain("services.arcgis.com/P3ePLMYs2RVChkJx");
     }
+  });
+
+  /* Level 2 is the Watershed Boundary Dataset's own publisher, which is the
+   * service the pipeline already computes every scope and coverage figure
+   * from (ADR-073). It is the one host `connect-src` was widened for, and it
+   * is named exactly rather than by wildcard. */
+  it("takes its regions from the dataset's own publisher", () => {
+    expect(watershedServiceUrl(2))
+      .toBe("https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/1");
   });
 
   /* Finer levels are absent on purpose rather than missing: the drought
@@ -41,7 +53,7 @@ describe("which service a hydrologic level comes from", () => {
    * against a published precision of 0.1. */
   it("refuses a level it will not draw, and says which it will", () => {
     expect(() => watershedServiceUrl(12)).toThrow(/level 12/);
-    expect(() => watershedServiceUrl(12)).toThrow(/4, 6, 8/);
+    expect(() => watershedServiceUrl(12)).toThrow(/2, 4, 6, 8/);
     expect(() => watershedServiceUrl(5)).toThrow();
   });
 

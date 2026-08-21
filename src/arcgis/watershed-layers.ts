@@ -39,8 +39,33 @@
  */
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 
-/** Living Atlas publishes each hydrologic level as its own feature service. */
+/**
+ * Where each hydrologic level's outlines come from.
+ *
+ * Two publishers of one dataset, which is a state worth explaining rather
+ * than tidying over.
+ *
+ * **Level 2 is the USGS service** at `hydro.nationalmap.gov`, which is the
+ * Watershed Boundary Dataset's own publisher and the service this project's
+ * pipeline already computes every scope and every drought coverage figure
+ * from (`watershed_scopes.py`). It serves all nine levels, answers anonymous
+ * browser requests with `access-control-allow-origin: *`, and supports both
+ * of the properties the note above is about: `supportsCoordinatesQuantization`
+ * is true and PBF is among its query formats, so the view-quantized binary
+ * request this layer depends on works there exactly as it does below.
+ *
+ * **Levels 4, 6 and 8 are Esri's Living Atlas republication**, chosen in
+ * ADR-034 before the authoritative service was reached for, and left alone
+ * here because moving them is a change to what every existing map draws
+ * rather than an addition. The two agree: queried for Colorado Headwaters
+ * both return the identical extent to five decimal places. They differ in
+ * resolution -- USGS returns 2,180 vertices for that basin against Esri's
+ * 31,977, generalized for a map service -- which is ample at the scales this
+ * site draws and cheaper, but it is a visible change and belongs in its own
+ * commit with its own before and after.
+ */
 const WATERSHED_SERVICE_BY_LEVEL: Readonly<Record<number, string>> = {
+  2: "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/1",
   4: "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
     "Watershed_Boundary_Dataset_HUC_4s/FeatureServer/0",
   6: "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
@@ -54,7 +79,8 @@ export const WATERSHED_NAME_FIELD = "name";
 
 /** The levels this project can draw. See `watershed_scopes.py` for why the
  * finer ones are absent: the drought engine's sampled share stops holding the
- * published precision below HUC-8. */
+ * published precision below HUC-8. Level 2 is the coarsest and joined in
+ * ADR-073. */
 export const DRAWABLE_LEVELS = Object.keys(WATERSHED_SERVICE_BY_LEVEL)
   .map(Number)
   .sort((left, right) => left - right);

@@ -133,11 +133,11 @@ describe("the drainage-area roster", () => {
   });
 
   /* Every figure on this site -- storage banked in an area, drought coverage,
-   * snow percent of normal -- exists at both offered levels (ADR-064), and at
-   * no other. A scope drawn at a size no figure describes would put shapes on
-   * the map whose hover cards come back empty. */
+   * snow percent of normal -- exists at all three offered levels (ADR-064,
+   * ADR-073), and at no other. A scope drawn at a size no figure describes
+   * would put shapes on the map whose hover cards come back empty. */
   it("keys the figures at the levels the export offers", () => {
-    expect(JOINABLE_LEVELS).toEqual([4, 6]);
+    expect(JOINABLE_LEVELS).toEqual([2, 4, 6]);
     expect(DEFAULT_LEVEL).toBe(6);
 
     const reference = readReferenceExport();
@@ -146,7 +146,7 @@ describe("the drainage-area roster", () => {
     /* Every offered level is one the figures exist at, and the default is one
      * of them: a level offered with no figures behind it is a control that
      * empties the map. */
-    expect(geography?.levels).toEqual([4, 6]);
+    expect(geography?.levels).toEqual([2, 4, 6]);
     for (const level of geography?.levels ?? []) {
       expect(JOINABLE_LEVELS).toContain(level);
       expect(referenceGeography(reference, level)?.level).toBe(level);

@@ -242,8 +242,8 @@ function renderDrought(
    * this page's own level (D4, D5): filters the page rather than only
    * opening a row, now that there are 75 areas rather than the fourteen the
    * old comment here was written against. Built from whichever published
-   * roster tier this page is drawing -- subregions at level four, basins at
-   * six -- rather than from `opening.scope.chosenAreas` (always the basin
+   * roster tier this page is drawing -- regions at level two, subregions at
+   * four, basins at six -- rather than from `opening.scope.chosenAreas` (always the basin
    * tier): `DroughtUnit` carries no `states` of its own, so `areaReachesState`
    * has to run against the roster that does, at the width the units
    * themselves are published at, or a level-four unit would need to be
@@ -254,7 +254,9 @@ function renderDrought(
    * scope-free visit) into anything other than every published unit. */
   const chosenCodesAtLevel: ReadonlySet<string> | null = opening && scopeChosen
     ? new Set(
-        (level === SUBREGION_CODE_WIDTH ? opening.rosters.subregions : opening.rosters.areas)
+        (level === REGION_CODE_WIDTH ? opening.rosters.regions
+          : level === SUBREGION_CODE_WIDTH ? opening.rosters.subregions
+          : opening.rosters.areas)
           .filter((area) => areaReachesState(area, openingSelection.state)
             && withinOpeningArea(area.huc6, levelArea))
           .map((area) => area.huc6))

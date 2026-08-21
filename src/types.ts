@@ -254,6 +254,16 @@ export interface Subregion {
   name: string;
 }
 
+/** A region's code and name, the same thing one level coarser (ADR-073).
+ * Its own type rather than a shared one keyed by a generic field, because
+ * the field name is the level: a client reading `huc4` off a region would
+ * find nothing and label by code, which is the failure both tables exist to
+ * prevent. */
+export interface Region {
+  huc2: string;
+  name: string;
+}
+
 export interface SnowpackPayload {
   schema_version: number;
   generated_at: string;
@@ -268,6 +278,8 @@ export interface SnowpackPayload {
   rollups: SnowRollup[];
   /** Absent in a payload written before the second level existed. */
   subregions?: Subregion[];
+  /** Absent in a payload written before the third level existed (ADR-073). */
+  regions?: Region[];
   sites: SnowSite[];
 }
 
@@ -447,6 +459,8 @@ export interface ReservoirPayload {
   watersheds?: {
     /** HUC-4 subregions the payload's areas roll up into, named (ADR-048). */
     subregions?: { huc4: string; name: string }[];
+    /** HUC-2 regions they roll up into, named the same way (ADR-073). */
+    regions?: { huc2: string; name: string }[];
   };
   reservoirs: Reservoir[];
 }
