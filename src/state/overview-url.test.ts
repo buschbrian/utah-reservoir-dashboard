@@ -38,6 +38,22 @@ describe("reading the overview view out of a link", () => {
     });
   });
 
+  it("opens with both large reservoirs in, and spells only the narrow choice", () => {
+    /* The two pages share a scope a reader carries between them, so they
+     * cannot disagree about what an unset switch means. Both open with Lake
+     * Powell and Lake Mead in the totals; a link states the exclusion. */
+    expect(DEFAULT_OVERVIEW_STATE.lakePowell).toBe("include");
+    expect(DEFAULT_OVERVIEW_STATE.lakeMead).toBe("include");
+    expect(overviewStateFromSearch("").lakePowell).toBe("include");
+    expect(overviewStateFromSearch("").lakeMead).toBe("include");
+    expect(overviewStateFromSearch("?powell=exclude").lakePowell).toBe("exclude");
+    expect(overviewStateFromSearch("?mead=exclude").lakeMead).toBe("exclude");
+    expect(searchWithOverviewState({ lakePowell: "include", lakeMead: "include" }))
+      .toBe("");
+    expect(searchWithOverviewState({ lakePowell: "exclude" })).toContain("powell=exclude");
+    expect(searchWithOverviewState({ lakeMead: "exclude" })).toContain("mead=exclude");
+  });
+
   it("opens the page rather than breaking on a hand-edited link", () => {
     expect(overviewStateFromSearch(
       "?area=Lower%20Green&reporting=sideways&reservoirs=maybe&powell=perhaps" +

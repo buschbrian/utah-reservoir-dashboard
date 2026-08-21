@@ -98,9 +98,10 @@ function check(condition, message) {
 
 const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"), "utf8"));
 /* The scope the shell draws, computed the way src/main.ts computes it: every
- * published reservoir, without the two dominant ones, which are absent by
- * default (ADR-011, ADR-062). Derived from the payload rather than written
- * down, so the morning refresh cannot turn this red on its own.
+ * published reservoir, both dominant ones included, because both switches
+ * now open on (ADR-011, ADR-062 -- still controls, started the other way).
+ * Derived from the payload rather than written down, so the morning refresh
+ * cannot turn this red on its own.
  *
  * It was the waterbodies touching Utah until the roster went west. That
  * default was hiding two thirds of the site's own subject, and the geography
@@ -108,7 +109,7 @@ const payload = JSON.parse(await readFile(path.join(REPO_ROOT, "reservoirs.json"
 const isDominantReservoir = (reservoir) =>
   [509, 6124].includes(reservoir.rise_item_id) ||
   ["lake powell", "lake mead"].includes(reservoir.name.trim().toLowerCase());
-const inScope = payload.reservoirs.filter((reservoir) => !isDominantReservoir(reservoir));
+const inScope = payload.reservoirs.slice();
 const expectedReservoirs = inScope.length;
 /* The reservoirs the ranking chart can rank: those with a readable headline
  * percentage, computed the way src/viz/symbols.ts computes it. Derived from
@@ -292,15 +293,17 @@ const filterCounty = [...new Set(inScope.map((reservoir) => reservoir.county_fip
     count: inScope.filter((reservoir) => reservoir.county_fips === code).length
   }))
   .find((candidate) => candidate.count > 0 && candidate.count < inScope.length);
-/* Everything the connected scope holds once both dominant controls are
- * open, except Lake Powell, which stays excluded in this exercise -- the
- * two toggles are independent and the test drives exactly one. */
+/* Everything the connected scope holds once Lake Mead is switched back out,
+ * which is the direction the exercise now drives: both controls open on, so
+ * the change a reader can make -- and the one the status line and the
+ * address have to state -- is the exclusion. Lake Powell's toggle stays on,
+ * so this drives exactly one of the two independent controls. */
 const lakeMeadRow = payload.reservoirs.find((reservoir) =>
   reservoir.rise_item_id === 6124 ||
   reservoir.name.trim().toLowerCase() === "lake mead");
-const expectedConnectedWithMead = payload.reservoirs.filter((reservoir) =>
-  reservoir.rise_item_id !== 509 &&
-  reservoir.name.trim().toLowerCase() !== "lake powell").length;
+const expectedConnectedWithoutMead = payload.reservoirs.filter((reservoir) =>
+  reservoir.rise_item_id !== 6124 &&
+  reservoir.name.trim().toLowerCase() !== "lake mead").length;
 
 /* Assigned once the server is listening, not here: with `SMOKE_PORT=0` the
  * operating system picks the port and only the bound socket knows it. */
@@ -643,8 +646,11 @@ for (const viewport of VIEWPORTS) {
       `${label}: the map opened on ${ready.month} instead of the newest reading`);
     check(ready.listItems === expectedReservoirs,
       `${label}: the reservoir list has ${ready.listItems} entries, expected ${expectedReservoirs}`);
-    check(await tab.locator('[data-reservoir="Lake Powell"]').count() === 0,
-      `${label}: Lake Powell appears in the default reservoir list`);
+    /* Present, not counted: the shell carries several copies of each row --
+     * the panel list, the table under the map, both surfaces' panels -- so
+     * the fact under test is that the reservoir is there at all. */
+    check(await tab.locator('[data-reservoir="Lake Powell"]').count() > 0,
+      `${label}: Lake Powell is missing from the default reservoir list`);
     check(ready.basemap === true, `${label}: no basemap resolved`);
     check(ready.basemapDegraded === false,
       `${label}: the preferred basemap did not serve`);
@@ -1584,8 +1590,8 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
       (expected) => window.__overviewReady?.charts === expected, CHART_HOSTS.length,
       { timeout: 120000 });
     const overviewReady = await tab.evaluate(() => window.__overviewReady);
-    check(overviewReady.lakePowellExcluded === true,
-      `${label}: readiness signal reports Lake Powell in scope`);
+    check(overviewReady.lakePowellExcluded === false,
+      `${label}: readiness signal reports Lake Powell out of the opening scope`);
     check(await tab.locator("arcgis-chart").count() === CHART_HOSTS.length,
       `${label}: ${await tab.locator("arcgis-chart").count()} of ${CHART_HOSTS.length} charts rendered`);
     check(await tab.locator("arcgis-charts-action-bar").count() === 0,
@@ -1805,8 +1811,17 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
 
     check(await tab.locator("#reservoir-rows tr").count() === expectedReservoirs,
       `${label}: table does not match the map scope`);
-    check(!(await tab.locator("#reservoir-rows").innerText()).includes("Lake Powell"),
-      `${label}: Lake Powell appears in the default overview table`);
+    /* Matched on the reservoir cell, not on the whole table's text. Five
+     * reservoirs sit in the drainage area called "Lower Colorado-Lake Mead"
+     * and print its name in their second column, so a substring search over
+     * `innerText` answers "Lake Mead" whether or not the reservoir is
+     * there -- which is a test that cannot fail. */
+    const namedRows = (rows, name) => rows
+      .map((row) => row.split("\t")[0]?.trim())
+      .filter((cell) => cell === name).length;
+    const openingRows = (await tab.locator("#reservoir-rows").innerText()).split("\n");
+    check(namedRows(openingRows, "Lake Powell") === 1,
+      `${label}: Lake Powell is missing from the default overview table`);
     const overviewExport = tab.locator("#download-overview-csv");
     check(await overviewExport.count() === 1,
       `${label}: filtered overview has no CSV file control`);
@@ -2026,28 +2041,29 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
           expectedReservoirs, { timeout: 60000 });
       }
 
-      /* Lake Mead's own control (ADR-062): excluded by default and reported
-       * so, and when a reader lets it in, the page has to say so in the one
-       * sentence it states its scope with -- 28 million acre-feet entering
-       * every total is not a footnote. Lake Powell's toggle stays off, so
-       * this drives exactly one of the two independent controls. */
-      check((await tab.evaluate(() => window.__overviewReady?.lakeMeadExcluded)) === true,
-        `${label}: readiness signal does not report Lake Mead excluded by default`);
+      /* Lake Mead's own control (ADR-062): included by default and reported
+       * so, and when a reader takes it back out, the page has to say so in
+       * the one sentence it states its scope with -- 28 million acre-feet
+       * leaving every total is not a footnote. Lake Powell's toggle stays
+       * on, so this drives exactly one of the two independent controls. */
+      check((await tab.evaluate(() => window.__overviewReady?.lakeMeadExcluded)) === false,
+        `${label}: readiness signal reports Lake Mead out of the opening scope`);
       await tab.selectOption("#geography-filter", "connected");
-      await tab.locator("#lake-mead-toggle").check();
+      await tab.locator("#lake-mead-toggle").uncheck();
       await tab.waitForFunction((expected) =>
         window.__overviewReady?.visible === expected
-        && window.__overviewReady?.lakeMeadExcluded === false,
-      expectedConnectedWithMead, { timeout: 60000 });
+        && window.__overviewReady?.lakeMeadExcluded === true,
+      expectedConnectedWithoutMead, { timeout: 60000 });
       const meadStatus = await tab.locator("#filter-status").innerText();
-      check(meadStatus.includes("Lake Powell excluded")
-        && meadStatus.includes("Lake Mead included"),
+      check(meadStatus.includes("Lake Powell included")
+        && meadStatus.includes("Lake Mead excluded"),
       `${label}: the status line does not state both dominant controls (${meadStatus})`);
       if (lakeMeadRow) {
-        check((await tab.locator("#reservoir-rows").innerText()).includes(lakeMeadRow.name),
-          `${label}: Lake Mead is toggled in and absent from the table`);
+        const meadRows = (await tab.locator("#reservoir-rows").innerText()).split("\n");
+        check(namedRows(meadRows, lakeMeadRow.name) === 0,
+          `${label}: Lake Mead is toggled out and still in the table`);
       }
-      check((await tab.evaluate(() => window.location.search)).includes("mead=include"),
+      check((await tab.evaluate(() => window.location.search)).includes("mead=exclude"),
         `${label}: the Lake Mead choice is not in the address`);
 
       // Leave the page as the reader first found it.
@@ -3030,8 +3046,11 @@ for (const viewport of VIEWPORTS) {
     /* The rest of the view, not just the selection. A filtered link that
      * opened on an unfiltered dashboard would show numbers that disagree
      * with the words printed beside them. */
+    /* The narrow answer for both lakes, which is the one a link now has to
+     * spell: the page opens with them in, so `include` is what absence
+     * already means and would prove nothing about restoring a link. */
     await tab.goto(`${URL}?reservoir=${wanted.name.toLowerCase().replace(/ /g, "+")}` +
-      "&reporting=late&powell=include&mead=include",
+      "&reporting=late&powell=exclude&mead=exclude",
     { waitUntil: "domcontentloaded", timeout: 60000 });
     await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
     const restored = await tab.evaluate(() => ({
@@ -3045,15 +3064,15 @@ for (const viewport of VIEWPORTS) {
       where: document.querySelector("arcgis-map")?.map
         ?.findLayerById("reservoirs")?.featureEffect?.filter?.where ?? null
     }));
-    check(restored.ready.lakePowell === "include",
+    check(restored.ready.lakePowell === "exclude",
       `${label}: the link's scope was not restored`);
-    check(restored.scope === "include",
+    check(restored.scope === "exclude",
       `${label}: the Lake Powell switch does not show the scope the link asked for`);
     /* Mead's own switch and its own parameter (ADR-062): two dominant
      * reservoirs, two questions, and a link may answer them differently. */
-    check(restored.ready.lakeMead === "include",
+    check(restored.ready.lakeMead === "exclude",
       `${label}: the link's Lake Mead scope was not restored`);
-    check(restored.mead === "include",
+    check(restored.mead === "exclude",
       `${label}: the Lake Mead switch does not show the scope the link asked for`);
     check(restored.reporting === "late",
       `${label}: the reporting control does not show the filter the link asked for`);
@@ -3061,8 +3080,8 @@ for (const viewport of VIEWPORTS) {
       `${label}: the link's filter was not applied`);
     check(restored.where === "late = 1",
       `${label}: the map filter is "${restored.where}" after restoring a filtered link`);
-    check(/powell=include/.test(restored.search) && /late=true/.test(restored.search)
-      && /mead=include/.test(restored.search),
+    check(/powell=exclude/.test(restored.search) && /late=true/.test(restored.search)
+      && /mead=exclude/.test(restored.search),
     `${label}: the address bar dropped the view it restored ("${restored.search}")`);
 
     /* The control, driven rather than described: a switch that reports a
@@ -3073,10 +3092,10 @@ for (const viewport of VIEWPORTS) {
     await tab.goto(`${URL}?reservoirs=connected`,
       { waitUntil: "domcontentloaded", timeout: 60000 });
     await tab.waitForFunction(() => window.__dashboardReady !== undefined, { timeout: 60000 });
-    const withoutMead = await tab.evaluate(() => window.__dashboardReady.reservoirs);
+    const withMead = await tab.evaluate(() => window.__dashboardReady.reservoirs);
     await tab.evaluate(() => {
       const toggle = document.querySelector('#start-panel [data-scope="mead"]');
-      toggle.checked = true;
+      toggle.checked = false;
       toggle.dispatchEvent(new CustomEvent("calciteSwitchChange", { bubbles: true }));
     });
     const afterMead = await tab.evaluate(() => ({
@@ -3084,12 +3103,12 @@ for (const viewport of VIEWPORTS) {
       scope: window.__dashboardReady.lakeMead,
       search: window.location.search
     }));
-    check(afterMead.reservoirs === withoutMead + 1,
-      `${label}: including Lake Mead moved the count from ${withoutMead} to ` +
-      `${afterMead.reservoirs}, expected one more`);
-    check(afterMead.scope === "include",
-      `${label}: the readiness signal reports Lake Mead ${afterMead.scope} after including it`);
-    check(/mead=include/.test(afterMead.search),
+    check(afterMead.reservoirs === withMead - 1,
+      `${label}: excluding Lake Mead moved the count from ${withMead} to ` +
+      `${afterMead.reservoirs}, expected one fewer`);
+    check(afterMead.scope === "exclude",
+      `${label}: the readiness signal reports Lake Mead ${afterMead.scope} after excluding it`);
+    check(/mead=exclude/.test(afterMead.search),
       `${label}: the address bar did not record the Lake Mead choice ` +
       `("${afterMead.search}")`);
 

@@ -18,11 +18,16 @@ Two rules before any figure below is read:
 | file | raw | gzip |
 |---|---:|---:|
 | `snowpack.json` | 3,607 KB | **322 KB** |
-| `reservoirs.json` | 1004 KB | 104.5 KB |
+| `reservoirs.json` | 2,003 KB | 215.2 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
-| `reference.json` | 30.1 KB | 6.5 KB |
+| `reference.json` | 126.6 KB | 22.5 KB |
 | `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
 | `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
+
+The two storage figures were re-measured 2026-08-20, after R3 admitted
+California; the section at the end of this file has the arithmetic. The
+`reference.json` note immediately below is older than they are and is kept for
+what it recorded at the time.
 
 Re-measured 2026-08-19, after ADR-067 dropped `geography.state`: `reference.json`
 went from 36.9 KB raw / 8.8 KB gzipped to **30.1 KB / 6.5 KB**, confirming
@@ -282,6 +287,35 @@ being a Utah map with western context around it.
 `reference.json` is 12.8 KB gzipped, up from 6.5 KB, because `ROSTER_SCOPE`
 moved to `west-huc6` and the export now publishes the drawn scope's roster as
 the roster scope's as well.
+
+## California joins the roster (2026-08-20)
+
+R3's first source adds 142 reservoirs and, again, no browser request. The
+public storage payload is **2,051,286 bytes raw and 220,357 bytes (215.2 KB)
+gzipped** with `gzip -9`, against 132.9 KB after R2. It publishes 365 active
+reservoirs and five withdrawal notices, so the transfer increase is about
+83 KB compressed for the observations and comparison history of the 142
+additions -- 0.6 KB each, against 1.1 KB each for R2's 25, because the
+California series are shorter where a station is monthly.
+
+`reference.json` is **129,607 bytes raw and 23,008 bytes (22.5 KB) gzipped**,
+against 14.4 KB. All of the increase is the capacity catalogue: 142 reviewed
+records with their inventory evidence, 33 of them carrying the operator's own
+published full level and its citation (ADR-070). The drainage roster in the
+same file did not move -- the areas were already drawn, and nine of them
+simply stopped being empty.
+
+**Both size guards moved to the compressed figure**, which is what this file
+has said to quote since ADR-051 and what CLAUDE.md states as a rule. The
+export budget was written as a raw byte count and would have failed here at
+127 KB while the number a reader actually pays rose from 14.4 to 22.5 KB. It
+is now 30 KB gzipped, in `tests/test_refresh.py` and
+`src/data/boundaries.test.ts` alike. The geometry the guard exists to keep out
+-- 982 KB raw -- does not fit under the compressed budget either, so nothing
+was weakened by the change of unit.
+
+`normals.json` is 1,343 KB and does not ship, nor do the county assignment and
+admission files.
 
 ## The Bureau-only west (2026-08-20)
 

@@ -49,7 +49,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from admission import admit_all, discrepancies, distance_km  # noqa: E402
+from admission import (  # noqa: E402
+    admit_all, discrepancies, distance_km, preferred_capacity,
+)
 from huc import assign_huc, load_units  # noqa: E402
 from tools.audit_candidate_capacity import (  # noqa: E402
     dam_states, fetch_dams, find_dam_layer,
@@ -61,6 +63,14 @@ CDEC_STATIONS = "https://cdec.water.ca.gov/dynamicapp/staSearch"
 CDEC_DATA = "https://cdec.water.ca.gov/dynamicapp/req/JSONDataServlet"
 #: The daily reservoir report, the one place capacity is published.
 CDEC_REPORT = "https://cdec.water.ca.gov/reportapp/javareports?name=RES"
+#: What that figure is called in `capacity_basis`, and the name a reader of
+#: the published payload meets. It sits beside `reclamation_project_record`
+#: and `awdb_reservoir_metadata`, which are the same thing for the two
+#: federal providers: the operator's own record, preferred over the dam
+#: inventory's pool (ADR-070). Naming the report rather than the service is
+#: deliberate -- this figure comes from one page of it, and a reader
+#: following the basis should land where the number is.
+CDEC_CAPACITY_BASIS = "cdec_reservoir_report"
 
 USER_AGENT = "western-water-dashboard/cdec-audit (+https://github.com/buschbrian)"
 TIMEOUT = 180
@@ -205,12 +215,21 @@ def fetch_stations() -> list[dict]:
     return parse_station_table(html)
 
 
-def storage_history(stations: list[dict]) -> dict[str, list[float]]:
+def storage_history(stations: list[dict]) -> dict[str, dict]:
     """Every usable monthly storage reading since `START_DATE`, by station.
 
     Monthly rather than daily: the admission screen asks how much water has
     ever been seen, and a monthly series answers that in a thirtieth of the
     rows.
+
+    Each station answers with its readings *and* the date of the last one.
+    "Being listed is not reporting" is this source's own lesson and it was
+    measured over a week; asking the whole record whether a station has ever
+    spoken asks a different question, and Bon Tempe is the reservoir that
+    separates the two -- five usable readings ever, the last in March 2023.
+    Admitted on the record alone it would join the roster and be withdrawn
+    for a quiet feed the same morning (ADR-056), which is a roster addition
+    that publishes nothing and reads exactly like a failed fetch.
     """
     end = time.strftime("%Y-%m-%d")
     readings: dict[str, list[float]] = {}
@@ -241,10 +260,33 @@ def storage_history(stations: list[dict]) -> dict[str, list[float]]:
             value = usable(row.get("value"))
             if value is None:
                 continue
-            readings.setdefault(row["stationId"], []).append(value)
+            found = readings.setdefault(row["stationId"],
+                                        {"values": [], "last": ""})
+            found["values"].append(value)
+            # Dates arrive unpadded (`2026-8-1 00:00`), so this is a
+            # comparison of the parsed day and not of the string.
+            day = reading_day(row.get("date"))
+            if day and day > found["last"]:
+                found["last"] = day
         # A public service this project does not pay for.
         time.sleep(1)
     return readings
+
+
+def reading_day(stamp) -> str:
+    """One reading's own day as an ISO date, or "" if it has none.
+
+    The servlet writes `2026-8-10 00:00` -- unpadded, so the strings do not
+    sort. `fetch_cdec_series` in the refresh has the same fact written down
+    beside it; this is the audit's copy of it, kept here rather than imported
+    because the refresh is pandas and this tool is deliberately not.
+    """
+    text = (stamp or "").split(" ")[0]
+    parts = text.split("-")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        return ""
+    year, month, day = (int(part) for part in parts)
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 def published_capacities() -> dict[str, float]:
@@ -294,6 +336,20 @@ def already_tracked(station: dict, points, dam_points, names) -> str | None:
     return None
 
 
+def quiet_cutoff(today=None) -> str:
+    """The day a station has to have reported since to be a candidate.
+
+    A year, which is long enough that a monthly reservoir reported once a
+    season is never mistaken for a quiet one, and short enough that a station
+    silent since 2023 does not join the roster. ADR-056 withdraws at 60 days,
+    and this is deliberately not that number: withdrawal is about a
+    reservoir this site publishes going quiet, and this is about never
+    admitting one that already has.
+    """
+    day = today or time.gmtime()
+    return f"{day.tm_year - 1:04d}-{day.tm_mon:02d}-{day.tm_mday:02d}"
+
+
 def find_candidates(units=None) -> tuple[list[dict], dict]:
     """Reporting storage stations in our drainage areas that we do not track.
 
@@ -314,14 +370,20 @@ def find_candidates(units=None) -> tuple[list[dict], dict]:
 
     stations = fetch_stations()
     readings = storage_history(stations)
+    quiet_before = quiet_cutoff()
 
-    candidates, dormant, already, aggregates, outside = [], [], [], [], []
+    candidates, dormant, quiet, already, aggregates, outside = [], [], [], [], [], []
     for station in stations:
-        seen = readings.get(station["station"])
-        if not seen:
+        found = readings.get(station["station"])
+        if not found or not found["values"]:
             # Listed against the sensor and never answering with a reading.
             dormant.append(station)
             continue
+        if found["last"] < quiet_before:
+            # Answering, but not this year. See `storage_history`.
+            quiet.append({**station, "last_reading": found["last"]})
+            continue
+        seen = found["values"]
         if AGGREGATE_NAME.search(station["name"]):
             aggregates.append(station)
             continue
@@ -366,11 +428,13 @@ def find_candidates(units=None) -> tuple[list[dict], dict]:
     return candidates, {
         "stations": len(stations),
         "dormant": len(dormant),
+        "quiet_for_over_a_year": len(quiet),
         "looks_like_an_aggregate": len(aggregates),
         "already_tracked": len(already),
         "outside_the_drawn_areas": len(outside),
         "_already": already,
         "_aggregates": aggregates,
+        "_quiet": quiet,
     }
 
 
@@ -382,6 +446,14 @@ def review(candidate: dict, decision, service_capacity_af: float | None) -> dict
     the service's own full level and the shape of the series answer others,
     and where any of them disagree the candidate is held for a person rather
     than published over. See `admission.discrepancies`.
+
+    `capacity_af` and `capacity_basis` are the figure a percentage would be
+    divided by and where it came from, which since ADR-070 is the service's
+    own published full level wherever it has one. The inventory's answer to
+    the same question is kept beside it as `inventory_capacity_af` rather
+    than overwritten: a reviewer comparing two sources needs both, and the
+    three inventory storage fields below it are the record the dam match was
+    made against, not the denominator.
     """
     evidence = dict(decision.evidence(),
                     station=candidate["station"],
@@ -392,16 +464,29 @@ def review(candidate: dict, decision, service_capacity_af: float | None) -> dict
                     operator=candidate["operator"],
                     observed_max_af=candidate["observed_max_af"],
                     readings=candidate["readings"])
-    # The service's own figure, where it has one, beside the inventory's. Not
-    # substituted for it: which becomes the denominator is a decision for the
-    # roster builder, and this tool only shows what exists.
+    # The service's own figure, where it has one, and the inventory's beside
+    # it. Which of them is the denominator is settled by rule now (ADR-070)
+    # rather than left to the roster builder, but both are still reported:
+    # the decision was made from the pair and a reviewer reads the pair.
     evidence["service_capacity_af"] = service_capacity_af
+    evidence["inventory_capacity_af"] = decision.capacity_af
+    evidence["inventory_capacity_basis"] = decision.capacity_basis
+    capacity, basis = preferred_capacity(
+        decision, service_capacity_af, CDEC_CAPACITY_BASIS)
+    # Only where a dam was confirmed. A denominator written into a row that
+    # has no dam behind it reads as a reservoir this project could measure,
+    # and the four that need a reviewed capacity by hand are exactly those
+    # rows -- `service_capacity_af` already carries the figure for them.
+    if "capacity_af" in evidence:
+        evidence["capacity_af"] = capacity
+        evidence["capacity_basis"] = basis
     evidence["discrepancies"] = [
         {"screen": screen, "detail": detail}
         for screen, detail in discrepancies(
             decision,
             highest_readings=candidate.get("highest_readings"),
-            service_capacity_af=service_capacity_af)]
+            service_capacity_af=service_capacity_af,
+            provider_basis=CDEC_CAPACITY_BASIS)]
     evidence["publishable"] = evidence["admitted"] and not evidence["discrepancies"]
     return evidence
 
@@ -424,6 +509,9 @@ def main() -> int:
     for station in info["_aggregates"]:
         print(f"    aggregate?  {station['station']:<4} {station['name']}",
               file=sys.stderr)
+    for station in info["_quiet"]:
+        print(f"    quiet       {station['station']:<4} {station['name']}"
+              f"  (last reading {station['last_reading']})", file=sys.stderr)
     for station in info["_already"]:
         print(f"    tracked     {station['station']:<4} {station['name']}"
               f"  (by {station['matched_by']})", file=sys.stderr)

@@ -67,7 +67,7 @@ sys.path.insert(0, str(ROOT))
 
 from refresh_reservoirs import (  # noqa: E402
     CANONICAL_YEAR_DAYS, SEASONAL_WINDOW_DAYS, annual_seasonal_values,
-    fetch_awdb_series, fetch_rise_series, seasonal_window,
+    fetch_awdb_series, fetch_cdec_series, fetch_rise_series, seasonal_window,
 )
 
 ROSTER_PATH = ROOT / "reservoirs.json"
@@ -82,6 +82,11 @@ ROSTER_PATH = ROOT / "reservoirs.json"
 #: reason and deliberately no measurement, so it has no station to fetch
 #: with -- the roster is where that lives.
 ADMITTED_PATH = ROOT / "admitted_reservoirs.json"
+#: The same, for California. Two files because they are two reviews with two
+#: sets of evidence; one loop reads both, and neither may be forgotten -- a
+#: roster this does not read is a roster whose reservoirs silently never get
+#: a normal.
+ADMITTED_CDEC_PATH = ROOT / "admitted_cdec_reservoirs.json"
 OUTPUT_PATH = ROOT / "normals.json"
 
 
@@ -109,6 +114,21 @@ def roster_records() -> list[dict]:
             "name": entry["name"],
             "source_key": "awdb",
             "source_station_id": entry.get("station_triplet", station),
+            "data_frequency": entry["cadence"],
+            "lat": entry["lat"],
+            "lon": entry["lon"],
+        })
+    if not ADMITTED_CDEC_PATH.exists():
+        return records
+    california = json.loads(
+        ADMITTED_CDEC_PATH.read_text(encoding="utf-8"))["reservoirs"]
+    for station, entry in california.items():
+        if str(station) in known:
+            continue
+        records.append({
+            "name": entry["name"],
+            "source_key": "cdec",
+            "source_station_id": station,
             "data_frequency": entry["cadence"],
             "lat": entry["lat"],
             "lon": entry["lon"],
@@ -150,6 +170,15 @@ DEFAULT_WORKERS = 6
 # count is what lets a reader -- and the pipeline -- refuse to lean on it.
 MIN_YEARS_FOR_A_NORMAL = 10
 
+#: Every provider whose records can appear in this file. Kept as one table so
+#: adding a fetch path cannot leave the committed normals carrying records
+#: whose source metadata names no publisher.
+SOURCES = {
+    "rise": "https://data.usbr.gov/rise-api",
+    "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
+    "cdec": "https://cdec.water.ca.gov/",
+}
+
 
 def fetch_period(reservoir: dict) -> pd.DataFrame:
     """The reservoir's readings across the climate period, and only those.
@@ -164,6 +193,9 @@ def fetch_period(reservoir: dict) -> pd.DataFrame:
     end = f"{CLIMATE_END_YEAR + 1}0101"
     if reservoir["source_key"] == "rise":
         return fetch_rise_series(reservoir["rise_item_id"], start, end)
+    if reservoir["source_key"] == "cdec":
+        return fetch_cdec_series(
+            reservoir["source_station_id"], reservoir["data_frequency"], start, end)
     return fetch_awdb_series(
         reservoir["source_station_id"], reservoir["data_frequency"], start, end)
 
@@ -496,10 +528,7 @@ def main() -> int:
             "once and committed, because a normal over a closed period does "
             "not change."
         ),
-        "sources": {
-            "rise": "https://data.usbr.gov/rise-api",
-            "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
-        },
+        "sources": SOURCES,
         "reservoirs": records,
     }
 

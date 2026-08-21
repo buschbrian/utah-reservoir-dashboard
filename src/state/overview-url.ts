@@ -81,7 +81,7 @@ export interface OverviewUrlState {
   reporting: OverviewCadence;
   geography: ReservoirGeography;
   lakePowell: LakePowellChoice;
-  /** Lake Mead's own control (ADR-062). Excluded by default, like Powell. */
+  /** Lake Mead's own control (ADR-062). Included by default, like Powell. */
   lakeMead: LakePowellChoice;
   /** An index into the storage class table, or null for every class. */
   storageClass: number | null;
@@ -103,8 +103,11 @@ export const DEFAULT_OVERVIEW_STATE: OverviewUrlState = {
    * this moved: a default of Utah's waterbodies hid two thirds of the site's
    * own subject once the roster went west. */
   geography: "connected",
-  lakePowell: "exclude",
-  lakeMead: "exclude",
+  /* Included, and absence means so. The storage map's `DEFAULT_URL_STATE`
+   * carries the argument; the two pages share a scope a reader can carry
+   * between them, so they cannot disagree about what an unset switch means. */
+  lakePowell: "include",
+  lakeMead: "include",
   storageClass: null,
   sort: "capacity",
   measure: "percent",
@@ -184,9 +187,9 @@ export function overviewStateFromSearch(search: string | null | undefined): Over
     } else if (key === OVERVIEW_PARAMS.geography) {
       state.geography = oneOf(value, ["utah", "connected"] as const, "connected");
     } else if (key === OVERVIEW_PARAMS.lakePowell) {
-      state.lakePowell = oneOf(value, ["include", "exclude"] as const, "exclude");
+      state.lakePowell = oneOf(value, ["include", "exclude"] as const, "include");
     } else if (key === OVERVIEW_PARAMS.lakeMead) {
-      state.lakeMead = oneOf(value, ["include", "exclude"] as const, "exclude");
+      state.lakeMead = oneOf(value, ["include", "exclude"] as const, "include");
     } else if (key === OVERVIEW_PARAMS.storageClass || key === MAP_FILTER_PARAMS.storageClass) {
       const index = /^\d+$/.test(value) ? Number(value) : -1;
       state.storageClass = index >= 0 && index < STORAGE_CLASSES.length ? index : null;
@@ -232,8 +235,8 @@ export function searchWithOverviewState(
   if (full.county !== "all") write("county", full.county);
   if (full.reporting !== "all") write("reporting", full.reporting);
   if (full.geography !== "connected") write("geography", full.geography);
-  if (full.lakePowell !== "exclude") write("lakePowell", full.lakePowell);
-  if (full.lakeMead !== "exclude") write("lakeMead", full.lakeMead);
+  if (full.lakePowell !== "include") write("lakePowell", full.lakePowell);
+  if (full.lakeMead !== "include") write("lakeMead", full.lakeMead);
   if (full.storageClass !== null) write("storageClass", String(full.storageClass));
   if (full.sort !== DEFAULT_OVERVIEW_STATE.sort) write("sort", full.sort);
   if (full.measure !== DEFAULT_OVERVIEW_STATE.measure) write("measure", full.measure);

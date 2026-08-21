@@ -20,8 +20,8 @@ sys.path.insert(0, str(ROOT))
 
 from admission import Decision, Match  # noqa: E402
 from tools.audit_cdec_stations import (  # noqa: E402
-    AGGREGATE_NAME, already_tracked, parse_station_table, review, simple_name,
-    usable,
+    AGGREGATE_NAME, already_tracked, parse_station_table, quiet_cutoff,
+    reading_day, review, simple_name, usable,
 )
 
 
@@ -191,17 +191,47 @@ def test_a_candidate_nothing_disagrees_about_is_publishable():
     assert row["discrepancies"] == []
 
 
-def test_a_matched_dam_the_service_disagrees_with_is_held_not_published():
+def test_the_service_own_full_level_settles_a_disagreement_with_the_inventory():
     # Keswick: matched at 0.03 km, and two sources 69% apart on what full is.
+    # The operator publishes one of them (ADR-070), so the pair is no longer
+    # a reason to withhold the reservoir -- and the water standing at 22,928
+    # acre-feet, above the inventory's pool and inside the service's, is the
+    # measurement that says which figure the operator was describing.
     decision = Decision("Keswick Reservoir", True, "confirmed by name and position",
                         None, 7470.0, "normal_storage")
     row = review(candidate("KES", "Keswick Reservoir", [22928, 22000, 21000]),
                  decision, 23772.0)
-    assert row["admitted"] is True, "the dam match itself still stands"
+    assert row["admitted"] is True
+    assert row["publishable"] is True
+    assert row["discrepancies"] == []
+
+
+def test_the_inventory_still_holds_a_reservoir_the_service_says_nothing_about():
+    # The rule reaches only as far as the service's own report. Where it
+    # publishes no full level there is no second figure to prefer, and the
+    # inventory's pool is both the denominator and the screen.
+    decision = Decision("Jackson Meadows", True, "confirmed by position",
+                        None, 53100.0, "normal_storage")
+    row = review(candidate("JCK", "Jackson Meadows (Nevada Co Wd)",
+                           [68700, 68000, 67000]), decision, None)
     assert row["publishable"] is False
-    assert {found["screen"] for found in row["discrepancies"]} == {
-        "the two capacity sources disagree",
-        "seen above the capacity it would be divided by"}
+    assert [found["screen"] for found in row["discrepancies"]] == [
+        "seen above the capacity it would be divided by"]
+
+
+def test_a_reservoir_above_even_its_own_operators_figure_is_still_held():
+    # Buchanan: 172,105 acre-feet seen against the 150,000 its operator
+    # calls full. The rule chooses a denominator; it does not explain water
+    # standing 15% above the one the operator published.
+    decision = Decision("Buchanan Dam", True, "confirmed by position",
+                        None, 122576.0, "normal_storage")
+    row = review(candidate("BUC", "Buchanan Dam", [172105, 170000, 168000]),
+                 decision, 150000.0)
+    assert row["publishable"] is False
+    assert [found["screen"] for found in row["discrepancies"]] == [
+        "seen above the capacity it would be divided by"]
+    assert "150,000" in row["discrepancies"][0]["detail"], \
+        "the figure named is the one being divided by"
 
 
 def test_a_refusal_is_never_publishable():
@@ -213,8 +243,9 @@ def test_a_refusal_is_never_publishable():
 
 
 def test_the_evidence_row_states_the_service_figure_beside_the_inventory_one():
-    # Neither is chosen here. The roster builder decides, and it cannot decide
-    # from a row that carries only one of them.
+    # The service's figure is the denominator now, and the inventory's is
+    # kept beside it rather than overwritten: the decision was made from the
+    # pair, and a reviewer reading one number cannot check it.
     match = Match({"name": "Loon Lake Auxiliary", "lon": -120.33, "lat": 38.98,
                    "normal_storage_af": 51000.0, "max_storage_af": 69309.0,
                    "nid_storage_af": 69309.0, "nid_id": "CA00820"},
@@ -223,5 +254,47 @@ def test_the_evidence_row_states_the_service_figure_beside_the_inventory_one():
                         match, 51000.0, "normal_storage")
     row = review(candidate("LON", "Loon Lake (Smud)", [67977, 67600, 67460]),
                  decision, 69306.0)
-    assert row["capacity_af"] == 51000.0
+    assert row["capacity_af"] == 69306.0
+    assert row["capacity_basis"] == "cdec_reservoir_report"
+    assert row["inventory_capacity_af"] == 51000.0
+    assert row["inventory_capacity_basis"] == "normal_storage"
     assert row["service_capacity_af"] == 69306.0
+    assert row["normal_storage_af"] == 51000.0, \
+        "the record the dam match was made against is untouched"
+
+
+# --- a station that answers, but not this year ----------------------------
+
+def test_a_reading_day_is_read_from_an_unpadded_stamp():
+    """The servlet writes `2026-8-1 00:00`, so the strings do not sort."""
+    assert reading_day("2026-8-1 00:00") == "2026-08-01"
+    assert reading_day("2026-08-10 00:00") == "2026-08-10"
+    assert reading_day("2023-3-1 00:00") < reading_day("2023-11-1 00:00"), \
+        "March must not sort after November"
+
+
+def test_a_stamp_with_no_day_in_it_is_not_a_day():
+    assert reading_day(None) == ""
+    assert reading_day("") == ""
+    assert reading_day("not a date") == ""
+    assert reading_day("2026-08 00:00") == ""
+
+
+def test_the_quiet_cutoff_is_a_year_back():
+    import time as _time
+    assert quiet_cutoff(_time.struct_time(
+        (2026, 8, 20, 0, 0, 0, 0, 0, 0))) == "2025-08-20"
+
+
+def test_bon_tempe_is_the_station_the_cutoff_exists_for():
+    """Five usable readings ever, the last in March 2023.
+
+    Admitted on the whole record it would join the roster and be withdrawn
+    for a quiet feed the same morning (ADR-056). Measured across the 159
+    candidates of 2026-08-20, this screen moves exactly two: Bon Tempe, which
+    was publishable, and Guadalupe, which was held for a spike anyway.
+    """
+    import time as _time
+    cutoff = quiet_cutoff(_time.struct_time((2026, 8, 20, 0, 0, 0, 0, 0, 0)))
+    assert reading_day("2023-3-1 00:00") < cutoff
+    assert reading_day("2026-8-1 00:00") > cutoff

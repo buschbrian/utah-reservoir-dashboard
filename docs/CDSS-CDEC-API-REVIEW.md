@@ -4,11 +4,13 @@ Status: Measured 2026-08-20. Every figure below came from a live request made
 in this session; nothing is carried over from documentation or from the
 earlier survey in `docs/WESTERN-SOURCE-CANDIDATES.md`.
 
-Current outcome: California has the larger measured value and its read-only
-adapter and audit exist, but no California reservoir is in the production
-roster. Thirty-six candidates remain held where source evidence disagrees;
-that decision must be resolved before publication. Colorado remains a later
-coverage-of-places source.
+Current outcome, updated 2026-08-20: **California is published**. 142
+reservoirs joined the roster, 25.7 million acre-feet of full level, and the
+denominator question this review raised is settled as ADR-070 -- where the
+provider that publishes the readings also publishes a full level, that figure
+is what a percentage divides by. Twenty-one candidates are held rather than
+published, each named with its finding in `admitted_cdec_reservoirs.json`.
+Colorado remains a later coverage-of-places source and is unstarted.
 
 `docs/WESTERN-SOURCE-CANDIDATES.md` established that both sources exist, are
 keyless, and carry stable identifiers. This review asks the next question:
@@ -150,7 +152,11 @@ for a key. `tools/build_normal_baselines.py` would need to respect
   not for most of Colorado.
 - **No rate-limit headers**, and no published quota found.
 
-### The two traps
+### The traps
+
+*(Two when this was measured. A third was found on the day California was
+admitted and is recorded below, because it is the one that would have done
+real damage.)*
 
 **1. `-9999` is the missing-data sentinel, and it is a number.** Over a
 seven-day window across all 238 stations, 1,435 rows came back:
@@ -169,6 +175,22 @@ sensor 15, and the only way found to enumerate them is scraping
 `dynamicapp/staSearch`. The roster would have to be committed and reviewed
 like `snow_sites.json` rather than discovered at run time, which is what this
 project does anyway (ADR-002) — but it means roster maintenance is manual.
+
+**3. A monthly value is stamped on the first day of the month it measures,
+and the value is that month's last reading.** Found 2026-08-20, by reading the
+first payload rather than by a test: all 33 monthly stations came out flagged
+late, with one shared reading date and all exactly 50 days old -- a
+distribution with no weather in it. Checked against the same station's daily
+series, Oroville's monthly value dated `2026-6-1` is 3,082,292 acre-feet,
+which is its **30 June** reading; 1 June was 3,327,054.
+
+This is more dangerous than it looks, because it is not a display detail. Every
+date this pipeline publishes means when the water was measured, `days_stale` is
+computed from it, and ADR-056 withdraws a record 60 days past it -- so all 33
+would have been withdrawn as quiet feeds before September while reporting
+perfectly normally. `fetch_cdec_series` moves the date to the month's end. The
+other month-end provider this project reads stamps the last day, so the
+correction also makes one convention of two.
 
 ### The roster
 
@@ -217,9 +239,14 @@ of 229 new stations (89%) could carry a denominator**, and 24 could not.
 
 ## Suggested order
 
-1. **California, reporting stations only, admission-reviewed.** 34% more
-   stored water, a workable capacity path, and full historical depth. The
-   `-9999` sentinel and the HTML roster are the work.
+1. **California, reporting stations only, admission-reviewed.** *(Done
+   2026-08-20.)* 34% more stored water, a workable capacity path, and full
+   historical depth. The `-9999` sentinel and the HTML roster were indeed the
+   work, and one thing this review had not predicted joined them: a station
+   listed and answering is not necessarily answering *this year*, so the
+   candidate screen now asks for a reading within the last twelve months. It
+   moves two of 159. The capacity path turned out to be the whole decision
+   rather than a step in it -- see ADR-070.
 2. **Colorado.** 119 reservoirs for 2% more water — worth having for what it
    shows about the headwaters, not for what it adds to a total. Its
    climate-normal build needs quota planning that California's does not.

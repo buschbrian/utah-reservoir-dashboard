@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
   DRAINAGE_FILL,
@@ -206,10 +207,19 @@ describe("the reference export", () => {
   /* The saving, asserted rather than described. This file is fetched by
    * every map page on every load (`cache: "no-cache"`, so an unchanged file
    * is a 304 but a changed one is paid whole), and it was 1,001 KB, of
-   * which 982 KB was geometry no page draws from any more. */
+   * which 982 KB was geometry no page draws from any more.
+   *
+   * Measured compressed, never raw (ADR-051, ADR-052): the host serves this
+   * gzipped, so the raw count overstates what a reader pays by five and a
+   * half times. 127,242 bytes raw against 23,008 gzipped on 2026-08-20,
+   * when R3 put 142 California reservoirs into the capacity catalogue. The
+   * geometry this guard exists to keep out would not fit under the
+   * compressed budget either. */
   it("is small enough that every page can afford to fetch it whole", () => {
-    const bytes = JSON.stringify(readReferenceExport()).length;
-    expect(bytes).toBeLessThan(120_000);
+    const bytes = gzipSync(
+      Buffer.from(JSON.stringify(readReferenceExport()), "utf-8"),
+      { level: 9 }).length;
+    expect(bytes).toBeLessThan(30_000);
   });
 
   it("draws the scope the export names, not one written down here", () => {

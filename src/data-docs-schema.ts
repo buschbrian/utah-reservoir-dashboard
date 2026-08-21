@@ -79,7 +79,9 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
   ]},
   { id: "reservoir-source-counts", title: "Provider counts", path: "source_counts", fields: [
     f("rise", "reservoirs", "Records from the Bureau of Reclamation."),
-    f("awdb", "reservoirs", "Records from the Natural Resources Conservation Service.")
+    f("awdb", "reservoirs", "Records from the Natural Resources Conservation Service."),
+    f("cdec", "reservoirs",
+      "Records from the California Department of Water Resources.")
   ]},
   { id: "reservoir-counties", title: "County summary", path: "counties", fields: [
     f("source", "text", "County boundary publisher."),
@@ -160,8 +162,10 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("pct_of_record_max", "percent", "Current storage divided by the highest recorded storage."),
     f("capacity_af", "acre-feet", "Reviewed reservoir full level, or null when unavailable."),
     f("capacity_basis", "identifier",
-      "Source field used for the full level. Three appear, and they do not mean the "
-      + "same thing, so a total of full levels is a total of mixed definitions."),
+      "Source field used for the full level. Four appear, and they do not mean the "
+      + "same thing, so a total of full levels is a total of mixed definitions. "
+      + "Where the provider that publishes the readings also publishes a full "
+      + "level, that figure is preferred over the dam inventory's."),
     f("pct_of_capacity", "percent", "Current storage divided by the reviewed full level."),
     f("seasonal_percentile", "percent",
       "Rank against one value from each earlier year near the same date."),
@@ -409,6 +413,8 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("admitted_reservoirs", "file name", "Reviewed admitted-reservoir source file."),
     f("admitted_rise_reservoirs", "file name",
       "Reviewed Bureau of Reclamation admitted-reservoir source file."),
+    f("admitted_cdec_reservoirs", "file name",
+      "Reviewed California admitted-reservoir source file."),
     f("dam_points", "object", "Summary of reviewed dam coordinates."),
     f("denominator", "text", "Rule used to choose the published full level."),
     f("note", "text", "Capacity review warning."),
@@ -421,8 +427,10 @@ export const REFERENCE_GROUPS: readonly ApiFieldGroup[] = [
     f("name", "text", "What this reservoir is called."),
     f("capacity_af", "acre-feet", "Selected full level used by the dashboard."),
     f("capacity_basis", "identifier",
-      "Source field selected as the full level, or reclamation_project_record when "
-      + "the reservoir owner's reviewed figure resolves an inventory conflict."),
+      "Source field selected as the full level, or the reservoir owner's own "
+      + "published figure where there is one: reclamation_project_record for a "
+      + "reviewed Bureau of Reclamation record, cdec_reservoir_report for the "
+      + "California daily reservoir report."),
     f("capacity_source", "text",
       "Named owner record when it replaces the inventory full level.", true),
     f("capacity_source_url", "web address",

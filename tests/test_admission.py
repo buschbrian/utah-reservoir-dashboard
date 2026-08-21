@@ -23,7 +23,7 @@ from admission import (  # noqa: E402
     NAMED_RADIUS_KM, NEAR_RADIUS_KM, SURCHARGE_ALLOWANCE, Decision, admit,
     admit_all, capacity_of, could_hold, discrepancies, distance_km, find_dam,
     holds_more_than_the_dam, largest_published_pool,
-    normalize_name,
+    normalize_name, preferred_capacity,
 )
 
 
@@ -255,6 +255,45 @@ class TestTheDenominator:
         assert capacity_of(dam("X", 0, 0, None, "", None)) == (None, None)
 
 
+class TestTheOperatorsOwnFigure:
+    """Which source the denominator comes from. See ADR-070.
+
+    The inventory's pool is one agency's reading of another agency's dam.
+    Where the operator publishes its own full level beside the readings, that
+    is the same question answered by the party that operates the gate.
+    """
+
+    def decision(self, capacity=7470.0, basis="normal_storage"):
+        return Decision("Keswick Reservoir", True, "confirmed by position",
+                        None, capacity, basis)
+
+    def test_the_operators_figure_wins_where_the_provider_publishes_one(self):
+        assert preferred_capacity(self.decision(), 23772.0,
+                                  "cdec_reservoir_report") == (
+            23772.0, "cdec_reservoir_report")
+
+    def test_the_inventory_answers_where_the_provider_does_not(self):
+        assert preferred_capacity(self.decision(), None,
+                                  "cdec_reservoir_report") == (
+            7470.0, "normal_storage")
+
+    def test_a_provider_that_publishes_no_full_levels_changes_nothing(self):
+        """The two federal audits pass no basis, and must be untouched."""
+        assert preferred_capacity(self.decision(), 23772.0) == (
+            7470.0, "normal_storage")
+
+    def test_zero_is_not_a_full_level(self):
+        # The same rule `positive` applies to the inventory's own blanks: a
+        # service that answers with nothing must not become the denominator.
+        assert preferred_capacity(self.decision(), 0.0,
+                                  "cdec_reservoir_report") == (
+            7470.0, "normal_storage")
+
+    def test_neither_source_publishing_one_is_not_a_figure(self):
+        assert preferred_capacity(self.decision(None, None), None,
+                                  "cdec_reservoir_report") == (None, None)
+
+
 class TestWholeDecisions:
     def test_admits_a_confirmed_reservoir_and_records_its_evidence(self):
         candidate = {"name": "Wolford Mountain Reservoir", "lon": -106.61350,
@@ -410,6 +449,28 @@ class TestTheDisagreementScreens:
         found = dict(discrepancies(decision, highest_readings=[90000, 89000, 88000],
                                    service_capacity_af=None))
         assert "the two capacity sources disagree" not in found
+
+    def test_a_settled_disagreement_is_not_reported_as_one(self):
+        # Keswick again, with the rule applied: the operator's figure is the
+        # denominator, so the inventory differing from it is a source this
+        # project decided not to divide by rather than a fact it cannot
+        # explain. Both screens the pair used to raise go quiet, because the
+        # water that stood above the inventory's pool stands inside this one.
+        decision = self.clean(7470.0)
+        assert discrepancies(decision, highest_readings=[22928, 22000, 21000],
+                             service_capacity_af=23772.0,
+                             provider_basis="cdec_reservoir_report") == []
+
+    def test_the_screens_measure_against_the_figure_actually_chosen(self):
+        # Buchanan: 172,105 seen, the inventory's 122,576, the operator's
+        # 150,000. Held either way, and the number the reader is shown has to
+        # be the one the percentage would have been taken over.
+        decision = self.clean(122576.0)
+        found = dict(discrepancies(decision, highest_readings=[172105, 170000, 168000],
+                                   service_capacity_af=150000.0,
+                                   provider_basis="cdec_reservoir_report"))
+        assert "150,000" in found["seen above the capacity it would be divided by"]
+        assert "+15%" in found["seen above the capacity it would be divided by"]
 
     def test_water_above_the_denominator_is_a_disagreement(self):
         # San Gabriel: the right dam, and a conservation pool of 3,378 that

@@ -67,7 +67,8 @@ export interface DetailView {
 
 const PROVIDER_NAMES: Record<SourceKey, string> = {
   rise: "Bureau of Reclamation",
-  awdb: "Natural Resources Conservation Service"
+  awdb: "Natural Resources Conservation Service",
+  cdec: "California Department of Water Resources"
 };
 
 export function providerName(reservoir: Reservoir): string {
@@ -148,7 +149,8 @@ const CAPACITY_BASIS_NAMES: Record<string, string> = {
   normal_storage: "the normal full level",
   max_storage: "the maximum level, which includes storage kept for floods",
   reclamation_project_record: "the full level published by the reservoir operator",
-  awdb_reservoir_metadata: "the full level published with the readings"
+  awdb_reservoir_metadata: "the full level published with the readings",
+  cdec_reservoir_report: "the full level published by the reservoir operator"
 };
 
 /** The words for a basis, or null when the provider named none. */

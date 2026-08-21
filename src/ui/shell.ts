@@ -520,8 +520,11 @@ export interface ScopeControls {
 export function setScopeControl(onChange: (scope: ScopeControls) => void): void {
   const read = (): ScopeControls => ({
     geography: document.querySelector<CalciteSelect>('[data-scope="geography"]')?.value ?? "utah",
-    lakePowell: document.querySelector<CalciteSwitch>('[data-scope="powell"]')?.checked ?? false,
-    lakeMead: document.querySelector<CalciteSwitch>('[data-scope="mead"]')?.checked ?? false
+    /* A control that is not on the page falls back to the opening view, not
+     * to the narrow answer: a missing switch is the absence of a choice, and
+     * absence now means the reservoir is in. */
+    lakePowell: document.querySelector<CalciteSwitch>('[data-scope="powell"]')?.checked ?? true,
+    lakeMead: document.querySelector<CalciteSwitch>('[data-scope="mead"]')?.checked ?? true
   });
   document.querySelectorAll<CalciteSelect>('[data-scope="geography"]').forEach((select) => {
     select.addEventListener("calciteSelectChange", () => onChange({

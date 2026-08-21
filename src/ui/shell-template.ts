@@ -90,17 +90,19 @@ function panelContents(suffix: string): string {
           <p>These reservoirs can dominate a regional total.</p>
           <calcite-label data-large-reservoir="powell" layout="inline-space-between">
             Include Lake Powell
-            <calcite-switch data-scope="powell"
+            <calcite-switch data-scope="powell" checked
               label="Include Lake Powell in every total"></calcite-switch>
           </calcite-label>
           <!-- Its own control, for the reason Powell has one: at 28 million
                acre-feet Mead is larger still, and a total with it and one
                without are both true and are not the same measurement
-               (ADR-062). Absent means excluded, so nothing silently gains
-               28 million acre-feet. -->
+               (ADR-062). Both switches open on: the map's subject is western
+               water, and the two largest reservoirs in the west belong in
+               the view it opens on. The panel says which way each is set,
+               and the summary sentence says it again. -->
           <calcite-label data-large-reservoir="mead" layout="inline-space-between">
             Include Lake Mead
-            <calcite-switch data-scope="mead"
+            <calcite-switch data-scope="mead" checked
               label="Include Lake Mead in every total"></calcite-switch>
           </calcite-label>
         </fieldset>

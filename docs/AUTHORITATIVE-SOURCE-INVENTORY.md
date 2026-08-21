@@ -124,12 +124,16 @@ re-sourced from the owner at a stated tolerance.
 California's Data Exchange Center and Colorado's Division of Water Resources
 both answer keyless requests with stable station identifiers. The measured
 review in [`CDSS-CDEC-API-REVIEW.md`](CDSS-CDEC-API-REVIEW.md) puts
-California first by water covered. Its read-only adapter and audit exist, but
-no record is in the production roster: thirty-six candidates are held where
-the service, dam inventory, or observed series disagree about the dam or full
-level. Resolve and record that denominator decision before promoting CDEC to
-this table's current-observation rows. Colorado remains the next
-coverage-of-places source after that decision.
+California first by water covered, and **California was promoted on
+2026-08-20**: 142 reservoirs publish current observations from it, and the
+denominator decision this rule required is recorded as ADR-070 -- where the
+provider that publishes the readings also publishes a full level, that figure
+is the denominator, and it carries its own citation in the reviewed roster.
+
+Twenty-one candidates are still held where the dam, the full level or the
+series disagree, and each is named with its finding in
+`admitted_cdec_reservoirs.json` rather than published over. Colorado remains
+the next coverage-of-places source and is unstarted.
 
 ## Review boundary
 
