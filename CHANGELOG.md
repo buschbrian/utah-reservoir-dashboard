@@ -232,6 +232,18 @@ and is not listed here.
 
 ### Fixed
 
+- **The subregion drought figures were a week behind the map they belong
+  to.** Every offered hydrologic level is measured from the same weekly
+  polygons, and a reader who switches from basins to subregions fetches a
+  different file (ADR-064). The daily job recomputed both and committed only
+  one: the list of files it commits was typed into the workflow, and
+  `data/drought/usdm-huc4.json` was never added to it. The published
+  subregion figures therefore described the week before the map's. The list
+  now comes from `data/generated-files.json`, a test refuses any offered
+  level that the refresh does not commit, and the committed file is
+  recomputed to the week its polygons describe -- same method, same 44
+  areas, only the week moved.
+
 - **A history rank and its percentile disagreed about a tie.** The rank
   counted the years strictly below today's reading and the percentile counted
   ties as at-or-below, so a reservoir sitting exactly where a past year sat
