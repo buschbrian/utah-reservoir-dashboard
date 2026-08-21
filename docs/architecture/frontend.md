@@ -18,6 +18,7 @@ module that owns the behaviour and read the entry point only for the sequence.
 | Storage charts | `src/overview.ts` | `src/overview-model.ts` (all filtering and grouping), `src/overview-charts.ts`, `src/state/overview-url.ts`, `src/weekly-model.ts` |
 | Snowpack | `src/snow.ts` | `src/snow-model.ts`, `src/ui/snow-map.ts`, `src/viz/snow-curve.ts`, `src/state/snow-url.ts` |
 | Drought | `src/drought.ts` | `src/drought-model.ts`, `src/ui/drought-map.ts`, `src/viz/drought-*.ts`, `src/state/drought-url.ts` |
+| One reservoir | `src/reservoir.ts` | `src/reservoir-model.ts` (link resolution, both baselines, provenance), `src/ui/reservoir-template.ts`; the reading itself is `describeReservoir`, shared with the map's details panel so the two cannot drift |
 | Methods, data, terms | `src/methods.ts`, `src/data-docs.ts` | `src/data-docs-schema.ts` is the field-by-field contract |
 
 Shared by all of them: `src/data/` (fetch, validate, scope, rollup),
@@ -26,6 +27,17 @@ formatting), `src/ui/` (shell, header, controls, map).
 
 A model module (`*-model.ts`) is pure and unit-tested; an entry point is not.
 Put new behaviour in the model.
+
+### The one-reservoir page
+
+One static shell at `reservoir.html?name=...`, fetched at runtime like every
+other surface (ADR-002) — decided against generated shells because an
+ADR-056 withdrawal would have deleted permanent URLs. The link names a
+reservoir the way every other surface does (`findReservoir`: station id,
+then qualified label, then unique bare name; an ambiguous bare name resolves
+to neither). A name the roster withdrew lands on the withdrawal notice --
+name, last reading date, publisher, and no measurement, because the notice
+carries none to publish. Readiness is `window.__reservoirReady.status`.
 
 ## SDK boundaries
 

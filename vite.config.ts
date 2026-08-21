@@ -82,6 +82,7 @@ export default defineConfig({
         drought: resolve(root, "drought.html"),
         methods: resolve(root, "methods.html"),
         data: resolve(root, "data.html"),
+        reservoir: resolve(root, "reservoir.html"),
         explore: resolve(root, "explore.html"),
         terms: resolve(root, "terms.html")
       }

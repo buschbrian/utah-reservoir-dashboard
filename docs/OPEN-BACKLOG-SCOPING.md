@@ -5,10 +5,10 @@
 > [`docs/architecture/`](architecture/README.md). See
 > [`docs/history/README.md`](history/README.md).
 
-**Status (2026-08-20): partly delivered.** The dam-source migration and county
+**Status (2026-08-21): delivered.** The dam-source migration and county
 search/filter axis shipped. No conservancy-district source was found, and
-per-reservoir permanent pages still require the product decision recorded
-below.
+per-reservoir pages shipped as the static shell decision below describes:
+`reservoir.html?name=...`.
 
 Scoped 2026-08-18, against the list in `history/modernization-2026.md` (item 7 of the
 interface-polish slice): the **county and conservancy district aggregation
@@ -220,7 +220,10 @@ All four decisions below were acted on the same day they were recorded.
    into three questions (ADR-060) and found Lake Powell missing from the
    reviewed cross-border table.
 3. **The conservancy district axis** — not built, as decided.
-4. **Per-reservoir pages** — not started. Still the one open item here.
+4. **Per-reservoir pages** — delivered 2026-08-21, in the decided shape:
+   one entry at `reservoir.html?name=...` fetching the payload at runtime.
+   A withdrawn reservoir's page loads and says the reading was withdrawn,
+   which is the property the decision was made for.
 
 Two things were found while building that this document did not predict, both
 recorded against the western expansion rather than here: the drought engine

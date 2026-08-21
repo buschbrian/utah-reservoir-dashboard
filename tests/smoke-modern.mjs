@@ -3873,6 +3873,77 @@ for (const failure of [
 }
 
 /*
+ * The one-reservoir page, at every width and in every state a link can
+ * produce.
+ *
+ * A shared link lands here directly, so each of the four outcomes is a page
+ * a reader can arrive on: a published reservoir, a withdrawn one (ADR-056's
+ * notice, no measurement), an unknown name, and a bare link. What is checked
+ * is the contract rather than the numbers: the readiness signal names the
+ * state, aria-busy has cleared on every exit including the unhappy ones, the
+ * reservoir's name is what the page says when it says "found", and nothing
+ * scrolls sideways.
+ */
+{
+  const cases = [
+    ["found", "reservoir.html?name=Flaming%20Gorge", "Flaming Gorge"],
+    ["unknown", "reservoir.html?name=Not%20A%20Reservoir", null],
+    ["none", "reservoir.html", null]
+  ];
+  for (const viewport of VIEWPORTS) {
+    const context = await browser.newContext({
+      viewport: { width: viewport.width, height: viewport.height }
+    });
+    const tab = await context.newPage();
+    for (const [label, path] of cases) {
+      const errors = [];
+      tab.on("pageerror", (error) => errors.push(String(error)));
+      tab.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+      });
+      await tab.goto(`${URL}${path}`, { waitUntil: "load", timeout: 90000 });
+      await tab.waitForFunction(() => window.__reservoirReady !== undefined,
+        null, { timeout: 90000 }).catch(() => {});
+      check(await tab.evaluate(() => window.__reservoirReady !== undefined),
+        `Reservoir page (${viewport.name}, ${label}): never signalled readiness`);
+      const state = await tab.evaluate(() => ({
+        ready: window.__reservoirReady?.status ?? null,
+        busy: document.querySelector("#reservoir-main")?.getAttribute("aria-busy"),
+        text: document.body.innerText,
+        scroll: document.documentElement.scrollWidth,
+        viewport: document.documentElement.clientWidth
+      }));
+      check(state.ready !== null && state.busy === "false",
+        `Reservoir page (${viewport.name}, ${label}): state "${state.ready}" `
+        + `with aria-busy="${state.busy}" -- every exit clears it`);
+      check(state.scroll <= state.viewport + 1,
+        `Reservoir page (${viewport.name}, ${label}): scrolls sideways `
+        + `(${state.scroll} > ${state.viewport})`);
+      if (label === "found") {
+        check(state.text.includes("Flaming Gorge"),
+          `Reservoir page (${viewport.name}): resolved a found state without `
+          + "the reservoir's name on it");
+        check(state.text.includes("acre-feet"),
+          `Reservoir page (${viewport.name}): a found page with no reading on it`);
+      }
+      if (label === "unknown") {
+        check(state.text.includes("No reservoir by that name"),
+          `Reservoir page (${viewport.name}): an unknown name rendered as `
+          + "something other than the not-found state");
+      }
+      await checkAccessibility(tab, check,
+        `Reservoir page (${viewport.name}, ${label})`);
+      for (const message of errors) {
+        failures.push(`Reservoir page (${viewport.name}, ${label}): ${message}`);
+      }
+    }
+    await context.close();
+  }
+  console.log("\n=== Reservoir page: four link states at "
+    + `${VIEWPORTS.length} widths`);
+}
+
+/*
  * Simplified Technical English, measured on what a reader actually sees.
  *
  * ADR-006 has always been enforced as a vocabulary -- a list of retired terms
@@ -3897,7 +3968,8 @@ for (const failure of [
     ["Drought", "drought.html", "__droughtReady"],
     ["Methods", "methods.html", null],
     ["Data reference", "data.html", "__dataDocsReady"],
-    ["Terms", "terms.html", null]
+    ["Terms", "terms.html", null],
+    ["Reservoir page", "reservoir.html?name=Pearl%20Lake", "__reservoirReady"]
   ];
   console.log("\n=== Simplified Technical English");
   for (const [label, path, signal] of pages) {

@@ -275,4 +275,11 @@ interface Window {
    * group. These counts distinguish a loaded shell from complete reference
    * documentation. */
   __dataDocsReady?: { files: number; groups: number };
+  /** The one-reservoir page settled. `status` is what the link resolved to:
+   * "found" (the page shows a published reservoir), "withdrawn" (the roster
+   * withdrew the name; the page says so, ADR-056), "unknown" (no such name),
+   * or "none" (a bare `reservoir.html` link, which explains itself). */
+  __reservoirReady?: {
+    status: "found" | "withdrawn" | "unknown" | "none";
+  };
 }

@@ -18,7 +18,9 @@ import "@esri/calcite-components/components/calcite-dropdown-item";
 import "@esri/calcite-components/components/calcite-icon";
 import { linkHref, portableSearch } from "../state/portable-url";
 
-export type PageId = "map" | "overview" | "snow" | "drought" | "methods" | "data";
+export type PageId =
+  | "map" | "overview" | "snow" | "drought" | "methods" | "data"
+  | "reservoir";
 
 interface PageLink {
   id: PageId;
@@ -53,7 +55,12 @@ const PAGE_SUBJECTS: Record<PageId, string> = {
   snow: "Western Snowpack",
   drought: "Western Drought",
   methods: "Methods and Sources",
-  data: "Public Data API"
+  data: "Public Data API",
+  /* One reservoir's own page. Named here for a browser tab and a shared
+   * link, like the data docs above, and deliberately not in the bar: it is
+   * reached from a reservoir, not from the navigation. The entry point
+   * replaces the tab title with the reservoir's name once it resolves. */
+  reservoir: "Reservoir Details"
 };
 
 /**

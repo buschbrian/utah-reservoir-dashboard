@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- The same policy the other reading pages carry. This page loads no SDK
+       and draws no map, so it touches fewer hosts than the policy allows;
+       the policy is shared rather than tuned per page, because a policy that
+       differs quietly between pages is a policy nobody can audit. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://*.arcgis.com https://*.arcgisonline.com; worker-src 'self' blob: https://*.arcgis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.arcgis.com https://*.arcgisonline.com; font-src 'self' data: https://*.arcgis.com; connect-src 'self' https://*.arcgis.com https://*.arcgisonline.com https://hydro.nationalmap.gov" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <meta name="description" content="One reservoir's storage, its reading date, its comparisons and its sources." />
+  <title>Reservoir Details — Western Water Dashboard</title>
+</head>
+<body>
+  <div id="reservoir-app"><p class="initial-loading">Loading reservoir details&hellip;</p></div>
+  <script type="module" src="/src/reservoir.ts"></script>
+</body>
+</html>

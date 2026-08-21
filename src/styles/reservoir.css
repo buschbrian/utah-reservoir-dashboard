@@ -1,0 +1,83 @@
+@import "./app.css";
+
+/* A reading page like the methods page: one column, a comfortable measure,
+ * no card a reader has to scroll inside. The reservoir's own numbers reuse
+ * the details panel's classes (app.css owns those), so the two surfaces
+ * cannot drift apart visually any more than they can verbally. */
+html, body, #reservoir-app { min-height: 100%; height: auto; }
+html, body { overflow: auto; }
+body {
+  background:
+    radial-gradient(circle at 88% 4%, rgb(196 157 105 / 16%), transparent 26rem),
+    linear-gradient(145deg, var(--app-surface), #e8dfd2);
+}
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 88% 4%, rgb(167 94 66 / 14%), transparent 26rem),
+    linear-gradient(145deg, var(--app-surface), #292b27);
+}
+
+.reservoir-nav {
+  display: block;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 10;
+  width: 100%;
+  border-block-end: 1px solid var(--app-border);
+}
+
+.reservoir-main {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.reservoir-name {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1.15;
+  margin-block: 0.25rem 1rem;
+}
+
+.reservoir-subhead {
+  font-size: 1.05rem;
+  margin-block: 2rem 0.75rem;
+  padding-block-start: 1.25rem;
+  border-block-start: 1px solid var(--app-border);
+}
+
+.reservoir-note { color: var(--calcite-color-text-2); }
+
+.detail-late {
+  border: 1px solid var(--app-border);
+  border-inline-start-width: 3px;
+  padding: 0.5rem 0.75rem;
+  background: var(--calcite-color-surface-highlight);
+}
+
+.detail-headline strong { font-size: 1.5rem; }
+
+/* The SVG chart draws its own gridlines from CSS variables the app sheet
+ * defines, so it reads correctly on this background without local rules.
+ * Give it room beyond the panel width it was sized for. */
+.reservoir-main svg.trend-chart { max-width: 100%; height: auto; }
+
+.reservoir-links { margin-block-start: 1.5rem; }
+
+.reservoir-withdrawn {
+  border: 1px solid var(--app-border);
+  border-inline-start-width: 3px;
+  padding: 0.75rem 1rem;
+  background: var(--calcite-color-surface-highlight);
+}
+
+.reservoir-error { color: var(--calcite-color-status-danger); }
+
+.reservoir-footer {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding-block-end: 2rem;
+}
+
+@media (max-width: 480px) {
+  .reservoir-main { padding-inline: 1rem; }
+}

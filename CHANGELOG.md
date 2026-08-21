@@ -7,6 +7,17 @@ and is not listed here.
 
 ### Added
 
+- **Every reservoir has a page: `reservoir.html?name=...`.** One static
+  shell, the morning's payload fetched at runtime, and nothing generated --
+  so a reservoir whose feed goes quiet keeps its page and its link says the
+  reading was withdrawn instead of stopping at an error. The page carries
+  the reading and what it is measured against, both comparison periods with
+  their sample sizes, the twelve-month chart, where the numbers come from,
+  and a CSV download. It names a reservoir the way every other surface does:
+  a unique name works bare, two reservoirs sharing one need the state --
+  "Lost Creek, OR" -- and an ambiguous link opens no reservoir rather than
+  picking one.
+
 - **Colorado is on the roster: ten reservoirs from the state's own telemetry.**
   The readings come from the Colorado Division of Water Resources, the fourth
   provider beside Reclamation, the Conservation Service and California's
@@ -39,6 +50,12 @@ and is not listed here.
   makes a new request: the same two files carry more rows.
 
 ### Changed
+
+- **The details panel's history-rank explanation reads in shorter sentences.**
+  The reservoir page now publishes that note outside a panel, and the
+  sentence-length rule (ADR-006) caught a 30-word sentence that had been
+  folded inside the map's details panel where no page-level check could see
+  it. Same words, split; both surfaces read it.
 
 - **A reservoir too young to hold either comparison publishes no comparison
   choice at all.** Colorado's 2025-vintage stations arrived with no baseline

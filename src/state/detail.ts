@@ -333,8 +333,8 @@ export function describeReservoir(
     note: `History rank compares this value with one value from each earlier year ` +
       `near the same date. "Third-lowest of eleven" places it among those years and ` +
       `this one. 90% means it is higher than 90% of them. The rank always uses the ` +
-      `years this site collects, which start in 2015, so it rests on a small number ` +
-      `of years and is an indication rather than a measurement. The normal value ` +
+      `years this site collects. Those years start in 2015, so the rank rests on a small ` +
+      `number of years and is an indication rather than a measurement. The normal value ` +
       `above uses the period named beside it. Storage data from the ` +
       `${providerName(reservoir)}, which can revise these values later.`
   };
