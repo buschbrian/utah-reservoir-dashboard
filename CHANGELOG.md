@@ -5,7 +5,74 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Added
+
+- **California is on the roster: 142 reservoirs, 25.7 million acre-feet of
+  full level.** The site publishes 365 reservoirs instead of 223, and
+  California is now its largest state by count -- 160 of them. The readings
+  come from the state's own Data Exchange Center, the third provider beside
+  the Bureau of Reclamation and the Natural Resources Conservation Service,
+  and every page that names a provider names three now. Nine drainage areas
+  gained their first reservoir, among them Tulare-Buena Vista Lakes, San
+  Francisco Bay and Laguna-San Diego Coastal, taking the roster from 43 of
+  the 75 drawn areas to 52.
+
+  **What the reader pays for it.** The storage payload is 215.2 KB gzipped,
+  up from 132.9 KB; `reference.json` is 23.0 KB, up from 14.4 KB. No page
+  makes a new request: the same two files carry more rows.
+
 ### Changed
+
+- **Where the operator publishes a full level, that is what a percentage
+  divides by** (ADR-070). The dam inventory's conservation pool was the
+  denominator because it was the only one this project could read, and
+  ADR-003's reason for preferring it -- that a conservation pool is what an
+  operator means by full -- now points at the operator's own published figure
+  wherever there is one. It reaches 25 of the 159 California candidates and
+  no reservoir anywhere else; 33 published reservoirs divide by it.
+
+  The measurement is what settled it. Twelve reservoirs had stood *above* the
+  inventory's pool and inside the operator's -- Pine Flat at 991,966
+  acre-feet against 772,300 and 1,000,000 -- and this project had already
+  made the same choice twice, for two other providers: Keswick is published
+  at 23,800 acre-feet from Reclamation's own record against an inventory pool
+  of 7,470.
+
+- **The storage-charts full-level sentence groups two sources under one
+  phrase.** A reservoir measured against its operator's own figure reads the
+  same whichever operator published it, so the sentence no longer says
+  "published by the reservoir operator" twice with two counts.
+
+- **A monthly California reading is dated the end of the month it measures.**
+  The service stamps such a value on the first day of the month and the value
+  is that month's last reading -- Oroville's monthly figure dated 1 June is
+  its 30 June measurement. Every date this pipeline publishes means when the
+  water was measured, so the stamp is moved to the month's end. Left alone,
+  all 33 monthly California stations read 50 days late on the morning they
+  were admitted and would have been withdrawn as quiet feeds before September
+  while reporting normally. The reading itself is untouched.
+
+- **A station that has not reported for a year is not a candidate.** "Being
+  listed is not reporting" was measured over a week and asked of the whole
+  record, so a station with five readings ever and none since March 2023 was
+  admissible. It would have joined the roster and been withdrawn for a quiet
+  feed the same morning (ADR-056), which is a roster addition that publishes
+  nothing and reads exactly like a failed fetch. Measured across the 159
+  candidates, the screen moves two: Bon Tempe, which was publishable, and
+  Guadalupe, which was held for an unexplained spike anyway.
+
+- **Twenty-one California candidates are held rather than published, and the
+  file says why for each.** Five were admitted by review against a screen and
+  carry the screen and the reason -- Lake Mohave and San Luis on reviewed dam
+  evidence, Martis Creek and Seven Oaks as flood-control dams operated empty
+  on purpose, Morena as a real reservoir that is simply low. The rest stay
+  out with the finding recorded beside them: O'Neill Forebay carrying San
+  Luis Reservoir's denominator from 1.18 km away, Fairmont measured against
+  7,507 acre-feet when its operator describes a forebay of about 500, and
+  Lake Havasu, whose reviewed full level of 646,200 acre-feet is now on
+  record and whose series still carries two readings near ten times the
+  reservoir.
+
 
 - **The two largest reservoirs in the west are in the opening view.** Lake
   Powell and Lake Mead are still controls rather than filters (ADR-011,

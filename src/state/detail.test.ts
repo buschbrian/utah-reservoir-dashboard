@@ -44,10 +44,18 @@ describe("the details a reader sees", () => {
   });
 
   it("names the measuring agency in full, not the payload's own label", () => {
+    /* The agency, never the system it publishes through: the payload's own
+     * labels carry retired vocabulary (ADR-006) and a reader is told who
+     * measured the water. Three providers now, and the table is exhaustive
+     * on purpose -- a fourth arriving with no name of its own would fail
+     * here rather than reaching a reader as `undefined`. */
+    const agencies: Record<string, string> = {
+      rise: "Bureau of Reclamation",
+      awdb: "Natural Resources Conservation Service",
+      cdec: "California Department of Water Resources"
+    };
     for (const reservoir of reservoirs) {
-      expect(providerName(reservoir)).toBe(reservoir.source_key === "rise"
-        ? "Bureau of Reclamation"
-        : "Natural Resources Conservation Service");
+      expect(providerName(reservoir)).toBe(agencies[reservoir.source_key]);
     }
   });
 
@@ -315,10 +323,15 @@ describe("selecting a reservoir", () => {
  * What "full" is measured against, and how much history a rank rests on.
  *
  * Both were reviewed into the panel after a read of the published data found
- * that neither was stated anywhere a reader could see. Three different
- * quantities arrive as "capacity" from the two providers, and four reservoirs
- * -- Lake Powell among them -- carry roughly seven tenths of the combined
- * full level that every regional percentage is divided by. And every history
+ * that neither was stated anywhere a reader could see. Four different
+ * quantities arrive as "capacity" from the three providers -- two of them
+ * being an operator's own published figure, which is why they share a
+ * reader-facing phrase (ADR-070) -- and four reservoirs -- Lake Mead, Lake
+ * Powell, Koocanusa and Shasta -- carry 43% of the combined full level that
+ * every regional percentage is divided by, Mead and Powell alone 36%. It was
+ * roughly seven tenths when this was written and the roster was 223; the
+ * concentration falls as the roster grows and the reason for stating the
+ * basis does not. And every history
  * rank rests on eight to eleven years, because the record starts in 2015.
  */
 describe("what the panel says about its own basis", () => {

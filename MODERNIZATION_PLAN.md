@@ -2160,6 +2160,73 @@ KB gzipped and the weekly coverage 0.9 to 2.9 KB. The hosted outlines went
 which is where drawing five times the areas is actually paid, and the figure
 `docs/data-transfer.md` now tracks.
 
+### Delivered 2026-08-20 -- California, and the denominator it forced
+
+R3's first non-federal source. The roster goes from 223 reservoirs to **365**,
+California is the largest state on it by count at 160, and nine drainage areas
+that held nothing now hold something -- 52 of the 75 drawn areas against 43.
+The reader pays 215.2 KB gzipped for the storage payload instead of 132.9 and
+makes no new request.
+
+**The work was not the fetching.** The adapter for the state's service already
+existed, `-9999` was already known to be a number rather than a null, and the
+audit already listed 159 candidates. What had to be decided was which of two
+sources is the denominator, because the service publishes its own full level
+for 25 of them and the dam inventory disagrees with it by more than the
+surcharge allowance on 16. ADR-070 settles it: where the provider that
+publishes the readings publishes a full level too, that is the figure a
+percentage divides by. Twelve reservoirs were freed, none newly held, and the
+rule turned out to be one this project had already applied twice -- Keswick is
+published from Reclamation's own record at 23,800 acre-feet while the
+inventory calls its pool 7,470.
+
+**Twenty-one candidates are still held, and five were admitted over a screen.**
+Both halves are in `admitted_cdec_reservoirs.json` rather than in a commit
+message: a reviewed admission carries `review.waived` and `review.why` -- Lake
+Mohave against Reclamation's 1,818,300 acre-feet, San Luis with B.F. Sisk Dam
+identified by hand at 5.9 km, Martis Creek and Seven Oaks as flood-control
+dams operated empty by design, Morena as a reservoir that is simply low -- and
+the file's `withheld` block names each candidate kept out with the finding
+behind it. Lake Havasu's reviewed full level of 646,200 acre-feet is recorded
+there beside the spike that keeps it unpublished, so the research is not lost
+and the reservoir is not published over a series nobody can explain.
+
+**And one defect caught by reading the first payload rather than by a test.**
+Every one of the 33 monthly California stations came out flagged late, all
+with the same reading date and all exactly 50 days old -- a distribution with
+no weather in it. The service stamps a monthly value on the **first** day of
+the month it describes while the value is that month's **last** reading, which
+the same station's daily series proves: Oroville's monthly `2026-6-1` of
+3,082,292 acre-feet is its 30 June figure, and 1 June was 3,327,054. Since
+`days_stale` is computed from that date and ADR-056 withdraws 60 days past it,
+33 healthy reservoirs would have been withdrawn as quiet feeds before
+September. The date is moved to the month's end and the reading is untouched;
+the site's stale count went from 54 of 365 to 21.
+
+**Two things the audit had not been asked before.** A station listed against
+the sensor and answering *at some point in the record* is not necessarily
+answering this year: Bon Tempe has five usable readings ever, the last in
+March 2023, and would have joined the roster and been withdrawn for a quiet
+feed the same morning. The candidate screen now asks for a reading inside the
+last twelve months, which moves two of 159. And four California reservoirs sit
+inside the 2 km boundary-review margin -- Haiwee's reviewed dam point is 31 m
+from the Mono-Owens line, inside the committed geometry's own generalization,
+because the reservoir sits on the divide the aqueduct crosses. Its independent
+waterbody point lands in the same area three times the generalization clear,
+which is why the assignment stands; all four are named in `test_huc.py` rather
+than the guard being widened.
+
+**A guard that was measuring the wrong thing.** The reference export's size
+budget was a raw byte count, and 142 reviewed capacity records took the file
+to 127 KB against a 120 KB limit while the figure a reader actually pays went
+from 14.4 to 22.5 KB gzipped. Both copies of the guard -- Python and
+TypeScript -- now measure compressed, which is what ADR-051 and CLAUDE.md have
+said to quote since they were written. The geometry the guard exists to keep
+out does not fit under the compressed budget either.
+
+Colorado is what remains of R3: 119 reservoirs for about 2% more water, worth
+having for the headwaters and not for the total.
+
 ---
 
 ## 4. Risks and traps

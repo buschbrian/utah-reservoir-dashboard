@@ -28,7 +28,8 @@ export function serializeCsv<Row>(
 
 const PROVIDERS: Record<SourceKey, string> = {
   rise: "Bureau of Reclamation",
-  awdb: "Natural Resources Conservation Service"
+  awdb: "Natural Resources Conservation Service",
+  cdec: "California Department of Water Resources"
 };
 
 export function reservoirProvider(reservoir: Reservoir): string {
@@ -45,6 +46,9 @@ export function capacitySource(reservoir: Reservoir): string {
   }
   if (reservoir.capacity_basis === "awdb_reservoir_metadata") {
     return "Natural Resources Conservation Service";
+  }
+  if (reservoir.capacity_basis === "cdec_reservoir_report") {
+    return "California Department of Water Resources daily reservoir report";
   }
   if (reservoir.capacity_basis === null) return "Not available";
   return "U.S. Army Corps of Engineers National Inventory of Dams";

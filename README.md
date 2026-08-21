@@ -124,19 +124,22 @@ Stable public paths are documented on the [data page](data.html):
 | `/data/drought/usdm-current.geojson` | The verified current U.S. Drought Monitor polygons. |
 | `/api/reference.json` | Reviewed capacity evidence and the drainage-area roster, without polygon geometry. |
 
-The daily pipeline reads observations from the Bureau of Reclamation and the
-Natural Resources Conservation Service. Dam evidence comes from the U.S. Army
+The daily pipeline reads observations from the Bureau of Reclamation, the
+Natural Resources Conservation Service and the California Department of Water
+Resources. Dam evidence comes from the U.S. Army
 Corps of Engineers National Inventory of Dams. Drainage areas come from the
 U.S. Geological Survey Watershed Boundary Dataset. Drought data comes from the
 U.S. Drought Monitor. The complete ownership and failure contract is in
 [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md).
 
-California and Colorado remain research sources, not current production
-providers. A read-only California adapter and audit exist; Colorado is still
-measured design work. The source review is in
-[`docs/CDSS-CDEC-API-REVIEW.md`](docs/CDSS-CDEC-API-REVIEW.md), and unresolved
-California capacity disagreements remain tracked before any of those
-reservoirs can be published.
+California is a production provider as of 2026-08-20: 142 reservoirs, read
+from the state's own service, with the full level taken from the operator's
+published figure wherever it publishes one (ADR-070). Twenty-one candidates
+are held rather than published and
+[`admitted_cdec_reservoirs.json`](admitted_cdec_reservoirs.json) names each
+with the finding behind it. Colorado remains measured design work and is the
+next coverage-of-places source; the review of both is in
+[`docs/CDSS-CDEC-API-REVIEW.md`](docs/CDSS-CDEC-API-REVIEW.md).
 
 ### Storage metrics
 

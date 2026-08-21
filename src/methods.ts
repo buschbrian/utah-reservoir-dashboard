@@ -496,10 +496,13 @@ wireTheme();
  * announcing itself busy after the fetch has failed is telling a screen
  * reader to wait for something that is never coming.
  */
-function providerCounts(reservoirs: readonly Reservoir[]): { rise: number; awdb: number } {
+function providerCounts(
+  reservoirs: readonly Reservoir[]
+): { rise: number; awdb: number; cdec: number } {
   return {
     rise: reservoirs.filter((reservoir) => reservoir.source_key === "rise").length,
-    awdb: reservoirs.filter((reservoir) => reservoir.source_key === "awdb").length
+    awdb: reservoirs.filter((reservoir) => reservoir.source_key === "awdb").length,
+    cdec: reservoirs.filter((reservoir) => reservoir.source_key === "cdec").length
   };
 }
 
@@ -623,8 +626,10 @@ async function showPublishedData(): Promise<void> {
     fillCoverage(data);
     status.textContent =
       `The data on this site was published on ${formatDate(data.generated_at.slice(0, 10))}. ` +
-      `It covers ${data.reservoirs.length} reservoirs: ${counts.rise} measured by the ` +
-      `Bureau of Reclamation and ${counts.awdb} by the Natural Resources Conservation Service.`;
+      `It covers ${data.reservoirs.length} reservoirs. ` +
+      `The Bureau of Reclamation measures ${counts.rise}. ` +
+      `The Natural Resources Conservation Service measures ${counts.awdb}. ` +
+      `The California Department of Water Resources measures ${counts.cdec}.`;
   } catch (error) {
     console.warn("The published data could not be read for the methods page:", error);
     /* The page is still worth reading without it -- everything else here is

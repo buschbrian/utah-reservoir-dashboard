@@ -7,6 +7,7 @@ _get_json is stubbed where the HTTP path itself is under test.
 Run with `pytest tests/` or directly with `python tests/test_refresh.py`.
 """
 
+import gzip
 import json
 import sys
 from pathlib import Path
@@ -326,8 +327,21 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     assert len(R.AWDB_RESERVOIRS) == 173
     assert len(R.ADMITTED_RISE_RESERVOIRS) == 25
     assert len(R.RESERVOIRS) == 55
-    assert len(R.ALL_RESERVOIR_IDS) == 228
+    # R3's first source: 137 the rules admitted, plus five a person admitted
+    # against a screen -- Lake Mohave and San Luis on reviewed dam evidence,
+    # Martis Creek and Seven Oaks as flood-control dams held empty on
+    # purpose, and Morena as a real reservoir that is simply low. Each
+    # carries the screen it was admitted against in the file itself.
+    assert len(R.ADMITTED_CDEC_RESERVOIRS) == 142
+    assert len(R.CDEC_RESERVOIRS) == 142
+    assert sum(1 for row in R.ADMITTED_CDEC_RESERVOIRS.values()
+               if row.get("review")) == 5
+    assert len(R.ALL_RESERVOIR_IDS) == 370
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
+    # Three providers, three disjoint sets of station ids. An id in two of
+    # them is one reservoir fetched twice and summed twice (ADR-069).
+    assert not (set(R.CDEC_RESERVOIRS)
+                & (set(R.RESERVOIRS) | set(R.AWDB_RESERVOIRS)))
     for triplet, (name, lat, lon, capacity, cadence) in R.AWDB_RESERVOIRS.items():
         assert name
         assert triplet.count(":") == 2
@@ -663,6 +677,50 @@ def test_cdec_answers_the_same_contract_as_the_other_providers(monkeypatch):
     assert frame["storage_af"].tolist() == [111.0, 300.0], "last reading wins"
 
 
+def test_a_cdec_monthly_reading_is_dated_the_end_of_the_month_it_measures(monkeypatch):
+    """The stamp names the month; the value is that month's last day.
+
+    Verified against the service itself: Oroville's monthly value dated
+    `2026-6-1` is 3,082,292 acre-feet, which is its daily reading for 30 June
+    -- 1 June was 3,327,054. Every date this pipeline publishes means when the
+    water was measured, and ADR-056 withdraws a record 60 days past it, so
+    left at the month's start all 33 monthly California stations read 50 days
+    late on the day they were admitted and would have been withdrawn as quiet
+    feeds inside a fortnight.
+    """
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-5-1 00:00", 3331618, "M"),
+        cdec_row("2026-6-1 00:00", 3082292, "M"),
+        cdec_row("2026-7-1 00:00", 2512790, "M"),
+    ])
+    frame = R.fetch_cdec_series("ORO", "monthly", "20260501", "20260821")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == [
+        "2026-05-31", "2026-06-30", "2026-07-31"]
+    assert frame["storage_af"].tolist() == [3331618.0, 3082292.0, 2512790.0], \
+        "the calendar is corrected, never the reading"
+
+
+def test_a_cdec_daily_reading_keeps_its_own_day(monkeypatch):
+    """The correction is the monthly convention's and must not reach a day."""
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row("2026-8-10 00:00", 100),
+    ])
+    frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
+    assert frame["date"].dt.strftime("%Y-%m-%d").tolist() == ["2026-08-10"]
+
+
+def test_a_cdec_month_still_in_progress_is_not_dated_in_the_future(monkeypatch):
+    """Moving the stamp to the month's end must not publish a date ahead of
+    today. It costs the current month's row, which is the conservative half of
+    the trade and only arises if the service ever stamps one early."""
+    today = R.local_today()
+    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+        cdec_row(today.strftime("%Y-%-m-1 00:00"), 500, "M"),
+    ])
+    frame = R.fetch_cdec_series("ORO", "monthly", "20260801", "20260831")
+    assert frame.empty or frame["date"].max() <= today
+
+
 def test_cdec_with_nothing_to_say_answers_an_empty_frame(monkeypatch):
     """The shape the caller expects, so a quiet station is not a crash."""
     monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
@@ -867,7 +925,15 @@ def test_the_export_carries_no_polygons_but_the_state_outline():
                    and all(isinstance(value, float) for value in unit["bbox"])
                    for unit in scope["units"])
 
-    assert len(render(sections).encode("utf-8")) < 120_000
+    # Measured on the wire, never raw (ADR-051, ADR-052). GitHub Pages
+    # compresses this file and every map page fetches it whole on every
+    # load, so the raw count overstates what a reader pays by five and a
+    # half times -- 129,607 bytes raw against 23,008 gzipped on 2026-08-20,
+    # when R3 put 142 California reservoirs into the capacity catalogue.
+    # The budget is what keeps the polygons out: they were 982 KB raw and
+    # would not fit under this compressed either, and the structural
+    # assertions above are what say so directly.
+    assert len(gzip.compress(render(sections).encode("utf-8"), 9)) < 30_000
 
 
 # --- watershed enrichment -------------------------------------------------

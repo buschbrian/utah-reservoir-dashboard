@@ -64,6 +64,9 @@ REFERENCES: tuple[dict, ...] = (
      "what": "County assignment for each reservoir's waterbody"},
     {"path": "admitted_reservoirs.json", "field": "reviewed", "days": 365,
      "what": "The reviewed roster and its capacity evidence"},
+    {"path": "admitted_cdec_reservoirs.json", "field": "reviewed", "days": 365,
+     "what": "The reviewed California roster, its capacity evidence and the "
+             "candidates it holds"},
     {"path": "normals.json", "field": "built", "days": 365,
      "what": "The 1991-2020 climate normals"},
     {"path": "snow_sites.json", "field": "retrieved", "days": 180,

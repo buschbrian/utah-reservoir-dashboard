@@ -14,7 +14,7 @@ maintained references and historical plans around these records.
 |---|---|---|
 | [ADR-001](ADR-001-adopt-a-build-step.md) | Adopt a build step, retiring the zero-build constraint | Accepted |
 | [ADR-002](ADR-002-data-is-copied-never-bundled.md) | Runtime data is copied into the published output, never bundled | Accepted |
-| [ADR-003](ADR-003-capacity-from-the-national-inventory-of-dams.md) | Take reservoir capacity from the National Inventory of Dams | Accepted |
+| [ADR-003](ADR-003-capacity-from-the-national-inventory-of-dams.md) | Take reservoir capacity from the National Inventory of Dams | Accepted; ADR-070 prefers the operator's own figure where there is one |
 | [ADR-004](ADR-004-no-api-key-and-refuse-credential-challenges.md) | Run the ArcGIS map without an API key, and refuse credential challenges | Accepted |
 | [ADR-005](ADR-005-commit-generalized-watershed-boundaries.md) | Commit one generalized watershed boundary file | Superseded by ADR-037 |
 | [ADR-006](ADR-006-simplified-technical-english.md) | Write all visible text in Simplified Technical English | Accepted |
@@ -81,6 +81,7 @@ maintained references and historical plans around these records.
 | [ADR-067](ADR-067-retire-the-state-mask.md) | Retire the state mask, and stop publishing the state boundary | Accepted |
 | [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md) | Move the roster scope west, and decouple the opening box from it | Accepted |
 | [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md) | Deduplicate reservoirs by dam identity | Accepted |
+| [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md) | Where the operator publishes a full level, that is the denominator | Accepted; narrows ADR-003's implementation, not its reasoning |
 
 ## Relationship to the modernization plan
 

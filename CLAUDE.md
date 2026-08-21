@@ -158,6 +158,11 @@ is true in every word and wrong as a whole.
 **Measure payload cost gzipped, never raw** (ADR-051, ADR-052). GitHub Pages
 compresses the JSON, so a raw byte count overstates what a reader pays by
 several times -- `snowpack.json` is 3,607 KB on disk and 322 KB on the wire.
+**The size guards measure the same way**: the reference export's budget, in
+`tests/test_refresh.py` and `src/data/boundaries.test.ts` alike, is 30 KB
+gzipped and was a raw byte count until R3 -- which would have failed on 142
+reservoirs of reviewed capacity while the figure a reader pays was still
+inside it. A budget in the wrong unit fails on the wrong thing.
 Runtime fetches use `cache: "no-cache"`, which is not "do not cache": it means
 never use a stored copy without asking, so the morning's rewrite can never be
 served stale and an unchanged file costs a 304 instead of the whole payload.
@@ -170,8 +175,8 @@ The count moves every morning, which is the point -- it is never zero.
 
 **The payload carries the roster; the service carries the shapes**
 (ADR-047, ADR-048). `reference.json` publishes each area's code, name and
-states and no drainage geometry -- it was 1,001 KB raw and is 78 KB raw,
-14.4 KB on the wire, and every map page fetches it whole on every load. Quote
+states and no drainage geometry -- it was 1,001 KB raw and is 126.6 KB raw,
+22.5 KB on the wire, and every map page fetches it whole on every load. Quote
 the wire figure: this rule's own heading says so, and the raw one is five
 times larger. Outlines come from the hosted Watershed Boundary Dataset,
 quantized to the view. A map that needs each area
@@ -204,7 +209,7 @@ reservoirs too small to point at. That literal equals the frozen oracle's own
 `extent.test.ts` holds it there. The load the wider box would otherwise put on
 the opening view is carried by `src/data/opening-scope.ts` and the first-visit
 chooser instead -- `unionOfAreaBoxes` over whatever place a reader picked.
-**32 of the 75 drawn areas hold no reservoir**, which is a state ADR-056
+**23 of the 75 drawn areas hold no reservoir**, which is a state ADR-056
 already allowed for. **Each map draws what it can say something about**: the
 drought engine measures all 75 so the drought map draws 75, the snow network
 reports in 51 so
@@ -325,13 +330,13 @@ number or given a baseline.
 
 **A county is where a thing is; a drainage area is where its water goes**
 (ADR-058, ADR-060). Counties are a *search and filter* axis and never a
-grouping one — 223 reservoirs fall in 119 counties and 64 hold exactly one, so
+grouping one — 365 reservoirs fall in 157 counties and 75 hold exactly one, so
 a county total is a reservoir total wearing a county's name. Going west made
 that worse rather than better: more than half the counties on the roster now
 hold a single reservoir. The key is the five-digit FIPS code and never the
 name: this roster holds seven repeated county names — two each of Carbon,
-Garfield, Lake, Lincoln, San Juan and Summit, and **three** Washington
-Counties, in Idaho, Oregon and Utah. The assignment point is the **waterbody**,
+Garfield, Lincoln, San Juan and Summit, and **three** each of Lake, in
+California, Montana and Oregon, and Washington, in Idaho, Oregon and Utah. The assignment point is the **waterbody**,
 deliberately not the dam the drainage area uses — Glen Canyon Dam is in
 Coconino County, Arizona and Lake Powell is in San Juan County, Utah. No
 county geometry is ever committed; the service resolves the point and answers
@@ -415,6 +420,47 @@ decides ([#25](https://github.com/buschbrian/western-water-dashboard/issues/25))
 `publishable` is the field a roster builder reads and it is deliberately
 narrower than `admitted`, which still states that the dam match itself stands.
 
+**Where the operator publishes a full level, that is the denominator**
+(ADR-070). ADR-003 prefers the conservation pool because that is what an
+operator means by full, and the dam inventory was long the only place to read
+one; where the provider that publishes the readings publishes a full level
+too, that figure wins. `preferred_capacity` is the rule and it is opt-in — a
+caller names the `capacity_basis` its provider's figure carries, and the two
+federal audits name none, so nothing outside California moved. A preferred
+figure **names its source or the roster refuses to load**:
+`cdec_reservoir_report` and `reclamation_project_record` both require
+`capacity_source_url` in `validate_capacity_evidence`. The disagreement screen
+measures against the figure *actually chosen*, so it reports an inventory
+contradicting a denominator this project divides by and stays quiet once the
+rule has settled it. Two keys, one reader-facing phrase: `basisShares` groups
+by label, because "published by the reservoir operator 4, published by the
+reservoir operator 33" is one fact printed twice.
+
+**Being listed is not reporting, and neither is having reported.** The audit's
+dormant check asks whether a station has ever answered; the candidate screen
+asks whether it has answered **within the year**. Bon Tempe is why — five
+usable readings ever, the last in March 2023 — and admitting it would have put
+a name on the roster that is withdrawn for a quiet feed the same morning,
+which is what a silently failed fetch looks like. This is deliberately not
+`WITHDRAW_AFTER_DAYS`: 60 days is about a published reservoir going quiet, a
+year is about never admitting one that already has.
+
+**A reviewed admission names the screen it was admitted against.** Five
+California reservoirs are on the roster over a screen that held them, and
+`admitted_cdec_reservoirs.json` carries `review.waived` and `review.why` for
+each — the loader refuses a waiver with no reason, because a waiver with no
+reason is a screen turned off. The same file's `withheld` block names every
+candidate kept out and the finding behind it, so the next reader meets the
+work rather than repeating it: Lake Havasu's reviewed 646,200 acre-feet is
+recorded there beside the spike that keeps it unpublished.
+
+**Three providers, and a provider is named by its agency.** `SourceKey` is
+`rise | awdb | cdec` and every table keyed by it is exhaustive, so a fourth
+provider is a compile error rather than an `undefined` reaching a reader.
+Visible text names the agency and never the system: "Bureau of Reclamation",
+"Natural Resources Conservation Service", "California Department of Water
+Resources" (ADR-006).
+
 **A roster addition needs a refresh in the same change.** `tests/test_refresh.py`
 asserts every roster name is either published or withdrawn, and there is no
 "pending" state on purpose: a name on the roster and absent from the payload is
@@ -422,6 +468,20 @@ what a silently failed fetch looks like. `refresh_reservoirs.py --only` prints
 and never writes, so it is a probe. `tools/build_normal_baselines.py` merges on
 every path — `--only` used to write its one reservoir as the whole file, and a
 full run used to drop the normal of every reservoir withdrawn that morning.
+
+**A monthly stamp names the month; the water was measured at its end.**
+California's service dates a monthly storage value on the **first** day of the
+month it describes, and the value is that month's **last** reading -- verified
+against the same station's daily series, where Oroville's monthly `2026-6-1`
+of 3,082,292 acre-feet is its 30 June reading and 1 June was 3,327,054.
+`fetch_cdec_series` moves the date to the month's end, because every date this
+pipeline publishes means when the water was measured: `days_stale` is computed
+from it and ADR-056 withdraws 60 days past it. Left alone, all 33 monthly
+California stations read 50 days late on the morning they were admitted and
+would have been withdrawn as quiet feeds inside a fortnight, while reporting
+normally. The Conservation Service's month-end feed already stamps the last
+day, so there is one convention rather than two. **The calendar is corrected,
+never the reading.**
 
 **Late and out-of-season are different faults** (ADR-056). `carry_forward`
 keeps publishing a quiet feed's last value because a point vanishing with no
@@ -573,8 +633,8 @@ becomes standard in 2031) or when a reservoir joins the roster.
 for 0.8 seconds of processor, so it fetches `--workers` at a time (six by
 default, kept small because both providers are public services this project
 does not pay for). The measured run was 203 reservoirs in about four and a
-half minutes rather than forty; the roster is 223 now and `normals.json`
-holds 228 records, because a reservoir withdrawn for a quiet feed keeps its
+half minutes rather than forty; the roster is 365 now and `normals.json`
+holds 370 records, because a reservoir withdrawn for a quiet feed keeps its
 normal.
 
 **Every run merges; none replaces.** `--only "A" "B"` builds those,

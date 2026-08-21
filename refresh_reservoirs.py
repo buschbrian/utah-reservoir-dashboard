@@ -51,6 +51,7 @@ OUTPUT_PATH = Path(__file__).parent / "reservoirs.json"
 CAPACITY_PATH = Path(__file__).parent / "capacities.json"
 ADMITTED_RESERVOIRS_PATH = Path(__file__).parent / "admitted_reservoirs.json"
 ADMITTED_RISE_RESERVOIRS_PATH = Path(__file__).parent / "admitted_rise_reservoirs.json"
+ADMITTED_CDEC_RESERVOIRS_PATH = Path(__file__).parent / "admitted_cdec_reservoirs.json"
 NORMALS_PATH = Path(__file__).parent / "normals.json"
 COUNTIES_PATH = Path(__file__).parent / "counties.json"
 EXPORT_PATH = Path(__file__).parent / "reference.json"
@@ -338,6 +339,16 @@ def validate_capacity_evidence(name: str, capacity: object) -> None:
                 or not capacity["capacity_source_url"].startswith("https://www.usbr.gov/"):
             raise ValueError(
                 f"{name}: a Reclamation project capacity needs its owner-operated source")
+    # The same rule for the third provider's own figure (ADR-070). A
+    # denominator preferred over the inventory has to name where it was read,
+    # whichever operator published it -- otherwise "the operator says so" is
+    # an assertion in a commit message rather than a citation in the file.
+    if capacity.get("capacity_basis") == "cdec_reservoir_report":
+        if not isinstance(capacity.get("capacity_source_url"), str) \
+                or not capacity["capacity_source_url"].startswith(
+                    "https://cdec.water.ca.gov/"):
+            raise ValueError(
+                f"{name}: a service-published capacity needs its owner-operated source")
 
 
 def load_admitted_rise_reservoirs(
@@ -418,6 +429,68 @@ def load_admitted_reservoirs(path: Path = ADMITTED_RESERVOIRS_PATH) -> dict[str,
     return rows
 
 
+def load_admitted_cdec_reservoirs(
+    path: Path = ADMITTED_CDEC_RESERVOIRS_PATH,
+) -> dict[str, dict]:
+    """Load the reviewed California Data Exchange Center stations.
+
+    The third provider, and the same shape the other two admitted files
+    already have: the station this project fetches with, the point, the
+    matched dam and the denominator, committed together so publication stays
+    a reviewable decision rather than a tuple somebody edited.
+
+    Two things this file carries that the others do not. `review` is on the
+    entries a person admitted *against* a screen -- a flood-control dam that
+    has never been a third full is a real reservoir whose percentage is true
+    and useless, and the file says which screen was waived and why. And
+    `withheld` names the candidates that stayed out with the finding behind
+    each, so the next reader meets the work rather than repeating it.
+    """
+    document = json.loads(path.read_text(encoding="utf-8"))
+    rows = document.get("reservoirs")
+    if not isinstance(rows, dict) or not rows:
+        raise ValueError(f"{path.name} must contain a non-empty reservoirs object")
+    for station, row in rows.items():
+        if not isinstance(station, str) or not station or not isinstance(row, dict):
+            raise ValueError(f"invalid reservoir entry in {path.name}")
+        name = row.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"{station}: a reservoir needs a name to be called by")
+        # Keyed by the station and carrying it too, as both other rosters are
+        # (ADR-066): a roster indexed by one station and fetched from another
+        # publishes one reservoir's water under another's name.
+        if row.get("station") != station:
+            raise ValueError(
+                f"{station}: keyed by one station and configured for "
+                f"{row.get('station')!r}")
+        if row.get("cadence") not in {"daily", "monthly"}:
+            raise ValueError(f"{name}: cadence must be daily or monthly")
+        if not isinstance(row.get("lat"), (int, float)) or not isinstance(
+                row.get("lon"), (int, float)):
+            raise ValueError(f"{name}: coordinates are required")
+        review = row.get("review")
+        if review is not None:
+            # A waiver with no reason is a screen turned off. Both halves are
+            # required, and the file is where a reviewer reads them.
+            if not isinstance(review, dict) or not review.get("waived") \
+                    or not isinstance(review.get("why"), str) or not review["why"]:
+                raise ValueError(
+                    f"{name}: a reviewed admission must name the screen it "
+                    "was admitted against, and why")
+        validate_capacity_evidence(name, row.get("capacity"))
+    return rows
+
+
+ADMITTED_CDEC_RESERVOIRS = load_admitted_cdec_reservoirs()
+CDEC_RESERVOIRS = {
+    station: (
+        row["name"], row["lat"], row["lon"],
+        row["capacity"]["capacity_af"], row["cadence"],
+    )
+    for station, row in ADMITTED_CDEC_RESERVOIRS.items()
+}
+
+
 ADMITTED_RESERVOIRS = load_admitted_reservoirs()
 AWDB_RESERVOIRS = {
     **BASE_AWDB_RESERVOIRS,
@@ -435,13 +508,14 @@ AWDB_RESERVOIRS = {
 #: `ALL_RESERVOIR_NAMES` was this set of names until ADR-066. The names are
 #: still what a reader sees and what `--only` accepts; they are simply no
 #: longer what the roster is keyed by, because two reservoirs may share one.
-ALL_RESERVOIR_IDS = set(RESERVOIRS) | set(AWDB_RESERVOIRS)
+ALL_RESERVOIR_IDS = set(RESERVOIRS) | set(AWDB_RESERVOIRS) | set(CDEC_RESERVOIRS)
 
 #: What each station is called, by that same identity. One place builds it, so
 #: a label and its station cannot come apart.
 RESERVOIR_NAMES = {
     **{station: entry[0] for station, entry in RESERVOIRS.items()},
     **{station: entry[0] for station, entry in AWDB_RESERVOIRS.items()},
+    **{station: entry[0] for station, entry in CDEC_RESERVOIRS.items()},
 }
 
 ALL_RESERVOIR_NAMES = set(RESERVOIR_NAMES.values())
@@ -492,6 +566,8 @@ def load_capacities() -> dict[str, dict]:
         **{station: row["capacity"]
            for station, row in ADMITTED_RISE_RESERVOIRS.items()},
         **{station: row["capacity"] for station, row in ADMITTED_RESERVOIRS.items()},
+        **{station: row["capacity"]
+           for station, row in ADMITTED_CDEC_RESERVOIRS.items()},
     }
 
 
@@ -693,6 +769,23 @@ def fetch_cdec_series(station_id: str, cadence: str,
     there are two of them -- `date` is the reading's own day and `obsDate` is
     when the service recorded it. The reading date is the one a storage series
     is indexed by, the same choice the other two providers' fetchers make.
+
+    **A monthly reading is stamped at the start of the month it measures, and
+    the water was measured at the end of it.** Verified against the same
+    station's daily series: Oroville's monthly value dated `2026-6-1` is
+    3,082,292 acre-feet, which is the daily reading for **30 June**; 1 June
+    was 3,327,054. So the stamp names the month and the value is its last day,
+    and the date is moved to the end of the month here -- the calendar is
+    corrected, never the reading.
+
+    It matters for more than tidiness. Every date this pipeline publishes
+    means "when the water was measured": `days_stale` is computed from it and
+    ADR-056 withdraws a record 60 days past it. Left at the month's start, all
+    33 monthly California stations read 50 days late on the day they were
+    admitted and would have been withdrawn as quiet feeds before September,
+    while reporting perfectly normally. The month-end feed this project
+    already had -- the Conservation Service's -- stamps the last day, so this
+    also makes one convention of two.
     """
     payload = _get_cdec_json({
         "Stations": station_id,
@@ -718,6 +811,15 @@ def fetch_cdec_series(station_id: str, cadence: str,
     df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
     df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
     df = df.dropna(subset=["date", "storage_af"])
+    if cadence == "monthly":
+        # See the docstring: the stamp names the month, the value is its last
+        # day. `MonthEnd(0)` moves a date inside a month to that month's end
+        # and leaves one already there alone, so this is idempotent if the
+        # service ever changes its convention. The today filter below then
+        # drops a month still in progress rather than publishing a date in
+        # the future -- which costs at most the current month's row, and only
+        # if the service ever begins stamping one before the month is over.
+        df["date"] = df["date"] + pd.offsets.MonthEnd(0)
     df = df[df["date"] <= local_today()]
     return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
               [["date", "storage_af"]].reset_index(drop=True))
@@ -1469,6 +1571,7 @@ def load_capacity_catalog() -> dict:
     catalog["keyed_by"] = "source_station_id"
     catalog["admitted_reservoirs"] = ADMITTED_RESERVOIRS_PATH.name
     catalog["admitted_rise_reservoirs"] = ADMITTED_RISE_RESERVOIRS_PATH.name
+    catalog["admitted_cdec_reservoirs"] = ADMITTED_CDEC_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)
@@ -1808,7 +1911,7 @@ def main() -> int:
                              "since a partial run would drop every other reservoir.")
     parser.add_argument("--dry-run", action="store_true",
                         help="compute everything but don't write reservoirs.json")
-    parser.add_argument("--source", choices=("all", "rise", "awdb"), default="all",
+    parser.add_argument("--source", choices=("all", "rise", "awdb", "cdec"), default="all",
                         help="refresh one source and merge the other source's previously "
                              "published records (default: all)")
     args = parser.parse_args()
@@ -1825,10 +1928,12 @@ def main() -> int:
               f"reservoirs, {period.get('start_year')} through {period.get('end_year')} "
               f"(built {normals.get('built')})")
     print(f"NID capacity records available: {len(capacities)} "
-          f"({len(RESERVOIRS)} Reclamation, {len(ADMITTED_RESERVOIRS)} admitted)")
+          f"({len(RESERVOIRS)} Reclamation, {len(ADMITTED_RESERVOIRS)} admitted, "
+          f"{len(ADMITTED_CDEC_RESERVOIRS)} California)")
 
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
+    cdec_targets = CDEC_RESERVOIRS if args.source in {"all", "cdec"} else {}
     if args.only:
         # Named, because a person types a name and not a station triplet. The
         # roster is keyed by station since ADR-066, so a name is resolved to
@@ -1839,9 +1944,12 @@ def main() -> int:
                   if name in wanted} | (wanted & set(RESERVOIR_NAMES))
         rise_targets = {k: v for k, v in RESERVOIRS.items() if k in chosen}
         awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in chosen}
+        cdec_targets = {k: v for k, v in CDEC_RESERVOIRS.items() if k in chosen}
         found = {RESERVOIR_NAMES.get(station, station)
-                 for station in set(rise_targets) | set(awdb_targets)}
-        missing = wanted - found - set(rise_targets) - set(awdb_targets)
+                 for station in set(rise_targets) | set(awdb_targets)
+                 | set(cdec_targets)}
+        missing = (wanted - found - set(rise_targets) - set(awdb_targets)
+                   - set(cdec_targets))
         if missing:
             print(f"ERROR: unknown reservoir(s): {', '.join(sorted(missing))}", file=sys.stderr)
             return 2
@@ -1909,6 +2017,40 @@ def main() -> int:
         ))
         time.sleep(0.1)
 
+    for station, (name, lat, lon, capacity_af, cadence) in cdec_targets.items():
+        try:
+            df = fetch_cdec_series(station, cadence, START_DATE, end)
+        except Exception as exc:  # noqa: BLE001
+            reason = (f"CDEC fetch failed after {RETRY_ATTEMPTS} attempts: "
+                      f"{type(exc).__name__}: {exc}")
+            print(f"WARNING: {name} ({station}) -- {reason}")
+            if station in previous:
+                records.append(carry_forward(previous[station], today, reason))
+            continue
+
+        if df.empty:
+            reason = f"CDEC returned no usable {cadence} storage rows"
+            print(f"WARNING: {name} ({station}) -- {reason}")
+            if station in previous:
+                records.append(carry_forward(previous[station], today, reason))
+            continue
+
+        stale_after = (AWDB_MONTHLY_STALE_AFTER_DAYS
+                       if cadence == "monthly" else STALE_AFTER_DAYS)
+        records.append(summarize(
+            name, None, lat, lon, df, today,
+            ADMITTED_CDEC_RESERVOIRS[station]["capacity"],
+            source_key="cdec", source_label="California Data Exchange Center",
+            source_url="https://cdec.water.ca.gov/",
+            data_frequency=cadence, stale_after_days=stale_after,
+            # A month-end feed's "30-day change" is the nearest reading inside
+            # a wider tolerance, exactly as AWDB's is.
+            change_tolerance_days=45 if cadence == "monthly" else 10,
+            source_station_id=station,
+            normals=normals,
+        ))
+        time.sleep(0.2)
+
     if args.only:
         print(json.dumps(records, indent=2))
         return 0 if records else 1
@@ -1916,7 +2058,7 @@ def main() -> int:
     # A source-specific refresh is useful for the slower, independently
     # scheduled feeds. Preserve the other source instead of turning a partial
     # refresh into a partial dashboard.
-    selected_stations = set(rise_targets) | set(awdb_targets)
+    selected_stations = set(rise_targets) | set(awdb_targets) | set(cdec_targets)
     if args.source != "all":
         records.extend(record for station, record in previous.items()
                        if station not in selected_stations)
@@ -2020,17 +2162,22 @@ def main() -> int:
         "stale_after_days": STALE_AFTER_DAYS,
         "stale_after_days_by_cadence": {"daily": STALE_AFTER_DAYS,
                                          "monthly": AWDB_MONTHLY_STALE_AFTER_DAYS},
-        "source": "Bureau of Reclamation RISE API and USDA NRCS AWDB",
+        "source": ("Bureau of Reclamation RISE API, USDA NRCS AWDB and the "
+                   "California Data Exchange Center"),
         "sources": [
             {"key": "rise", "label": "Bureau of Reclamation RISE",
              "url": "https://data.usbr.gov/rise-api", "cadence": "daily"},
             {"key": "awdb", "label": "USDA NRCS AWDB",
              "url": "https://wcc.sc.egov.usda.gov/awdbWebService/",
              "cadence": "daily or monthly by station"},
+            {"key": "cdec", "label": "California Data Exchange Center",
+             "url": "https://cdec.water.ca.gov/",
+             "cadence": "daily or monthly by station"},
         ],
         "source_counts": {
             "rise": sum(1 for r in records if r.get("source_key", "rise") == "rise"),
             "awdb": sum(1 for r in records if r.get("source_key") == "awdb"),
+            "cdec": sum(1 for r in records if r.get("source_key") == "cdec"),
         },
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
