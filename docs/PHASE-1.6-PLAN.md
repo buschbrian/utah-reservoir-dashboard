@@ -1,5 +1,10 @@
 # Phase 1.6 execution plan — connected sites and snowpack
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): complete and expanded by later western work.** The first
 connected-reservoir and snow pipeline shipped, the drought interface shipped,
 and the later western expansion grew the snow inventory to 637 sites and the
@@ -9,7 +14,7 @@ original 2026-08-10 scope.
 Scoped 2026-08-10, after a measurement pass run the same day. This plan
 covers the two data additions left in Phase 1.6: the reservoir sites inside
 our drainage areas that we do not yet track, and snowpack. Drought context
-(1.6b) stays where MODERNIZATION_PLAN.md leaves it — the service's contract is
+(1.6b) stays where `history/modernization-2026.md` leaves it — the service's contract is
 still unverified, and nothing here depends on it.
 
 Everything below marked *measured* came from a live probe against the real
@@ -39,7 +44,7 @@ Utah's own inventory.
 > 347 active storage stations returned. 53 already tracked, 261 outside our
 > drainage areas, **33 candidates**.
 
-**The count and the composition have both moved since MODERNIZATION_PLAN.md
+**The count and the composition have both moved since `history/modernization-2026.md`
 recorded 34.** Read that section as history, not as the current list. Today:
 
 | State | Candidates |
@@ -109,7 +114,7 @@ The bottom three are the failure the check was written for: a name collision
 attaching some other dam's numbers to ours — "Mead" is a small dam somewhere,
 not Hoover. The top group is a different thing entirely: reservoirs operated a
 few percent above conservation pool, which is exactly the case
-[Fontenelle](../MODERNIZATION_PLAN.md) was admitted under by hand after a human
+[Fontenelle](history/modernization-2026.md) was admitted under by hand after a human
 confirmed the dam by NID id, name and coordinates.
 
 **Proposed rule change, to be recorded as an ADR before any site lands:**
@@ -261,7 +266,7 @@ Per area: Escalante Desert-Sevier Lake 33, Colorado Headwaters 31, Lower Green
 Colorado-Dolores 10, Lower Colorado-Lake Mead 10, Upper Colorado-Dirty Devil 7,
 Great Salt Lake 6, Lower San Juan 4, Upper Bear 4.
 
-**Use `SNTL` only, and say so.** The 2,175 figure in MODERNIZATION_PLAN.md
+**Use `SNTL` only, and say so.** The 2,175 figure in `history/modernization-2026.md`
 counts snow courses (`SNOW`, 1,128 of them) that are read manually a few times
 a winter. Mixing them into a daily series would produce a line that jumps
 whenever somebody walked a course.

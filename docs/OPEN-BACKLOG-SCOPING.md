@@ -1,11 +1,16 @@
 # Scoping the three open backlog items
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): partly delivered.** The dam-source migration and county
 search/filter axis shipped. No conservancy-district source was found, and
 per-reservoir permanent pages still require the product decision recorded
 below.
 
-Scoped 2026-08-18, against the list in `MODERNIZATION_PLAN.md` (item 7 of the
+Scoped 2026-08-18, against the list in `history/modernization-2026.md` (item 7 of the
 interface-polish slice): the **county and conservancy district aggregation
 axes**, **per-reservoir permanent pages**, and the **dam inventory
 migration**. Every figure below came from a live query or a real run on this

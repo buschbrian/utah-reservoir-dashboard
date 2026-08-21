@@ -16,7 +16,7 @@ browser release gates are live.
 
 The dated sections below are historical evidence. They deliberately retain the
 state, measurements, and rejected directions that were true when written.
-Use [`README.md`](README.md) and [`docs/README.md`](docs/README.md) for the
+Use [`README.md`](../../README.md) and [`docs/README.md`](../README.md) for the
 maintained product and documentation status.
 
 **Original goal:** turn a set of three hand-written, zero-build HTML pages into
@@ -50,7 +50,7 @@ frontend rewrite.
 This file is both a roadmap and an implementation journal. Dated review and
 measurement sections are historical evidence; the snapshot above and the phase
 headings below are the current status. Accepted architectural decisions live
-in [`docs/decisions/`](docs/decisions/) and are not rewritten here.
+in [`docs/decisions/`](../decisions/) and are not rewritten here.
 
 ### Implementation review — 2026-08-09
 
@@ -455,7 +455,7 @@ NID's `STATE` column holds `Colorado`, not `CO`, which
 otherwise.**
 
 **Geography rule decided — 2026-08-10: keep intersect-Utah.** Recorded as
-[ADR-009](docs/decisions/ADR-009-geography-is-drainage-areas-that-touch-utah.md).
+[ADR-009](../decisions/ADR-009-geography-is-drainage-areas-that-touch-utah.md).
 Fontenelle is therefore admissible and is **not yet added**: it moves the
 statewide totals, so it is its own deliberate step. The four empty drainage
 areas stay empty, and why each is empty is still open.
@@ -570,7 +570,7 @@ just permissive.
 **One decision taken, one still open:**
 
 1. **Upper Snake is excluded — decided 2026-08-10.**
-   [ADR-010](docs/decisions/ADR-010-colorado-and-great-basin-systems-only.md)
+   [ADR-010](../decisions/ADR-010-colorado-and-great-basin-systems-only.md)
    supersedes ADR-009: a drainage area must touch Utah *and* belong to the
    Colorado River or Great Basin systems (regions 14, 15, 16). Upper Snake
    clips Utah's northern edge and drains to the Columbia, so its thirteen
@@ -610,7 +610,7 @@ matters, and the pass has to come first.
 
 ### 1.6c publication — 2026-08-14
 
-[ADR-023](docs/decisions/ADR-023-fill-the-empty-drainage-areas.md) closes the
+[ADR-023](../decisions/ADR-023-fill-the-empty-drainage-areas.md) closes the
 empty-area inventory question. The position-first capacity audit admitted all
 15 stations in the three empty published drainage areas: ten in Colorado
 Headwaters, four in White-Yampa, and one in Lower San Juan. They are committed
@@ -733,7 +733,7 @@ variable with a `UniqueValueRenderer` generated from the shared class table
 ### Symbol and filter cost measured — 2026-08-13
 
 Phase 3.5's last open item. The rule was written down in
-[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) before the tool existed, so
+[`docs/PHASE-3-PLAN.md`](../PHASE-3-PLAN.md) before the tool existed, so
 this is a result being read against a threshold rather than a threshold being
 chosen to fit a result.
 
@@ -1018,7 +1018,7 @@ against.
 - Theme tokens in `src/styles/theme.css`. Style with Calcite CSS variables; use plain CSS only for structure. Do not override Calcite internals.
 
 The executable scope, responsive contract, and verification gates are in
-[`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md). ADR-012 narrows this phase to
+[`docs/PHASE-2-PLAN.md`](../PHASE-2-PLAN.md). ADR-012 narrows this phase to
 the shell and current map parity; charts, complete filters, and production
 cutover stay in their later phases.
 
@@ -1030,7 +1030,7 @@ leaves the three production views unchanged.
 
 The "slick" phase. Everything here is a real SDK capability, not CSS trickery.
 The executable order and release gates are in
-[`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md). All five increments landed and
+[`docs/PHASE-3-PLAN.md`](../PHASE-3-PLAN.md). All five increments landed and
 the acceptance gates pass; the cost of the result is measured in
 [Symbol and filter cost measured](#symbol-and-filter-cost-measured--2026-08-13).
 Bloom was rejected on encoding grounds rather than on cost — the layer view's
@@ -1155,7 +1155,7 @@ Three things were found by building it, all worth carrying forward:
   ellipsis instead. The smoke test measures every control in the bar and this
   is what it is for.
 
-[ADR-029](docs/decisions/ADR-029-the-table-narrows-where-the-map-dims.md)
+[ADR-029](../decisions/ADR-029-the-table-narrows-where-the-map-dims.md)
 records the one real design decision: the table narrows where the map dims.
 The map greys excluded reservoirs because removing a circle removes the
 geography around it; a table has no geography to lose, and a sorted table with
@@ -1228,7 +1228,7 @@ slices below record which parts are now decided or implemented.
    compatibility redirects rather than equal product options.
 4. **The public API and reference data already cover more geographic scope
    than the dashboard displays** (see
-   [`docs/UPPER-COLORADO-PIPELINE.md`](docs/UPPER-COLORADO-PIPELINE.md)).
+   [`docs/UPPER-COLORADO-PIPELINE.md`](../UPPER-COLORADO-PIPELINE.md)).
    Not needed now, but worth keeping deliberately — it is the natural seed
    for a future multi-state or multi-region explorer.
 5. **Prefer authoritative ArcGIS REST services over static exports where
@@ -1349,7 +1349,7 @@ marked as implemented remains proposed until its named decision is accepted.
 6. **Audit service and geometry sources — inventory begun and default enforced
    2026-08-15.** The source owner, exact endpoint, copy policy, update behavior,
    runtime failure behavior, and geometry treatment are now recorded in
-   [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md).
+   [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](../AUTHORITATIVE-SOURCE-INVENTORY.md).
    It identifies one concrete migration slice: compare the older hosted dam
    layer still named by capacity and point tools with the current U.S. Army
    Corps public feature service before changing any committed values. The

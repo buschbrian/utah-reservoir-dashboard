@@ -1,5 +1,10 @@
 # Modern overview and visual theme
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): delivered.** `overview.html` is the production Storage
 Charts workspace; `explore.html` is its compatibility redirect.
 

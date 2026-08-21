@@ -1,5 +1,10 @@
 # Scoping the west, and reader-selectable hydrologic levels
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): delivered for geography, levels, snow, drought, and the
 federal roster.** The maps offer 75 basins or 44 subregions, the snow inventory
 has 637 sites, and the reservoir roster now covers eleven states through the

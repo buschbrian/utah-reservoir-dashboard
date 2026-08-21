@@ -1,5 +1,10 @@
 # Upper Colorado watershed pipeline
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 ## Status
 
 The broader ten-unit scope remains available for research. The production

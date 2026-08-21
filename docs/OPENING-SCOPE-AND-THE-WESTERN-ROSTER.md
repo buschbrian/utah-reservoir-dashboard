@@ -1,5 +1,10 @@
 # Opening on what the reader came for
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): delivered.** Chooser slices S1 through S6 and federal
 roster slices R1 and R2 are complete. The site opens on the western roster,
 offers state/region/subregion/basin entry, carries and remembers the choice,

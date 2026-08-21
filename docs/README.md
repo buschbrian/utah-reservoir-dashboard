@@ -1,35 +1,67 @@
 # Documentation guide
 
-Checked 2026-08-20 against `main`.
+Checked 2026-08-21 against `main`.
 
-This directory contains three kinds of document. Their dates matter:
+## Which file is the current truth?
 
-- **Maintained references** describe the repository as it works now.
-- **Implementation journals and plans** preserve the state and reasoning from
-  a particular slice. A status note at the top says what later work completed
-  or superseded.
-- **Architecture decision records** are historical records. Accepted ADR
-  bodies are not rewritten; a later ADR supersedes an earlier one.
+One authority per question. Nothing else needs to be consulted to answer it.
 
-## Start here
+| Question | Authority |
+|---|---|
+| How does the system work today? | [`architecture/`](architecture/README.md) |
+| Why is it that way, and what superseded it? | [`decisions/`](decisions/README.md) |
+| How do I run a recurring procedure? | [`operations/`](operations/) |
+| What was tried during the modernization? | [`history/`](history/README.md) |
+| What must an agent obey on every task? | [`../AGENTS.md`](../AGENTS.md) |
+| What must an agent obey in one subsystem? | the nearest `AGENTS.md`, plus [`../.claude/rules/`](../.claude/rules/) |
+| What is the step-by-step for a recurring task? | [`../.claude/skills/`](../.claude/skills/) |
+| What is actually enforced? | the tests, validators, types and scripts |
+| What does the product do, and how do I run it? | [`../README.md`](../README.md) |
+| What changed for readers? | [`../CHANGELOG.md`](../CHANGELOG.md) |
 
-| Document | Role | Current state |
-|---|---|---|
-| [Project README](../README.md) | Product overview, setup, architecture, and current work | Maintained |
-| [Changelog](../CHANGELOG.md) | Notable user-facing changes | Maintained |
-| [Source inventory](AUTHORITATIVE-SOURCE-INVENTORY.md) | Source ownership, endpoints, copy rules, and failure behavior | Maintained |
-| [Data transfer](data-transfer.md) | Measured payload and hosted-layer costs | Maintained; re-measure after payload or layer changes |
-| [Decision index](decisions/README.md) | Status and successor for every ADR | Maintained |
-| [Modernization plan](../MODERNIZATION_PLAN.md) | Original roadmap plus the dated implementation journal | Historical journal; phases complete |
+**Executable truth outranks prose.** Where prose and a passing test disagree,
+the test is right and the prose is the bug.
+
+## Current architecture
+
+| Document | Owns |
+|---|---|
+| [Architecture index](architecture/README.md) | Product shape, generated-versus-source ownership, the authority map. |
+| [Frontend](architecture/frontend.md) | SDK boundaries, layers, colour, readiness, accessibility, solved layout constraints. |
+| [Pipeline](architecture/pipeline.md) | Pipeline modules, runtime-data contract, payload cost, freshness, drought coverage. |
+| [Hydrology methods](architecture/hydrology-methods.md) | The seasonal estimator, method version, change intervals, area measurement. |
+| [Scopes](architecture/scopes.md) | Drawn, roster, opening and selected scope; levels; URL state; dominant reservoirs. |
+
+## Operations
+
+| Document | Procedure |
+|---|---|
+| [Verification](operations/verification.md) | Which verify target to run, and what each suite can and cannot see. |
+| [Data refresh](operations/data-refresh.md) | The daily job, its failure behaviour, and the long-lived rebuilds. |
+| [Source admission](operations/source-admission.md) | Adding, replacing or reviewing a reservoir provider. |
+
+## Maintained references
+
+| Document | Role |
+|---|---|
+| [Source inventory](AUTHORITATIVE-SOURCE-INVENTORY.md) | Source ownership, endpoints, copy rules, failure behaviour. Read by `src/source-inventory.test.ts`. |
+| [Data transfer](data-transfer.md) | Measured payload and hosted-layer costs. Re-measure after payload or layer changes. |
+| [Western source candidates](WESTERN-SOURCE-CANDIDATES.md) | Survey of non-federal and additional federal services, fetched live. |
+| [Colorado and California API review](CDSS-CDEC-API-REVIEW.md) | Measured source value, limits and integration cost. |
+
+## Historical material
+
+Every plan, phase and admission journal is listed in
+[`history/README.md`](history/README.md), which also says which ones stayed in
+this directory and why. Each carries a banner at the top of the file. They are
+evidence about a date, never a description of the present.
 
 ## Current work
 
-The typed ArcGIS application, western geography, state and drainage-area
-opening choice, federal western reservoir roster, the California reservoir
-roster, 637-site snow network, drought views, accessibility gates, and
-compatibility redirects are in production.
-
-The remaining documented product work is:
+The typed ArcGIS application, western geography, opening choice, federal and
+California reservoir rosters, 637-site snow network, drought views,
+accessibility gates and compatibility redirects are in production. The
+remaining documented product work is:
 
 1. decide whether Colorado's smaller but broad reservoir network follows
    California;
@@ -40,41 +72,5 @@ The remaining documented product work is:
    SDK changes; and
 5. complete the human visual review that headless Chromium cannot supply.
 
-## Product and interface records
-
-| Document | What it records | Status |
-|---|---|---|
-| [Modern overview](MODERN-OVERVIEW-PLAN.md) | Storage Charts direction and delivery order | Delivered |
-| [Phase 2](PHASE-2-PLAN.md) | Typed ArcGIS shell and release gates | Delivered; later cutover decisions superseded its URL boundary |
-| [Phase 3](PHASE-3-PLAN.md) | Storage symbology and map interactions | Delivered |
-| [Initial scope selection](INITIAL-SCOPE-SELECTION.md) | State/region opening choice and splash design | Delivered |
-| [Opening scope and western roster](OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) | Coupled rollout of the chooser and federal western roster | Delivered |
-| [Open backlog scoping](OPEN-BACKLOG-SCOPING.md) | County, district, permanent-page, and source follow-ups | County/source slices delivered; permanent-page and district questions remain |
-
-## Geography and pipeline records
-
-| Document | What it records | Status |
-|---|---|---|
-| [Phase 1.6](PHASE-1.6-PLAN.md) | Connected reservoirs and the first snow pipeline | Delivered; later western work expanded it |
-| [Upper Colorado pipeline](UPPER-COLORADO-PIPELINE.md) | Ten-basin research scope and station audit | Research scope retained |
-| [Western expansion](WESTERN-EXPANSION-SCOPING.md) | Western drainage scope, level choice, transfer, and compute cost | Geography and snow expansion delivered |
-| [Western reservoir admission](WESTERN-RESERVOIR-ADMISSION.md) | First federal western candidate audit | Delivered through later admission reviews |
-| [Western roster review](WESTERN-ROSTER-ADMISSION-REVIEW.md) | Candidate-by-candidate capacity and deduplication review | Delivered |
-| [Bureau of Reclamation review](RISE-ADMISSION-REVIEW.md) | Federal source-only western additions | Delivered |
-
-## Future source research
-
-| Document | What it records | Status |
-|---|---|---|
-| [Western source candidates](WESTERN-SOURCE-CANDIDATES.md) | Survey of non-federal and additional federal services | Research inventory |
-| [Colorado and California API review](CDSS-CDEC-API-REVIEW.md) | Measured source value, limits, and integration cost | Current source decision input |
-
-## Historical records
-
-The accepted records in [`decisions/`](decisions/) are immutable history.
-Do not edit an accepted ADR to describe later code. Add a successor, update
-only the old record's status, and update the index.
-
-The repository wiki is a reader-oriented summary of these maintained
-documents. The repository remains the source of truth for implementation
-details, measurements, and decisions.
+The repository wiki is a reader-oriented summary. The repository remains the
+source of truth for implementation details, measurements and decisions.

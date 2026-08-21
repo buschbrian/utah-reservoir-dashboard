@@ -1,5 +1,10 @@
 # Phase 3 execution plan — symbology and map interactions
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status:** complete on 2026-08-13. Later western-scope work expanded the
 roster and geography without changing this interaction contract.
 

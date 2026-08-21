@@ -1,5 +1,10 @@
 # Choosing where to start
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): delivered.** The Western Water Dashboard name, opening
 scope model, state and drainage-area controls, cross-page URL state, stored
 preference, and first-visit splash are in production. This document is the

@@ -1,5 +1,10 @@
 # Admitting the western reservoirs: what the run found
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): historical admission measurement; delivered through
 the later R1 and R2 reviews.** The capacity ceiling, cross-provider dedupe, and
 station-keyed roster changes described here are implemented. Use the current

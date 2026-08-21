@@ -1,5 +1,10 @@
 # R2: the RISE-only west, measured
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status (2026-08-20): delivered.** The reviewed RISE-only additions are in the
 production federal western roster. Counts below describe the admission run,
 not a daily payload guarantee.

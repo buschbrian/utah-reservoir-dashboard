@@ -5,10 +5,116 @@ explain why, and what was rejected on the way.
 
 Each record is written when the decision is made and **not edited afterwards**
 except to change its status. When a decision changes, add a new record that
-supersedes the old one — the history is the point.
+supersedes the old one — the history is the point. The procedure is
+[`.claude/skills/adr/SKILL.md`](../../.claude/skills/adr/SKILL.md).
 
-Index checked 2026-08-20. See the [documentation guide](../README.md) for the
-maintained references and historical plans around these records.
+Index checked 2026-08-21. Current architecture is described in
+[`docs/architecture/`](../architecture/README.md); these records say why it is
+that way. Read the **start here** record for your domain first, then only the
+records it points at — the full numeric table is at the bottom and is not
+meant to be read end to end.
+
+## Routing by domain
+
+### Build, deploy and runtime data
+How the site is built, what ships, and why the daily payload is fetched rather
+than bundled. **Start with ADR-002.**
+
+- Current: [ADR-001](ADR-001-adopt-a-build-step.md),
+  [ADR-002](ADR-002-data-is-copied-never-bundled.md),
+  [ADR-018](ADR-018-reference-data-ships-as-one-versioned-export.md),
+  [ADR-051](ADR-051-revalidate-do-not-refetch.md),
+  [ADR-052](ADR-052-write-the-snow-calendar-once.md),
+  [ADR-031](ADR-031-retire-comparison-implementations-and-redirect-their-urls.md)
+- Superseded, read only for history: ADR-012, ADR-019
+
+### Reservoir admission, identity and source authority
+Which reservoirs are published, how one is identified, and which figure is the
+denominator. **Start with ADR-070, then ADR-003.**
+
+- Current: [ADR-003](ADR-003-capacity-from-the-national-inventory-of-dams.md),
+  [ADR-015](ADR-015-confirm-a-dam-by-position-before-name.md),
+  [ADR-020](ADR-020-every-published-reservoir-is-reachable.md),
+  [ADR-057](ADR-057-a-dam-identifier-names-a-project-not-a-structure.md),
+  [ADR-065](ADR-065-the-ceiling-is-the-largest-figure-the-record-holds.md),
+  [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md),
+  [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md),
+  [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md)
+- Freshness and withdrawal:
+  [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md)
+- Procedure: [`docs/operations/source-admission.md`](../operations/source-admission.md)
+
+### Scope, geography, levels and URL state
+The four different scopes, the hydrologic level, and what a link carries.
+**Start with ADR-063, then ADR-068 and ADR-064.**
+
+- Current: [ADR-010](ADR-010-colorado-and-great-basin-systems-only.md),
+  [ADR-013](ADR-013-count-reservoirs-whose-waterbody-intersects-utah.md),
+  [ADR-017](ADR-017-map-geography-comes-from-the-drainage-areas.md),
+  [ADR-044](ADR-044-the-view-envelope-is-the-views-own.md),
+  [ADR-050](ADR-050-the-drawn-level-is-the-scopes-not-the-views.md),
+  [ADR-053](ADR-053-scope-the-west-by-drainage-not-longitude.md),
+  [ADR-062](ADR-062-admit-lake-mead-and-generalize-the-dominant-reservoir-control.md),
+  [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md),
+  [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md),
+  [ADR-067](ADR-067-retire-the-state-mask.md),
+  [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md)
+- Boundary sourcing: [ADR-024](ADR-024-use-full-resolution-watersheds-for-snow-sites.md),
+  [ADR-034](ADR-034-hosted-boundary-layers-with-a-deadline.md),
+  [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md)
+- Superseded, read only for history: ADR-005, ADR-009, ADR-011, ADR-014
+- Current architecture: [`docs/architecture/scopes.md`](../architecture/scopes.md)
+
+### Measurement method and statistical honesty
+What a published number means and what may not be done to it. **Start with
+ADR-041.**
+
+- Current: [ADR-041](ADR-041-let-the-reader-choose-the-comparison-period.md),
+  [ADR-046](ADR-046-never-subtract-shares-with-different-denominators.md),
+  [ADR-055](ADR-055-measure-area-geodesically-and-keep-the-sampler-spherical.md),
+  [ADR-058](ADR-058-assign-the-county-from-the-water-not-the-dam.md),
+  [ADR-059](ADR-059-not-measured-is-not-no-drought.md),
+  [ADR-060](ADR-060-three-questions-about-a-state.md)
+- Current architecture: [`docs/architecture/hydrology-methods.md`](../architecture/hydrology-methods.md)
+
+### Visible language, accessibility and naming
+**Start with ADR-006.**
+
+- Current: [ADR-006](ADR-006-simplified-technical-english.md),
+  [ADR-026](ADR-026-quote-machine-identifiers-in-api-documentation.md),
+  [ADR-036](ADR-036-accessibility-is-a-gate-and-a-measured-content-policy.md),
+  [ADR-045](ADR-045-name-the-site-for-the-water-and-each-page-for-its-subject.md)
+
+### Symbology, cartography and map interaction
+Colour tables, label placement, layer order and basemaps. **Start with
+ADR-008, then ADR-032 and ADR-061.**
+
+- Colour: [ADR-008](ADR-008-one-class-break-table.md),
+  [ADR-028](ADR-028-use-equal-bands-and-a-colorblind-safe-ramp.md),
+  [ADR-032](ADR-032-one-colour-language-per-map-across-pages.md),
+  [ADR-038](ADR-038-split-the-snow-classes-and-move-to-a-scientific-colour-map.md),
+  [ADR-039](ADR-039-draw-percent-full-with-a-sequential-ramp.md)
+- Layers and basemaps: [ADR-033](ADR-033-open-every-map-on-the-oceans-basemap.md),
+  [ADR-042](ADR-042-sink-the-basemaps-reference-layers-below-the-data.md),
+  [ADR-061](ADR-061-reference-geometry-over-continuous-data-only.md)
+- Labels and symbols: [ADR-035](ADR-035-a-label-ladder-tied-to-containment.md),
+  [ADR-047](ADR-047-let-the-label-engine-place-drainage-names.md),
+  [ADR-048](ADR-048-publish-the-roster-not-the-polygons.md),
+  [ADR-049](ADR-049-stop-publishing-the-drainage-polygons.md)
+- Views and interaction: [ADR-021](ADR-021-snow-telemetry-goes-on-a-view-of-its-own.md),
+  [ADR-023](ADR-023-fill-the-empty-drainage-areas.md),
+  [ADR-029](ADR-029-the-table-narrows-where-the-map-dims.md),
+  [ADR-040](ADR-040-open-the-snow-map-on-the-season-peak.md)
+- Superseded, read only for history: ADR-007, ADR-016, ADR-022, ADR-025,
+  ADR-027, ADR-030, ADR-043, ADR-054
+- Current architecture: [`docs/architecture/frontend.md`](../architecture/frontend.md)
+
+### Credentials and third-party services
+**Start with ADR-004.**
+
+- Current: [ADR-004](ADR-004-no-api-key-and-refuse-credential-challenges.md)
+
+## Every record, in order
 
 | | Decision | Status |
 |---|---|---|
@@ -83,12 +189,11 @@ maintained references and historical plans around these records.
 | [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md) | Deduplicate reservoirs by dam identity | Accepted |
 | [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md) | Where the operator publishes a full level, that is the denominator | Accepted; narrows ADR-003's implementation, not its reasoning |
 
-## Relationship to the modernization plan
+## Relationship to the historical journal
 
-[`MODERNIZATION_PLAN.md`](../../MODERNIZATION_PLAN.md) is a working document:
-it changes as phases land, and it records measurements, spikes and things
-noticed while testing. These records are the opposite — each one is fixed at
-the moment of decision.
-
-Where the two overlap, the plan is the narrative and the record is the
-decision. Neither replaces the other.
+[`docs/history/modernization-2026.md`](../history/modernization-2026.md) is a
+journal: it changed as phases landed, and it records measurements, spikes and
+things noticed while testing. These records are the opposite — each one is
+fixed at the moment of decision. Where the two overlap, the journal is the
+narrative and the record is the decision. Neither is current architecture;
+that is [`docs/architecture/`](../architecture/README.md).

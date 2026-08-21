@@ -1,5 +1,10 @@
 # Phase 2 execution plan
 
+> **Historical implementation journal.** It records a slice of work as it
+> was, and is not a description of current architecture — that is
+> [`docs/architecture/`](architecture/README.md). See
+> [`docs/history/README.md`](history/README.md).
+
 **Status:** complete. The shell later moved to the root under ADR-019, and the
 three comparison runtimes were retired to redirects under ADR-031. The
 milestones below preserve the boundary Phase 2 used when it was built.
