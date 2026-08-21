@@ -113,7 +113,7 @@ class TestAttachCounties:
 
     def test_a_missing_file_is_not_fatal(self, monkeypatch, tmp_path):
         """Losing the daily refresh over a county lookup is the worse failure."""
-        monkeypatch.setattr(refresh_reservoirs, "COUNTIES_PATH", tmp_path / "absent.json")
+        monkeypatch.setattr(refresh_reservoirs.geography, "COUNTIES_PATH", tmp_path / "absent.json")
         records = self.records()
         summary = refresh_reservoirs.attach_counties(records)
         assert summary == {"assigned": 0, "unassigned": 2, "county_count": 0}

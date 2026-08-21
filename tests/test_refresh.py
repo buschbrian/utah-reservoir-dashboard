@@ -20,6 +20,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import huc  # noqa: E402
 import refresh_reservoirs as R  # noqa: E402
 
+# The provider adapters live in `pipeline.providers`, re-exported through R.
+# A stub has to replace the name the fetcher actually calls, so these tests
+# patch `R.providers._get_json` rather than `R._get_json` -- patching the
+# re-exported copy would leave the fetcher calling the real service.
+PROVIDERS = R.providers
+
 
 TODAY = R.local_today()
 
@@ -561,7 +567,7 @@ def test_pagination_stops_on_an_empty_page_despite_lying_meta(monkeypatch):
         ]
         return {"data": data, "meta": {"itemsPerPage": 2000, "totalItems": 999999}}
 
-    monkeypatch.setattr(R, "_get_json", fake_get)
+    monkeypatch.setattr(R.providers, "_get_json", fake_get)
     frame = R.fetch_rise_series(1, "20150101", "20260810")
     assert calls["n"] == 4
     assert len(frame) == 3
@@ -574,7 +580,7 @@ def test_pagination_stops_when_meta_is_missing(monkeypatch):
         calls["n"] += 1
         return {"data": [{"attributes": {"dateTime": "2015-01-01T00:00:00Z", "result": 5.0}}]}
 
-    monkeypatch.setattr(R, "_get_json", fake_get)
+    monkeypatch.setattr(R.providers, "_get_json", fake_get)
     R.fetch_rise_series(1, "20150101", "20260810")
     assert calls["n"] == 1
 
@@ -590,13 +596,13 @@ def test_pagination_is_bounded(monkeypatch):
             "meta": {"itemsPerPage": 1, "totalItems": 10 ** 9},
         }
 
-    monkeypatch.setattr(R, "_get_json", fake_get)
+    monkeypatch.setattr(R.providers, "_get_json", fake_get)
     R.fetch_rise_series(1, "20150101", "20260810")
     assert calls["n"] == R.MAX_PAGES
 
 
 def test_awdb_monthly_values_become_month_end_rows(monkeypatch):
-    monkeypatch.setattr(R, "_get_awdb_json", lambda params: [{
+    monkeypatch.setattr(R.providers, "_get_awdb_json", lambda params: [{
         "stationTriplet": "TEST:UT:BOR",
         "data": [{"values": [
             {"year": 2026, "month": 6, "value": 1234},
@@ -624,7 +630,7 @@ def test_cdec_drops_the_missing_sentinel_rather_than_reading_it(monkeypatch):
     the data. A reader that treats the field as a measurement subtracts ten
     thousand acre-feet from whatever total it lands in.
     """
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-8-10 00:00", 2897658),
         cdec_row("2026-8-11 00:00", R.CDEC_MISSING_VALUE),
         cdec_row("2026-8-12 00:00", 2865715),
@@ -641,7 +647,7 @@ def test_cdec_drops_the_missing_sentinel_rather_than_reading_it(monkeypatch):
 
 def test_cdec_keeps_a_true_zero(monkeypatch):
     """An empty reservoir is a reading. Only the sentinel is not."""
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-8-10 00:00", 0),
     ])
     frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
@@ -655,7 +661,7 @@ def test_cdec_reads_the_unpadded_dates_this_service_writes(monkeypatch):
     where a fixed-width parse quietly reads the wrong field. Dated in the past
     on purpose -- a future row is dropped by a different rule, asserted below.
     """
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2025-1-5 00:00", 100),
         cdec_row("2025-11-5 00:00", 200),
     ])
@@ -666,7 +672,7 @@ def test_cdec_reads_the_unpadded_dates_this_service_writes(monkeypatch):
 def test_cdec_answers_the_same_contract_as_the_other_providers(monkeypatch):
     """Sorted, deduplicated to the last reading, and nothing after today."""
     later = (R.local_today() + pd.Timedelta(days=3)).strftime("%Y-%-m-%-d 00:00")
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-8-12 00:00", 300),
         cdec_row("2026-8-10 00:00", 100),
         cdec_row("2026-8-10 00:00", 111),
@@ -688,7 +694,7 @@ def test_a_cdec_monthly_reading_is_dated_the_end_of_the_month_it_measures(monkey
     late on the day they were admitted and would have been withdrawn as quiet
     feeds inside a fortnight.
     """
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-5-1 00:00", 3331618, "M"),
         cdec_row("2026-6-1 00:00", 3082292, "M"),
         cdec_row("2026-7-1 00:00", 2512790, "M"),
@@ -702,7 +708,7 @@ def test_a_cdec_monthly_reading_is_dated_the_end_of_the_month_it_measures(monkey
 
 def test_a_cdec_daily_reading_keeps_its_own_day(monkeypatch):
     """The correction is the monthly convention's and must not reach a day."""
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-8-10 00:00", 100),
     ])
     frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
@@ -714,7 +720,7 @@ def test_a_cdec_month_still_in_progress_is_not_dated_in_the_future(monkeypatch):
     today. It costs the current month's row, which is the conservative half of
     the trade and only arises if the service ever stamps one early."""
     today = R.local_today()
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row(today.strftime("%Y-%-m-1 00:00"), 500, "M"),
     ])
     frame = R.fetch_cdec_series("ORO", "monthly", "20260801", "20260831")
@@ -723,7 +729,7 @@ def test_a_cdec_month_still_in_progress_is_not_dated_in_the_future(monkeypatch):
 
 def test_cdec_with_nothing_to_say_answers_an_empty_frame(monkeypatch):
     """The shape the caller expects, so a quiet station is not a crash."""
-    monkeypatch.setattr(R, "_get_cdec_json", lambda params: [
+    monkeypatch.setattr(R.providers, "_get_cdec_json", lambda params: [
         cdec_row("2026-8-10 00:00", R.CDEC_MISSING_VALUE),
     ])
     frame = R.fetch_cdec_series("SHA", "daily", "20260801", "20260821")
@@ -734,7 +740,7 @@ def test_cdec_with_nothing_to_say_answers_an_empty_frame(monkeypatch):
 def test_cdec_asks_for_the_cadence_it_was_given(monkeypatch):
     """Monthly stations must not be asked for a daily series."""
     seen = {}
-    monkeypatch.setattr(R, "_get_cdec_json",
+    monkeypatch.setattr(R.providers, "_get_cdec_json",
                         lambda params: seen.update(params) or [])
     R.fetch_cdec_series("SHA", "monthly", "20150101", "20260820")
     assert seen["dur_code"] == "M"
