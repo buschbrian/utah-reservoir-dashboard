@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 from admission import (  # noqa: E402
     NAMED_RADIUS_KM, NEAR_RADIUS_KM, SURCHARGE_ALLOWANCE, Decision, admit,
     admit_all, capacity_of, could_hold, discrepancies, distance_km, find_dam,
-    holds_more_than_the_dam, largest_published_pool,
+    denominator_for, holds_more_than_the_dam, largest_published_pool,
     normalize_name, preferred_capacity,
 )
 
@@ -510,6 +510,66 @@ class TestTheDisagreementScreens:
         assert decision.admitted is True
         assert decision.capacity_af == 7470.0
         assert decision.reason == "confirmed by name and position"
+
+
+class TestTheDenominatorTheRecordCanAnswerFor:
+    """The figure divided by must be one the water has not been seen above."""
+
+    # Detroit: a Corps flood-control project whose Conservation Service series
+    # reports gross storage. 155,000 at the conservation pool, 455,000 at the
+    # maximum, and 426,115 acre-feet watched in it.
+    DETROIT = dam("Detroit Dam", -122.25011, 44.72174, 155000, 455000, 455000)
+    # Strawberry: the ordinary case, and the reason the conservation pool is
+    # the first preference at all. Its pool is within a percent of everything
+    # observed since 2015.
+    STRAWBERRY = dam("Soldier Creek", -111.0, 40.1, 1105910, 1250000, 1250000)
+
+    def test_the_conservation_pool_wins_when_the_water_fits_inside_it(self):
+        capacity, basis = denominator_for(self.STRAWBERRY, 1106560)
+        assert (capacity, basis) == (1105910.0, "normal_storage")
+
+    def test_a_pool_the_water_stands_far_above_is_not_divided_by(self):
+        # The whole defect: 346,757 over 155,000 published 223.7% full.
+        capacity, basis = denominator_for(self.DETROIT, 426115)
+        assert (capacity, basis) == (455000.0, "max_storage")
+
+    def test_a_surcharge_keeps_its_pool_and_publishes_over_a_hundred(self):
+        # Real operation a little above a published pool is what
+        # SURCHARGE_ALLOWANCE is for (ADR-065). A reservoir 5% over its
+        # conservation pool keeps it and reads 105, which is true.
+        observed = 1105910 * 1.05
+        capacity, basis = denominator_for(self.STRAWBERRY, observed)
+        assert (capacity, basis) == (1105910.0, "normal_storage")
+
+    def test_the_allowance_is_the_edge_and_not_a_second_rule(self):
+        just_inside = 1105910 * (1 + SURCHARGE_ALLOWANCE)
+        assert denominator_for(self.STRAWBERRY, just_inside)[1] == "normal_storage"
+        just_outside = 1105910 * (1 + SURCHARGE_ALLOWANCE) + 1
+        assert denominator_for(self.STRAWBERRY, just_outside)[1] == "max_storage"
+
+    def test_no_observed_record_leaves_the_first_preference_alone(self):
+        # Silence is not evidence, the same rule holds_more_than_the_dam
+        # follows for the same reason.
+        assert denominator_for(self.DETROIT, None)[1] == "normal_storage"
+        assert denominator_for(self.DETROIT)[1] == "normal_storage"
+
+    def test_water_above_every_published_figure_is_left_to_the_screens(self):
+        # A record no published figure contains is not a denominator to choose
+        # between -- it is a wrong dam or a surcharge above every pool, and the
+        # screens answer it. This returns the ordinary first preference rather
+        # than inventing a larger figure the record does not hold.
+        every_figure_too_small = dam("Small Dam", -117.7, 44.9, None, 13307, 13307)
+        assert denominator_for(every_figure_too_small, 16017) == (13307.0, "max_storage")
+        assert holds_more_than_the_dam(every_figure_too_small, 16017) is True
+
+    def test_a_record_with_no_figures_publishes_no_denominator(self):
+        assert denominator_for(dam("Nothing", 0, 0), 500) == (None, None)
+
+    def test_the_headline_figure_stays_the_last_resort(self):
+        # Powell's headline sits well above a real full pool, so it is reached
+        # for only when the two better figures are absent or too small.
+        powell = dam("Glen Canyon", -111.48, 36.93, None, None, 29875000)
+        assert denominator_for(powell, 25000000)[1] == "nid_storage"
 
 
 if __name__ == "__main__":

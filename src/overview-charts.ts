@@ -105,6 +105,16 @@ type TooltipFormatter = NonNullable<ChartElement["tooltipFormatter"]>;
 
 /** A percentage axis runs 0 to 100, always. */
 const PERCENT_AXIS = { min: 0, max: 100 };
+
+/**
+ * Where the storage-against-normal chart's ratio axis stops: twice the usual
+ * level.
+ *
+ * A round figure a reader can hold, not a number tuned to today's data. It is
+ * the top of the *view*; every reservoir above it is named under the chart by
+ * `offScaleNote`, so the bound decides what is drawn and never what is said.
+ */
+const NORMAL_AXIS_MAX = 200;
 /** The value axis is the second one; the category axis is the first. */
 const VALUE_AXIS = 1;
 
@@ -798,6 +808,54 @@ function normalLayer(points: readonly NormalPoint[]): FeatureLayer {
  * layer renderer, so a dot's colour here means what the same colour means on
  * the map.
  */
+/**
+ * The sentence naming every reservoir the ratio axis could not reach.
+ *
+ * The bound above decides what the chart draws; this decides what the card
+ * says, and the two are deliberately separate. A reader who cannot see a dot
+ * is owed the dot's name and its value, not a note that some data is missing
+ * -- Seven Oaks Dam at 932% of usual is the most interesting reservoir on the
+ * page.
+ *
+ * The names and the numbers, and no explanation of them. The obvious sentence
+ * to add is that these reservoirs hold very little on this date, so a small
+ * change in storage moves the ratio a long way -- and it is true of Seven
+ * Oaks, whose usual level is 0.2% of its full pool, and false of Casitas,
+ * whose usual level is 40% of its own. One sentence cannot carry a cause that
+ * differs per reservoir, and a plausible one that is wrong for half the list
+ * is worse than none.
+ *
+ * Empty string when every reservoir fits, so the caller renders nothing
+ * rather than a sentence saying nothing happened.
+ */
+export interface OffScaleNote {
+  /** One short sentence. Never the list: see below. */
+  lead: string;
+  /** One entry per reservoir, each its own short line. */
+  items: string[];
+}
+
+export function offScaleNote(points: readonly NormalPoint[]): OffScaleNote | null {
+  const above = points
+    .filter((point) => point.percentOfNormal > NORMAL_AXIS_MAX)
+    .sort((left, right) => right.percentOfNormal - left.percentOfNormal);
+  if (above.length === 0) return null;
+  const count = above.length === 1
+    ? "One reservoir is"
+    : `${above.length} reservoirs are`;
+  /* A lead and a list, not one sentence with the names inside it. Visible
+   * text is Simplified Technical English and a sentence stops at 25 words
+   * (ADR-006), which four reservoirs and their values already exceed -- and
+   * the length follows the data, so the same sentence is inside the limit on
+   * one morning and over it on the next. A list has no such property: every
+   * line is one reservoir however many there are. */
+  return {
+    lead: `${count} above ${NORMAL_AXIS_MAX}% of usual and not drawn:`,
+    items: above.map((point) =>
+      `${point.label} at ${formatPercent(point.percentOfNormal)}`)
+  };
+}
+
 export async function renderArcgisNormalChart(
   host: HTMLElement,
   points: readonly NormalPoint[],
@@ -828,10 +886,25 @@ export async function renderArcgisNormalChart(
   model.setMinBound(null as unknown as number, 0);
   /* The ratio axis starts at zero -- it is a percentage of something, and a
    * bottom that floats with the data would move the reference line's height
-   * every time the filter changed. The top is left free: a reservoir above
-   * twice its usual level is real, and clipping it would hide the one dot
-   * most worth looking at. */
+   * every time the filter changed.
+   *
+   * And it stops at twice the usual level, which is a view bound rather than
+   * a rule about the data. Left free, one reservoir set the range for all of
+   * them: Seven Oaks Dam is a dry flood-control dam whose usual level for
+   * late August is 282 acre-feet, so the water standing in it reads as 932%
+   * of usual -- arithmetically true, a fact about a denominator near zero,
+   * and enough to crush 364 reservoirs into the bottom eighth of the plot.
+   *
+   * Clipping the view was rejected here once, on the grounds that it would
+   * hide the dot most worth looking at. It does not, because nothing is
+   * dropped silently: `offScaleNote` names every reservoir above the bound
+   * and its value, under the chart, in words. The alternative considered was
+   * a rule excluding reservoirs whose usual level is too small to divide by
+   * -- rejected because every threshold that catches Seven Oaks and Cogswell
+   * also throws away dozens of perfectly ordinary dots, and a data-quality
+   * rule tuned until a chart looks right is not a data-quality rule. */
   model.setMinBound(0, VALUE_AXIS);
+  model.setMaxBound(NORMAL_AXIS_MAX, VALUE_AXIS);
 
   /* The line the chart is read against, drawn rather than fitted. */
   model.addYAxisGuide("At the usual level");

@@ -55,6 +55,30 @@ years behind it. A baseline thinner than the payload's own `minimum_years`
 counts as unavailable, because a three-year median labelled "1991 through 2020"
 is true in every word and wrong as a whole.
 
+## The denominator
+
+**Percent full divides by a figure the water has not been seen above**
+(ADR-072). The preference is ADR-003's, unchanged — the conservation pool,
+then the maximum pool, then the inventory's headline figure — and for 216 of
+the 365 published reservoirs the conservation pool is what a percentage
+divides by, because it is what an operator means by full and it describes the
+water: Strawberry's pool is 1,105,910 acre-feet against 1,106,560 ever
+observed. `denominator_for` in `admission.py` adds one condition on the first
+choice, answered from the same inventory record: it offers each figure in turn
+and takes the first the observed record fits inside, with `SURCHARGE_ALLOWANCE`
+for real operation above a pool. A reservoir a percent or two over its
+conservation pool keeps it and publishes just above 100, which is what a
+surcharge is. Thirteen reservoirs move — the Corps flood-control projects whose
+series report gross storage against a summer pool, which is how Detroit came
+to be published at 223.7% full.
+
+**Where the provider publishes its own full level, that figure wins over all
+three** (ADR-070), and the rule above is never reached. `capacity_basis` names
+which source every published denominator came from, per reservoir.
+
+**Never subtract two shares with different denominators** (ADR-046) — see the
+drought section below for the case this exists for.
+
 ## Method version
 
 **A method version is not a schema version.** A field can keep its name, type
@@ -69,6 +93,15 @@ that. `METHOD_VERSION` can, and three places refuse to mix:
 
 An interrupted full normals build is the single exception — it keeps its
 fetches and drops the rest, because it has already paid for them.
+
+**`METHOD_VERSION` names the seasonal estimator, not every published number.**
+All three refusals above guard normals, and a normal is a median of readings in
+acre-feet. A change to which figure a percentage *divides by* invalidates no
+normal and must not move it: bumping it would force a full network rebuild that
+changed nothing and would claim the estimator had changed when it had not
+(ADR-072). The test is whether a committed normal built under the old version
+is still a correct answer. If it is, the version stays and the change carries
+its own record instead.
 
 **Every normals run is a merge, a completed full one included.** A full run
 keeps the records of reservoirs absent from today's payload — the ADR-056

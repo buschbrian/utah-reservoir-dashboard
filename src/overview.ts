@@ -39,6 +39,7 @@ import {
   distributionOverlayKey,
   renderArcgisBarChart,
   renderArcgisDistributionChart,
+  offScaleNote,
   renderArcgisNormalChart,
   renderArcgisSpreadChart,
   renderArcgisTrendChart,
@@ -351,8 +352,12 @@ async function renderOverview(
         <div id="trend-chart" class="chart-host" aria-busy="true"></div>
       </section>
       <section class="overview-card" aria-labelledby="normal-heading">
-        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the dashed line hold less than they usually do on this date. The reservoirs get larger to the right, in tenfold steps, so the small ones are as readable as Flaming Gorge.</p></div><span class="sdk-badge">Scatter plot</span></div>
+        <div class="card-heading"><div><h2 id="normal-heading">Stored now against normal</h2><p>Each dot is a reservoir. Dots below the dashed line hold less than they usually do on this date. The reservoirs get larger to the right, in tenfold steps, so the small ones are as readable as Flaming Gorge. The scale stops at twice the usual level. A reservoir that usually holds very little on this date can read far above that. A small change in storage is then a large change in the percentage.</p></div><span class="sdk-badge">Scatter plot</span></div>
         <div id="normal-chart" class="chart-host" aria-busy="true"></div>
+        <!-- Which reservoirs the ratio axis could not reach, named rather
+             than dropped. Filled by offScaleNote and hidden when every
+             reservoir fits, so this never announces an empty status. -->
+        <div id="normal-off-scale" class="chart-note" role="status" hidden></div>
         <div class="chart-legend" data-legend></div>
       </section>
       <section class="overview-card overview-card-wide" aria-labelledby="distribution-heading">
@@ -548,6 +553,7 @@ async function renderOverview(
   const normalHost = document.querySelector<HTMLElement>("#normal-chart");
   const distributionHost = document.querySelector<HTMLElement>("#distribution-chart");
   const distributionKey = document.querySelector<HTMLElement>("#distribution-key");
+  const offScaleHost = document.querySelector<HTMLElement>("#normal-off-scale");
   /* The only legend the histogram has, so it is rebuilt whenever the chart
    * is: the four lines mean the same thing whatever is in view, but the
    * three values they sit at follow the filters. It used to be written once,
@@ -737,10 +743,31 @@ async function renderOverview(
     const measure = chartMeasure.value as ChartMeasure;
     const limit = Number(chartLimit.value) || visible.length;
     const values = percentFullValues(visible);
+    const normalPoints = normalComparison(visible);
     /* Before the charts, not after: the key is the histogram's only legend
      * now, so a reader watching a filter change should see the three values
      * move with the bars rather than a step behind them. */
     renderDistributionKey(distributionStats(values));
+    /* The same rule, for the same reason: the scatter clips its ratio axis
+     * at twice the usual level, and this is where the reservoirs above it
+     * are named. Written from the same points the chart is drawn from, so
+     * the sentence cannot describe a different set than the plot. */
+    if (offScaleHost) {
+      const note = offScaleNote(normalPoints);
+      offScaleHost.replaceChildren();
+      offScaleHost.hidden = note === null;
+      if (note) {
+        const lead = document.createElement("p");
+        lead.textContent = note.lead;
+        const list = document.createElement("ul");
+        for (const item of note.items) {
+          const entry = document.createElement("li");
+          entry.textContent = item;
+          list.append(entry);
+        }
+        offScaleHost.append(lead, list);
+      }
+    }
     try {
       await Promise.all([
         renderArcgisBarChart(capacityHost,
@@ -774,7 +801,7 @@ async function renderOverview(
         renderArcgisTrendChart(trendHost, monthlyTrend(visible),
           "Combined storage for the filtered reservoirs over the last twelve months",
           still, measure),
-        renderArcgisNormalChart(normalHost, normalComparison(visible),
+        renderArcgisNormalChart(normalHost, normalPoints,
           "Percent of the usual storage for this date against how large that usual "
           + "storage is, one point per reservoir",
           still),
