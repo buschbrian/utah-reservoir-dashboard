@@ -48,6 +48,7 @@ the test is right and the prose is the bug.
 | [Data transfer](data-transfer.md) | Measured payload and hosted-layer costs. Re-measure after payload or layer changes. |
 | [Western source candidates](WESTERN-SOURCE-CANDIDATES.md) | Survey of non-federal and additional federal services, fetched live. |
 | [Colorado and California API review](CDSS-CDEC-API-REVIEW.md) | Measured source value, limits and integration cost. |
+| [Upstream trace scoping](UPSTREAM-TRACE-SCOPING.md) | What it would take to say what drains to a reservoir. Measured against the USGS network index; nothing built. |
 
 ## Historical material
 
@@ -70,7 +71,9 @@ remaining documented product work is:
 3. review automatically reported late and withdrawn feeds;
 4. re-measure vendor accessibility exceptions and the content policy when the
    SDK changes; and
-5. complete the human visual review that headless Chromium cannot supply.
+5. complete the human visual review that headless Chromium cannot supply; and
+6. decide whether to build the upstream trace scoped in
+   [`UPSTREAM-TRACE-SCOPING.md`](UPSTREAM-TRACE-SCOPING.md).
 
 The repository wiki is a reader-oriented summary. The repository remains the
 source of truth for implementation details, measurements and decisions.
