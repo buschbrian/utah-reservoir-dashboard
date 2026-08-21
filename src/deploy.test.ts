@@ -302,7 +302,10 @@ describe("a data-only commit deploys on its own", () => {
   });
 
   it("links readers to the public data reference", async () => {
-    for (const file of ["src/methods.ts", "src/ui/shell-template.ts", "README.md"]) {
+    /* The methods page's copy lives in its template module; the entry point
+     * next to it holds behaviour and links to nothing. */
+    for (const file of ["src/ui/methods-template.ts", "src/ui/shell-template.ts",
+      "README.md"]) {
       expect(await read(file), `${file} does not link to the public data reference`)
         .toContain("data.html");
     }

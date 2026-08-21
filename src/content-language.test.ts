@@ -3,6 +3,22 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
+
+/**
+ * Everything the methods page says, whichever of its two files says it.
+ *
+ * The copy moved out of `methods.ts` and into `ui/methods-template.ts` when
+ * the entry point went from 647 lines to 193. These assertions are about the
+ * page, not about a file, so they read both -- and the next move of a
+ * paragraph between them cannot turn a caveat this suite exists to protect
+ * into a failing test.
+ */
+async function methodsSource(): Promise<string> {
+  const files = ["src/methods.ts", "src/ui/methods-template.ts"];
+  const parts = await Promise.all(
+    files.map((file) => readFile(resolve(root, file), "utf8")));
+  return parts.join("\n");
+}
 const userTextFiles = [
   "index.html",
   "legacy/index.html",
@@ -30,8 +46,9 @@ const userTextFiles = [
   "src/viz/trend.ts",
   // The page that explains the pipeline, which is where the retired
   // vocabulary is native: the script it describes calls things by their
-  // acronyms throughout.
+  // acronyms throughout. Its words and its behaviour are two files.
   "src/methods.ts",
+  "src/ui/methods-template.ts",
   // API field names are exact machine identifiers under ADR-026, but all
   // surrounding explanations on the page still follow ADR-006.
   "src/data-docs.ts",
@@ -116,7 +133,7 @@ describe("user text", () => {
    * of paragraph a later edit trims for length.
    */
   it("keeps the reservoir comparison periods and window visible", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
     expect(methods).toMatch(/within seven days before or after/);
     // Both periods, named.
     expect(methods).toContain("1991 through 2020");
@@ -143,7 +160,7 @@ describe("user text", () => {
    * own line wrapping: a test that breaks when a paragraph is re-flowed is a
    * test somebody deletes. */
   it("keeps the statement that this is not an official product", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
 
     expect(methods).toContain("This is not an official product");
     expect(methods).toContain("sponsored or checked by any government agency");
@@ -155,7 +172,7 @@ describe("user text", () => {
   });
 
   it("keeps the caveats that make the numbers readable", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
 
     // These reservoirs are operated: storage is releases as well as weather.
     expect(methods).toContain("operated");
@@ -169,7 +186,7 @@ describe("user text", () => {
   });
 
   it("keeps the current value explanations on the methods page", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
     for (const term of ["Percent full", "Normal for this week", "History rank", "Late data"]) {
       expect(methods, `${term} must remain explained`).toContain(`<dt>${term}</dt>`);
     }
@@ -184,7 +201,7 @@ describe("user text", () => {
    * the data is read from the payload.
    */
   it("does not restore the retired reservoir inclusion rule", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
 
     // The admission rule that stopped being true.
     expect(methods).not.toMatch(/drainage area must touch Utah/);
@@ -200,7 +217,7 @@ describe("user text", () => {
    * thing that is allowed to change.
    */
   it("reads its counts from the payload rather than stating them", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
     for (const slot of ["scope-counts", "basis-mix", "climate-coverage"]) {
       expect(methods, `${slot} must stay a payload-filled slot`)
         .toContain(`data-live="${slot}"`);
@@ -214,7 +231,7 @@ describe("user text", () => {
    * of the page's framing implies.
    */
   it("keeps the source and denominator caveats a reader needs", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
 
     // The outlet area is not the land that fills the reservoir.
     expect(methods).toContain("outlet drainage area");
@@ -265,7 +282,7 @@ describe("user text", () => {
    * because the page reads fine without them.
    */
   it("keeps the statistical caveats the estimators earned", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
 
     // A percent of normal needs a normal worth dividing by.
     expect(methods).toMatch(/266% of normal/);
@@ -282,7 +299,7 @@ describe("user text", () => {
    * they cannot.
    */
   it("keeps the scope and interval statements", async () => {
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
     // What the site measures, and what its name might otherwise imply.
     expect(methods).toMatch(/measures water supply, not the health of a river/i);
     /* One line, not a phrase spanning the source's own wrapping: a test that
@@ -300,7 +317,7 @@ describe("user text", () => {
   it("keeps the glossary the retired overview used to carry", async () => {
     // explore.html defined these before it became a redirect. The definitions
     // moved here; this test is what notices if they are dropped again.
-    const methods = await readFile(resolve(root, "src/methods.ts"), "utf8");
+    const methods = await methodsSource();
     for (const term of ["Capacity", "Acre-foot", "Update schedule", "CSV file"]) {
       expect(methods, `${term} must remain defined`).toContain(`<dt>${term}</dt>`);
     }

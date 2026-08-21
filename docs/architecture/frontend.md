@@ -77,10 +77,10 @@ swing of about 1% at 0.3 opacity — no effect at all. `normal` is the operator
 and `HILLSHADE_BLEND_MODE` in `src/arcgis/hillshade.ts` carries the arithmetic.
 
 **Never fetch geometry into the browser to colour something** (ADR-047,
-ADR-048). Outlines come from the hosted Watershed Boundary Dataset, quantized
-to the view. A map that needs each area coloured by one of this project's own
+ADR-048). A map that needs each area coloured by one of this project's own
 numbers wants a unique-value renderer keyed on the code, which is what the
-snow map does.
+snow map does. Where the outlines come from, and what the roster costs on the
+wire, is in [`scopes.md`](scopes.md#the-payload-carries-the-roster-the-service-carries-the-shapes).
 
 ## Colour and visible text
 
