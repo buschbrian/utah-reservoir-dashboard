@@ -62,6 +62,7 @@ import {
   type DroughtUrlState
 } from "./state/drought-url";
 import { levelFromSearch, writeLevel } from "./state/level";
+import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { renderDroughtScatter } from "./viz/drought-scatter";
@@ -289,7 +290,14 @@ function renderDrought(
           aria-expanded="false">Show filters</button>
         <div id="drought-filter-actions" class="filterbar-head-actions"><calcite-button id="drought-reset" class="reset-button" appearance="outline" scale="s" kind="neutral">Show every area</calcite-button></div>
       </div>
+      <!-- Coarsest place first, then finer, then how finely the ground is
+           divided, then the filters that are not places at all. The first two
+           slots are filled once the roster and the reference export resolve;
+           see the control-slot rule in app.css for why these are slots
+           and not appends. -->
       <div id="drought-filter-controls" class="filterbar-controls">
+        <div class="control-slot" data-slot="where"></div>
+        <div class="control-slot" data-slot="level"></div>
         <label>Show areas with<select id="drought-worse">
           <option value="">Any conditions</option>
           ${DROUGHT_CLASSES.map((entry) => `<option value="${entry.key}">${entry.label} (${entry.code}) or worse</option>`).join("")}
@@ -670,7 +678,8 @@ function renderDrought(
       /* Large, because the native selects it sits beside are a third taller
        * than a Calcite control at the default scale. */
     }, { scale: "l" });
-    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    const levelHost = content.querySelector<HTMLElement>(".filterbar-controls");
+    if (control && levelHost) placeInSlot(levelHost, "level", control.element);
     window.__droughtReady = {
       ...(window.__droughtReady ?? {}), levelsOffered: offered.length || 1
     } as NonNullable<typeof window.__droughtReady>;
@@ -705,7 +714,8 @@ function renderDrought(
       const query = searchWithPlace(window.location.search, selection);
       window.location.replace(`${window.location.pathname}${query}`);
     }, { scale: "l" });
-    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    const whereHost = content.querySelector<HTMLElement>(".filterbar-controls");
+    if (control && whereHost) placeInSlot(whereHost, "where", control.element);
   }
 
   worseSelect?.addEventListener("change", () => {

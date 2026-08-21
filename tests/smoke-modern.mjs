@@ -3494,6 +3494,14 @@ for (const failure of [
           `the storage map drew ${ready.drainageAreas} areas, expected ${expectedCoarseAreas}`);
         check(ready.drainageLevel === 4,
           `the storage map drew level ${ready.drainageLevel}, expected 4`);
+        /* The rollup the hover card reads has to be keyed at the level the
+         * areas were drawn at. These came apart once: the areas drew at four,
+         * the rollup stayed at six, and every hovered subregion answered "No
+         * reservoirs in this drainage area are in view" while holding
+         * nineteen of them. Nothing else the map publishes can see that. */
+        check(ready.drainageStorageLevel === ready.drainageLevel,
+          `the storage rollup is keyed at ${ready.drainageStorageLevel} `
+          + `while the map drew level ${ready.drainageLevel}`);
         check(ready.reservoirs === expectedReservoirs,
           `the storage map lost reservoirs at the coarser level: ${ready.reservoirs}`);
       }
@@ -3711,8 +3719,15 @@ for (const failure of [
         filterbar: (() => {
           const bar = document.querySelector(".dashboard-filterbar");
           const where = bar?.querySelector(".where-control");
+          const grid = bar?.querySelector(".filterbar-controls");
           return bar && where ? {
             height: Math.round(bar.getBoundingClientRect().height),
+            /* The grid the four place selects live in, measured apart from
+               the card around it. The card also carries a title row and, on
+               the pages that have one, a search row -- both legitimate
+               height that has nothing to do with the failure this budget
+               was written for. */
+            controlsHeight: grid ? Math.round(grid.getBoundingClientRect().height) : null,
             whereDisplay: getComputedStyle(where).display
           } : null;
         })(),
@@ -3739,8 +3754,16 @@ for (const failure of [
       if (viewport.name === "desktop" && scenario.label !== "Storage map") {
         check(state.filterbar?.whereDisplay === "contents",
           `${label}: the four place selects still occupy one stacked grid cell`);
-        check((state.filterbar?.height ?? Infinity) < 320,
-          `${label}: the filter card is ${state.filterbar?.height}px tall, expected under 320px`);
+        /* The regression this guards is the four place selects stacking into
+           one grid cell, which makes the control row four selects tall
+           instead of one. Measured on the control grid rather than on the
+           whole card: the card grew a search row of its own, which is
+           height the reader asked for and not the failure being watched
+           for. `whereDisplay` above states the same requirement directly;
+           this catches a stack that arrives some other way. */
+        check((state.filterbar?.controlsHeight ?? Infinity) < 260,
+          `${label}: the filter controls are ${state.filterbar?.controlsHeight}px tall, `
+          + "expected under 260px -- the four place selects have stacked into one cell");
       }
       await checkAccessibility(tab, check, label);
     }

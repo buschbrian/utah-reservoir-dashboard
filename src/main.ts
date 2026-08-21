@@ -71,6 +71,7 @@ import {
 import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/baseline";
 import { levelFromSearch, writeLevel } from "./state/level";
 import { supportsDashboard } from "./state/shell";
+import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { renderLegend } from "./ui/legend";
@@ -365,7 +366,7 @@ async function wireLevelControl(): Promise<number> {
     });
     /* Above the reservoir list, like every other control: the list scrolls
      * inside its own box and anything after it is behind a nested scroller. */
-    if (control) host.append(control.element);
+    if (control) placeInSlot(host, "level", control.element);
   }
   return offered.length || 1;
 }
@@ -393,7 +394,7 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
       const query = searchWithPlace(window.location.search, selection);
       window.location.replace(`${window.location.pathname}${query}`);
     });
-    if (control) host.append(control.element);
+    if (control) placeInSlot(host, "where", control.element);
   }
 }
 
@@ -1235,6 +1236,7 @@ if (!supportsDashboard(browserCapabilities())) {
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,
     drainageLabelsDeconflicted: map.status.drainageLabelsDeconflicted,
     drainageLevel: map.status.drainageLevel,
+    drainageStorageLevel: map.status.drainageStorageLevel,
     /* What the reader chose, and how many choices there were. Two facts, two
      * fields -- `drainageLevel` is what the map drew, which is the same
      * number by a different route and stays its own field (ADR-064). */

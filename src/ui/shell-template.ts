@@ -55,6 +55,13 @@ function panelContents(suffix: string): string {
            sheet. Controls come before the thing they control. -->
       <section class="filters" aria-labelledby="analysis-${suffix}">
         <h3 id="analysis-${suffix}">Analysis controls</h3>
+        <!-- Where the reader is looking, before what they are looking at:
+             coarsest place first, then finer, then how finely the ground is
+             divided. Both controls arrive after first paint and used to be
+             appended, which put the whole drill-down below the buttons at
+             the bottom of this panel. See .control-slot. -->
+        <div class="control-slot" data-slot="where"></div>
+        <div class="control-slot" data-slot="level"></div>
         <calcite-label>
           Storage level
           <calcite-select data-filter="storage"

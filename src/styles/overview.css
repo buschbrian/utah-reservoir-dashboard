@@ -79,13 +79,28 @@ body {
 .mobile-disclosure-toggle { display: none; }
 .filterbar-title { min-width: 0; }
 .filterbar-title h2 { margin: .1rem 0 0; font-size: 1rem; }
-/* The site search rides in the head row next to the title rather than
-   stacked among the row of controls below: it narrows the table further
-   down the page, not the drainage area the row underneath is choosing
-   among. `min-width: 0` for the reason every filter control needs it here
-   -- an input sizes to its placeholder and would otherwise refuse to shrink
-   below it, which is what widens the page at 360px. */
-.filterbar-head-search { flex: 0 1 18rem; min-width: 0; }
+/* The search box, on its own line above every dropdown and ruled off from
+ * them.
+ *
+ * A search and a dropdown answer different questions. A dropdown offers a
+ * closed list and narrows to one of its members; a search takes anything a
+ * reader can type and matches across several fields at once -- on this page,
+ * a reservoir name, a drainage area or a county. Sitting inside the same
+ * grid as the selects, at the same width and under the same kind of label,
+ * it read as the first of the narrowing controls rather than as the free
+ * one, and the reader met the closed lists before the open box.
+ *
+ * The rule underneath is the whole point of the row: without it the search
+ * is merely first, which is where it already was. */
+.filterbar-search {
+  display: flex;
+  padding-block-end: .85rem;
+  border-block-end: 1px solid var(--app-border);
+}
+/* `min-width: 0` for the reason every filter control here needs it: an
+ * input sizes itself to its placeholder and would otherwise refuse to
+ * shrink below it, which is what widens the whole page at 360px. */
+.filterbar-search > label { flex: 0 1 24rem; min-width: 0; }
 /* Every control gets the same share of the row and the same floor, so they
  * reflow together instead of one long select dragging the rest around.
  * `min(…, 100%)` keeps the floor from setting a page-widening minimum at
@@ -104,7 +119,7 @@ body {
    child here has it: an unbreakable control widens the whole page otherwise.
    The label text is styled by the rule below, which the shadow root does not
    reach, so the uppercase treatment is set on the host. */
-.filterbar-controls > .level-control {
+.filterbar-controls .level-control {
   min-width: 0;
   --calcite-label-margin-bottom: 0;
   color: var(--app-muted);
@@ -130,7 +145,7 @@ body {
  * cell four controls tall and pushes every short sibling to the bottom of a
  * mostly empty card. Flatten only this host: the storage map's side panel
  * keeps the deliberate drill-down stack it needs at its narrower width. */
-.filterbar-controls > .where-control { display: contents; }
+.filterbar-controls .where-control { display: contents; }
 .where-control calcite-label {
   min-width: 0;
   --calcite-label-margin-bottom: 0;
@@ -493,7 +508,7 @@ body {
   /* The search takes the head row's full width too, for the same reason
      every other control drops to one per line here: a shared row only
      works with room to share. */
-  .filterbar-head-search { flex-basis: 100%; }
+  .filterbar-search > label { flex-basis: 100%; }
   .filterbar-head-actions { flex: 1 1 100%; justify-content: space-between; }
   .dashboard-filterbar .reset-button { flex: 0 1 auto; }
   /* The data pages carry filters, context and display settings that are
@@ -520,8 +535,8 @@ body {
     outline: .18rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
     outline-offset: .12rem;
   }
-  .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-search,
   .mobile-filterbar:not(.mobile-filters-open) .filterbar-head-actions,
+  .mobile-filterbar:not(.mobile-filters-open) > .filterbar-search,
   .mobile-filterbar:not(.mobile-filters-open) > .filterbar-controls {
     display: none;
   }

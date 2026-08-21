@@ -58,6 +58,13 @@ interface DashboardReady {
    * reports it because all three read the same payload; a second field would
    * be a second assertion about one fact. */
   drainageLevel: number;
+  /** The level the map's per-area storage rollup is keyed at -- what the
+   * hover card looks a hovered polygon's code up in. Its own field because
+   * it came apart from `drainageLevel`: the areas drew at four while the
+   * rollup stayed at six, so every lookup missed and each subregion reported
+   * no reservoirs while holding nineteen. Equal to `drainageLevel` once both
+   * the reservoirs and the areas have drawn. */
+  drainageStorageLevel: number;
   /** The drainage area the filter is narrowed to, or null for every area.
    * Not `drainageAreas`, which counts the boundaries the map drew. */
   areaFilter: string | null;

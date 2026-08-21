@@ -77,6 +77,7 @@ import { levelFromSearch, writeLevel } from "./state/level";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
+import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
@@ -266,7 +267,7 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
     /* Large, because the native selects it sits beside are a third taller
      * than a Calcite control at the default scale. */
   }, { scale: "l" });
-  if (control) host.append(control.element);
+  if (control) placeInSlot(host, "where", control.element);
 }
 
 function renderSnow(
@@ -285,12 +286,24 @@ function renderSnow(
         <button id="snow-filter-toggle" class="mobile-filter-toggle" type="button"
           aria-controls="snow-filter-search snow-filter-controls snow-filter-actions"
           aria-expanded="false">Show filters</button>
-        <!-- Beside the title rather than in the control row below: this search
-             narrows the site table further down the page, not the drainage
-             area the rest of the row is choosing among. -->
-        <label id="snow-filter-search" class="filterbar-head-search">Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
       </div>
+      <!-- Its own row above the dropdowns, ruled off from them, the same as
+           the storage charts page. This search narrows the site table further
+           down the page, not the drainage area the row below is choosing
+           among, and it takes anything a reader types where every control
+           below offers a closed list. It used to ride in the head row beside
+           the title, which said the first half of that and not the second. -->
+      <div id="snow-filter-search" class="filterbar-search">
+        <label>Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
+      </div>
+      <!-- Coarsest place first, then finer, then how finely the ground is
+           divided, then the filters that are not places at all. The first two
+           slots are filled once the roster and the reference export resolve;
+           see the control-slot rule in app.css for why these are slots
+           and not appends. -->
       <div id="snow-filter-controls" class="filterbar-controls">
+        <div class="control-slot" data-slot="where"></div>
+        <div class="control-slot" data-slot="level"></div>
         <label>Drainage area<select id="snow-area"><option value="all">The whole region</option></select></label>
         <label>Elevation<select id="snow-elev">${ELEVATION_BANDS.map((band) => `<option value="${band}">${elevationBandLabel(band)}</option>`).join("")}</select></label>
         <label>Reporting<select id="snow-reporting">
@@ -1068,7 +1081,8 @@ function renderSnow(
       /* Large, because the native selects it sits beside are a third taller
        * than a Calcite control at the default scale. */
     }, { scale: "l" });
-    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    const levelHost = content.querySelector<HTMLElement>(".filterbar-controls");
+    if (control && levelHost) placeInSlot(levelHost, "level", control.element);
     levelsOffered = offered.length || 1;
     publishReady();
   }).catch((error: unknown) => {
