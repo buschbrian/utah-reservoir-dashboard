@@ -109,10 +109,12 @@ describe("the rest of the view in the link", () => {
   });
 
   it("carries the filters, both scope dimensions and the month", () => {
+    /* Powell is written as `exclude` now: the opening view has it in, so the
+     * choice a link has to state is the one that takes it back out. */
     expect(searchWithState({
-      storageClass: 0, reporting: "late", drainageArea: "140600", lakePowell: "include",
+      storageClass: 0, reporting: "late", drainageArea: "140600", lakePowell: "exclude",
       geography: "utah", month: "2026-02"
-    })).toBe("?class=0&late=true&drainage=140600&powell=include" +
+    })).toBe("?class=0&late=true&drainage=140600&powell=exclude" +
       "&reservoirs=utah&month=2026-02");
   });
 
@@ -158,26 +160,28 @@ describe("the rest of the view in the link", () => {
     expect(stateFromSearch("").baseline).toBeNull();
   });
 
-  it("keeps Lake Mead's own answer, and defaults it to excluded", () => {
-    /* Absent means excluded, exactly as it does for Powell and for every
-     * caller of `reservoirInScope`: a default of include would have every
-     * saved link silently start adding 28 million acre-feet (ADR-062). */
-    expect(stateFromSearch("").lakeMead).toBe("exclude");
-    expect(stateFromSearch("?mead=include").lakeMead).toBe("include");
-    expect(stateFromSearch("?mead=yes").lakeMead).toBe("exclude");
-    expect(searchWithState({ lakeMead: "exclude" })).toBe("");
-    expect(searchWithState({ lakeMead: "include" })).toContain("mead=include");
+  it("keeps Lake Mead's own answer, and defaults it to included", () => {
+    /* Absent means included, exactly as it does for Powell: the map's
+     * subject is western water and the two largest reservoirs in the west
+     * are in the view it opens on. Both are still controls rather than
+     * filters (ADR-011, ADR-062) -- what moved is which way they start, so
+     * the answer a link now has to spell is the narrow one. */
+    expect(stateFromSearch("").lakeMead).toBe("include");
+    expect(stateFromSearch("?mead=exclude").lakeMead).toBe("exclude");
+    expect(stateFromSearch("?mead=yes").lakeMead).toBe("include");
+    expect(searchWithState({ lakeMead: "include" })).toBe("");
+    expect(searchWithState({ lakeMead: "exclude" })).toContain("mead=exclude");
 
     /* Two questions, two parameters: a link may include one lake and not the
      * other, and the four answers are four different totals. */
-    const both = searchWithState({ lakePowell: "include", lakeMead: "include" });
-    expect(both).toContain("powell=include");
-    expect(both).toContain("mead=include");
-    expect(stateFromSearch("?powell=include").lakeMead).toBe("exclude");
-    expect(stateFromSearch("?mead=include").lakePowell).toBe("exclude");
+    const both = searchWithState({ lakePowell: "exclude", lakeMead: "exclude" });
+    expect(both).toContain("powell=exclude");
+    expect(both).toContain("mead=exclude");
+    expect(stateFromSearch("?powell=exclude").lakeMead).toBe("include");
+    expect(stateFromSearch("?mead=exclude").lakePowell).toBe("include");
     /* The storage charts spell it the same way, so a scope carries between
      * the two pages rather than being dropped at the link. */
-    expect(searchWithState({ lakeMead: "include" })).toContain("mead=");
+    expect(searchWithState({ lakeMead: "exclude" })).toContain("mead=");
   });
 
   it("survives a round trip in every combination the controls can reach", () => {

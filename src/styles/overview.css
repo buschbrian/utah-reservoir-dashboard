@@ -110,8 +110,7 @@ body {
   color: var(--app-muted);
   font-size: .72rem;
   font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 /* The where control (S4, docs/OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md) is
    four `calcite-label`-wrapped selects stacked inside one grid cell, the same
@@ -138,8 +137,7 @@ body {
   color: var(--app-muted);
   font-size: .72rem;
   font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 .dashboard-filterbar .reset-button { flex: 0 0 auto; }
 
@@ -149,8 +147,7 @@ body {
   color: var(--app-muted);
   font-size: .72rem;
   font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 .dashboard-filterbar input, .dashboard-filterbar select, .sort-control select {
   width: 100%;
@@ -162,7 +159,6 @@ body {
   border-radius: .3rem;
   font: 400 .9rem "Avenir Next", Avenir, sans-serif;
   letter-spacing: normal;
-  text-transform: none;
 }
 .dashboard-filterbar input:focus-visible, .dashboard-filterbar select:focus-visible,
 .sort-control select:focus-visible, .reset-button:focus-visible {
@@ -209,7 +205,7 @@ body {
 .overview-kpi { min-width: 0; padding: .85rem 1rem; border-block-start: .2rem solid var(--app-sand); }
 .overview-kpi-primary { border-block-start-color: var(--app-terracotta); }
 .overview-kpi span, .overview-kpi small { display: block; overflow: hidden; color: var(--app-muted); text-overflow: ellipsis; }
-.overview-kpi span { font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.overview-kpi span { font-size: .72rem; font-weight: 700; letter-spacing: .01em; }
 .overview-kpi strong { display: block; margin-block: .15rem; font-size: clamp(1.25rem, 2vw, 1.75rem); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .overview-kpi small { font-size: .7rem; line-height: 1.35; }
 /* Six charts now, not two. `auto-fit` with a floor rather than a named
@@ -263,8 +259,7 @@ body {
   color: var(--app-muted);
   font-size: .7rem;
   font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 .chart-settings-controls select {
   width: 100%;
@@ -277,7 +272,6 @@ body {
   border-radius: .25rem;
   font: 400 .8rem "Avenir Next", Avenir, sans-serif;
   letter-spacing: normal;
-  text-transform: none;
 }
 .chart-settings-controls select:focus-visible {
   outline: .15rem solid color-mix(in srgb, var(--app-accent) 60%, transparent);
@@ -295,8 +289,7 @@ body {
   border-radius: 999px;
   font-size: .65rem;
   font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 .chart-host { position: relative; min-height: 27rem; height: 27rem; overflow: hidden; }
 #capacity-chart,
@@ -319,7 +312,7 @@ body {
 .table-scroll { max-height: 32rem; overflow: auto; border-block-start: 1px solid var(--app-border); }
 .overview-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
 .overview-table th, .overview-table td { padding: .65rem .6rem; border-block-end: 1px solid var(--app-border); text-align: start; white-space: nowrap; }
-.overview-table th { position: sticky; inset-block-start: 0; z-index: 1; color: var(--app-muted); background: var(--app-surface-raised); font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; }
+.overview-table th { position: sticky; inset-block-start: 0; z-index: 1; color: var(--app-muted); background: var(--app-surface-raised); font-size: .72rem; font-weight: 700; letter-spacing: .01em; }
 .overview-table td:nth-child(n + 3), .overview-table th:nth-child(n + 3) { text-align: end; font-variant-numeric: tabular-nums; }
 .overview-table tbody tr:hover { background: color-mix(in srgb, var(--app-accent) 8%, transparent); }
 .late-badge { color: #7f461d; font-weight: 700; }
@@ -661,8 +654,7 @@ body {
   margin: 0 0 .3rem;
   font-size: .8rem;
   font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
   color: var(--app-muted);
 }
 .weekly-section p {

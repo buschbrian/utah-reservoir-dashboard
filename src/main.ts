@@ -33,7 +33,6 @@ import {
 } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
 import {
-  DEFAULT_SCOPE,
   overviewScope,
   reservoirInState,
   subregionNames,
@@ -65,7 +64,8 @@ import {
   type TableSort
 } from "./state/table";
 import {
-  connectSelectionToUrl, stateFromSearch, writeUrlState, type DashboardUrlState
+  connectSelectionToUrl, DEFAULT_URL_STATE, stateFromSearch, writeUrlState,
+  type DashboardUrlState
 } from "./state/url";
 import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/baseline";
 import { levelFromSearch, writeLevel } from "./state/level";
@@ -168,7 +168,15 @@ let openingArea: string | null = null;
  * pinned to `utah`, which is why Fontenelle and Woodruff Narrows -- paid for
  * by the refresh every morning, connected to Utah by drainage but never
  * touching it -- were published and drawn nowhere. */
-let scope: ScopeChoice = { ...DEFAULT_SCOPE };
+/* Seeded from the URL defaults rather than from `DEFAULT_SCOPE`, which is
+ * the model's own narrow placeholder. Whatever this holds before the link is
+ * restored is what a first paint would draw, and that has to be the view the
+ * page opens on -- the whole west, both large reservoirs in. */
+let scope: ScopeChoice = {
+  geography: DEFAULT_URL_STATE.geography,
+  lakePowell: DEFAULT_URL_STATE.lakePowell,
+  lakeMead: DEFAULT_URL_STATE.lakeMead
+};
 /** Which exceptional controls make sense in the current geographic scope. */
 let largeReservoirAvailability = { lakePowell: true, lakeMead: true };
 
@@ -421,7 +429,7 @@ function viewState(): Omit<DashboardUrlState, "reservoir"> {
     reporting: filterState.reporting,
     drainageArea: filterState.drainageArea,
     lakePowell: scope.lakePowell,
-    lakeMead: scope.lakeMead ?? "exclude",
+    lakeMead: scope.lakeMead ?? DEFAULT_URL_STATE.lakeMead,
     geography: scope.geography,
     month: selectedMonth(),
     tableOpen,
@@ -1048,7 +1056,7 @@ if (!supportsDashboard(browserCapabilities())) {
         window.__dashboardReady.symbols = map.status.reservoirSymbols;
         window.__dashboardReady.late = inScope.filter(isLate).length;
         window.__dashboardReady.lakePowell = scope.lakePowell;
-        window.__dashboardReady.lakeMead = scope.lakeMead ?? "exclude";
+        window.__dashboardReady.lakeMead = scope.lakeMead ?? DEFAULT_URL_STATE.lakeMead;
         window.__dashboardReady.geography = scope.geography;
         window.__dashboardReady.listItems =
           document.querySelectorAll("#start-panel .list-btn").length;
@@ -1207,7 +1215,7 @@ if (!supportsDashboard(browserCapabilities())) {
     /* Its own field beside Powell's, because it is its own question: a
      * total with Mead and one without are both true and are not the same
      * measurement (ADR-062). */
-    lakeMead: scope.lakeMead ?? "exclude",
+    lakeMead: scope.lakeMead ?? DEFAULT_URL_STATE.lakeMead,
     geography: scope.geography,
     months: months.length,
     month: selectedMonth(),

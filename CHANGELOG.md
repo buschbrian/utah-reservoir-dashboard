@@ -5,6 +5,33 @@ and is not listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The two largest reservoirs in the west are in the opening view.** Lake
+  Powell and Lake Mead are still controls rather than filters (ADR-011,
+  ADR-062) -- each is most of any total it enters, each keeps its own switch,
+  and every page still states which of the two the figure beside it holds.
+  What moved is which way they start. A map whose subject is western water
+  opened with 51 million acre-feet taken out of it, behind two switches a
+  reader had to find. The storage map, the storage charts, the reset control,
+  and the combined summaries all open with both in.
+
+  This changes what an existing link means. `powell` and `mead` are written
+  as absence when they carry the default, so a link made before this and
+  carrying neither parameter now reads as "include" rather than "exclude" --
+  the same trade `reservoirs=` made when the roster went west. The narrow
+  answer is what a link spells now: `?powell=exclude`, `?mead=exclude`. Both
+  spellings are read on both pages, so a scope still carries between them.
+
+- **Small labels are sentence case.** Panel eyebrows, filter and chart
+  labels, the summary tiles, both table headers, the weekly section headings
+  and the site name were rendered through `text-transform: uppercase`. Long
+  uppercase strings are harder to read than the words they are made of, and
+  these labels now name periods and measurements rather than one or two
+  words. It is also what every reader through rendered text receives:
+  `innerText` returns what CSS transformed, so a screen reader and the smoke
+  suite were both handed `STORED NOW`.
+
 ### Documentation
 
 - **The maintained documentation describes the western product.** The project

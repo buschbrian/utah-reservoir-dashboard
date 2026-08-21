@@ -43,9 +43,17 @@ The storage map lets a reader:
   order on screen as CSV; and
 - share the complete view through the address bar.
 
-The storage map opens on the complete western roster. Lake Powell and Lake
-Mead start excluded because either reservoir can dominate a regional total.
-The narrower Utah-waterbody view remains available as a deliberate choice.
+The storage map opens on the complete western roster, with Lake Powell and
+Lake Mead both in the totals. Each is large enough to dominate a regional
+figure, so each keeps its own switch and every page states which of the two
+the figure beside it holds. The narrower Utah-waterbody view remains
+available as a deliberate choice.
+
+A first visit with no link and no remembered place opens a short chooser: a
+state or a river basin, and one of the three subjects. It is skippable in one
+action, it is never shown over a shared link, and the choice it produces is
+the same `?state=` and `?area=` a reader can set from the controls. The place
+is remembered between visits; a link always outranks it.
 
 The storage charts use the same geographic and reservoir scope. Their search,
 filters, summary strip, six ArcGIS charts, and semantic table update together.
@@ -232,9 +240,14 @@ than asserting today's numbers.
 
 The original modernization phases are complete. ArcGIS 5.1 is the production
 runtime; the MapLibre rebuild was superseded by the decision to keep retired
-paths as redirects. The western geography, reader-chosen opening scope,
-637-site snow network, western federal reservoir roster, drought measurements,
-accessibility gates, and transfer policy have all shipped.
+paths as redirects. The western geography, reader-chosen opening scope, the
+first-visit place chooser and the remembered place behind it, the 637-site
+snow network, the western federal reservoir roster, drought measurements,
+accessibility gates, and transfer policy have all shipped. The Utah state
+mask is retired and the state boundary is no longer published (ADR-067);
+state outlines a reader can see come from Esri's Living Atlas, built from
+U.S. Census Bureau boundaries, and are drawn only where a continuous surface
+means a line cannot hide the subject (ADR-061).
 
 Current product work is narrower:
 
@@ -242,7 +255,13 @@ Current product work is narrower:
   third reservoir provider;
 - keep automatically reported late and withdrawn feeds under review;
 - re-check vendor accessibility exceptions and the content policy on SDK
-  upgrades; and
+  upgrades;
+- give the first-visit chooser its counts. The design that ordered it wanted
+  "eleven reservoirs, eighty-five snow sites" on each tile, which is what
+  makes offering a state with no reservoirs obviously right rather than
+  apparently broken. It needs all three payloads, and a chooser that waits on
+  three fetches arrives late, which is the one thing that shape must not be;
+  and
 - complete a human visual review of every page and viewport. Automated tests
   cannot judge color balance, terrain, density, or visual hierarchy because
   the ArcGIS canvas is blank in headless Chromium.
@@ -266,10 +285,16 @@ index. Key records include:
 - The content policy must currently allow the ArcGIS CDN and `unsafe-eval`
   because of SDK workers and chart schema compilation. Re-measure it on every
   SDK upgrade.
-- Two accessibility exceptions remain in vendor components and are documented
+- One accessibility exception remains in a vendor component and is documented
   in `AXE_EXCEPTIONS` in `tests/smoke-modern.mjs`.
 - ArcGIS map pixels render blank in headless Chromium. Runtime readiness and a
   human review are therefore both required evidence.
+- A link carries only what a reader changed, so the meaning of an absent
+  parameter is part of the contract. Two defaults have moved: `reservoirs=`
+  when the roster went west, and `powell=` and `mead=` when the two largest
+  reservoirs joined the opening view. A link written before either change and
+  carrying neither parameter now reads as the current default. Both spellings
+  of every parameter are still accepted.
 
 ## License and commercial use
 

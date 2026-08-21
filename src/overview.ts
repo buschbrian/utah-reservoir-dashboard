@@ -99,7 +99,7 @@ root.innerHTML = `
     <header class="overview-intro">
       <p>Explore current storage for the reservoirs this site tracks across the western
         United States. Lake Powell and Lake Mead are each large enough to hide local
-        conditions in a combined total. Both start excluded, and either can be added back at
+        conditions in a combined total. Both start included, and either can be taken out at
         any time.</p>
     </header>
     <section id="overview-content" aria-live="polite"><calcite-loader label="Loading reservoir data"></calcite-loader></section>
@@ -276,8 +276,8 @@ async function renderOverview(
           aria-controls="overview-filter-actions overview-filter-controls"
           aria-expanded="false">Show filters</button>
         <div id="overview-filter-actions" class="filterbar-head-actions">
-          <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" /></label>
-          <label class="switch-label" for="lake-mead-toggle"><span>Include Lake Mead</span><input id="lake-mead-toggle" type="checkbox" role="switch" /></label>
+          <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" checked /></label>
+          <label class="switch-label" for="lake-mead-toggle"><span>Include Lake Mead</span><input id="lake-mead-toggle" type="checkbox" role="switch" checked /></label>
           <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
@@ -835,8 +835,10 @@ async function renderOverview(
     county.value = "all";
     cadence.value = "all";
     sort.value = "capacity";
-    lakePowell.checked = false;
-    lakeMead.checked = false;
+    /* Both large reservoirs back in, matching what the page opens on.
+     * Resetting them off would make "reset" a filter of its own. */
+    lakePowell.checked = true;
+    lakeMead.checked = true;
     /* Every reservoir, matching what the page opens on. Resetting to Utah's
      * waterbodies would have "reset" narrowed the page to a third of itself. */
     geography.value = "connected";

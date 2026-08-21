@@ -269,7 +269,8 @@ root.innerHTML = `
         <dd>Storage added up across reservoirs, divided by their full levels added up. A large reservoir therefore counts for more than a small one. That is why Lake
         Powell has its own control: it is large enough to hide local conditions inside
         a single total. The same is true of Lake Mead, which has its own control for the
-        same reason. Both start excluded, so a combined figure never quietly holds them.
+        same reason. Both start included, and every page states which of the two the
+        figure beside it holds.
           <br /><strong>A combined figure is the newest reading from each reservoir, and
           those readings were not all taken on the same day.</strong> Some providers
           publish every day and some publish once a month. So a total can hold yesterday's

@@ -31,7 +31,9 @@ and Python data pipelines:
 | `data/drought/` and `tools/compute_drought_coverage.py` | Verified weekly drought polygons, level-specific measurements, and history. |
 | `normals.json` | The 1991-2020 climate normal per reservoir. Committed, read by the pipeline, never published. |
 | `data/watersheds/west-huc6.geojson` | The 75 default drainage areas the maps draw and the western roster is assigned against. Committed, never published: browser outlines come from the hosted layer (ADR-048, ADR-049, ADR-068). |
-| `huc6.geojson` | The fourteen-area Utah-connected historical scope. Still committed and reviewed for compatibility and parity checks; it no longer defines the opening map or roster. |
+| `huc6.geojson` | The fourteen-area Utah-connected historical scope. Still committed and reviewed for compatibility and parity checks; it no longer defines the drawn map or the roster. Its box, frozen as a literal in `src/viz/extent.ts`, is still what `MAP_BOUNDS` is built from. |
+| `src/data/opening-scope.ts`, `src/state/opening-preference.ts` | Which place a page opens on, and which of a link, a stored choice and "everywhere" wins. |
+| `src/ui/opening-splash.ts`, `src/ui/where-control.ts` | The first-visit chooser and the control it is an affordance over. |
 | `data/drought/usdm-huc6-history.json` | Every weekly drought map this pipeline has computed, oldest first, capped at ten years. Published. |
 
 ## Rules
@@ -162,13 +164,17 @@ served stale and an unchanged file costs a 304 instead of the whole payload.
 The snow series publishes the water-year calendar once and each site indexes
 into it; `validateSnowpackPayload` rebuilds the rows, so nothing downstream
 knows. Never encode a missing day as a null value -- a null reading is a row
-that exists, and 13,910 of them do.
+that exists, and thousands of absent days are not: the grid is 637 sites by
+323 published dates and 1,477 of those cells had no reading on 2026-08-20.
+The count moves every morning, which is the point -- it is never zero.
 
 **The payload carries the roster; the service carries the shapes**
 (ADR-047, ADR-048). `reference.json` publishes each area's code, name and
-states and no drainage geometry -- it was 1,001 KB and is 27 KB, and every
-map page fetches it whole on every load. Outlines come from the hosted
-Watershed Boundary Dataset, quantized to the view. A map that needs each area
+states and no drainage geometry -- it was 1,001 KB raw and is 78 KB raw,
+14.4 KB on the wire, and every map page fetches it whole on every load. Quote
+the wire figure: this rule's own heading says so, and the raw one is five
+times larger. Outlines come from the hosted Watershed Boundary Dataset,
+quantized to the view. A map that needs each area
 coloured by one of this project's own numbers does **not** need the shapes in
 hand: that is a unique-value renderer keyed on the code, which is what the
 snow map does. Never fetch geometry into the browser to colour something.
@@ -178,19 +184,52 @@ they change.
 **The drawn scope and the roster scope are two names** (ADR-063).
 `DEFAULT_SCOPE` is what the maps draw -- `west-huc6`, 75 basins across regions
 14 to 18. `ROSTER_SCOPE` is the geography the published reservoirs were
-admitted from -- still `utah-connected`, fourteen areas -- and it is what
-`HUC6_BOUNDS` is the box of, so the map opens on the reservoirs rather than on
-19 degrees of longitude with 69 reservoirs in one corner. Both are published
-in `reference.json` as `default_scope` and `roster_scope`; no test, tool or
-fixture may name a boundary file directly, because which file holds which
-geography has moved once and will move again when the roster expands west.
-**61 drawn areas hold no reservoir**, which is a state ADR-056 already allowed
-for. **Each map draws what it can say something about**: the drought engine
-measures all 75 so the drought map draws 75, the snow network reports in 51 so
+admitted from. **The two now name the same scope**: the roster went west and
+`ROSTER_SCOPE = DEFAULT_SCOPE`. They stay two names because they answer two
+questions, and answering both with one constant is what the split was written
+to prevent -- the next roster move must be able to happen without dragging the
+drawn coverage with it. Both are published in `reference.json` as
+`default_scope` and `roster_scope`; no test, tool or fixture may name a
+boundary file directly, because which file holds which geography has moved
+twice already.
+
+**Where the map opens is a third question, and it is pinned.** `HUC6_BOUNDS`
+in `src/viz/extent.ts` is the roster scope's box and moved west with it -- 19
+degrees of longitude. `MAP_BOUNDS` is *not* built from it: it is built from
+`OPENING_SCOPE_HUC6_BOUNDS`, a private literal frozen at the box of the
+fourteen areas the original roster was admitted from, which is what keeps a
+reader who has chosen nothing from opening on the whole west with the
+reservoirs too small to point at. That literal equals the frozen oracle's own
+`HUC6_BOUNDS` and is ADR-044's contract with the retired routes' saved links;
+`extent.test.ts` holds it there. The load the wider box would otherwise put on
+the opening view is carried by `src/data/opening-scope.ts` and the first-visit
+chooser instead -- `unionOfAreaBoxes` over whatever place a reader picked.
+**32 of the 75 drawn areas hold no reservoir**, which is a state ADR-056
+already allowed for. **Each map draws what it can say something about**: the
+drought engine measures all 75 so the drought map draws 75, the snow network
+reports in 51 so
 `measuredScope` narrows the snow map to 51, and the storage map draws all 75
 as context around its subject. The two committed files must agree area for
 area -- fetched at different generalizations they did not, and two drought
 figures moved by a rounding step with no weather behind them.
+
+**A link is never interrupted, and a preference never leaks into one.** Three
+answers can name the place a page opens on and the order is fixed: the address
+bar, then the stored choice, then everywhere. `resolveOpeningPlace` reports
+which answered, and `shouldAskWhere` reads that rather than re-deriving it.
+The first-visit chooser appears **only** when the query string is empty --
+emptiness, not a list of place parameters, because `?reservoir=Flaming+Gorge`
+names no place and is unmistakably someone showing someone else a thing. A
+list would need updating for every parameter any surface ever adds, and
+forgetting one buries a reader's link under a modal, which is exactly what
+happened and what the smoke suite's deep-link case now catches. The stored
+choice is **never written back into the address bar**: what a reader copies
+must be what they see, not what they prefer. `?state=all` exists so that
+"everywhere" can be said out loud rather than by silence -- deleting the
+parameter would produce a link that defers to the *recipient's* stored place.
+A stored place that no longer holds anything is cleared rather than left to
+open on a blank page tomorrow (`forgetPlaceIfEmpty`); what "empty" means is
+each surface's own measurement.
 
 **Two levels are offered and the reader picks** (ADR-064). HUC-6 is the
 default and HUC-4 is the other; every figure is published at both, which is
@@ -286,10 +325,13 @@ number or given a baseline.
 
 **A county is where a thing is; a drainage area is where its water goes**
 (ADR-058, ADR-060). Counties are a *search and filter* axis and never a
-grouping one — 69 reservoirs fall in 35 counties and 19 hold exactly one, so a
-county total is a reservoir total wearing a county's name. The key is the
-five-digit FIPS code and never the name: this roster holds two Summit, two
-Carbon and two Garfield Counties. The assignment point is the **waterbody**,
+grouping one — 223 reservoirs fall in 119 counties and 64 hold exactly one, so
+a county total is a reservoir total wearing a county's name. Going west made
+that worse rather than better: more than half the counties on the roster now
+hold a single reservoir. The key is the five-digit FIPS code and never the
+name: this roster holds seven repeated county names — two each of Carbon,
+Garfield, Lake, Lincoln, San Juan and Summit, and **three** Washington
+Counties, in Idaho, Oregon and Utah. The assignment point is the **waterbody**,
 deliberately not the dam the drainage area uses — Glen Canyon Dam is in
 Coconino County, Arizona and Lake Powell is in San Juan County, Utah. No
 county geometry is ever committed; the service resolves the point and answers
@@ -335,10 +377,24 @@ basin's far half as drought-free and looks like a clean run.
 
 **Two reservoirs are large enough to be controls, not filters** (ADR-011,
 ADR-062). Lake Powell and Lake Mead each dominate any total they enter, so
-both have their own include/exclude choice and **absent means excluded** —
-a default of include would have every existing caller silently start adding
-28 million acre-feet. `shared/reservoir-viz.js` predates Mead, so oracle
-parity is only meaningful with both controls open.
+each has its own include/exclude choice and every surface states which way
+both are set. **In the reader's view they start included**: a map whose
+subject is western water opened with 51 million acre-feet taken out of it,
+behind two switches most readers never found. `DEFAULT_URL_STATE` and
+`DEFAULT_OVERVIEW_STATE` both say `include`, absence in a link means
+`include`, and the narrow answer is what a link spells — `?powell=exclude`,
+`?mead=exclude`.
+
+**The library default is the opposite, and deliberately so.**
+`reservoirInScope` still reads `options[key] !== "include"`, so a caller that
+passes no `lakeMead` excludes it. That is the ADR-062 guard: a caller written
+before Mead joined the roster must not silently start adding 28 million
+acre-feet because a page-level default moved. `WIDEST_SCOPE` is how a caller
+says "these rows already answered every scope question", and its `Required`
+is what makes admitting the next dominant reservoir a compile error rather
+than a silent exclusion. Do not collapse the two defaults into one.
+`shared/reservoir-viz.js` predates Mead, so oracle parity is only meaningful
+with both controls open.
 
 **A dam match is not the whole question** (review of 2026-08-20). `admit`
 asks whether the inventory holds the right dam and answers from the inventory
@@ -437,9 +493,13 @@ Do not regress these; they were each found by a failing test or a screenshot.
   sideways at any of them.
 - **`innerText` returns what CSS transformed, not what the code wrote.** A
   `text-transform: uppercase` on a label makes the page say `STORED NOW`, and
-  every test and reader that goes through rendered text sees that instead. It
-  caught a real design problem too: these labels now name a period, and long
-  uppercase strings are harder to read than sentence case.
+  every test and reader that goes through rendered text sees that instead —
+  a screen reader and the smoke suite alike. It caught a real design problem
+  too: these labels name periods and measurements, and a long uppercase
+  string is harder to read than the words it is made of. **There is now no
+  `text-transform` anywhere in `src/styles/` or the pages**, and adding one
+  needs a reason better than emphasis; small and bold is how a label is
+  quiet here.
 - **A grid track sized `auto` grows to its longest content.** The details
   panel was `minmax(0, auto) minmax(0, 1fr)`, which was survivable while every
   label was two words and resolved to 261 of 320 pixels the moment one had to
@@ -488,12 +548,17 @@ node tests/smoke.mjs        # compatibility redirects; needs Playwright Chromium
 node tests/smoke-modern.mjs # complete ArcGIS application; same requirements
 ```
 
+**Both browser suites serve `dist/`, not `src/`.** The order above is not a
+preference: a smoke run after an un-built edit tests the previous build and
+reports failures the working tree has already fixed, or passes work that never
+compiled. Rebuild before every run.
+
 On demand, not part of the build and not runnable in CI:
 
 ```bash
 node tools/profile-symbols.mjs   # needs a real, visible browser window
 node tools/audit-transfer.mjs    # needs a built dist/ and Playwright Chromium
-python tools/build_normal_baselines.py           # ~4.5 min for 203 reservoirs
+python tools/build_normal_baselines.py           # network job, ~12s per reservoir
 python tools/build_normal_baselines.py --missing # only what has no normal yet
 python tools/check_reference_freshness.py        # what is due to be re-checked
 python tools/measure_drought_convergence.py      # what the sampling step is worth
@@ -507,8 +572,10 @@ becomes standard in 2031) or when a reservoir joins the roster.
 **It is network-bound, not slow.** One reservoir is 12.2 seconds of wall clock
 for 0.8 seconds of processor, so it fetches `--workers` at a time (six by
 default, kept small because both providers are public services this project
-does not pay for). Two hundred and three reservoirs take about four and a half
-minutes rather than forty.
+does not pay for). The measured run was 203 reservoirs in about four and a
+half minutes rather than forty; the roster is 223 now and `normals.json`
+holds 228 records, because a reservoir withdrawn for a quiet feed keeps its
+normal.
 
 **Every run merges; none replaces.** `--only "A" "B"` builds those,
 `--missing` builds what the committed file has no usable normal for — which is
@@ -561,8 +628,8 @@ put their real controls inside shadow roots, so a DOM-only check never sees
 them — the slider handle that had no accessible name is a `div` three levels
 down. And a mistyped label font does not fail: the atlas 404s, the labels fall
 back to the default sans, and the page looks fine, so the only place it shows
-is the request. Two violations are accepted, both in vendor components, and
-`AXE_EXCEPTIONS` in the suite says why for each.
+is the request. One violation is accepted, in a vendor component, and
+`AXE_EXCEPTIONS` in the suite says why.
 
 **Label fonts are a family and a weight, never a family with a weight in its
 name.** The SDK builds the glyph-atlas slug from both, so
