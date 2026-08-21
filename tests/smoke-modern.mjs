@@ -3494,6 +3494,14 @@ for (const failure of [
           `the storage map drew ${ready.drainageAreas} areas, expected ${expectedCoarseAreas}`);
         check(ready.drainageLevel === 4,
           `the storage map drew level ${ready.drainageLevel}, expected 4`);
+        /* The rollup the hover card reads has to be keyed at the level the
+         * areas were drawn at. These came apart once: the areas drew at four,
+         * the rollup stayed at six, and every hovered subregion answered "No
+         * reservoirs in this drainage area are in view" while holding
+         * nineteen of them. Nothing else the map publishes can see that. */
+        check(ready.drainageStorageLevel === ready.drainageLevel,
+          `the storage rollup is keyed at ${ready.drainageStorageLevel} `
+          + `while the map drew level ${ready.drainageLevel}`);
         check(ready.reservoirs === expectedReservoirs,
           `the storage map lost reservoirs at the coarser level: ${ready.reservoirs}`);
       }
@@ -3631,8 +3639,9 @@ for (const failure of [
 }
 
 /*
- * The where control (S4): a state select and a region/subregion/drainage-
- * area drill-down, beside the level control in the storage panel and the
+ * The where control (S4): a state select and as much of the
+ * region/subregion/drainage-area drill-down as the host asked for
+ * (ADR-071), beside the level control in the storage panel and the
  * snow/drought filter bars. This is its own committed coverage -- the same
  * reason the area-size block above holds the level control's: a slice that
  * ships no coverage of its own is how a whole feature ends up untested (this
@@ -3650,26 +3659,47 @@ for (const failure of [
   check(Boolean(storageState),
     "Where control: no state narrows the default scope without emptying it");
 
+  /*
+   * `axes` is how far down the drill-down each host builds (ADR-071). A page
+   * that already owns a drainage-area control stops this one above it, so
+   * the two never carry one label between them:
+   *
+   * - storage stops at subregion -- `[data-filter="drainage"]` sits in the
+   *   same panel and `?area=` is the legacy spelling of the `?drainage=`
+   *   that control writes, so the axis would have been that filter twice;
+   * - snow stops at subregion too, at the default level 6, because
+   *   `#snow-area` carries the basins -- and only those with a publishable
+   *   figure, which the published roster's list is not;
+   * - drought keeps all four: it owns no drainage-area control of its own.
+   */
   const cases = [
     {
       label: "Storage map", url: `${URL}?state=${storageState?.code}`,
-      signal: "__dashboardReady", drawn: "drainageAreas"
+      signal: "__dashboardReady", drawn: "drainageAreas",
+      axes: ["state", "region", "subregion"]
     },
     {
       label: "Snowpack", url: `${URL}snow.html?state=${storageState?.code}`,
-      signal: "__snowReady", drawn: "mapBasins"
+      signal: "__snowReady", drawn: "mapBasins",
+      axes: ["state", "region", "subregion"]
     },
     {
       label: "Drought", url: `${URL}drought.html?state=${storageState?.code}`,
-      signal: "__droughtReady", drawn: "mapOutlines"
+      signal: "__droughtReady", drawn: "mapOutlines",
+      axes: ["state", "region", "subregion", "area"]
     }
   ];
+  const AXIS_LABELS = {
+    state: "Which state to show", region: "Which region to show",
+    subregion: "Which subregion to show", area: "Which drainage area to show"
+  };
 
   // Every width the rest of this suite tests at (CLAUDE.md: "no page may
   // scroll sideways" at 1280, 390 or 360), because the where control adds
-  // four selects to a filter bar that already has to reflow at the narrowest
-  // one, and a control that clips or widens the page there is exactly the
-  // failure `.filterbar-controls`'s own `min-width: 0` rules exist to catch.
+  // three or four selects to a filter bar that already has to reflow at the
+  // narrowest one, and a control that clips or widens the page there is
+  // exactly the failure `.filterbar-controls`'s own `min-width: 0` rules
+  // exist to catch.
   for (const viewport of VIEWPORTS) {
     const context = await newPageContext(browser, viewport);
     const tab = await context.newPage();
@@ -3698,27 +3728,51 @@ for (const failure of [
         () => document.querySelector(
           '.where-control calcite-select[label="Which state to show"]') !== null,
         { timeout: 90000 });
-      const state = await tab.evaluate(() => ({
+      const state = await tab.evaluate((axisLabels) => ({
         stateValues: [...document.querySelectorAll(
           '.where-control calcite-select[label="Which state to show"]')]
           .map((select) => select.value),
-        regionSelects: document.querySelectorAll(
-          '.where-control calcite-select[label="Which region to show"]').length,
-        subregionSelects: document.querySelectorAll(
-          '.where-control calcite-select[label="Which subregion to show"]').length,
-        areaSelects: document.querySelectorAll(
-          '.where-control calcite-select[label="Which drainage area to show"]').length,
+        axisSelects: Object.fromEntries(Object.entries(axisLabels).map(([axis, name]) =>
+          [axis, document.querySelectorAll(
+            `.where-control calcite-select[label="${name}"]`).length])),
+        /* Every visible control label in each group this control joins, so
+         * two controls answering one question under one word fail here
+         * (AGENTS.md invariant 8). Own text nodes only: a `<label>` wrapping
+         * a native `<select>` has every option's text in its `textContent`,
+         * and the word a reader sees is the one before the control. */
+        groupLabels: [...document.querySelectorAll(".where-control")]
+          /* Past the slot, to the group the control actually joins. The
+             control is placed into a `.control-slot` now, which is
+             `display: contents` and so is not the row it appears in -- and
+             a duplicate-label check scoped to a slot holding one control
+             can never find a duplicate. */
+          .map((where) => where.closest(".filterbar-controls, .filters")
+            ?? where.parentElement)
+          .filter((group) => group !== null)
+          .map((group) => [...group.querySelectorAll("label, calcite-label")]
+            .map((label) => [...label.childNodes]
+              .filter((node) => node.nodeType === 3)
+              .map((node) => node.textContent.trim())
+              .join(" ").trim())
+            .filter((text) => text !== "")),
         filterbar: (() => {
           const bar = document.querySelector(".dashboard-filterbar");
           const where = bar?.querySelector(".where-control");
+          const grid = bar?.querySelector(".filterbar-controls");
           return bar && where ? {
             height: Math.round(bar.getBoundingClientRect().height),
+            /* The grid the four place selects live in, measured apart from
+               the card around it. The card also carries a title row and, on
+               the pages that have one, a search row -- both legitimate
+               height that has nothing to do with the failure this budget
+               was written for. */
+            controlsHeight: grid ? Math.round(grid.getBoundingClientRect().height) : null,
             whereDisplay: getComputedStyle(where).display
           } : null;
         })(),
         viewport: document.documentElement.clientWidth,
         scroll: document.documentElement.scrollWidth
-      }));
+      }), AXIS_LABELS);
       console.log("  where control:", JSON.stringify(state));
       check(state.stateValues.length >= 1, `${label}: no where control was built`);
       /* The control has to carry the reader's choice, or the state narrows
@@ -3728,19 +3782,38 @@ for (const failure of [
       check(state.stateValues.every((value) => value === storageState?.code),
         `${label}: the state select shows ${state.stateValues.join(", ")}, ` +
         `not the state the link opened on (${storageState?.code})`);
-      check(state.regionSelects === state.stateValues.length
-        && state.subregionSelects === state.stateValues.length
-        && state.areaSelects === state.stateValues.length,
-        `${label}: the where control is missing one of its four selects ` +
-        `(state ${state.stateValues.length}, region ${state.regionSelects}, ` +
-        `subregion ${state.subregionSelects}, drainage area ${state.areaSelects})`);
+      /* Exactly the axes this host asked for: every one of them built once
+       * per control, and every finer one not built at all. Both halves
+       * matter -- a missing axis breaks the drill-down, and an extra one is
+       * the duplicate drainage-area control ADR-071 removed. */
+      for (const [axis, built] of Object.entries(state.axisSelects)) {
+        const wanted = scenario.axes.includes(axis) ? state.stateValues.length : 0;
+        check(built === wanted,
+          `${label}: the where control built ${built} ${axis} selects, ` +
+          `expected ${wanted} (${JSON.stringify(state.axisSelects)})`);
+      }
+      for (const labels of state.groupLabels) {
+        const repeated = labels.filter(
+          (text, index) => labels.indexOf(text) !== index);
+        check(repeated.length === 0,
+          `${label}: "${repeated.join('", "')}" labels more than one control ` +
+          `in the group the where control joins (${JSON.stringify(labels)})`);
+      }
       check(state.scroll <= state.viewport + 1,
         `${label}: the page scrolls sideways with the where control carrying a link`);
       if (viewport.name === "desktop" && scenario.label !== "Storage map") {
         check(state.filterbar?.whereDisplay === "contents",
           `${label}: the four place selects still occupy one stacked grid cell`);
-        check((state.filterbar?.height ?? Infinity) < 320,
-          `${label}: the filter card is ${state.filterbar?.height}px tall, expected under 320px`);
+        /* The regression this guards is the four place selects stacking into
+           one grid cell, which makes the control row four selects tall
+           instead of one. Measured on the control grid rather than on the
+           whole card: the card grew a search row of its own, which is
+           height the reader asked for and not the failure being watched
+           for. `whereDisplay` above states the same requirement directly;
+           this catches a stack that arrives some other way. */
+        check((state.filterbar?.controlsHeight ?? Infinity) < 260,
+          `${label}: the filter controls are ${state.filterbar?.controlsHeight}px tall, `
+          + "expected under 260px -- the four place selects have stacked into one cell");
       }
       await checkAccessibility(tab, check, label);
     }

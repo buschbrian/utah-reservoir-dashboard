@@ -71,6 +71,7 @@ import {
 import { baselineChoices, baselineCoverage, FALLBACK_CHOICES } from "./state/baseline";
 import { levelFromSearch, writeLevel } from "./state/level";
 import { supportsDashboard } from "./state/shell";
+import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { renderLegend } from "./ui/legend";
@@ -365,7 +366,7 @@ async function wireLevelControl(): Promise<number> {
     });
     /* Above the reservoir list, like every other control: the list scrolls
      * inside its own box and anything after it is behind a nested scroller. */
-    if (control) host.append(control.element);
+    if (control) placeInSlot(host, "level", control.element);
   }
   return offered.length || 1;
 }
@@ -383,6 +384,16 @@ async function wireLevelControl(): Promise<number> {
  * surfaces (S3a-d), each with its own rule for what the area axis means
  * (D5), so a picked value takes the path a shared link already takes rather
  * than a re-render this page has no function for.
+ *
+ * It ends at subregion and never builds a drainage-area axis (ADR-071).
+ * `[data-filter="drainage"]` sits in this same panel, already labelled
+ * "Drainage area", and on this page a drainage-area choice *is* that filter
+ * whichever control makes it: `?area=` is the legacy spelling of
+ * `?drainage=` (`state/url.ts`), and the block below deliberately leaves
+ * `?area=` to the filter rather than narrowing the roster with it (D5). Two
+ * selects with one label, one parameter and one effect is one control shown
+ * twice; the page's own is the one that offers exactly the areas the map
+ * has, and the coarser code a link opened on above them.
  */
 function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
   for (const host of document.querySelectorAll<HTMLElement>(".filters")) {
@@ -392,8 +403,8 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
        * a cleared filter must not become a link that means "no answer". */
       const query = searchWithPlace(window.location.search, selection);
       window.location.replace(`${window.location.pathname}${query}`);
-    });
-    if (control) host.append(control.element);
+    }, { finest: "subregion" });
+    if (control) placeInSlot(host, "where", control.element);
   }
 }
 
@@ -1235,6 +1246,7 @@ if (!supportsDashboard(browserCapabilities())) {
     drainageLabelsUnderReservoirs: map.status.drainageLabelsUnderReservoirs,
     drainageLabelsDeconflicted: map.status.drainageLabelsDeconflicted,
     drainageLevel: map.status.drainageLevel,
+    drainageStorageLevel: map.status.drainageStorageLevel,
     /* What the reader chose, and how many choices there were. Two facts, two
      * fields -- `drainageLevel` is what the map drew, which is the same
      * number by a different route and stays its own field (ADR-064). */

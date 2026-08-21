@@ -12,9 +12,14 @@
  * `where-control-model.ts` -- pure functions built over
  * `data/opening-scope.ts#resolveOpeningScope`, kept apart from this file's
  * DOM building so they are testable in plain Node (see that module's own
- * doc). This file is the thin layer that turns `WhereControlView` into four
- * real `<calcite-select>`s and wires their changes back through
+ * doc). This file is the thin layer that turns `WhereControlView` into real
+ * `<calcite-select>`s and wires their changes back through
  * `nextSelectionFor*`.
+ *
+ * How many of the four it builds is the host's to say (`finest`). A page
+ * that already owns a drainage-area control stops this one above it, so the
+ * page never shows two controls carrying one label, one parameter and two
+ * different lists (ADR-071).
  *
  * Changing the choice is a navigation on every host this control is wired
  * into (`main.ts`, `snow.ts`, `drought.ts`), the same choice
@@ -39,9 +44,40 @@ import {
   nextSelectionForRegion,
   nextSelectionForState,
   nextSelectionForSubregion,
+  offeredAxes,
   whereControlView,
-  type WhereAxis
+  type WhereAxis,
+  type WhereAxisName
 } from "./where-control-model";
+
+/** What each axis is called, and what a reader's raw pick on it means.
+ *
+ * The visible text says what the axis *is* and the accessible name says what
+ * *changes*, which is `createLevelControl`'s rule and the reason the two
+ * differ: the visible label is already read out, and a screen reader hearing
+ * "Region" twice learns nothing the second time. */
+const AXES: Readonly<Record<WhereAxisName, {
+  visible: string;
+  accessible: string;
+  next: (current: OpeningSelection, rosters: OpeningRosters, chosen: string) => OpeningSelection;
+}>> = {
+  state: {
+    visible: "State", accessible: "Which state to show",
+    next: (current, rosters, chosen) => nextSelectionForState(current, rosters, chosen)
+  },
+  region: {
+    visible: "Region", accessible: "Which region to show",
+    next: (current, _rosters, chosen) => nextSelectionForRegion(current, chosen)
+  },
+  subregion: {
+    visible: "Subregion", accessible: "Which subregion to show",
+    next: (current, _rosters, chosen) => nextSelectionForSubregion(current, chosen)
+  },
+  area: {
+    visible: "Drainage area", accessible: "Which drainage area to show",
+    next: (current, _rosters, chosen) => nextSelectionForArea(current, chosen)
+  }
+};
 
 /** The unnarrowed selection: nothing chosen at any level. Used only to ask
  * "is there anything to choose at all", so a state already narrowed down to
@@ -74,6 +110,28 @@ export interface WhereControlOptions {
    * kind of control rather than as one more of them.
    */
   scale?: "s" | "m" | "l";
+  /**
+   * The finest axis this host wants built. Coarser axes are always built;
+   * everything below this one is left off.
+   *
+   * Default `"area"`, which is the whole drill-down and what the drought
+   * page takes -- there, this control is the only drainage-area control on
+   * the page.
+   *
+   * The storage and snow pages pass something coarser, because they are not
+   * in that position: each already owns a drainage-area control of its own,
+   * reading the same `?area=` this one writes (ADR-071). Two controls on one
+   * page, both labelled "Drainage area" and offering different lists, is one
+   * question asked twice -- and the page's own control is the one that can
+   * answer it, because it is built from what that page actually draws. This
+   * control is built from the published roster, which on snow includes 24
+   * basins holding no measurement site at all: offering them is offering a
+   * choice that empties the page.
+   *
+   * So the rule is one line: **this control stops one step above the page's
+   * own picker.** Snow's picker follows `?level=`, so its `finest` does too.
+   */
+  finest?: WhereAxisName;
 }
 
 /** Builds one `calcite-label`-wrapped `calcite-select` and appends it to
@@ -127,17 +185,20 @@ function fillAxisSelect(select: HTMLElement, axis: WhereAxis): void {
 }
 
 /**
- * Builds the where control: a state select and a region/subregion/drainage-
- * area drill-down, all four repopulated together from one narrowed
- * `whereControlView` every time any of them changes.
+ * Builds the where control: a state select and as much of the
+ * region/subregion/drainage-area drill-down as the host asked for
+ * (`WhereControlOptions.finest`), every built axis repopulated together from
+ * one narrowed `whereControlView` whenever any of them changes.
  *
- * Returns `null` when there is nothing to choose -- both axes empty, which
- * is what an unpublished or unreachable reference export degrades to
- * (`EMPTY_OPENING_ROSTERS` in `data/opening-scope.ts`). A roster that
- * publishes states but no region tier, or the reverse, still builds a
- * control: there is a real choice on at least one axis, so nothing here
- * decides those two are yoked together the way `createLevelControl`'s
- * single select does.
+ * Returns `null` when there is nothing to choose -- every *built* axis
+ * empty, which is what an unpublished or unreachable reference export
+ * degrades to (`EMPTY_OPENING_ROSTERS` in `data/opening-scope.ts`). Judged
+ * over the built axes and not all four, because a host that asked to stop
+ * at region must not be handed a control on the strength of a basin list it
+ * is not showing. A roster that publishes states but no region tier, or the
+ * reverse, still builds a control: there is a real choice on at least one
+ * axis, so nothing here decides those two are yoked together the way
+ * `createLevelControl`'s single select does.
  */
 export function createWhereControl(
   rosters: OpeningRosters,
@@ -145,16 +206,15 @@ export function createWhereControl(
   onChange: (selection: OpeningSelection) => void,
   options: WhereControlOptions = {}
 ): WhereControl | null {
-  const gate = whereControlView(rosters, NOTHING_CHOSEN);
-  /* Nothing to choose on *any* axis, not just the two coarsest. Checking
-   * state and region alone would build no control for a payload that offers
-   * subregions or drainage areas without them -- which is what a scope
-   * narrowed to one state looks like. */
-  const nothingOffered = (axis: WhereAxis): boolean => axis.options.length <= 1;
-  if (nothingOffered(gate.state) && nothingOffered(gate.region)
-    && nothingOffered(gate.subregion) && nothingOffered(gate.area)) return null;
+  const offered = offeredAxes(options.finest ?? "area");
 
-  const view = whereControlView(rosters, current);
+  const gate = whereControlView(rosters, NOTHING_CHOSEN);
+  /* Nothing to choose on *any* offered axis, not just the two coarsest.
+   * Checking state and region alone would build no control for a payload
+   * that offers subregions or drainage areas without them -- which is what
+   * a scope narrowed to one state looks like. */
+  const nothingOffered = (axis: WhereAxis): boolean => axis.options.length <= 1;
+  if (offered.every((name) => nothingOffered(gate[name]))) return null;
 
   const scale = options.scale ?? "m";
   let selection = current;
@@ -162,17 +222,11 @@ export function createWhereControl(
   const wrapper = document.createElement("div");
   wrapper.className = "where-control";
 
-  const stateSelect = buildAxisSelect(wrapper, "State", "Which state to show", scale);
-  const regionSelect = buildAxisSelect(wrapper, "Region", "Which region to show", scale);
-  const subregionSelect = buildAxisSelect(wrapper, "Subregion", "Which subregion to show", scale);
-  const areaSelect = buildAxisSelect(wrapper, "Drainage area", "Which drainage area to show", scale);
+  const selects = new Map<WhereAxisName, HTMLElement>();
 
   function render(): void {
     const next = whereControlView(rosters, selection);
-    fillAxisSelect(stateSelect, next.state);
-    fillAxisSelect(regionSelect, next.region);
-    fillAxisSelect(subregionSelect, next.subregion);
-    fillAxisSelect(areaSelect, next.area);
+    for (const [name, select] of selects) fillAxisSelect(select, next[name]);
   }
 
   function commit(next: OpeningSelection): void {
@@ -181,23 +235,20 @@ export function createWhereControl(
     onChange(selection);
   }
 
-  stateSelect.addEventListener("calciteSelectChange", () => {
-    commit(nextSelectionForState(selection, rosters, (stateSelect as unknown as { value: string }).value));
-  });
-  regionSelect.addEventListener("calciteSelectChange", () => {
-    commit(nextSelectionForRegion(selection, (regionSelect as unknown as { value: string }).value));
-  });
-  subregionSelect.addEventListener("calciteSelectChange", () => {
-    commit(nextSelectionForSubregion(selection, (subregionSelect as unknown as { value: string }).value));
-  });
-  areaSelect.addEventListener("calciteSelectChange", () => {
-    commit(nextSelectionForArea(selection, (areaSelect as unknown as { value: string }).value));
-  });
+  for (const name of offered) {
+    const axis = AXES[name];
+    const select = buildAxisSelect(wrapper, axis.visible, axis.accessible, scale);
+    select.addEventListener("calciteSelectChange", () => {
+      commit(axis.next(selection, rosters, (select as unknown as { value: string }).value));
+    });
+    selects.set(name, select);
+  }
 
-  fillAxisSelect(stateSelect, view.state);
-  fillAxisSelect(regionSelect, view.region);
-  fillAxisSelect(subregionSelect, view.subregion);
-  fillAxisSelect(areaSelect, view.area);
+  /* The first fill is `render()` rather than a second `whereControlView`
+   * call over `current`: `selection` is `current` until a reader touches
+   * something, so the two are the same view, and one of them cannot then
+   * drift from the other. */
+  render();
 
   return { element: wrapper };
 }

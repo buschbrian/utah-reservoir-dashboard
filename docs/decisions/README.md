@@ -58,7 +58,8 @@ The four different scopes, the hydrologic level, and what a link carries.
   [ADR-063](ADR-063-draw-the-west-and-open-on-the-roster.md),
   [ADR-064](ADR-064-offer-two-levels-and-let-the-reader-choose.md),
   [ADR-067](ADR-067-retire-the-state-mask.md),
-  [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md)
+  [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md),
+  [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md)
 - Boundary sourcing: [ADR-024](ADR-024-use-full-resolution-watersheds-for-snow-sites.md),
   [ADR-034](ADR-034-hosted-boundary-layers-with-a-deadline.md),
   [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md)
@@ -188,6 +189,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md) | Move the roster scope west, and decouple the opening box from it | Accepted |
 | [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md) | Deduplicate reservoirs by dam identity | Accepted |
 | [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md) | Where the operator publishes a full level, that is the denominator | Accepted; narrows ADR-003's implementation, not its reasoning |
+| [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md) | One drainage-area control to a page | Accepted |
 
 ## Relationship to the historical journal
 

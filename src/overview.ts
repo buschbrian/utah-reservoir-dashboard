@@ -273,7 +273,7 @@ async function renderOverview(
       <div class="filterbar-head">
         <div class="filterbar-title"><p class="eyebrow">Cross-filter dashboard</p><h2 id="filter-heading">Focus the analysis</h2></div>
         <button id="overview-filter-toggle" class="mobile-filter-toggle" type="button"
-          aria-controls="overview-filter-actions overview-filter-controls"
+          aria-controls="overview-filter-actions overview-filter-search overview-filter-controls"
           aria-expanded="false">Show filters</button>
         <div id="overview-filter-actions" class="filterbar-head-actions">
           <label class="switch-label" for="lake-powell-toggle"><span>Include Lake Powell</span><input id="lake-powell-toggle" type="checkbox" role="switch" checked /></label>
@@ -281,8 +281,19 @@ async function renderOverview(
           <button id="reset-filters" class="reset-button" type="button">Reset view</button>
         </div>
       </div>
-      <div id="overview-filter-controls" class="filterbar-controls">
+      <!-- The open control, above the closed ones and ruled off from them.
+           A search matches a name, a drainage area or a county, all at once
+           and on anything a reader types; every control below it offers a
+           closed list and narrows to one member of it. Laid out among them
+           it read as the first dropdown. -->
+      <div id="overview-filter-search" class="filterbar-search">
         <label>Find a reservoir<input id="reservoir-search" type="search" placeholder="Name, drainage area or county" autocomplete="off" /></label>
+      </div>
+      <!-- Coarsest first, then finest: state, subregion, drainage area,
+           county. The two that are not places come last, because a reader
+           narrowing by geography should not have to step over a reporting
+           schedule to get from one place to a smaller one. -->
+      <div id="overview-filter-controls" class="filterbar-controls">
         <label>State<select id="state-filter"><option value="all">All states</option></select></label>
         <label>Subregion<select id="subregion-filter"><option value="all">All subregions</option></select></label>
         <label>Drainage area<select id="watershed-filter"><option value="all">All drainage areas</option></select></label>

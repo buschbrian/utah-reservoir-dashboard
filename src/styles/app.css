@@ -455,6 +455,21 @@ arcgis-map { width: 100%; height: 100%; min-width: 0; }
 .panel-copy:not(.detail-copy) > * + * { margin-block-start: 1.25rem; }
 .app-footer { padding-block-start: .75rem; border-block-start: 1px solid var(--app-border); font-size: .8125rem; }
 .filters { margin-block-end: 0; }
+/* Where a control that arrives after first paint goes.
+ *
+ * The geographic drill-down waits on the roster and the area size waits on
+ * the reference export, so both used to be appended to the end of whichever
+ * control host they belonged to -- which put "State" below "Reporting" on
+ * the snow page, left two controls named "Drainage area" with four unrelated
+ * ones between them, and landed the drill-down underneath the storage
+ * panel's buttons. Appending cannot express an order when the arrival order
+ * is two races; a slot in the template can, and it says so where the rest of
+ * the layout is.
+ *
+ * `display: contents` so the slot itself is never a grid or flex item. The
+ * control inside it takes that place, exactly as it did when it was appended
+ * directly. */
+.control-slot { display: contents; }
 .filters h3,
 .detail-placeholder h2 { margin: 0; font-size: 1rem; }
 .filter-summary,

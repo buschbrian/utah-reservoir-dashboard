@@ -837,7 +837,14 @@ export async function renderArcgisNormalChart(
   model.addYAxisGuide("At the usual level");
   model.setGuideStart(100, 0, "y");
   model.setGuideEnd(null, 0, "y");
-  model.setGuideLabelText("Usual level for this date", 0, "y");
+  /* Two words, because the label has nowhere to go. The SDK draws a guide's
+   * label at the right-hand end of the line with no alignment control, so
+   * "Usual level for this date" started inside the plot and ran off it --
+   * the reader saw "ual level for this date" lying across the axis. The card
+   * above the chart and the axis title either side of it both already say
+   * "usual storage for this date"; the line only has to be named, not
+   * explained a third time. */
+  model.setGuideLabelText("Usual level", 0, "y");
   model.setGuideStyle({
     type: "esriSLS", style: "esriSLSDash", width: 1.6, color: [...CHART_INK.mean]
   }, 0, "y");
@@ -1034,15 +1041,29 @@ export async function renderArcgisSpreadChart(
    * reservoir far below its neighbours is the one to go and look at. */
   model.showOutliers = true;
   model.showMeanLines = true;
-  /* Quartiles are not a storage level either, so the boxes carry the same
-   * teal the histogram and the trend line do rather than the SDK's grey,
-   * which on the dark page was very nearly the page itself. A gradient
-   * keyed on drainage area, one colour per box, was tried here the same way
-   * as the histogram: `colorMatch` read the renderer but only ever applied
-   * its one base colour to every box alike, whether `showMeanLines` left
-   * this as a single combined series or not -- `seriesLength` never rose
-   * above 1, so there was never more than one box's worth of colour to set
-   * in the first place. */
+  /* One teal for every box, because the SDK will not colour them separately.
+   *
+   * A box plot draws ONE series however many categories it has, and every
+   * colour API here is per series -- which is why `colorMatch` over a
+   * unique-value renderer, over a class-breaks renderer, and over a
+   * continuous visual variable all came back with one flat colour:
+   * `seriesLength` never rose above 1, so there was never more than one
+   * box's worth of colour to set.
+   *
+   * `splitByField` is the SDK's own way to make more series, and it was
+   * tried here too, split on the storage class so five series could carry
+   * the five class colours. It makes the series, and it also reserves a lane
+   * for every one of them inside every category: each box then drew at a
+   * fifth of its row height, a sliver floating at whatever height its class
+   * happened to sort to. That is the same failure the bar chart above
+   * records for splitting by class, and it is worse here, because a box plot
+   * is read by the height and position of the box itself.
+   *
+   * So the boxes stay one colour, and it is deliberately NOT a class colour:
+   * a quartile is not a storage level, and a box drawn in the class table's
+   * teal-blue would invite the reader to read a spread as a level. Per-area
+   * colour needs this chart hand-built as SVG, the way `viz/drought-gap.ts`
+   * draws the same row-per-area shape with full control of every mark. */
   model.meanLinesBoxColor = [...CHART_INK.measureSoft];
   model.setSeriesColor([...CHART_INK.measureSoft], 0);
   /* Every other chart in this file names its series; this one didn't, so

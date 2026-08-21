@@ -73,6 +73,17 @@ export interface MapStatus {
   drainageLabelsUnderReservoirs: boolean;
   drainageLabelsDeconflicted: boolean;
   drainageLevel: number;
+  /**
+   * The level the hover card's per-area storage rollup is keyed at.
+   *
+   * A separate fact from `drainageLevel`, and separate because the two came
+   * apart: the areas drew at four and the rollup stayed keyed at six, so
+   * every code the hover looked up missed and each subregion answered "No
+   * reservoirs in this drainage area are in view" while holding nineteen.
+   * Nothing the map published could tell, which is why this is published.
+   * It should equal `drainageLevel` once both have arrived.
+   */
+  drainageStorageLevel: number;
   reservoirsDrawn: number;
   /** Symbols the reservoir renderer holds -- see `ReservoirLayerResult`. */
   reservoirSymbols: number;
@@ -437,8 +448,34 @@ export async function loadMap(
   let drawn: readonly Reservoir[] = [];
   /* Rebuilt with every draw rather than per hover: the hover path runs on
    * an animation frame, and rolling up every reservoir there would do the
-   * same arithmetic sixty times a second to answer one question. */
+   * same arithmetic sixty times a second to answer one question.
+   *
+   * Keyed at the level the areas are actually drawn at, which is the whole
+   * point of the second argument. Built at the default six and looked up
+   * with whatever code the hovered polygon carries, every hover at
+   * `?level=4` missed: the keys were six digits and the codes were four, so
+   * a subregion holding fourteen reservoirs answered "No reservoirs in this
+   * drainage area are in view". `storageByArea` regroups by the shorter code
+   * exactly -- hydrologic codes nest by construction -- so the fix is to
+   * tell it which level to group at. */
   let areaStorage = storageByArea([]);
+  /* The level `areaStorage` is keyed at, and the level the hovered polygons
+   * carry their codes at. Zero until the areas draw, and nothing can be
+   * hovered before that: `drainageCodeField` is null over the same span. */
+  let drainageLevel = 0;
+  /* Both halves arrive on their own schedule -- the reservoirs with the
+   * payload, the areas with the roster -- and either can be last, so the
+   * rollup is rebuilt from whichever fact just changed rather than at one
+   * of the two call sites. */
+  const refreshAreaStorage = (): void => {
+    areaStorage = drainageLevel === 0
+      ? storageByArea(drawn)
+      : storageByArea(drawn, drainageLevel);
+    status.drainageStorageLevel = drainageLevel;
+    if (window.__dashboardReady) {
+      window.__dashboardReady.drainageStorageLevel = drainageLevel;
+    }
+  };
   wirePointerSelection(element, selection, () => drawn, () => reservoirLayer);
   /* Hover, on the shared wiring the snow and drought maps also use. The
    * card is the one the shell template already places inside `.map-stage`;
@@ -525,6 +562,7 @@ export async function loadMap(
     drainageLabelsUnderReservoirs: false,
     drainageLabelsDeconflicted: false,
     drainageLevel: 0,
+    drainageStorageLevel: 0,
     reservoirsDrawn: 0,
     reservoirSymbols: 0,
     reservoirLabels: false,
@@ -651,7 +689,7 @@ export async function loadMap(
       reservoirLayerView = null;
       const result = createReservoirLayer(reservoirs, percentOf);
       drawn = reservoirs;
-      areaStorage = storageByArea(reservoirs);
+      refreshAreaStorage();
       reservoirLayer = result.layer;
       map.add(result.layer);
       /* Added after the points so a selected reservoir is not covered by
@@ -722,6 +760,8 @@ export async function loadMap(
         labelsVisible: true
       });
       drainageCodeField = watershedCodeField(level);
+      drainageLevel = level;
+      refreshAreaStorage();
       map.add(drainageLayer, referenceSunk);
       status.drainageLevel = level;
       status.drainageAreas = areas.length;

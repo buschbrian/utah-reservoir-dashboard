@@ -77,6 +77,7 @@ import { levelFromSearch, writeLevel } from "./state/level";
 import { snowStateFromSearch, writeSnowUrl } from "./state/snow-url";
 import type { SnowpackPayload } from "./types";
 import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header";
+import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
@@ -253,6 +254,17 @@ function formatInches(value: number | null): string {
  * this page is a mean over a different set of sites once the area or the
  * state narrows, so a picked value takes the path a shared link already
  * takes rather than a re-render this page has no function for.
+ *
+ * It stops one step above `#snow-area`, this page's own drainage-area
+ * picker, and does not repeat it (ADR-071). `#snow-area` is built from
+ * `basinChoices` -- the areas this payload has a publishable figure for, at
+ * the size `?level=` is drawing them, with each one's site count in the
+ * label. The shared control is built from the published roster, which holds
+ * 24 basins with no measurement site in them at all; offering those here
+ * would be offering a choice that empties the page. So the two never both
+ * name the same tier: at level 6 this control ends at subregion and
+ * `#snow-area` carries the basins, and at level 4 it ends at region and
+ * `#snow-area` carries the subregions.
  */
 function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
   const host = document.querySelector<HTMLElement>("#snow-content .filterbar-controls");
@@ -265,8 +277,8 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
       window.location.replace(`${window.location.pathname}${query}`);
     /* Large, because the native selects it sits beside are a third taller
      * than a Calcite control at the default scale. */
-  }, { scale: "l" });
-  if (control) host.append(control.element);
+  }, { scale: "l", finest: level >= 6 ? "subregion" : "region" });
+  if (control) placeInSlot(host, "where", control.element);
 }
 
 function renderSnow(
@@ -285,13 +297,29 @@ function renderSnow(
         <button id="snow-filter-toggle" class="mobile-filter-toggle" type="button"
           aria-controls="snow-filter-search snow-filter-controls snow-filter-actions"
           aria-expanded="false">Show filters</button>
-        <!-- Beside the title rather than in the control row below: this search
-             narrows the site table further down the page, not the drainage
-             area the rest of the row is choosing among. -->
-        <label id="snow-filter-search" class="filterbar-head-search">Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
       </div>
+      <!-- Its own row above the dropdowns, ruled off from them, the same as
+           the storage charts page. This search narrows the site table further
+           down the page, not the drainage area the row below is choosing
+           among, and it takes anything a reader types where every control
+           below offers a closed list. It used to ride in the head row beside
+           the title, which said the first half of that and not the second. -->
+      <div id="snow-filter-search" class="filterbar-search">
+        <label>Site name or county<input id="snow-query" type="search" placeholder="Search sites" autocomplete="off"></label>
+      </div>
+      <!-- Coarsest place first, then finer, then how finely the ground is
+           divided, then the filters that are not places at all.
+           #snow-area is the last of the places, not the first of the
+           filters: the shared control above it stops one step short and
+           leaves this page's own picker to carry the finest tier
+           (ADR-071), so the run of place controls ends here. The where
+           slot is filled once the roster resolves and the level slot once
+           the reference export does; see the control-slot rule in app.css
+           for why these are slots and not appends. -->
       <div id="snow-filter-controls" class="filterbar-controls">
+        <div class="control-slot" data-slot="where"></div>
         <label>Drainage area<select id="snow-area"><option value="all">The whole region</option></select></label>
+        <div class="control-slot" data-slot="level"></div>
         <label>Elevation<select id="snow-elev">${ELEVATION_BANDS.map((band) => `<option value="${band}">${elevationBandLabel(band)}</option>`).join("")}</select></label>
         <label>Reporting<select id="snow-reporting">
           <option value="all">Every site</option>
@@ -1068,7 +1096,8 @@ function renderSnow(
       /* Large, because the native selects it sits beside are a third taller
        * than a Calcite control at the default scale. */
     }, { scale: "l" });
-    if (control) content.querySelector(".filterbar-controls")?.append(control.element);
+    const levelHost = content.querySelector<HTMLElement>(".filterbar-controls");
+    if (control && levelHost) placeInSlot(levelHost, "level", control.element);
     levelsOffered = offered.length || 1;
     publishReady();
   }).catch((error: unknown) => {
