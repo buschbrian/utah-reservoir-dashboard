@@ -83,16 +83,20 @@ service does not answer.
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the Vite development server. |
-| `npm run typecheck` | Check the strict TypeScript project. |
-| `npm test` | Run the Vitest unit suite. |
-| `npm run budget:sdk` | Check the ArcGIS 5.1 bundle against its measured budget. |
-| `npm run build` | Typecheck, run unit tests, check the SDK budget, and build `dist/`. |
-| `python -m pytest tests/ -q` | Run pipeline, source, geography, and measurement tests. |
-| `node tests/smoke.mjs` | Check the three compatibility redirects in Chromium. |
-| `node tests/smoke-modern.mjs` | Check every current page at desktop and phone widths, including axe-core. |
+| `npm run verify:fast` | Typecheck and run the Vitest unit suite. |
+| `npm run verify:frontend` | Typecheck, unit tests, SDK bundle budget, and build `dist/`. |
+| `npm run verify:pipeline` | Run pipeline, source, geography, and measurement tests. |
+| `npm run verify:browser` | Build, then check every page in Chromium, including axe-core. |
+| `npm run verify:all` | Everything above, in order. |
+| `scripts/refresh-daily.sh --dry-run` | Print the daily refresh plan and its published file list. |
 | `python refresh_reservoirs.py --dry-run` | Fetch and validate reservoir data without writing. |
 | `python tools/build_normal_baselines.py --missing` | Build only missing 1991–2020 reservoir comparisons. |
 | `node tools/audit-transfer.mjs` | Measure page requests and hosts against a built `dist/`. |
+
+The individual steps (`npm run typecheck`, `npm test`, `npm run budget:sdk`,
+`npm run build`, `node tests/smoke.mjs`, `node tests/smoke-modern.mjs`) all
+still exist; the `verify:*` targets are what CI runs and what
+[`docs/operations/verification.md`](docs/operations/verification.md) explains.
 
 Playwright is intentionally not a package dependency. Restore it after an
 ordinary `npm install` with:
@@ -198,7 +202,9 @@ Maps SDK for JavaScript 5.1, ArcGIS Charts 5.1, and Calcite Components 5.1.
 | `legacy/`, `maplibre/`, `explore.html` | Compatibility redirects only. |
 | `public/retired-route.js` | Allowlisted translation for retired URL state. |
 | `shared/reservoir-viz.js` | Frozen source-only storage color-table oracle; never published. |
-| `refresh_reservoirs.py`, `refresh_snowpack.py` | Reservoir and snow refresh pipelines. |
+| `refresh_reservoirs.py`, `pipeline/` | Reservoir refresh: the orchestrator, and one module per concern. |
+| `refresh_snowpack.py` | Snow refresh pipeline. |
+| `scripts/` | Verification entry points and the daily refresh orchestration. |
 | `huc.py`, `watershed_scopes.py` | Drainage assignment, grouping, and named-scope contracts. |
 | `tools/` | Source audits, boundary work, drought processing, symbol profiling, and transfer measurement. |
 
@@ -273,11 +279,12 @@ Start with [`docs/README.md`](docs/README.md) for the maintained documentation
 index. Key records include:
 
 - [`CHANGELOG.md`](CHANGELOG.md) — user-facing changes, excluding daily data refreshes;
-- [`MODERNIZATION_PLAN.md`](MODERNIZATION_PLAN.md) — historical roadmap and implementation journal;
+- [`docs/history/modernization-2026.md`](docs/history/modernization-2026.md) — historical roadmap and implementation journal;
 - [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md) — current data ownership and failure behavior;
 - [`docs/data-transfer.md`](docs/data-transfer.md) — measured page and payload cost;
 - [`docs/decisions/`](docs/decisions/) — immutable architecture decisions and their current status;
-- [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) — repository rules and verification guidance; and
+- [`AGENTS.md`](AGENTS.md) — the repository contract and the routing layer to every scoped rule, with [`CLAUDE.md`](CLAUDE.md) adding only Claude-specific behaviour;
+- [`docs/architecture/`](docs/architecture/README.md) — how the system works now; and
 - [`maplibre/README.md`](maplibre/README.md) — archived findings from the retired comparison runtime.
 
 ## Known limitations

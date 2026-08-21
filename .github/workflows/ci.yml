@@ -1,6 +1,11 @@
 name: CI
 
-# Runs on every push and PR. Neither of these jobs existed before, which is
+# Runs on every push and PR. Each job runs the same entry point a contributor
+# runs locally -- `npm run verify:frontend`, `verify:pipeline`,
+# `verify:browser` -- split into named steps here because when this goes red on
+# a data-refresh morning, the step name is the whole diagnosis.
+#
+# Neither of these jobs existed before, which is
 # why a page that rendered zero reservoirs could ship green: nothing checked
 # the data script's behavior, and nothing ever loaded the dashboards.
 on:
@@ -49,8 +54,10 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install -r requirements-test.txt
+      # The same entry point `npm run verify:pipeline` runs locally, so a
+      # green run there is a green job here.
       - name: Run tests
-        run: python -m pytest tests/ -v
+        run: scripts/verify-pipeline.sh -v
 
   browser-smoke:
     name: Dashboard smoke test

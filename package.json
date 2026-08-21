@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite --open /",
     "build": "tsc --noEmit && vitest run && npm run budget:sdk && vite build",
+    "verify:fast": "tsc --noEmit && vitest run",
+    "verify:frontend": "npm run build",
+    "verify:pipeline": "scripts/verify-pipeline.sh -q",
+    "verify:browser": "scripts/verify-browser.sh",
+    "verify:all": "npm run verify:frontend && npm run verify:pipeline && npm run verify:browser",
     "budget:sdk": "node scripts/check-sdk-bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
