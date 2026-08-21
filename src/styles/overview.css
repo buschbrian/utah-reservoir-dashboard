@@ -335,6 +335,29 @@ body {
   --chart-height: 100%;
 }
 .chart-empty { display: grid; place-items: center; height: 100%; margin: 0; color: var(--app-muted); }
+/* What a chart could not draw, said under it. Quieter than the card's own
+   copy and louder than a caption: it names reservoirs the reader is looking
+   for and cannot find. */
+.chart-note {
+  margin: .5rem 0 0;
+  color: var(--app-muted);
+  font-size: .8rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.chart-note p { margin: 0; }
+/* Laid out as a row of short entries rather than a bulleted column: each one
+   is a name and a number, and four of them stacked reads as a list of
+   problems instead of a footnote about scale. */
+.chart-note ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .15rem 1rem;
+  margin: .2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chart-note li { min-width: 0; }
 .table-card { margin-block-start: .75rem; }
 .table-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; justify-content: end; min-width: 0; }
 .sort-control { min-width: 10rem; }
