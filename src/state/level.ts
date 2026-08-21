@@ -43,6 +43,7 @@ export function writeLevel(params: URLSearchParams, level: number): void {
  * vocabulary ADR-006 keeps off the page, and "subregion" is the word this
  * site already uses for the same thing in the storage filters. */
 export const LEVEL_LABELS: Readonly<Record<number, string>> = {
+  2: "Regions",
   4: "Subregions",
   6: "Basins"
 };

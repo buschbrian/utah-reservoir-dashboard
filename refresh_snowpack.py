@@ -320,12 +320,20 @@ def build_payload(inventory: dict, records: list[dict], as_of: date,
         # with a water year of nulls behind it.
         "missing_site_count": len(missing_sites),
         "rollups": rollups,
-        # The coarser grouping, for a reader who asks for subregions rather
-        # than basins (ADR-064). Names only: the codes are the first four
-        # digits of a code every site and rollup already carries, because
+        # The coarser groupings, one per offered level below this payload's
+        # own (ADR-064, ADR-073). Names only: the codes are the first four or
+        # two digits of a code every site and rollup already carries, because
         # hydrologic codes are fixed-width. Derived from the sites in this
-        # payload, so it can never name an area the payload does not cover.
+        # payload, so neither can name an area the payload does not cover.
+        #
+        # Both tables, not one: a client drawing at level 2 needs the region
+        # names, and a coarser table cannot be derived from a finer one --
+        # `subregions` holds "Colorado Headwaters" for 1401 and says nothing
+        # about what 14 is called. Without this the region picker labelled
+        # itself "14 (137 sites)", which is the failure `west-huc2` is
+        # published to prevent.
         "subregions": huc.subregion_roster(site["huc6"] for site in normalized),
+        "regions": huc.region_roster(site["huc6"] for site in normalized),
         "sites": compact_sites,
     }
 

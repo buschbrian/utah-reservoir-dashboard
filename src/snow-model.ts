@@ -98,8 +98,14 @@ export function payloadAtLevel(
   payload: SnowpackPayload, level: number
 ): SnowpackPayload {
   if (level >= 6) return payload;
-  const names = new Map((payload.subregions ?? []).map(
-    (entry) => [entry.huc4, entry.name]));
+  /* The table for *this* level, not a fixed one. A coarser name cannot be
+   * derived from a finer table -- `subregions` holds "Colorado Headwaters"
+   * for 1401 and says nothing about what 14 is called -- so reading the
+   * HUC-4 table while drawing regions labelled every one of them by code,
+   * and the picker read "14 (137 sites)". */
+  const names = new Map<string, string>(level <= 2
+    ? (payload.regions ?? []).map((entry) => [entry.huc2, entry.name])
+    : (payload.subregions ?? []).map((entry) => [entry.huc4, entry.name]));
   const label = (code: string): string => {
     const name = names.get(code);
     return name !== undefined && name !== "" ? name : code;

@@ -143,16 +143,32 @@ function describeObservations(coverage: RollupCoverage): string {
     : `${span} · ${formatPercent(onTime)} of the full level read on time`;
 }
 
-/** What the combined full level divides by, when it divides by more than one thing. */
+/**
+ * What the combined full level divides by, when it divides by more than one
+ * thing.
+ *
+ * The two largest by capacity, then a count of the rest. Every kind was named
+ * until there were six of them, and the sentence ran to 27 words -- over
+ * ADR-006's limit, and unreadable in a tile's small print well before that.
+ * Its length followed the data, so it was inside the limit on the morning it
+ * was written and outside it on the morning a sixth basis appeared.
+ *
+ * Two rather than one, because the point of the tile is that the denominator
+ * is mixed; `basisShares` is sorted by capacity, so these are the two that
+ * carry it. The complete breakdown is not lost -- every reservoir publishes
+ * its own `capacity_basis`, and the details panel names each one in full.
+ */
 function describeDenominator(rollup: StatewideRollup): string {
   const shares = rollup.basisShares;
   const only = shares[0];
   if (!only) return "No reservoirs in view";
   if (shares.length === 1) return `Measured against ${only.label.toLowerCase()}`;
-  const named = shares
+  const named = shares.slice(0, 2)
     .map((share) => `${share.label.toLowerCase()} ${share.count}`)
     .join(", ");
-  return `Full levels: ${named}`;
+  const rest = shares.length - 2;
+  if (rest <= 0) return `Full levels: ${named}`;
+  return `Full levels: ${named}, and ${rest} other ${rest === 1 ? "kind" : "kinds"}`;
 }
 
 function updateKpis(

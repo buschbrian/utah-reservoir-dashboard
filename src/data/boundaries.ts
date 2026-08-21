@@ -258,17 +258,17 @@ export interface DrainageScope {
 /**
  * The levels this site's figures exist at.
  *
- * Six is where every figure is keyed and where the maps open. Four is the
- * other one a reader may choose (ADR-064), and it is on this list because the
- * figures are *published* there -- drought coverage computed per level,
- * storage regrouped on a code prefix, snow recomputed from its sites -- and
- * not because the outlines can be drawn at it.
+ * Six is where every figure is keyed and where the maps open. Four and two
+ * are the others a reader may choose (ADR-064, ADR-073), and they are on this
+ * list because the figures are *published* there -- drought coverage computed
+ * per level, storage regrouped on a code prefix, snow recomputed from its
+ * sites -- and not because the outlines can be drawn at them.
  *
  * That is the whole condition. Drawing a scope at a size no figure describes
  * puts shapes on the map whose hover cards come back empty, so a level that
  * is not on this list draws and says so out loud (ADR-050).
  */
-export const JOINABLE_LEVELS: readonly number[] = [4, 6];
+export const JOINABLE_LEVELS: readonly number[] = [2, 4, 6];
 
 /** Where every map opens, and what a reader who chooses nothing gets. */
 export const DEFAULT_LEVEL = 6;

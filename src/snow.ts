@@ -80,6 +80,7 @@ import { brandMarkup, pageLinksMarkup, updatePageLinks } from "./ui/page-header"
 import { placeInSlot } from "./ui/dom";
 import { createLevelControl } from "./ui/level-control";
 import { createWhereControl } from "./ui/where-control";
+import type { WhereAxisName } from "./ui/where-control-model";
 import { createSnowMap, type SnowMapController } from "./ui/snow-map";
 import { createViewMap, mapStatusNote } from "./ui/view-map";
 import { nameSliderHandle } from "./ui/slider-label";
@@ -266,6 +267,14 @@ function formatInches(value: number | null): string {
  * `#snow-area` carries the basins, and at level 4 it ends at region and
  * `#snow-area` carries the subregions.
  */
+/** The finest axis the shared control builds, by the level this page draws.
+ * One step above `#snow-area`'s own tier at each of them (ADR-071). */
+const FINEST_SHARED_AXIS: Readonly<Record<number, WhereAxisName>> = {
+  2: "state",
+  4: "region",
+  6: "subregion"
+};
+
 function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): void {
   const host = document.querySelector<HTMLElement>("#snow-content .filterbar-controls");
   if (!host) return;
@@ -277,7 +286,15 @@ function wireWhereControl(rosters: OpeningRosters, current: OpeningSelection): v
       window.location.replace(`${window.location.pathname}${query}`);
     /* Large, because the native selects it sits beside are a third taller
      * than a Calcite control at the default scale. */
-  }, { scale: "l", finest: level >= 6 ? "subregion" : "region" });
+    /* One step above whatever tier `#snow-area` is holding, which follows
+     * `?level=` (ADR-071). At level 6 that picker holds basins and this stops
+     * at subregion; at 4 it holds subregions and this stops at region; at 2 it
+     * holds the regions themselves and this stops at state. Written as a
+     * lookup rather than a comparison because the last case is not the same
+     * shape as the other two -- `level >= 6 ? "subregion" : "region"` gave
+     * region at level 2 as well, which is the tier the page's own picker was
+     * already offering. */
+  }, { scale: "l", finest: FINEST_SHARED_AXIS[level] ?? "subregion" });
   if (control) placeInSlot(host, "where", control.element);
 }
 

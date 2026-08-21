@@ -42,13 +42,25 @@ reservoirs too small to point at. That literal equals the frozen oracle's own
 the opening view is carried by `src/data/opening-scope.ts` and the first-visit
 chooser instead — `unionOfAreaBoxes` over whatever place a reader picked.
 
-## Two levels are offered and the reader picks (ADR-064)
+## Three levels are offered and the reader picks (ADR-064, ADR-073)
 
-HUC-6 is the default and HUC-4 is the other; every figure is published at both,
-which is what makes a reader-chosen level a scope change rather than the
-view-scale change ADR-050 refuses. Drought coverage is computed per level;
-storage regroups on `huc6[:4]`, exact because codes nest; snow regroups from
-*sites* with the pipeline's rule, never by averaging the published basin means.
+HUC-6 is the default; HUC-4 and HUC-2 are the others. Every figure is published
+at all three, which is what makes a reader-chosen level a scope change rather
+than the view-scale change ADR-050 refuses. Drought coverage is computed per
+level; storage regroups on `huc6[:level]`, exact because codes nest; snow
+regroups from *sites* with the pipeline's rule, never by averaging the
+published basin means.
+
+**A name is a figure too.** Each coarser level needs a roster published beside
+the numbers, or a picker labels its areas by code — the snow region picker read
+"14 (137 sites)" for exactly as long as `regions` was missing from the payload
+while `subregions` was there. `huc.coarser_roster` builds one per level and
+both refresh scripts publish both tables.
+
+**Level 2 draws from the USGS service, levels 4, 6 and 8 from the Living
+Atlas** (ADR-073, ADR-034). Same dataset, two publishers, and
+`src/arcgis/watershed-layers.ts` says which is which and why. `connect-src`
+names `hydro.nationalmap.gov` for the first of them.
 
 **`?level=` is one parameter across all three maps**, like `?area=`, and it
 carries the digit count rather than a word because that is what every payload
@@ -63,7 +75,8 @@ a template, because which levels are on offer is the export's answer
 **The maps draw the level the payload declares** (ADR-050). No client file
 names a hydrologic level; it arrives as `DrainageScope { level, areas }` and the
 code is read from the attribute that level names. `JOINABLE_LEVEL` in
-`src/data/boundaries.ts` is the level every figure on the site is keyed at, and
+`src/data/boundaries.ts` is the set of levels every figure on the site is keyed
+at, and
 a scope published at another size says so out loud rather than drawing areas
 whose hover cards come back empty. Level is deliberately *not* driven by view
 scale: a finer outline a reader can point at, with no figure behind it, is less
@@ -139,7 +152,7 @@ the shared one **stops one step above it**:
 | Page | Its own control | The where control offers |
 |---|---|---|
 | Storage | `[data-filter="drainage"]` — the basins the map holds, plus the coarser code a link opened on | state → region → subregion |
-| Snow | `#snow-area` — the areas with a publishable figure at `?level=`, with site counts | state → region → subregion at level 6, state → region at level 4 |
+| Snow | `#snow-area` — the areas with a publishable figure at `?level=`, with site counts | one step above that tier: state → region → subregion at level 6, state → region at level 4, state alone at level 2 |
 | Drought | none | the whole drill-down |
 
 The reason is that both controls answer one question. On snow both write

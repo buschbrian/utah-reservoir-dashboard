@@ -978,10 +978,14 @@ def main() -> int:
             "in_utah": sum(1 for r in records if r.get("in_utah")),
             "intersects_utah": sum(1 for r in records
                                     if r.get("intersects_utah")),
-            # The coarser grouping, for a reader who wants subregions rather
-            # than the fourteen areas. Derived from the codes in this payload,
-            # so it can never name an area the payload does not contain.
+            # The coarser groupings, one per offered level below this
+            # payload's own (ADR-064, ADR-073). Derived from the codes in this
+            # payload, so neither can name an area the payload does not
+            # contain. Both tables, because a coarser one cannot be derived
+            # from a finer: `subregions` says what 1401 is called and nothing
+            # about what 14 is.
             "subregions": huc.subregion_roster(r.get("huc6") for r in records),
+            "regions": huc.region_roster(r.get("huc6") for r in records),
         },
         # Counties are described in the envelope for the same reason, and
         # carry their assignment rule for the opposite one: it is deliberately

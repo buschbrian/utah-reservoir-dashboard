@@ -133,12 +133,19 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("in_utah", "reservoirs", "Records whose provider point is in Utah."),
     f("intersects_utah", "reservoirs", "Records whose reviewed waterbody reaches Utah."),
     f("subregions", "array",
-      "Four-digit subregions the drainage areas roll up into, with their names.")
+      "Four-digit subregions the drainage areas roll up into, with their names."),
+    f("regions", "array",
+      "Two-digit regions they roll up into, with their names.")
   ]},
   { id: "reservoir-subregion", title: "Subregion", path: "watersheds.subregions[]",
     fields: [
       f("huc4", "identifier", "Four-digit subregion code."),
       f("name", "text", "Subregion name.")
+    ]},
+  { id: "reservoir-region", title: "Region", path: "watersheds.regions[]",
+    fields: [
+      f("huc2", "identifier", "Two-digit region code."),
+      f("name", "text", "Region name.")
     ]},
   { id: "reservoir-record", title: "Reservoir record", path: "reservoirs[]", fields: [
     f("name", "text", "Reservoir name."),
@@ -264,6 +271,9 @@ export const SNOW_GROUPS: readonly ApiFieldGroup[] = [
       "Names of the larger drainage areas the sites fall in, for a reader " +
       "who asks for that grouping. Codes are the first four digits of each " +
       "site's own drainage-area code."),
+    f("regions", "array",
+      "The same one size larger, for a reader who asks for regions. Codes " +
+      "are the first two digits of each site's own drainage-area code."),
     f("series_dates", "array", "The water-year calendar the sites index into, ascending, written once."),
     f("source", "web address", "Provider service address."),
     f("site_count", "sites", "Number of published monitoring sites."),

@@ -63,6 +63,13 @@
       "note": "The other offered level (ADR-064). A reader who changes the level fetches this file, so it is committed with the others or it strands them on another week."
     },
     {
+      "path": "data/drought/usdm-huc2.json",
+      "class": "generated-daily",
+      "writer": "tools/compute_drought_coverage.py --scope west-huc2 --no-history",
+      "staged_by_refresh": true,
+      "note": "The coarsest offered level (ADR-073). Committed with the other two for the same reason: a reader who changes the level fetches this file, and a week behind the others is a level that disagrees with itself."
+    },
+    {
       "path": "data/drought/usdm-huc6-history.json",
       "class": "generated-archive",
       "writer": "tools/compute_drought_coverage.py",

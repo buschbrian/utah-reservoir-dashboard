@@ -1,9 +1,11 @@
-"""Check that the two committed drought files describe the same week, and how
+"""Check that the committed drought files all describe the same week, and how
 old that week is.
 
 `data/drought/usdm-current.geojson` is the download, and one file per offered
-level -- `usdm-huc6.json` and `usdm-huc4.json` -- is the per-drainage-area
-coverage computed from it. The drought view refuses to draw when the pair it
+level -- `usdm-huc6.json`, `usdm-huc4.json` and `usdm-huc2.json` -- is the
+per-drainage-area coverage computed from it. The levels are named here only to
+say what the files are; `coverage_paths` finds them rather than listing them,
+which is why adding a level needed no change to this tool. The drought view refuses to draw when the pair it
 loaded names different weeks, and it is right to: two files describing two
 different weeks is a pipeline fault, and rendering a map of one week over
 figures from another would be worse than showing nothing.

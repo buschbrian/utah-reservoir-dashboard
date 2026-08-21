@@ -53,7 +53,7 @@ if [ "$dry_run" = 1 ]; then
   note "Refresh plan, in order:"
   note "  1. reservoirs      $python_bin refresh_reservoirs.py (3 attempts, 1/3/9 min)"
   note "  2. drought polygons $python_bin tools/fetch_drought_monitor.py"
-  note "  3. drought coverage $python_bin tools/compute_drought_coverage.py, both levels"
+  note "  3. drought coverage $python_bin tools/compute_drought_coverage.py, every offered level"
   note "  4. pair check       $python_bin tools/check_drought_pair.py"
   note "  5. snow             $python_bin refresh_snowpack.py"
   note "  6. commit the published set:"
@@ -108,8 +108,9 @@ fi
 # coverage file that somehow fell behind is repaired by the next run instead of
 # waiting for someone to notice.
 if ! "$python_bin" tools/compute_drought_coverage.py \
-   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc4 --no-history; then
-  warn "Coverage failed" "Reverting the polygons so the pair stays on one week"
+   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc4 --no-history \
+   || ! "$python_bin" tools/compute_drought_coverage.py --scope west-huc2 --no-history; then
+  warn "Coverage failed" "Reverting the polygons so the set stays on one week"
   git checkout -- data/drought/usdm-current.geojson
 fi
 
@@ -120,7 +121,8 @@ fi
 if ! "$python_bin" tools/check_drought_pair.py; then
   warn "Drought files mismatched" "Restoring all of them from the last commit"
   git checkout -- data/drought/usdm-current.geojson \
-    data/drought/usdm-huc6.json data/drought/usdm-huc4.json
+    data/drought/usdm-huc6.json data/drought/usdm-huc4.json \
+    data/drought/usdm-huc2.json
 fi
 
 # 5. Snow has its own payload and its own failure mode. The reviewed inventory

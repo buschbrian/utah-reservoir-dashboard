@@ -86,22 +86,24 @@ def test_the_finest_western_scope_is_registered_and_draws_nothing():
     assert scope.expected_range is not None
 
 
-def test_the_region_scope_is_published_for_its_names_but_never_drawn():
+def test_the_region_scope_is_published_for_its_names_and_drawn():
     """Five two-digit codes, registered so `reference.json` can carry the
     region names -- 14 Upper Colorado, 15 Lower Colorado, 16 Great Basin, 17
     Pacific Northwest, 18 California -- and not from a table written down in
     a TypeScript file, which ADR-002 refuses (decision D3,
     OPENING-SCOPE-AND-THE-WESTERN-ROSTER.md).
 
-    Published, unlike `west-huc8`: the roster travels in the export today,
-    not once the geography has been reviewed. But never drawn (decision D2):
-    a region is an entry vocabulary a reader narrows the existing HUC-4 or
-    HUC-6 view with (`?area=14`), not a size the ground is drawn at. Drawing
-    five regions would mean five drought rows and five storage groups, a
-    coarser answer to a question nobody asked -- so `west-huc2` must not
-    appear in `DRAWN_SCOPES`, which `build_watershed_sections` already
-    asserts every entry of is published (a published scope that is not drawn
-    is a state this file already allowed for, in `upper-colorado`).
+    Published, and drawn since ADR-073. It was deliberately not drawn before
+    that (decision D2), on the grounds that five drought rows and five storage
+    groups are a coarser answer to a question nobody asked -- true while the
+    level was the site's to choose, and answered by ADR-064 making it the
+    reader's: HUC-6 is still the default and every map still opens at it.
+
+    The five regions and their names are the assertion that has not changed,
+    and it is the one that matters here. `?area=14` still resolves against
+    this roster whatever level the reader is drawing at, so a splash tile or a
+    filter reading "region 15" instead of "Lower Colorado" stays the failure
+    this scope exists to prevent.
     """
     scope = get_scope("west-huc2")
 
@@ -109,7 +111,7 @@ def test_the_region_scope_is_published_for_its_names_but_never_drawn():
     assert scope.output == "data/watersheds/west-huc2.geojson"
     assert scope.published
     assert scope.expected_count == 5
-    assert "west-huc2" not in DRAWN_SCOPES.values()
+    assert DRAWN_SCOPES[2] == "west-huc2"
 
     units = load_scope_units("west-huc2")
     assert [unit["huc6"] for unit in units] == ["14", "15", "16", "17", "18"]

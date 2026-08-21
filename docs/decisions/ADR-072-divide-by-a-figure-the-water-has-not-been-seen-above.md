@@ -97,17 +97,23 @@ above to the headline figure that contains it.
 | | before | after |
 |---|---:|---:|
 | published above 110% full | 4 | **0** |
-| published above 100% full | 10 | 6 |
+| published above 100% full | 10 | 5 |
 | highest published percentage | 223.7% | **104.0%** |
-| `normal_storage` denominators | 229 | 216 |
-| `max_storage` denominators | 74 | 86 |
+| `normal_storage` denominators | 229 | 217 |
+| `max_storage` denominators | 74 | 85 |
+| `nid_storage` denominators | 0 | 1 |
+
+Counted on the published payload after the refresh that first applied this,
+not predicted from it. Twelve reservoirs left `normal_storage` for
+`max_storage`; Thief Valley left `max_storage` for `nid_storage`, which is why
+the second row moves by eleven rather than twelve.
 
 Verified end to end through the pipeline rather than by arithmetic on the
 committed payload: `refresh_reservoirs.py --only Detroit "Green Peter"
 --source awdb --dry-run` publishes 76.2% and 45.5% against 223.7% and 122.4%.
 
-The six still above 100 are surcharge inside the allowance — Thompson Falls at
-104.0%, Black Canyon at 103.2% — and they keep their conservation pools
+The five still above 100 are surcharge inside the allowance — Thompson Falls
+at 104.0%, Black Canyon at 103.2% — and they keep the denominators they had
 deliberately.
 
 ## Consequences

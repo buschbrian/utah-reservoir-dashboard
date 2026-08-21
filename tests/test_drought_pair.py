@@ -108,7 +108,7 @@ class TestCommittedFiles:
         published = coverage_paths()
 
         assert [path.name for path in published] == [
-            "usdm-huc4.json", "usdm-huc6.json"]
+            "usdm-huc2.json", "usdm-huc4.json", "usdm-huc6.json"]
         for path in published:
             coverage = json.loads(path.read_text(encoding="utf-8"))
             assert check_pair(polygons, coverage) == [], (
