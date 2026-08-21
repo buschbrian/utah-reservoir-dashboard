@@ -20,9 +20,12 @@ represent 43 of the 75 drawn drainage areas, adding Lower Sacramento, San
 Joaquin and Central California Coastal. The tables below preserve the
 measurements and projections as they stood when this plan ordered the work.
 
-R3 remains the next roster slice: the non-federal sources, starting with the
-Colorado and California reviews already measured in
-`CDSS-CDEC-API-REVIEW.md`.
+R3's first source landed 2026-08-20: **California**, 142 reservoirs and 25.7
+million acre-feet, read from the state's own service. The roster is 365
+published across 52 of the 75 drawn areas, and California is the largest state
+on it by count. The slice's real decision was not the fetching but the
+denominator -- ADR-070 -- and 21 candidates are held rather than published,
+each named with its finding. Colorado is what remains of R3.
 
 It continues [`INITIAL-SCOPE-SELECTION.md`](INITIAL-SCOPE-SELECTION.md), which
 settled the splash's expensive decisions, and
@@ -418,7 +421,8 @@ preferably** — see the coupling above.
 **R2 — Admit the RISE west.** The same shape, one provider later, deduped by
 position against everything R1 published.
 
-**R3 — Non-federal sources.** Not scoped here.
+**R3 — Non-federal sources.** Not scoped here. California delivered
+2026-08-20 (ADR-070); Colorado outstanding.
 
 ### What collides with what
 

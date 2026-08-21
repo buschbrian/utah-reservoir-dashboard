@@ -1356,17 +1356,869 @@
       "county_name": "Box Elder County",
       "state": "UT"
     },
+    "ALM": {
+      "name": "Lake Almanor",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "ANT": {
+      "name": "Antelope Lake",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "APN": {
+      "name": "Alpine Lake",
+      "county_fips": "06041",
+      "county_name": "Marin County",
+      "state": "CA"
+    },
+    "ATN": {
+      "name": "Lake San Antonio, Monterey Co",
+      "county_fips": "06053",
+      "county_name": "Monterey County",
+      "state": "CA"
+    },
+    "BCL": {
+      "name": "Bucks Lake Storage",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "BIO": {
+      "name": "Briones Dam",
+      "county_fips": "06013",
+      "county_name": "Contra Costa County",
+      "state": "CA"
+    },
+    "BIT": {
+      "name": "Lake Britton",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "BLB": {
+      "name": "Black Butte",
+      "county_fips": "06103",
+      "county_name": "Tehama County",
+      "state": "CA"
+    },
+    "BQC": {
+      "name": "Bouquet Canyon",
+      "county_fips": "06037",
+      "county_name": "Los Angeles County",
+      "state": "CA"
+    },
+    "BRD": {
+      "name": "Beardsley Lake",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "BRT": {
+      "name": "Barrett",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "BRV": {
+      "name": "Bear Valley Dam",
+      "county_fips": "06071",
+      "county_name": "San Bernardino County",
+      "state": "CA"
+    },
+    "BTV": {
+      "name": "Butt Valley",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "BUL": {
+      "name": "New Bullards Bar",
+      "county_fips": "06115",
+      "county_name": "Yuba County",
+      "state": "CA"
+    },
+    "BWN": {
+      "name": "Bowman Lake",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "CAS": {
+      "name": "Castaic",
+      "county_fips": "06037",
+      "county_name": "Los Angeles County",
+      "state": "CA"
+    },
+    "CGS": {
+      "name": "Cogswell Reservoir",
+      "county_fips": "06037",
+      "county_name": "Los Angeles County",
+      "state": "CA"
+    },
+    "CHB": {
+      "name": "Chabot",
+      "county_fips": "06001",
+      "county_name": "Alameda County",
+      "state": "CA"
+    },
     "CHIMNEYC:NV:BOR": {
       "name": "Chimney Creek Reservoir",
       "county_fips": "32013",
       "county_name": "Humboldt County",
       "state": "NV"
     },
+    "CHV": {
+      "name": "Cherry Valley Dam",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "CMN": {
+      "name": "Camanche Reservoir",
+      "county_fips": "06077",
+      "county_name": "San Joaquin County",
+      "state": "CA"
+    },
+    "CNV": {
+      "name": "Crane Valley",
+      "county_fips": "06039",
+      "county_name": "Madera County",
+      "state": "CA"
+    },
+    "COY": {
+      "name": "Coyote (Lake Mendocino)",
+      "county_fips": "06045",
+      "county_name": "Mendocino County",
+      "state": "CA"
+    },
+    "CPL": {
+      "name": "Caples Lake (Eid)",
+      "county_fips": "06003",
+      "county_name": "Alpine County",
+      "state": "CA"
+    },
+    "CRO": {
+      "name": "Calero Reservoir",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "CRW": {
+      "name": "Lake Crowley",
+      "county_fips": "06051",
+      "county_name": "Mono County",
+      "state": "CA"
+    },
+    "CRY": {
+      "name": "Lower Crystal Springs Reservoir",
+      "county_fips": "06081",
+      "county_name": "San Mateo County",
+      "state": "CA"
+    },
+    "CSI": {
+      "name": "Casitas",
+      "county_fips": "06111",
+      "county_name": "Ventura County",
+      "state": "CA"
+    },
+    "CTG": {
+      "name": "Courtright (Pg&E)",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "CUY": {
+      "name": "Cuyamaca Dam",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "CVE": {
+      "name": "Calaveras",
+      "county_fips": "06001",
+      "county_name": "Alameda County",
+      "state": "CA"
+    },
+    "CYC": {
+      "name": "Coyote Res-Sta Clara",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "DAV": {
+      "name": "Lake Davis (Dwr)",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "DLV": {
+      "name": "Del Valle",
+      "county_fips": "06001",
+      "county_name": "Alameda County",
+      "state": "CA"
+    },
+    "DMV": {
+      "name": "Diamond Valley",
+      "county_fips": "06065",
+      "county_name": "Riverside County",
+      "state": "CA"
+    },
+    "DNP": {
+      "name": "Don Pedro Reservoir",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "DON": {
+      "name": "Donnells",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "DRE": {
+      "name": "Dwinnell Reservoir Near Edgewood",
+      "county_fips": "06093",
+      "county_name": "Siskiyou County",
+      "state": "CA"
+    },
+    "EDN": {
+      "name": "Stumpy Meadows Reservoir(Mark Edson Dam)",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "ELC": {
+      "name": "El Capitan Dam",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "ENG": {
+      "name": "Englebright (Usace)",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "ENR": {
+      "name": "Lake Eleanor",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "EPK": {
+      "name": "East Park Reservoir",
+      "county_fips": "06011",
+      "county_name": "Colusa County",
+      "state": "CA"
+    },
+    "EXC": {
+      "name": "New Exchequer-Lk Mcclure",
+      "county_fips": "06043",
+      "county_name": "Mariposa County",
+      "state": "CA"
+    },
+    "FLR": {
+      "name": "Florence Lake (Sce)",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "FMD": {
+      "name": "French Meadows",
+      "county_fips": "06061",
+      "county_name": "Placer County",
+      "state": "CA"
+    },
+    "FRD": {
+      "name": "Frenchman Dam",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "FRL": {
+      "name": "French Lake",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "GBL": {
+      "name": "Gibraltar Dam",
+      "county_fips": "06083",
+      "county_name": "Santa Barbara County",
+      "state": "CA"
+    },
+    "GLK": {
+      "name": "Gem  Lake",
+      "county_fips": "06051",
+      "county_name": "Mono County",
+      "state": "CA"
+    },
+    "HDG": {
+      "name": "Lake Hodges",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "HHL": {
+      "name": "Hell Hole (Pcwa)",
+      "county_fips": "06061",
+      "county_name": "Placer County",
+      "state": "CA"
+    },
+    "HID": {
+      "name": "Hidden Dam (Hensley)",
+      "county_fips": "06039",
+      "county_name": "Madera County",
+      "state": "CA"
+    },
+    "HMT": {
+      "name": "Lake Hemet",
+      "county_fips": "06065",
+      "county_name": "Riverside County",
+      "state": "CA"
+    },
+    "HNN": {
+      "name": "Lake Hennessey",
+      "county_fips": "06055",
+      "county_name": "Napa County",
+      "state": "CA"
+    },
+    "HNS": {
+      "name": "Henshaw",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "HNT": {
+      "name": "Huntington Lake (Usbr)",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "HTH": {
+      "name": "Hetch Hetchy",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "HWE": {
+      "name": "Haiwee",
+      "county_fips": "06027",
+      "county_name": "Inyo County",
+      "state": "CA"
+    },
+    "ICH": {
+      "name": "Ice House (Smud)",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "INV": {
+      "name": "Indian Valley",
+      "county_fips": "06033",
+      "county_name": "Lake County",
+      "state": "CA"
+    },
+    "IRC": {
+      "name": "Iron Canyon",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "ISB": {
+      "name": "Isabella Dam",
+      "county_fips": "06029",
+      "county_name": "Kern County",
+      "state": "CA"
+    },
+    "JNK": {
+      "name": "Jenkinson Lake",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "JNN": {
+      "name": "Lake Jennings",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "KNT": {
+      "name": "Kent",
+      "county_fips": "06041",
+      "county_name": "Marin County",
+      "state": "CA"
+    },
+    "LBS": {
+      "name": "Los Banos Dam",
+      "county_fips": "06047",
+      "county_name": "Merced County",
+      "state": "CA"
+    },
+    "LGV": {
+      "name": "Little Grass Valley",
+      "county_fips": "06063",
+      "county_name": "Plumas County",
+      "state": "CA"
+    },
+    "LNG": {
+      "name": "Lexington Reservoir",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "LON": {
+      "name": "Loon Lake (Smud)",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "LOP": {
+      "name": "Lopez Lake",
+      "county_fips": "06079",
+      "county_name": "San Luis Obispo County",
+      "state": "CA"
+    },
+    "LOT": {
+      "name": "Lower Otay",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "LPY": {
+      "name": "Lake Pillsbury Nr Potter Vly 24Hr Avg",
+      "county_fips": "06033",
+      "county_name": "Lake County",
+      "state": "CA"
+    },
+    "LRA": {
+      "name": "Leroy Anderson",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "LVD": {
+      "name": "Loveland Reservoir",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "LVQ": {
+      "name": "Los Vaqueros Reservoir",
+      "county_fips": "06013",
+      "county_name": "Contra Costa County",
+      "state": "CA"
+    },
+    "LVY": {
+      "name": "Lake Valley Reservoir",
+      "county_fips": "06061",
+      "county_name": "Placer County",
+      "state": "CA"
+    },
+    "LWB": {
+      "name": "Lower Bear",
+      "county_fips": "06005",
+      "county_name": "Amador County",
+      "state": "CA"
+    },
+    "LYS": {
+      "name": "Lyons Reservoir",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "MCO": {
+      "name": "Lake Mccloud",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "MDO": {
+      "name": "Modesto Reservoir",
+      "county_fips": "06099",
+      "county_name": "Stanislaus County",
+      "state": "CA"
+    },
+    "MHV": {
+      "name": "Lake Mohave",
+      "county_fips": "04015",
+      "county_name": "Mohave County",
+      "state": "AZ"
+    },
+    "MHW": {
+      "name": "Lake Mathews",
+      "county_fips": "06065",
+      "county_name": "Riverside County",
+      "state": "CA"
+    },
+    "MMR": {
+      "name": "Miramar",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "MMW": {
+      "name": "Mountain Meadows",
+      "county_fips": "06035",
+      "county_name": "Lassen County",
+      "state": "CA"
+    },
+    "MOR": {
+      "name": "Morena Dam",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
     "MPHC2000:CO:BOR": {
       "name": "Mcphee Reservoir",
       "county_fips": "08083",
       "county_name": "Montezuma County",
       "state": "CO"
+    },
+    "MPL": {
+      "name": "Mammoth Pool",
+      "county_fips": "06039",
+      "county_name": "Madera County",
+      "state": "CA"
+    },
+    "MRR": {
+      "name": "Murray Reservoir",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "MRT": {
+      "name": "Martis Creek Reservoir",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "NAT": {
+      "name": "Lake Natoma  (Nimbus Dam)",
+      "county_fips": "06067",
+      "county_name": "Sacramento County",
+      "state": "CA"
+    },
+    "NCA": {
+      "name": "Nicasio",
+      "county_fips": "06041",
+      "county_name": "Marin County",
+      "state": "CA"
+    },
+    "NCM": {
+      "name": "Nacimiento",
+      "county_fips": "06079",
+      "county_name": "San Luis Obispo County",
+      "state": "CA"
+    },
+    "NHG": {
+      "name": "New Hogan Lake",
+      "county_fips": "06009",
+      "county_name": "Calaveras County",
+      "state": "CA"
+    },
+    "ORO": {
+      "name": "Oroville Dam",
+      "county_fips": "06007",
+      "county_name": "Butte County",
+      "state": "CA"
+    },
+    "PAR": {
+      "name": "Pardee",
+      "county_fips": "06009",
+      "county_name": "Calaveras County",
+      "state": "CA"
+    },
+    "PNF": {
+      "name": "Pine Flat Dam",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "PRR": {
+      "name": "Perris",
+      "county_fips": "06065",
+      "county_name": "Riverside County",
+      "state": "CA"
+    },
+    "PRU": {
+      "name": "Lake Piru",
+      "county_fips": "06111",
+      "county_name": "Ventura County",
+      "state": "CA"
+    },
+    "PT6": {
+      "name": "Pit R No 6 Reservoir",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "PT7": {
+      "name": "Pit R No 7 Reservoir",
+      "county_fips": "06089",
+      "county_name": "Shasta County",
+      "state": "CA"
+    },
+    "PVR": {
+      "name": "Pleasant Valley Reservoir",
+      "county_fips": "06027",
+      "county_name": "Inyo County",
+      "state": "CA"
+    },
+    "PYM": {
+      "name": "Pyramid",
+      "county_fips": "06037",
+      "county_name": "Los Angeles County",
+      "state": "CA"
+    },
+    "RDN": {
+      "name": "Redinger Lake",
+      "county_fips": "06039",
+      "county_name": "Madera County",
+      "state": "CA"
+    },
+    "RLF": {
+      "name": "Relief",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "RLL": {
+      "name": "Rollins",
+      "county_fips": "06061",
+      "county_name": "Placer County",
+      "state": "CA"
+    },
+    "SAT": {
+      "name": "San Antonio Reservoir, Alameda Co",
+      "county_fips": "06001",
+      "county_name": "Alameda County",
+      "state": "CA"
+    },
+    "SDB": {
+      "name": "Saddlebag Lake Reservoir",
+      "county_fips": "06051",
+      "county_name": "Mono County",
+      "state": "CA"
+    },
+    "SEC": {
+      "name": "Stevens Creek Reservoir",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "SFL": {
+      "name": "Scotts Flat",
+      "county_fips": "06057",
+      "county_name": "Nevada County",
+      "state": "CA"
+    },
+    "SGC": {
+      "name": "Santiago Creek Res (Irvine Lake)",
+      "county_fips": "06059",
+      "county_name": "Orange County",
+      "state": "CA"
+    },
+    "SHV": {
+      "name": "Shaver Lake",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "SIV": {
+      "name": "Silver Lake Reservoir",
+      "county_fips": "06005",
+      "county_name": "Amador County",
+      "state": "CA"
+    },
+    "SKN": {
+      "name": "Skinner",
+      "county_fips": "06065",
+      "county_name": "Riverside County",
+      "state": "CA"
+    },
+    "SKR": {
+      "name": "South Lake Reservoir",
+      "county_fips": "06027",
+      "county_name": "Inyo County",
+      "state": "CA"
+    },
+    "SLB": {
+      "name": "Slab Creek",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "SLC": {
+      "name": "Sly Creek",
+      "county_fips": "06007",
+      "county_name": "Butte County",
+      "state": "CA"
+    },
+    "SLJ": {
+      "name": "Soulajule Dam",
+      "county_fips": "06041",
+      "county_name": "Marin County",
+      "state": "CA"
+    },
+    "SLN": {
+      "name": "Santa Margarita Lake",
+      "county_fips": "06079",
+      "county_name": "San Luis Obispo County",
+      "state": "CA"
+    },
+    "SLS": {
+      "name": "Salt Springs",
+      "county_fips": "06009",
+      "county_name": "Calaveras County",
+      "state": "CA"
+    },
+    "SLW": {
+      "name": "Lake Silverwood",
+      "county_fips": "06071",
+      "county_name": "San Bernardino County",
+      "state": "CA"
+    },
+    "SNL": {
+      "name": "San Luis Reservoir",
+      "county_fips": "06047",
+      "county_name": "Merced County",
+      "state": "CA"
+    },
+    "SNN": {
+      "name": "San Andreas",
+      "county_fips": "06081",
+      "county_name": "San Mateo County",
+      "state": "CA"
+    },
+    "SPB": {
+      "name": "San Pablo",
+      "county_fips": "06013",
+      "county_name": "Contra Costa County",
+      "state": "CA"
+    },
+    "SPM": {
+      "name": "New Spicer Meadow",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "STD": {
+      "name": "Sutherland Reservoir",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "STG": {
+      "name": "Stony Gorge Reservoir",
+      "county_fips": "06021",
+      "county_name": "Glenn County",
+      "state": "CA"
+    },
+    "SVO": {
+      "name": "Seven Oaks Dam",
+      "county_fips": "06071",
+      "county_name": "San Bernardino County",
+      "state": "CA"
+    },
+    "SVT": {
+      "name": "San Vicente",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "SW3": {
+      "name": "Sweetwater Reservoir",
+      "county_fips": "06073",
+      "county_name": "San Diego County",
+      "state": "CA"
+    },
+    "TAB": {
+      "name": "Thermalito Afterbay",
+      "county_fips": "06007",
+      "county_name": "Butte County",
+      "state": "CA"
+    },
+    "TAE": {
+      "name": "Thomas A Edison",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
+    },
+    "TFR": {
+      "name": "Thermalito Forebay",
+      "county_fips": "06007",
+      "county_name": "Butte County",
+      "state": "CA"
+    },
+    "THD": {
+      "name": "Thermalito Diversion Pool",
+      "county_fips": "06007",
+      "county_name": "Butte County",
+      "state": "CA"
+    },
+    "TLC": {
+      "name": "Turlock Lake",
+      "county_fips": "06099",
+      "county_name": "Stanislaus County",
+      "state": "CA"
+    },
+    "TNM": {
+      "name": "Tinemaha Reservoir",
+      "county_fips": "06027",
+      "county_name": "Inyo County",
+      "state": "CA"
+    },
+    "TRM": {
+      "name": "Terminus Dam",
+      "county_fips": "06107",
+      "county_name": "Tulare County",
+      "state": "CA"
+    },
+    "TUL": {
+      "name": "Tulloch",
+      "county_fips": "06109",
+      "county_name": "Tuolumne County",
+      "state": "CA"
+    },
+    "UNV": {
+      "name": "Union Valley",
+      "county_fips": "06017",
+      "county_name": "El Dorado County",
+      "state": "CA"
+    },
+    "USL": {
+      "name": "U San Leandro",
+      "county_fips": "06001",
+      "county_name": "Alameda County",
+      "state": "CA"
+    },
+    "UVA": {
+      "name": "Uvas Reservoir",
+      "county_fips": "06085",
+      "county_name": "Santa Clara County",
+      "state": "CA"
+    },
+    "WHR": {
+      "name": "Whale Rock",
+      "county_fips": "06079",
+      "county_name": "San Luis Obispo County",
+      "state": "CA"
+    },
+    "WRS": {
+      "name": "Warm Springs (Lake Sonoma)",
+      "county_fips": "06097",
+      "county_name": "Sonoma County",
+      "state": "CA"
+    },
+    "WSN": {
+      "name": "Wishon",
+      "county_fips": "06019",
+      "county_name": "Fresno County",
+      "state": "CA"
     },
     "YAMRESCO:CO:BOR": {
       "name": "Yamcolo Reservoir",

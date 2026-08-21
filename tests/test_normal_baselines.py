@@ -483,6 +483,9 @@ def test_the_committed_normals_file_matches_the_builder_that_writes_it():
     assert payload["period"]["start_year"] == B.CLIMATE_START_YEAR
     assert payload["period"]["end_year"] == B.CLIMATE_END_YEAR
     assert payload["window_days"] == R.SEASONAL_WINDOW_DAYS
+    assert payload["sources"] == B.SOURCES
+    assert {record["source_key"] for record in payload["reservoirs"]} \
+        <= payload["sources"].keys()
 
 
 @pytest.mark.skipif(not (ROOT / "normals.json").exists(),

@@ -43,6 +43,13 @@ UTAH_BOUNDARY = ROOT / "utah-boundary.geojson"
 # west since R1 (admit-awdb-west), not the fourteen that touch Utah. Written
 # down so a service change that quietly drops or adds one is a failed test
 # rather than a differently-shaped map.
+#
+# 52 of the 75 drawn areas after R3 admitted California, against 43 after R2.
+# The nine that arrived with it are the state's own coastal and southern
+# basins -- Northern California Coastal, Tulare-Buena Vista Lakes, San
+# Francisco Bay, Ventura-San Gabriel Coastal, Santa Ana, Laguna-San Diego
+# Coastal, Mono-Owens Lakes, Northern Mojave -- plus Lower Colorado, which
+# arrived with Lake Mohave.
 EXPECTED_UNITS = {
     "140100": "Colorado Headwaters",
     "140200": "Gunnison",
@@ -55,6 +62,7 @@ EXPECTED_UNITS = {
     "140802": "Lower San Juan",
     "150100": "Lower Colorado-Lake Mead",
     "150200": "Little Colorado",
+    "150301": "Lower Colorado",
     "150501": "Middle Gila",
     "160101": "Upper Bear",
     "160102": "Lower Bear",
@@ -82,11 +90,19 @@ EXPECTED_UNITS = {
     "170900": "Willamette",
     "171003": "Southern Oregon Coastal",
     "171100": "Puget Sound",
+    "180101": "Northern California Coastal",
     "180102": "Klamath",
     "180200": "Upper Sacramento",
     "180201": "Lower Sacramento",
+    "180300": "Tulare-Buena Vista Lakes",
     "180400": "San Joaquin",
+    "180500": "San Francisco Bay",
     "180600": "Central California Coastal",
+    "180701": "Ventura-San Gabriel Coastal",
+    "180702": "Santa Ana",
+    "180703": "Laguna-San Diego Coastal",
+    "180901": "Mono-Owens Lakes",
+    "180902": "Northern Mojave",
 }
 
 # Assignments a reader can check against a map without running anything.
@@ -137,6 +153,26 @@ BOUNDARY_MARGIN_EXCEPTIONS = {
     # committed geometry's 56 m generalization, but sit inside this guard's
     # deliberately wider 2 km review margin.
     "Soldiers Meadow Reservoir",
+    # R3's four, all California and all reviewed the same way: the dam point
+    # and the provider point were measured separately and agree on the area,
+    # which is what makes them close calls rather than doubtful assignments.
+    #
+    # Haiwee is the sharpest and the only one worth its own paragraph. Its
+    # reviewed dam point is 31 m from the Mono-Owens / Northern Mojave line
+    # -- inside the committed geometry's own 56 m generalization -- because
+    # the reservoir sits on the divide the aqueduct crosses, which is the
+    # San Carlos shape rather than a data fault. `describe`'s divide fallback
+    # declines it: the waterbody point is 187 m from the same line and the
+    # fallback requires 2 km. So the dam point stands, and the reason to
+    # trust it is that the independent waterbody point lands in Mono-Owens
+    # too, three times the generalization clear of the line.
+    "Haiwee",
+    # 553 m (provider) and 774 m (dam), both in San Francisco Bay.
+    "Leroy Anderson",
+    # 1.03 km and 1.05 km, both in San Francisco Bay.
+    "Coyote Res-Sta Clara",
+    # 1.78 km and 1.70 km, both in Mono-Owens Lakes.
+    "Gem  Lake",
 }
 
 

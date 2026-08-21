@@ -25,15 +25,16 @@ This directory contains three kinds of document. Their dates matter:
 ## Current work
 
 The typed ArcGIS application, western geography, state and drainage-area
-opening choice, federal western reservoir roster, 637-site snow network,
-drought views, accessibility gates, and compatibility redirects are in
-production.
+opening choice, federal western reservoir roster, the California reservoir
+roster, 637-site snow network, drought views, accessibility gates, and
+compatibility redirects are in production.
 
 The remaining documented product work is:
 
-1. resolve the California capacity and source disagreements before publishing
-   a third reservoir provider;
-2. decide whether Colorado's smaller but broad reservoir network follows;
+1. decide whether Colorado's smaller but broad reservoir network follows
+   California;
+2. settle the 21 California candidates held for source disagreements, each
+   named with its finding in `admitted_cdec_reservoirs.json`;
 3. review automatically reported late and withdrawn feeds;
 4. re-measure vendor accessibility exceptions and the content policy when the
    SDK changes; and

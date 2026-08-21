@@ -66,7 +66,8 @@ const BASIS_LABELS: Record<string, string> = {
   normal_storage: "Normal full level",
   max_storage: "Maximum level",
   reclamation_project_record: "Full level published by the reservoir operator",
-  awdb_reservoir_metadata: "Level published with the readings"
+  awdb_reservoir_metadata: "Level published with the readings",
+  cdec_reservoir_report: "Full level published by the reservoir operator"
 };
 /** The key `basisShares` reports the fallback under. */
 export const RECORD_MAX_BASIS = "record_max";
@@ -246,15 +247,29 @@ function coverageOf(
 }
 
 /** What the combined full level divides into, largest share first. */
+/*
+ * Grouped by the label rather than by the key, which are not the same list.
+ *
+ * Two providers publish their own full level and this project prefers it over
+ * the dam inventory's for both (ADR-070), so `reclamation_project_record` and
+ * `cdec_reservoir_report` are two keys for one fact about a denominator.
+ * Keyed by basis, the sentence this feeds read "...published by the reservoir
+ * operator 4, ...published by the reservoir operator 33" -- the same words
+ * twice with two counts, which reads as a fault rather than a distinction.
+ * What a reader is being told here is what the number divides by, and that is
+ * exactly what the label says; `basis` keeps the first key in the group so
+ * nothing downstream loses the ability to look one up.
+ */
 function basisShares(reservoirs: readonly Reservoir[]): BasisShare[] {
   const shares = new Map<string, BasisShare>();
   for (const reservoir of reservoirs) {
     const basis = basisOf(reservoir);
-    const found = shares.get(basis)
-      ?? { basis, label: basisLabel(basis), count: 0, capacityAf: 0 };
+    const label = basisLabel(basis);
+    const found = shares.get(label)
+      ?? { basis, label, count: 0, capacityAf: 0 };
     found.count += 1;
     found.capacityAf += sizeBasis(reservoir);
-    shares.set(basis, found);
+    shares.set(label, found);
   }
   return [...shares.values()].sort((a, b) => b.capacityAf - a.capacityAf);
 }

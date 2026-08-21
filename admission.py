@@ -335,7 +335,36 @@ def could_hold(dam, observed_max_af):
     return not holds_more_than_the_dam(dam, observed_max_af)
 
 
-def discrepancies(decision, highest_readings=None, service_capacity_af=None):
+def preferred_capacity(decision, provider_capacity_af=None, provider_basis=None):
+    """The figure a percentage is divided by, and which source published it.
+
+    ADR-003 prefers the conservation pool because that is what an operator
+    means by "full", and for a long time the dam inventory was the only place
+    this project could read one. Where the provider that publishes the
+    readings *also* publishes a full level, that figure is the operator's own
+    answer to the same question, and it wins (ADR-070). It is the rule the
+    published payload already follows for two providers --
+    `reclamation_project_record` and `awdb_reservoir_metadata` are both an
+    operator's own record preferred over the inventory's -- and Keswick is
+    where it shows: published at 23,800 acre-feet from Reclamation's project
+    record while the inventory calls its pool 7,470.
+
+    `provider_basis` is what that source is called in `capacity_basis`, and
+    passing it is how a caller says its provider publishes full levels at
+    all. Without it nothing changes, which is why the two federal audits are
+    untouched: RISE reservoirs take their full level from the inventory or
+    from a reviewed record, and there is no third figure to prefer.
+
+    Returns `(capacity_af, capacity_basis)`, either of which may be None when
+    no source publishes a figure.
+    """
+    if provider_basis and positive(provider_capacity_af):
+        return float(provider_capacity_af), provider_basis
+    return decision.capacity_af, decision.capacity_basis
+
+
+def discrepancies(decision, highest_readings=None, service_capacity_af=None,
+                  provider_basis=None):
     """Everything about this candidate that two sources do not agree about.
 
     `admit` answers one question -- is this the right dam -- and answers it
@@ -348,9 +377,18 @@ def discrepancies(decision, highest_readings=None, service_capacity_af=None):
 
     Nothing here is repaired. A disagreement is reported and the candidate is
     held out of the roster until a person settles it, because every repair
-    available is a guess about which source is wrong: Keswick's inventory pool
-    of 7,470 acre-feet against the service's 23,772 could be corrected either
-    way and only one of them is the pool the operator means by full.
+    available is a guess about which source is wrong: Buchanan Dam has been
+    seen holding 172,105 acre-feet against the 150,000 its own operator calls
+    full, and no source this project holds says which of the two to believe.
+
+    **A rule is not a repair, and one disagreement now has a rule.** Where
+    the caller names a `provider_basis`, the provider's own full level is the
+    denominator (`preferred_capacity`, ADR-070) and the inventory's differing
+    figure is no longer a reason to withhold the reservoir -- it is a source
+    this project has decided not to divide by. The screen is kept for the
+    case it still describes: the inventory's figure is the denominator and
+    the provider contradicts it. That is why the drift is measured against
+    the *chosen* basis rather than always against the inventory's.
 
     Returns a list of `(screen, detail)` pairs, empty when nothing disagrees.
     `highest_readings` is the largest few values of the series, largest first;
@@ -374,8 +412,13 @@ def discrepancies(decision, highest_readings=None, service_capacity_af=None):
             f"highest reading {readings[0]:,.0f} acre-feet against a third "
             f"highest of {readings[2]:,.0f}"))
 
-    capacity = decision.capacity_af
-    if capacity and service_capacity_af:
+    capacity, basis = preferred_capacity(
+        decision, service_capacity_af, provider_basis)
+    # Only where the inventory's figure is the one being divided by. With the
+    # provider's own figure in hand the question is settled by rule rather
+    # than by a person, and a screen that fired anyway would hold every
+    # reservoir the rule exists to admit.
+    if capacity and service_capacity_af and basis == decision.capacity_basis:
         drift = capacity / service_capacity_af - 1
         if abs(drift) > SURCHARGE_ALLOWANCE:
             found.append((

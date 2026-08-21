@@ -9,7 +9,7 @@
 .api-table-scroll { overflow-x: auto; border: 1px solid var(--app-border); border-radius: .4rem; }
 .api-table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .api-table th, .api-table td { padding: .55rem .65rem; border-block-end: 1px solid var(--app-border); text-align: start; vertical-align: top; }
-.api-table thead th { color: var(--app-muted); background: var(--app-surface-raised); font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
+.api-table thead th { color: var(--app-muted); background: var(--app-surface-raised); font-size: .75rem; font-weight: 700; letter-spacing: .01em; }
 .api-table tbody tr:last-child > * { border-block-end: 0; }
 .api-table tbody th { white-space: nowrap; font-weight: 500; }
 pre { overflow-x: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: .4rem; background: var(--app-surface-raised); line-height: 1.5; }

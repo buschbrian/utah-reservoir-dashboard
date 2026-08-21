@@ -39,7 +39,7 @@ const SELECTION_PARAMS = {
   lakePowell: "powell",
   /* Lake Mead's own parameter, spelled the way the storage charts already
    * spell it so a reader can carry a scope between the two pages (ADR-062).
-   * Absent means excluded, exactly like Powell's. */
+   * Absent means included, exactly like Powell's. */
   lakeMead: "mead",
   geography: "reservoirs",
   month: "month",
@@ -111,8 +111,25 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   storageClass: null,
   reporting: "all",
   drainageArea: null,
-  lakePowell: "exclude",
-  lakeMead: "exclude",
+  /* Both large reservoirs are in the opening view, and absence means so.
+   *
+   * ADR-011 and ADR-062 made these controls rather than filters because
+   * either one is most of any total it enters, and that reasoning is
+   * untouched: the reader still has two switches and the page still says
+   * which way each is set. What changed is which way they start. A map whose
+   * subject is western water opening with the two largest reservoirs in the
+   * west taken out of it is answering a narrower question than the one it
+   * appears to be answering, and the reader who most needs the distinction
+   * is the one least likely to find a switch that is already off.
+   *
+   * This is the move `geography` made below, for the same reason and with
+   * the same consequence: a link written before this carried no parameter
+   * and now reads as "include". The alternative -- keeping the old meaning
+   * for absence -- costs every reader the opening view to spare a link the
+   * change, so the writer below states the narrow choice out loud instead,
+   * and `powell=exclude` is now a thing a link can say. */
+  lakePowell: "include",
+  lakeMead: "include",
   /* The whole west, not Utah's waterbodies.
    *
    * This defaulted to `utah` when the roster was Utah's, and stayed there
@@ -212,10 +229,13 @@ export function stateFromSearch(search: string | null | undefined): DashboardUrl
   state.drainageArea = drainage !== undefined && /^[0-9]{1,12}$/.test(drainage)
     ? drainage : null;
 
-  state.lakePowell = lastValue(pairs, SELECTION_PARAMS.lakePowell) === "include"
-    ? "include" : "exclude";
-  state.lakeMead = lastValue(pairs, SELECTION_PARAMS.lakeMead) === "include"
-    ? "include" : "exclude";
+  /* Only the narrow reading is spelled, which is the rule `geography` two
+   * lines down has always followed: anything but "exclude" -- absent,
+   * misspelt, hand-edited -- is the reservoir in the view. */
+  state.lakePowell = lastValue(pairs, SELECTION_PARAMS.lakePowell) === "exclude"
+    ? "exclude" : "include";
+  state.lakeMead = lastValue(pairs, SELECTION_PARAMS.lakeMead) === "exclude"
+    ? "exclude" : "include";
   /* Only the narrow reading is spelled; anything else -- absent, misspelt,
    * hand-edited -- is every reservoir, which is what the dashboard opens on. */
   state.geography = lastValue(pairs, SELECTION_PARAMS.geography) === "utah"
@@ -263,10 +283,10 @@ export function searchWithState(
   if (full.drainageArea !== null && /^[0-9]{1,12}$/.test(full.drainageArea)) {
     parts.push(`${SELECTION_PARAMS.drainageArea}=${encodeURIComponent(full.drainageArea)}`);
   }
-  if (full.lakePowell !== "exclude") {
+  if (full.lakePowell !== "include") {
     parts.push(`${SELECTION_PARAMS.lakePowell}=${full.lakePowell}`);
   }
-  if (full.lakeMead !== "exclude") {
+  if (full.lakeMead !== "include") {
     parts.push(`${SELECTION_PARAMS.lakeMead}=${full.lakeMead}`);
   }
   if (full.geography !== "connected") {
