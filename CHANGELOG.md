@@ -7,6 +7,19 @@ and is not listed here.
 
 ### Added
 
+- **The place menus show their hierarchy instead of implying it.** Drainage
+  areas sit under their subregion and subregions under their region in the
+  storage map's place control; counties group under their state and basins
+  under their subregion in the storage charts' filter bar. Indented groups
+  inside one menu, chosen over flyout submenus after measuring both at 360
+  pixels, where a flyout's full county list is several screens of popup
+  scroll. One consequence a reader can see: the charts' county rows no longer
+  carry ", ST" -- the state is the heading the rows sit under -- so two Summit
+  Counties stay apart by their groups rather than by a suffix (ADR-076). The
+  charts' county list also narrows to the chosen state now, the way the
+  subregion list beside it always did, and holds a county across a subregion
+  change because a county cuts across drainage areas.
+
 - **Every reservoir has a page: `reservoir.html?name=...`.** One static
   shell, the morning's payload fetched at runtime, and nothing generated --
   so a reservoir whose feed goes quiet keeps its page and its link says the

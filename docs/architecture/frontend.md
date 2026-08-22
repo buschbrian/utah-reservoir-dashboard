@@ -185,6 +185,16 @@ does not falls back to "all" rather than silently filtering to nothing.
 Repopulating a `<select>` must preserve the reader's choice when it is still
 on offer, or the control resets on every keystroke.
 
+**The hierarchy is stated in the menus themselves** (ADR-076). Place choices
+render as indented option groups — `calcite-option-group` in the where
+control, `optgroup` in the charts' filter bar: basins under their subregion,
+subregions under their region, counties under their state. Chosen over
+flyout submenus by measurement at 360px; the county row no longer carries a
+`, ST` suffix because its group heading carries the state instead (the key
+is still the FIPS code, per ADR-058 as amended). The builders sort so
+same-group rows are contiguous — consecutive equal group labels form one
+heading, so an unsorted list would draw a heading twice.
+
 **A subregion code is published nowhere**: codes are fixed-width, so it is
 `huc6.slice(0, 4)`. Only the *names* are published, in `reservoirs.json`'s
 `watersheds.subregions` — the payload every surface fetches, not

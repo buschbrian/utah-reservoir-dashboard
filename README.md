@@ -19,6 +19,7 @@ are read from the runtime payloads rather than written into application code.
 |---|---|
 | [Western Reservoir Storage](./) | Where water is stored now, how full each reservoir is, and how levels compare with earlier years. |
 | [Western Storage Charts](overview.html) | What moved this week and how the current reservoir set compares across charts and an exact-value table. |
+| [Reservoir Details](reservoir.html?name=Lake%20Powell) | One reservoir at a time: its reading, both comparisons, its twelve-month history, and its sources. Every published reservoir has one. |
 | [Western Snowpack](snow.html) | How much water is held in mountain snow, by site and drainage area, against the 1991–2020 comparison period. |
 | [Western Drought](drought.html) | How much land is in each U.S. Drought Monitor class and how that relates to stored water. |
 | [Methods and Sources](methods.html) | Where each number comes from, how it is worked out, and what it does not claim. |
@@ -36,7 +37,9 @@ The storage map lets a reader:
 - point at or select a reservoir for its storage, full level, reading date,
   comparison period, history rank, and change over time;
 - narrow the view by state, subregion, drainage area, county, storage class,
-  reporting status, reservoir geography, Lake Powell, or Lake Mead;
+  reporting status, reservoir geography, Lake Powell, or Lake Mead — with the
+  hierarchy shown in the menus themselves: basins under their subregion,
+  subregions under their region, counties under their state;
 - move or play the month slider through the last twelve published months;
 - open a keyboard-reachable reservoir list;
 - sort the matching reservoirs in a table and download the exact rows and
@@ -57,9 +60,13 @@ is remembered between visits; a link always outranks it.
 
 The storage charts use the same geographic and reservoir scope. Their search,
 filters, summary strip, six ArcGIS charts, and semantic table update together.
+Every published reservoir also has a page of its own —
+`reservoir.html?name=...` — linked from the map's details panel and from each
+other surface that names one; a reservoir whose feed goes quiet keeps its page
+and says its reading was withdrawn rather than disappearing into an error.
 The snow and drought pages share the reader's chosen state or drainage area
-where that choice has the same meaning, and every page writes its own view to a
-shareable URL.
+where that choice has the same meaning, and every page writes its own view to
+a shareable URL.
 
 ## Quick start
 
@@ -129,11 +136,12 @@ Stable public paths are documented on the [data page](data.html):
 | `/api/reference.json` | Reviewed capacity evidence and the drainage-area roster, without polygon geometry. |
 
 The daily pipeline reads observations from the Bureau of Reclamation, the
-Natural Resources Conservation Service and the California Department of Water
-Resources. Dam evidence comes from the U.S. Army
-Corps of Engineers National Inventory of Dams. Drainage areas come from the
-U.S. Geological Survey Watershed Boundary Dataset. Drought data comes from the
-U.S. Drought Monitor. The complete ownership and failure contract is in
+Natural Resources Conservation Service, the California Department of Water
+Resources and the Colorado Division of Water Resources. Dam evidence comes
+from the U.S. Army Corps of Engineers National Inventory of Dams. Drainage
+areas come from the U.S. Geological Survey Watershed Boundary Dataset. Drought
+data comes from the U.S. Drought Monitor. The complete ownership and failure
+contract is in
 [`docs/AUTHORITATIVE-SOURCE-INVENTORY.md`](docs/AUTHORITATIVE-SOURCE-INVENTORY.md).
 
 California is a production provider as of 2026-08-20: 142 reservoirs, read
@@ -141,9 +149,13 @@ from the state's own service, with the full level taken from the operator's
 published figure wherever it publishes one (ADR-070). Twenty-one candidates
 are held rather than published and
 [`admitted_cdec_reservoirs.json`](admitted_cdec_reservoirs.json) names each
-with the finding behind it. Colorado remains measured design work and is the
-next coverage-of-places source; the review of both is in
-[`docs/CDSS-CDEC-API-REVIEW.md`](docs/CDSS-CDEC-API-REVIEW.md).
+with the finding behind it. Colorado followed on 2026-08-21 with ten
+reservoirs inside the drawn drainages — 91 of the state's storage stations sit
+on the eastern slope, outside the drawn western geography — held to the same
+review in
+[`admitted_cdss_reservoirs.json`](admitted_cdss_reservoirs.json). The review
+of both sources is in [`docs/CDSS-CDEC-API-REVIEW.md`](docs/CDSS-CDEC-API-REVIEW.md)
+and [`docs/COLORADO-ADMISSION-REVIEW.md`](docs/COLORADO-ADMISSION-REVIEW.md).
 
 ### Storage metrics
 
@@ -196,6 +208,7 @@ Maps SDK for JavaScript 5.1, ArcGIS Charts 5.1, and Calcite Components 5.1.
 |---|---|
 | `index.html`, `modern.html`, `src/main.ts` | Primary reservoir map and stable alias. |
 | `overview.html`, `src/overview*` | Storage charts workspace and shared filter model. |
+| `reservoir.html`, `src/reservoir*` | One reservoir at a time: reading, comparisons, history, provenance. |
 | `snow.html`, `src/snow*` | Snow curves, drainage-area map, site map, and detail views. |
 | `drought.html`, `src/drought*` | Weekly drought map, comparisons, rankings, and distribution. |
 | `methods.html`, `data.html`, `terms.html` | Methods, public API, and legal documentation. |
@@ -260,11 +273,19 @@ means a line cannot hide the subject (ADR-061).
 
 Current product work is narrower:
 
-- resolve the held California source and capacity decisions before adding a
-  third reservoir provider;
+- settle the 21 California candidates still held for source disagreements,
+  each named with its finding in `admitted_cdec_reservoirs.json`;
 - keep automatically reported late and withdrawn feeds under review;
 - re-check vendor accessibility exceptions and the content policy on SDK
   upgrades;
+- decide whether to build the upstream trace scoped in
+  [`docs/UPSTREAM-TRACE-SCOPING.md`](docs/UPSTREAM-TRACE-SCOPING.md);
+- work the four remaining items in
+  [`docs/WATER-BODY-AND-NAVIGATION-SCOPING.md`](docs/WATER-BODY-AND-NAVIGATION-SCOPING.md)
+  — reopening the first-visit chooser, water-body names and type from the
+  National Hydrography Dataset, and the remaining reservoir sources for
+  Arizona, Nevada, Idaho, Oregon, Washington and Wyoming. The fifth, nesting
+  the place menus, shipped (ADR-076);
 - give the first-visit chooser its counts. The design that ordered it wanted
   "eleven reservoirs, eighty-five snow sites" on each tile, which is what
   makes offering a state with no reservoirs obviously right rather than

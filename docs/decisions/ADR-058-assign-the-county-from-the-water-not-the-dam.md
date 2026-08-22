@@ -1,6 +1,7 @@
 # ADR-058: Assign the county from the water, not the dam
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR-076](ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md)
+  (the state now travels as a group heading rather than a per-row label suffix)
 - Date: 2026-08-18
 
 ## Context

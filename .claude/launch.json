@@ -4,8 +4,25 @@
     {
       "name": "modern",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5178", "--strictPort"],
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5178",
+        "--strictPort"
+      ],
       "port": 5178
+    },
+    {
+      "name": "built",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "5179",
+        "--strictPort"
+      ],
+      "port": 5179
     }
   ]
 }

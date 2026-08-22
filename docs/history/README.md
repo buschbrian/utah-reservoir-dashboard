@@ -36,6 +36,7 @@ follow a file.
 | [`../WESTERN-ROSTER-ADMISSION-REVIEW.md`](../WESTERN-ROSTER-ADMISSION-REVIEW.md) | Candidate-by-candidate capacity and deduplication review. |
 | [`../RISE-ADMISSION-REVIEW.md`](../RISE-ADMISSION-REVIEW.md) | Federal source-only western additions. |
 | [`../COLORADO-ADMISSION-REVIEW.md`](../COLORADO-ADMISSION-REVIEW.md) | The state network scoped to the drawn drainages, and the quota it costs. |
+| [`../WATER-BODY-AND-NAVIGATION-SCOPING.md`](../WATER-BODY-AND-NAVIGATION-SCOPING.md) | Names, water-body type, nested menus, chooser reopen, the six thin-roster states. |
 
 The four **maintained references** that also live in `docs/` are not journals
 and are kept current: `AUTHORITATIVE-SOURCE-INVENTORY.md`, `data-transfer.md`,

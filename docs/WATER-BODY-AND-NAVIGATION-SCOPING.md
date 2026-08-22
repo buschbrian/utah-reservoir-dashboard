@@ -1,5 +1,11 @@
 # Water-body names, water-body type, navigation, and the states still unsourced
 
+> **Scoping document.** It records what was measured on 2026-08-21 and what
+> each item would cost; the delivered half is recorded in
+> [ADR-076](decisions/ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md)
+> and current architecture is [`docs/architecture/`](architecture/README.md).
+> See [`docs/history/README.md`](history/README.md).
+
 Status: Scoping, written 2026-08-21. **Partly delivered.** Item 3, the nested
 drainage and county menus, shipped the same day, together with the cheap fix
 this document asked for first -- narrowing the county list by the chosen state.

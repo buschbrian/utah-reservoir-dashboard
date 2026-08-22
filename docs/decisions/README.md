@@ -62,7 +62,8 @@ The four different scopes, the hydrologic level, and what a link carries.
   [ADR-068](ADR-068-move-the-roster-scope-west-and-decouple-the-opening-box.md),
   [ADR-071](ADR-071-one-drainage-area-control-to-a-page.md),
   [ADR-073](ADR-073-draw-the-regions-too-and-read-them-from-their-own-publisher.md),
-  [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md)
+  [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md),
+  [ADR-076](ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md)
 - Boundary sourcing: [ADR-024](ADR-024-use-full-resolution-watersheds-for-snow-sites.md),
   [ADR-034](ADR-034-hosted-boundary-layers-with-a-deadline.md),
   [ADR-037](ADR-037-refetch-the-boundaries-at-the-resolution-the-source-stops-adding.md)
@@ -199,6 +200,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-073](ADR-073-draw-the-regions-too-and-read-them-from-their-own-publisher.md) | Draw the regions too, and read them from their own publisher | Accepted; extends ADR-064 to a third level |
 | [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md) | Compare the week with the one before it | Accepted; narrows ADR-063's one-archive decision |
 | [ADR-075](ADR-075-draw-the-spread-chart-rather-than-configure-it.md) | Draw the spread chart rather than configure it | Accepted |
+| [ADR-076](ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md) | Nest the place menus and let the heading carry the state | Accepted; amends ADR-058's reader-facing-label clause |
 
 ## Relationship to the historical journal
 
