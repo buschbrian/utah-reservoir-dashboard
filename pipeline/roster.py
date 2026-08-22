@@ -14,7 +14,8 @@ from pathlib import Path
 from .constants import (
     ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_CDSS_RESERVOIRS_PATH,
     ADMITTED_RESERVOIRS_PATH, ADMITTED_RISE_RESERVOIRS_PATH,
-    BASE_AWDB_RESERVOIRS, BASE_RISE_RESERVOIRS, CAPACITY_PATH,
+    ADMITTED_USGS_RESERVOIRS_PATH, BASE_AWDB_RESERVOIRS,
+    BASE_RISE_RESERVOIRS, CAPACITY_PATH,
 )
 
 
@@ -215,6 +216,31 @@ CDSS_RESERVOIRS = {
 }
 
 
+def load_admitted_usgs_reservoirs(
+    path: Path = ADMITTED_USGS_RESERVOIRS_PATH,
+) -> dict[str, dict]:
+    """Load the reviewed U.S. Geological Survey stations.
+
+    The fifth provider, held to the same shape and the same validations as
+    the others -- the California loader applied unchanged, because the
+    contract does not vary with the agency (ADR-066, ADR-077's keying). As
+    with Colorado, this provider publishes no full level of its own, so
+    every capacity here is the National Inventory of Dams' and ADR-070's
+    preferred-figure rule never fires for it.
+    """
+    return load_admitted_cdec_reservoirs(path)
+
+
+ADMITTED_USGS_RESERVOIRS = load_admitted_usgs_reservoirs()
+USGS_RESERVOIRS = {
+    site_no: (
+        row["name"], row["lat"], row["lon"],
+        row["capacity"]["capacity_af"], row["cadence"],
+    )
+    for site_no, row in ADMITTED_USGS_RESERVOIRS.items()
+}
+
+
 ADMITTED_RESERVOIRS = load_admitted_reservoirs()
 AWDB_RESERVOIRS = {
     **BASE_AWDB_RESERVOIRS,
@@ -233,7 +259,8 @@ AWDB_RESERVOIRS = {
 #: still what a reader sees and what `--only` accepts; they are simply no
 #: longer what the roster is keyed by, because two reservoirs may share one.
 ALL_RESERVOIR_IDS = (set(RESERVOIRS) | set(AWDB_RESERVOIRS)
-                     | set(CDEC_RESERVOIRS) | set(CDSS_RESERVOIRS))
+                     | set(CDEC_RESERVOIRS) | set(CDSS_RESERVOIRS)
+                     | set(USGS_RESERVOIRS))
 
 #: What each station is called, by that same identity. One place builds it, so
 #: a label and its station cannot come apart.
@@ -242,6 +269,7 @@ RESERVOIR_NAMES = {
     **{station: entry[0] for station, entry in AWDB_RESERVOIRS.items()},
     **{station: entry[0] for station, entry in CDEC_RESERVOIRS.items()},
     **{station: entry[0] for station, entry in CDSS_RESERVOIRS.items()},
+    **{station: entry[0] for station, entry in USGS_RESERVOIRS.items()},
 }
 
 ALL_RESERVOIR_NAMES = set(RESERVOIR_NAMES.values())

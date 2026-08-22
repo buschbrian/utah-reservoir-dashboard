@@ -122,7 +122,8 @@ ADR-008, then ADR-032 and ADR-061.**
 ### Credentials and third-party services
 **Start with ADR-004.**
 
-- Current: [ADR-004](ADR-004-no-api-key-and-refuse-credential-challenges.md)
+- Current: [ADR-004](ADR-004-no-api-key-and-refuse-credential-challenges.md),
+  [ADR-080](ADR-080-build-the-usgs-provider-against-the-keyless-legacy-service-now.md)
 
 ## Every record, in order
 
@@ -207,6 +208,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-077](ADR-077-publish-what-drains-to-a-reservoir-as-an-upstream-set.md) | Publish what drains to a reservoir as an unordered upstream set | Accepted; precomputed against NLDI, keyed per ADR-066, geometry never published |
 | [ADR-078](ADR-078-every-water-this-site-measures-is-a-reservoir.md) | Every water this site measures is a reservoir | Accepted; type follows roster membership, no per-record field, natural lakes keep their names |
 | [ADR-079](ADR-079-rename-through-a-former-name-table-and-publish-the-operator.md) | Rename through a former-name table, and publish the operator | Accepted; 26 provider names normalized, old spellings resolve forever, operator searchable |
+| [ADR-080](ADR-080-build-the-usgs-provider-against-the-keyless-legacy-service-now.md) | Build the USGS provider against the keyless legacy service now | Accepted; 2027 migration recorded as named debt with a date |
 
 ## Relationship to the historical journal
 

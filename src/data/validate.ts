@@ -107,7 +107,7 @@ function isBaselineChoice(value: unknown): value is BaselineChoice {
 function isReservoirSource(value: unknown): value is ReservoirSource {
   return isObject(value) &&
     (value.key === "rise" || value.key === "awdb" || value.key === "cdec" ||
-      value.key === "cdss") &&
+      value.key === "cdss" || value.key === "usgs") &&
     typeof value.label === "string" &&
     typeof value.url === "string" &&
     typeof value.cadence === "string";
@@ -128,7 +128,8 @@ function isReservoir(value: unknown): value is Reservoir {
     typeof value.as_of === "string" &&
     hasNumber(value.lat) && hasNumber(value.lon) &&
     (value.source_key === "rise" || value.source_key === "awdb" ||
-      value.source_key === "cdec" || value.source_key === "cdss") &&
+      value.source_key === "cdec" || value.source_key === "cdss" ||
+      value.source_key === "usgs") &&
     (value.data_frequency === "daily" || value.data_frequency === "monthly") &&
     hasNumber(value.stale_after_days) &&
     hasNumber(value.days_stale) &&
@@ -251,7 +252,8 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
       !hasNumber(sourceCounts.rise) ||
       !hasNumber(sourceCounts.awdb) ||
       !hasNumber(sourceCounts.cdec) ||
-      !hasNumber(sourceCounts.cdss)) {
+      !hasNumber(sourceCounts.cdss) ||
+      !hasNumber(sourceCounts.usgs)) {
     throw new Error("reservoirs.json is missing source metadata");
   }
   if (!hasNumber(value.stale_count) || !hasNumber(value.capacity_count)) {

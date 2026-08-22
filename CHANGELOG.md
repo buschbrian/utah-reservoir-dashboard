@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **A fifth provider: the U.S. Geological Survey, seven reservoirs.** The
+  sites the 2026-08-22 review ruled new -- Horseshoe and Bartlett on the Salt
+  River system in Arizona, Weber in Nevada, Wynoochee, Alder, Mud Mountain
+  and Lake Tapps around the Puget Sound. Every one admitted on a confirmed
+  National Inventory of Dams match with the shared admission screens run
+  unmodified; four further candidates are held with findings named in
+  `admitted_usgs_reservoirs.json`, among them Walker Lake, whose admission
+  would need ADR-078's dam rule changed first. The provider publishes no full
+  level of its own, so every denominator comes from the dam inventory.
+  Built against the keyless legacy service by decision of ADR-080; the
+  documented 2027 retirement is recorded debt with a date.
+
 - **Twenty-six provider names normalized, and every old link kept working.**
   Names like `Courtright (Pg&E)`, `Mossyrock Dam (Riffe Lk)` and
   `Lake Pillsbury Nr Potter Vly 24Hr Avg` are now `Courtright Reservoir`,

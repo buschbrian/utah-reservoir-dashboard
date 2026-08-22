@@ -1,7 +1,7 @@
 {
   "source": "Esri Living Atlas, USA Census Counties (U.S. Census Bureau 2020 boundaries)",
   "source_layer": "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Counties/FeatureServer/0",
-  "retrieved": "2026-08-21",
+  "retrieved": "2026-08-22",
   "assignment_point": "published_point",
   "roster": "the refresh's own roster, not reservoirs.json -- a reservoir withdrawn for going quiet (ADR-056) has not moved county",
   "note": "The county holding each reservoir's published waterbody point. Deliberately not the dam point the drainage area is assigned from (ADR-058): Glen Canyon Dam is in Coconino County, Arizona, and Lake Powell is in San Juan County, Utah. Keyed on the five-digit FIPS code, because this roster holds two Summit Counties in different states.",
@@ -163,7 +163,7 @@
       "state": "WY"
     },
     "09223100:WY:BOR": {
-      "name": "Viva Naughton Res",
+      "name": "Lake Viva Naughton",
       "county_fips": "56023",
       "county_name": "Lincoln County",
       "state": "WY"
@@ -202,6 +202,18 @@
       "name": "San Carlos Reservoir",
       "county_fips": "04007",
       "county_name": "Gila County",
+      "state": "AZ"
+    },
+    "09509501": {
+      "name": "Horseshoe Reservoir",
+      "county_fips": "04013",
+      "county_name": "Maricopa County",
+      "state": "AZ"
+    },
+    "09509502": {
+      "name": "Bartlett Reservoir",
+      "county_fips": "04013",
+      "county_name": "Maricopa County",
       "state": "AZ"
     },
     "09UTBRWN:UT:BOR": {
@@ -384,6 +396,12 @@
       "county_name": "Mono County",
       "state": "CA"
     },
+    "10301700": {
+      "name": "Weber Reservoir",
+      "county_fips": "32021",
+      "county_name": "Mineral County",
+      "state": "NV"
+    },
     "10312100:NV:BOR": {
       "name": "Lahontan Reservoir",
       "county_fips": "32001",
@@ -397,7 +415,7 @@
       "state": "NV"
     },
     "10336710:NV:BOR": {
-      "name": "Marlette Lk nr Carson City",
+      "name": "Marlette Lake",
       "county_fips": "32031",
       "county_name": "Washoe County",
       "state": "NV"
@@ -588,6 +606,30 @@
       "county_name": "Jackson County",
       "state": "OR"
     },
+    "12035380": {
+      "name": "Wynoochee Lake",
+      "county_fips": "53027",
+      "county_name": "Grays Harbor County",
+      "state": "WA"
+    },
+    "12085000": {
+      "name": "Alder Reservoir",
+      "county_fips": "53067",
+      "county_name": "Thurston County",
+      "state": "WA"
+    },
+    "12098000": {
+      "name": "Mud Mountain Lake",
+      "county_fips": "53053",
+      "county_name": "Pierce County",
+      "state": "WA"
+    },
+    "12101000": {
+      "name": "Lake Tapps",
+      "county_fips": "53053",
+      "county_name": "Pierce County",
+      "state": "WA"
+    },
     "12105800:WA:BOR": {
       "name": "Howard Hansen",
       "county_fips": "53033",
@@ -631,7 +673,7 @@
       "state": "MT"
     },
     "12336500:MT:BOR": {
-      "name": "Nevada Creek Res",
+      "name": "Nevada Lake",
       "county_fips": "30077",
       "county_name": "Powell County",
       "state": "MT"
@@ -667,7 +709,7 @@
       "state": "MT"
     },
     "12390000:MT:BOR": {
-      "name": "Thompson Falls Res",
+      "name": "Thompson Falls Reservoir",
       "county_fips": "30089",
       "county_name": "Sanders County",
       "state": "MT"
@@ -1123,7 +1165,7 @@
       "state": "OR"
     },
     "14234800:WA:BOR": {
-      "name": "Mossyrock Dam (Riffe Lk)",
+      "name": "Riffe Lake",
       "county_fips": "53041",
       "county_name": "Lewis County",
       "state": "WA"
@@ -1513,13 +1555,13 @@
       "state": "CA"
     },
     "COY": {
-      "name": "Coyote (Lake Mendocino)",
+      "name": "Lake Mendocino",
       "county_fips": "06045",
       "county_name": "Mendocino County",
       "state": "CA"
     },
     "CPL": {
-      "name": "Caples Lake (Eid)",
+      "name": "Caples Lake",
       "county_fips": "06003",
       "county_name": "Alpine County",
       "state": "CA"
@@ -1549,7 +1591,7 @@
       "state": "CA"
     },
     "CTG": {
-      "name": "Courtright (Pg&E)",
+      "name": "Courtright Reservoir",
       "county_fips": "06019",
       "county_name": "Fresno County",
       "state": "CA"
@@ -1567,13 +1609,13 @@
       "state": "CA"
     },
     "CYC": {
-      "name": "Coyote Res-Sta Clara",
+      "name": "Coyote Lake",
       "county_fips": "06085",
       "county_name": "Santa Clara County",
       "state": "CA"
     },
     "DAV": {
-      "name": "Lake Davis (Dwr)",
+      "name": "Lake Davis",
       "county_fips": "06063",
       "county_name": "Plumas County",
       "state": "CA"
@@ -1609,7 +1651,7 @@
       "state": "CA"
     },
     "EDN": {
-      "name": "Stumpy Meadows Reservoir(Mark Edson Dam)",
+      "name": "Stumpy Meadows Reservoir",
       "county_fips": "06017",
       "county_name": "El Dorado County",
       "state": "CA"
@@ -1621,7 +1663,7 @@
       "state": "CA"
     },
     "ENG": {
-      "name": "Englebright (Usace)",
+      "name": "Harry L. Englebright Lake",
       "county_fips": "06057",
       "county_name": "Nevada County",
       "state": "CA"
@@ -1639,13 +1681,13 @@
       "state": "CA"
     },
     "EXC": {
-      "name": "New Exchequer-Lk Mcclure",
+      "name": "Lake McClure",
       "county_fips": "06043",
       "county_name": "Mariposa County",
       "state": "CA"
     },
     "FLR": {
-      "name": "Florence Lake (Sce)",
+      "name": "Florence Lake",
       "county_fips": "06019",
       "county_name": "Fresno County",
       "state": "CA"
@@ -1675,7 +1717,7 @@
       "state": "CA"
     },
     "GLK": {
-      "name": "Gem  Lake",
+      "name": "Gem Lake",
       "county_fips": "06051",
       "county_name": "Mono County",
       "state": "CA"
@@ -1699,13 +1741,13 @@
       "state": "CA"
     },
     "HHL": {
-      "name": "Hell Hole (Pcwa)",
+      "name": "Hell Hole Reservoir",
       "county_fips": "06061",
       "county_name": "Placer County",
       "state": "CA"
     },
     "HID": {
-      "name": "Hidden Dam (Hensley)",
+      "name": "Hensley Lake",
       "county_fips": "06039",
       "county_name": "Madera County",
       "state": "CA"
@@ -1729,7 +1771,7 @@
       "state": "CA"
     },
     "HNT": {
-      "name": "Huntington Lake (Usbr)",
+      "name": "Huntington Lake",
       "county_fips": "06019",
       "county_name": "Fresno County",
       "state": "CA"
@@ -1747,7 +1789,7 @@
       "state": "CA"
     },
     "ICH": {
-      "name": "Ice House (Smud)",
+      "name": "Ice House Reservoir",
       "county_fips": "06017",
       "county_name": "El Dorado County",
       "state": "CA"
@@ -1807,7 +1849,7 @@
       "state": "CA"
     },
     "LON": {
-      "name": "Loon Lake (Smud)",
+      "name": "Loon Lake",
       "county_fips": "06017",
       "county_name": "El Dorado County",
       "state": "CA"
@@ -1831,7 +1873,7 @@
       "state": "CA"
     },
     "LPY": {
-      "name": "Lake Pillsbury Nr Potter Vly 24Hr Avg",
+      "name": "Lake Pillsbury",
       "county_fips": "06033",
       "county_name": "Lake County",
       "state": "CA"
@@ -1939,7 +1981,7 @@
       "state": "CA"
     },
     "NAT": {
-      "name": "Lake Natoma  (Nimbus Dam)",
+      "name": "Lake Natoma",
       "county_fips": "06067",
       "county_name": "Sacramento County",
       "state": "CA"
@@ -1999,13 +2041,13 @@
       "state": "CA"
     },
     "PT6": {
-      "name": "Pit R No 6 Reservoir",
+      "name": "Pit Six Reservoir",
       "county_fips": "06089",
       "county_name": "Shasta County",
       "state": "CA"
     },
     "PT7": {
-      "name": "Pit R No 7 Reservoir",
+      "name": "Pit 7 Reservoir",
       "county_fips": "06089",
       "county_name": "Shasta County",
       "state": "CA"
@@ -2071,7 +2113,7 @@
       "state": "CA"
     },
     "SGC": {
-      "name": "Santiago Creek Res (Irvine Lake)",
+      "name": "Irvine Lake",
       "county_fips": "06059",
       "county_name": "Orange County",
       "state": "CA"
@@ -2269,7 +2311,7 @@
       "state": "CA"
     },
     "WRS": {
-      "name": "Warm Springs (Lake Sonoma)",
+      "name": "Lake Sonoma",
       "county_fips": "06097",
       "county_name": "Sonoma County",
       "state": "CA"

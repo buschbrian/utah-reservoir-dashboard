@@ -7,7 +7,7 @@
  "self_exclusion": "deliberate: a dam point lies inside its own basin",
  "area_method": "spherical excess around the ring; approximate, for screening rather than measurement",
  "review_area_sq_mi": 300000.0,
- "traced_count": 375,
+ "traced_count": 382,
  "screened_count": 0,
  "review_count": 0,
  "traces": {
@@ -334,7 +334,7 @@
    ]
   },
   "09223100:WY:BOR": {
-   "name": "Viva Naughton Res",
+   "name": "Lake Viva Naughton",
    "trace_point": "published point",
    "comid": "3194484",
    "basin_vertices": 34,
@@ -402,6 +402,42 @@
     "595:NM:SNTL",
     "755:NM:SNTL",
     "757:NM:SNTL"
+   ]
+  },
+  "09509501": {
+   "name": "Horseshoe Reservoir",
+   "trace_point": "published point",
+   "comid": "20440738",
+   "basin_vertices": 1953,
+   "basin_area_sq_mi": 5499,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1139:AZ:SNTL",
+    "1140:AZ:SNTL",
+    "1212:AZ:SNTL",
+    "308:AZ:SNTL",
+    "488:AZ:SNTL",
+    "861:AZ:SNTL",
+    "969:AZ:SNTL"
+   ]
+  },
+  "09509502": {
+   "name": "Bartlett Reservoir",
+   "trace_point": "published point",
+   "comid": "20440790",
+   "basin_vertices": 2039,
+   "basin_area_sq_mi": 5683,
+   "upstream_reservoirs": [
+    "09509501"
+   ],
+   "upstream_snow_sites": [
+    "1139:AZ:SNTL",
+    "1140:AZ:SNTL",
+    "1212:AZ:SNTL",
+    "308:AZ:SNTL",
+    "488:AZ:SNTL",
+    "861:AZ:SNTL",
+    "969:AZ:SNTL"
    ]
   },
   "09UTBRWN:UT:BOR": {
@@ -756,6 +792,25 @@
     "846:CA:SNTL"
    ]
   },
+  "10301700": {
+   "name": "Weber Reservoir",
+   "trace_point": "published point",
+   "comid": "10737651",
+   "basin_vertices": 1116,
+   "basin_area_sq_mi": 2240,
+   "upstream_reservoirs": [
+    "10292500:CA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1052:CA:SNTL",
+    "1317:CA:SNTL",
+    "574:CA:SNTL",
+    "575:CA:SNTL",
+    "587:CA:SNTL",
+    "771:CA:SNTL",
+    "846:CA:SNTL"
+   ]
+  },
   "10312100:NV:BOR": {
    "name": "Lahontan Reservoir",
    "trace_point": "published point",
@@ -790,7 +845,7 @@
    ]
   },
   "10336710:NV:BOR": {
-   "name": "Marlette Lk nr Carson City",
+   "name": "Marlette Lake",
    "trace_point": "published point",
    "comid": "8942951",
    "basin_vertices": 22,
@@ -1160,6 +1215,50 @@
    "upstream_reservoirs": [],
    "upstream_snow_sites": []
   },
+  "12035380": {
+   "name": "Wynoochee Lake",
+   "trace_point": "published point",
+   "comid": "23856923",
+   "basin_vertices": 86,
+   "basin_area_sq_mi": 41,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12085000": {
+   "name": "Alder Reservoir",
+   "trace_point": "published point",
+   "comid": "24282042",
+   "basin_vertices": 263,
+   "basin_area_sq_mi": 287,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "679:WA:SNTL"
+   ]
+  },
+  "12098000": {
+   "name": "Mud Mountain Lake",
+   "trace_point": "published point",
+   "comid": "23981749",
+   "basin_vertices": 14,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12101000": {
+   "name": "Lake Tapps",
+   "trace_point": "published point",
+   "comid": "23981259",
+   "basin_vertices": 366,
+   "basin_area_sq_mi": 466,
+   "upstream_reservoirs": [
+    "12098000"
+   ],
+   "upstream_snow_sites": [
+    "1085:WA:SNTL",
+    "418:WA:SNTL",
+    "928:WA:SNTL"
+   ]
+  },
   "12105800:WA:BOR": {
    "name": "Howard Hansen",
    "trace_point": "published point",
@@ -1237,7 +1336,7 @@
    ]
   },
   "12336500:MT:BOR": {
-   "name": "Nevada Creek Res",
+   "name": "Nevada Lake",
    "trace_point": "published point",
    "comid": "22912402",
    "basin_vertices": 145,
@@ -1297,7 +1396,7 @@
    ]
   },
   "12390000:MT:BOR": {
-   "name": "Thompson Falls Res",
+   "name": "Thompson Falls Reservoir",
    "trace_point": "published point",
    "comid": "22976328",
    "basin_vertices": 3835,
@@ -2615,7 +2714,7 @@
    ]
   },
   "14234800:WA:BOR": {
-   "name": "Mossyrock Dam (Riffe Lk)",
+   "name": "Riffe Lake",
    "trace_point": "published point",
    "comid": "24248994",
    "basin_vertices": 549,
@@ -3780,7 +3879,7 @@
    "upstream_snow_sites": []
   },
   "COY": {
-   "name": "Coyote (Lake Mendocino)",
+   "name": "Lake Mendocino",
    "trace_point": "published point",
    "comid": "8269105",
    "basin_vertices": 137,
@@ -3789,7 +3888,7 @@
    "upstream_snow_sites": []
   },
   "CPL": {
-   "name": "Caples Lake (Eid)",
+   "name": "Caples Lake",
    "trace_point": "published point",
    "comid": "14983690",
    "basin_vertices": 40,
@@ -3838,7 +3937,7 @@
    "upstream_snow_sites": []
   },
   "CTG": {
-   "name": "Courtright (Pg&E)",
+   "name": "Courtright Reservoir",
    "trace_point": "published point",
    "comid": "22048993",
    "basin_vertices": 84,
@@ -3865,7 +3964,7 @@
    "upstream_snow_sites": []
   },
   "CYC": {
-   "name": "Coyote Res-Sta Clara",
+   "name": "Coyote Lake",
    "trace_point": "published point",
    "comid": "17695829",
    "basin_vertices": 219,
@@ -3874,7 +3973,7 @@
    "upstream_snow_sites": []
   },
   "DAV": {
-   "name": "Lake Davis (Dwr)",
+   "name": "Lake Davis",
    "trace_point": "published point",
    "comid": "8039223",
    "basin_vertices": 70,
@@ -3932,7 +4031,7 @@
    "upstream_snow_sites": []
   },
   "EDN": {
-   "name": "Stumpy Meadows Reservoir(Mark Edson Dam)",
+   "name": "Stumpy Meadows Reservoir",
    "trace_point": "published point",
    "comid": "14997987",
    "basin_vertices": 54,
@@ -3952,7 +4051,7 @@
    "upstream_snow_sites": []
   },
   "ENG": {
-   "name": "Englebright (Usace)",
+   "name": "Harry L. Englebright Lake",
    "trace_point": "published point",
    "comid": "8062553",
    "basin_vertices": 454,
@@ -3985,7 +4084,7 @@
    "upstream_snow_sites": []
   },
   "EXC": {
-   "name": "New Exchequer-Lk Mcclure",
+   "name": "Lake McClure",
    "trace_point": "published point",
    "comid": "21608661",
    "basin_vertices": 530,
@@ -3994,7 +4093,7 @@
    "upstream_snow_sites": []
   },
   "FLR": {
-   "name": "Florence Lake (Sce)",
+   "name": "Florence Lake",
    "trace_point": "published point",
    "comid": "17129879",
    "basin_vertices": 177,
@@ -4039,7 +4138,7 @@
    "upstream_snow_sites": []
   },
   "GLK": {
-   "name": "Gem  Lake",
+   "name": "Gem Lake",
    "trace_point": "published point",
    "comid": "20287438",
    "basin_vertices": 58,
@@ -4079,7 +4178,7 @@
    "upstream_snow_sites": []
   },
   "HHL": {
-   "name": "Hell Hole (Pcwa)",
+   "name": "Hell Hole Reservoir",
    "trace_point": "published point",
    "comid": "14993709",
    "basin_vertices": 177,
@@ -4088,7 +4187,7 @@
    "upstream_snow_sites": []
   },
   "HID": {
-   "name": "Hidden Dam (Hensley)",
+   "name": "Hensley Lake",
    "trace_point": "published point",
    "comid": "17100573",
    "basin_vertices": 282,
@@ -4124,7 +4223,7 @@
    "upstream_snow_sites": []
   },
   "HNT": {
-   "name": "Huntington Lake (Usbr)",
+   "name": "Huntington Lake",
    "trace_point": "published point",
    "comid": "17116199",
    "basin_vertices": 123,
@@ -4151,7 +4250,7 @@
    "upstream_snow_sites": []
   },
   "ICH": {
-   "name": "Ice House (Smud)",
+   "name": "Ice House Reservoir",
    "trace_point": "published point",
    "comid": "14983642",
    "basin_vertices": 72,
@@ -4247,7 +4346,7 @@
    "upstream_snow_sites": []
   },
   "LON": {
-   "name": "Loon Lake (Smud)",
+   "name": "Loon Lake",
    "trace_point": "published point",
    "comid": "14993719",
    "basin_vertices": 45,
@@ -4283,7 +4382,7 @@
    "upstream_snow_sites": []
   },
   "LPY": {
-   "name": "Lake Pillsbury Nr Potter Vly 24Hr Avg",
+   "name": "Lake Pillsbury",
    "trace_point": "published point",
    "comid": "8310058",
    "basin_vertices": 190,
@@ -4687,7 +4786,7 @@
    "upstream_snow_sites": []
   },
   "NAT": {
-   "name": "Lake Natoma  (Nimbus Dam)",
+   "name": "Lake Natoma",
    "trace_point": "published point",
    "comid": "948021150",
    "basin_vertices": 646,
@@ -4801,7 +4900,7 @@
    "upstream_snow_sites": []
   },
   "PT6": {
-   "name": "Pit R No 6 Reservoir",
+   "name": "Pit Six Reservoir",
    "trace_point": "published point",
    "comid": "7952786",
    "basin_vertices": 1703,
@@ -4816,7 +4915,7 @@
    ]
   },
   "PT7": {
-   "name": "Pit R No 7 Reservoir",
+   "name": "Pit 7 Reservoir",
    "trace_point": "published point",
    "comid": "7952810",
    "basin_vertices": 1693,
@@ -4928,7 +5027,7 @@
    "upstream_snow_sites": []
   },
   "SGC": {
-   "name": "Santiago Creek Res (Irvine Lake)",
+   "name": "Irvine Lake",
    "trace_point": "published point",
    "comid": "22563310",
    "basin_vertices": 4,
@@ -5276,7 +5375,7 @@
    "upstream_snow_sites": []
   },
   "WRS": {
-   "name": "Warm Springs (Lake Sonoma)",
+   "name": "Lake Sonoma",
    "trace_point": "published point",
    "comid": "8276453",
    "basin_vertices": 171,

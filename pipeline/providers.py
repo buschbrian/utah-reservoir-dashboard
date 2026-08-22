@@ -344,3 +344,79 @@ def fetch_cdss_series(abbrev: str, start: str, end: str) -> pd.DataFrame:
     df = df[df["date"] <= local_today()]
     return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
               [["date", "storage_af"]].reset_index(drop=True))
+
+
+#: The U.S. Geological Survey's legacy daily-values service. Parameter 00054
+#: is the agency's own code for reservoir storage in acre-feet; the service is
+#: keyless until its documented early-2027 retirement, which ADR-080 accepts
+#: as known debt with a date rather than a credential sought in a hurry.
+USGS_DV_URL = "https://waterservices.usgs.gov/nwis/dv"
+
+
+def _get_usgs_json(url: str, params: dict):
+    """GET an NWIS reply with the shared transient-failure policy."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, params=params, timeout=60,
+                                headers={"User-Agent":
+                                         "western-water-dashboard/refresh "
+                                         "(+https://github.com/buschbrian)"})
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.exceptions.RequestException, ValueError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
+
+
+def fetch_usgs_series(site_no: str, start: str, end: str) -> pd.DataFrame:
+    """Pull a USGS daily 00054 series, normalized to [date, storage_af].
+
+    The same contract every provider answers with. What this one adds:
+
+    **The reply nests twice.** Each entry of `value.timeSeries` is one
+    parameter-and-method series, and each carries a list of value *blocks*
+    whose own `value` is the list of daily readings -- so a reading sits
+    three levels deep where CDSS keeps it at one.
+
+    **The calendar needs no repair.** Each reading is stamped with the day
+    it belongs to (`dateTime` at midnight local), and the value behind that
+    stamp is that day's figure, so dates are kept as written.
+
+    **A quiet site answers with an empty series**, not an error: no blocks,
+    no readings, an empty frame -- the same "no usable rows" state every
+    other adapter produces.
+    """
+    cleaned = []
+    payload = _get_usgs_json(USGS_DV_URL, {
+        "sites": site_no, "parameterCd": "00054",
+        "startDT": dt.datetime.strptime(start, "%Y%m%d").date().isoformat(),
+        "endDT": dt.datetime.strptime(end, "%Y%m%d").date().isoformat(),
+        "format": "json",
+    })
+    for series in payload.get("value", {}).get("timeSeries", []):
+        for block in series.get("values", []):
+            for reading in block.get("value", []):
+                raw = reading.get("value")
+                if raw in (None, ""):
+                    continue
+                try:
+                    number = float(raw)
+                except (TypeError, ValueError):
+                    continue
+                # Provisional or approved, a negative storage is a sentinel,
+                # not a reading.
+                if number >= 0:
+                    cleaned.append({"date": reading.get("dateTime"),
+                                    "storage_af": number})
+    if not cleaned:
+        return pd.DataFrame({"date": pd.Series(dtype="datetime64[ns]"),
+                             "storage_af": pd.Series(dtype="float64")})
+    df = pd.DataFrame(cleaned)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["storage_af"] = pd.to_numeric(df["storage_af"], errors="coerce")
+    df = df.dropna(subset=["date", "storage_af"])
+    df = df[df["date"] <= local_today()]
+    return (df.sort_values("date").drop_duplicates(subset="date", keep="last")
+              [["date", "storage_af"]].reset_index(drop=True))

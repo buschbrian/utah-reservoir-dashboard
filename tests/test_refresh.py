@@ -351,9 +351,11 @@ def test_awdb_inventory_has_traceable_capacity_and_cadence():
     # until the drawn scope reaches the Missouri basin.
     assert len(R.ADMITTED_CDSS_RESERVOIRS) == 10
     assert len(R.CDSS_RESERVOIRS) == 10
-    assert len(R.ALL_RESERVOIR_IDS) == 380
+    # Seven more with the U.S. Geological Survey's admission (ADR-080):
+    # Horseshoe, Bartlett, Weber, Wynoochee, Alder, Mud Mountain, Lake Tapps.
+    assert len(R.ALL_RESERVOIR_IDS) == 387
     assert not (set(R.RESERVOIRS) & set(R.AWDB_RESERVOIRS))
-    # Four providers, four disjoint sets of station ids. An id in two of
+    # Five providers, five disjoint sets of station ids. An id in two of
     # them is one reservoir fetched twice and summed twice (ADR-069).
     assert not (set(R.CDEC_RESERVOIRS)
                 & (set(R.RESERVOIRS) | set(R.AWDB_RESERVOIRS)))

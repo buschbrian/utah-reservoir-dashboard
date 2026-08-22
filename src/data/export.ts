@@ -30,7 +30,8 @@ const PROVIDERS: Record<SourceKey, string> = {
   rise: "Bureau of Reclamation",
   awdb: "Natural Resources Conservation Service",
   cdec: "California Department of Water Resources",
-  cdss: "Colorado Division of Water Resources"
+  cdss: "Colorado Division of Water Resources",
+  usgs: "U.S. Geological Survey"
 };
 
 export function reservoirProvider(reservoir: Reservoir): string {

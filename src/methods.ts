@@ -47,12 +47,13 @@ wireTheme();
  */
 function providerCounts(
   reservoirs: readonly Reservoir[]
-): { rise: number; awdb: number; cdec: number; cdss: number } {
+): { rise: number; awdb: number; cdec: number; cdss: number; usgs: number } {
   return {
     rise: reservoirs.filter((reservoir) => reservoir.source_key === "rise").length,
     awdb: reservoirs.filter((reservoir) => reservoir.source_key === "awdb").length,
     cdec: reservoirs.filter((reservoir) => reservoir.source_key === "cdec").length,
-    cdss: reservoirs.filter((reservoir) => reservoir.source_key === "cdss").length
+    cdss: reservoirs.filter((reservoir) => reservoir.source_key === "cdss").length,
+    usgs: reservoirs.filter((reservoir) => reservoir.source_key === "usgs").length
   };
 }
 
@@ -182,6 +183,9 @@ async function showPublishedData(): Promise<void> {
       `The California Department of Water Resources measures ${counts.cdec}.` +
       (counts.cdss > 0
         ? ` The Colorado Division of Water Resources measures ${counts.cdss}.`
+        : "") +
+      (counts.usgs > 0
+        ? ` The U.S. Geological Survey measures ${counts.usgs}.`
         : "");
   } catch (error) {
     console.warn("The published data could not be read for the methods page:", error);

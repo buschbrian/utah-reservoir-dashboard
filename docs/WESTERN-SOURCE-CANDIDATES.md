@@ -599,10 +599,12 @@ eleven states remain thin: **Idaho 25, Washington 18, Wyoming 9, Nevada 6,
 Arizona 4** — 62 reservoirs between them, fewer than Utah's 58 from the two
 federal providers alone. Oregon's 45 are federal as well.
 
-Nothing above has been acted on for those six. The USGS NWIS count now
-exists (the section above); USACE CWMS for the confirmed Columbia Basin gap
-has not been measured, and Nevada's own entry above says its search was not
-exhaustive.
+Nothing above has been acted on for those six -- except this count, which
+became the U.S. Geological Survey's admission on 2026-08-22: seven of the
+eleven additive reservoirs published, four held with findings in
+`admitted_usgs_reservoirs.json` (Walker Lake's needs ADR-078's dam rule
+changed first). USACE CWMS for the confirmed Columbia Basin gap has not been
+measured, and Nevada's own entry above says its search was not exhaustive.
 
 The next pass, and the order to work it in, is scoped in
 [`WATER-BODY-AND-NAVIGATION-SCOPING.md`](WATER-BODY-AND-NAVIGATION-SCOPING.md),

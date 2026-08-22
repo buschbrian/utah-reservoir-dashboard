@@ -68,6 +68,7 @@ sys.path.insert(0, str(ROOT))
 from refresh_reservoirs import (  # noqa: E402
     CANONICAL_YEAR_DAYS, SEASONAL_WINDOW_DAYS, annual_seasonal_values,
     fetch_awdb_series, fetch_cdss_series, fetch_cdec_series,
+    fetch_usgs_series,
     fetch_rise_series, seasonal_window,
 )
 
@@ -197,6 +198,7 @@ SOURCES = {
     "awdb": "https://wcc.sc.egov.usda.gov/awdbRestApi",
     "cdec": "https://cdec.water.ca.gov/",
     "cdss": "https://dwr.state.co.us/Rest/GET/api/v2/",
+    "usgs": "https://waterservices.usgs.gov/nwis/dv/",
 }
 
 
@@ -218,6 +220,8 @@ def fetch_period(reservoir: dict) -> pd.DataFrame:
             reservoir["source_station_id"], reservoir["data_frequency"], start, end)
     if reservoir["source_key"] == "cdss":
         return fetch_cdss_series(reservoir["source_station_id"], start, end)
+    if reservoir["source_key"] == "usgs":
+        return fetch_usgs_series(reservoir["source_station_id"], start, end)
     return fetch_awdb_series(
         reservoir["source_station_id"], reservoir["data_frequency"], start, end)
 

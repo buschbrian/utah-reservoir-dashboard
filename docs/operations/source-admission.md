@@ -7,14 +7,14 @@ this is the detail behind it. The candidate evidence itself lives in
 `docs/WESTERN-SOURCE-CANDIDATES.md`, `docs/CDSS-CDEC-API-REVIEW.md` and the
 admission reviews indexed by [`docs/README.md`](../README.md).
 
-## Four providers, and a provider is named by its agency
+## Five providers, and a provider is named by its agency
 
-`SourceKey` is `rise | awdb | cdec | cdss` and every table keyed by it is
-exhaustive, so a fifth provider is a compile error rather than an `undefined`
+`SourceKey` is `rise | awdb | cdec | cdss | usgs` and every table keyed by it is
+exhaustive, so a sixth provider is a compile error rather than an `undefined`
 reaching a reader. Visible text names the agency and never the system: "Bureau
 of Reclamation", "Natural Resources Conservation Service", "California
-Department of Water Resources", "Colorado Division of Water Resources"
-(ADR-006).
+Department of Water Resources", "Colorado Division of Water Resources", "U.S.
+Geological Survey" (ADR-006).
 
 ## A reservoir is keyed by its station, not its name (ADR-066)
 

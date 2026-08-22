@@ -68,7 +68,8 @@ from pipeline import (  # noqa: F401
 )
 from pipeline.constants import (  # noqa: F401
     ADMITTED_CDEC_RESERVOIRS_PATH, ADMITTED_CDSS_RESERVOIRS_PATH,
-    ADMITTED_RESERVOIRS_PATH, ADMITTED_RISE_RESERVOIRS_PATH, AWDB_DATA_URL,
+    ADMITTED_RESERVOIRS_PATH, ADMITTED_RISE_RESERVOIRS_PATH,
+    ADMITTED_USGS_RESERVOIRS_PATH, AWDB_DATA_URL,
     AWDB_MONTHLY_STALE_AFTER_DAYS, BASE_AWDB_RESERVOIRS, BASE_RISE_RESERVOIRS,
     CAPACITY_PATH, COUNTIES_PATH, DEFAULT_BASELINE, EXPORT_PATH,
     EXPORT_SCHEMA_VERSION, LOCAL_TZ, METHOD_VERSION, MIN_BASELINE_YEARS,
@@ -78,19 +79,21 @@ from pipeline.constants import (  # noqa: F401
 )
 from pipeline.roster import (  # noqa: F401
     ADMITTED_CDEC_RESERVOIRS, ADMITTED_CDSS_RESERVOIRS, ADMITTED_RESERVOIRS,
-    ADMITTED_RISE_RESERVOIRS, ALL_RESERVOIR_IDS, ALL_RESERVOIR_NAMES,
-    AWDB_RESERVOIRS, CDEC_RESERVOIRS, CDSS_RESERVOIRS,
+    ADMITTED_RISE_RESERVOIRS, ADMITTED_USGS_RESERVOIRS, ALL_RESERVOIR_IDS,
+    ALL_RESERVOIR_NAMES, AWDB_RESERVOIRS, CDEC_RESERVOIRS, CDSS_RESERVOIRS,
     REQUIRED_CAPACITY_EVIDENCE, RESERVOIRS, RESERVOIR_NAMES,
-    load_admitted_cdec_reservoirs, load_admitted_cdss_reservoirs,
-    load_admitted_reservoirs, load_admitted_rise_reservoirs, load_capacities,
-    validate_capacity_evidence
+    USGS_RESERVOIRS, load_admitted_cdec_reservoirs,
+    load_admitted_cdss_reservoirs, load_admitted_reservoirs,
+    load_admitted_rise_reservoirs, load_admitted_usgs_reservoirs,
+    load_capacities, validate_capacity_evidence
 )
 from pipeline.providers import (  # noqa: F401
     CDEC_DATA_URL, CDEC_MISSING_VALUE, CDEC_STORAGE_SENSOR, CDSS_BASE_URL,
     CDSS_SERIES_URL, CDSS_STATIONS_URL, MAX_PAGES, RETRY_ATTEMPTS,
-    RETRY_BACKOFF_SECONDS, _get_awdb_json, _get_cdss_json, _get_cdec_json,
-    _get_json, fetch_awdb_series, fetch_cdss_series, fetch_cdec_series,
-    fetch_rise_series
+    RETRY_BACKOFF_SECONDS, USGS_DV_URL, _get_awdb_json, _get_cdss_json,
+    _get_cdec_json, _get_json, _get_usgs_json, fetch_awdb_series,
+    fetch_cdss_series, fetch_cdec_series, fetch_rise_series,
+    fetch_usgs_series
 )
 from pipeline.seasonal import (  # noqa: F401
     CANONICAL_YEAR_DAYS, annual_seasonal_values, canonical_day,
@@ -315,6 +318,7 @@ def load_capacity_catalog() -> dict:
     catalog["admitted_rise_reservoirs"] = ADMITTED_RISE_RESERVOIRS_PATH.name
     catalog["admitted_cdec_reservoirs"] = ADMITTED_CDEC_RESERVOIRS_PATH.name
     catalog["admitted_cdss_reservoirs"] = ADMITTED_CDSS_RESERVOIRS_PATH.name
+    catalog["admitted_usgs_reservoirs"] = ADMITTED_USGS_RESERVOIRS_PATH.name
     catalog["dam_points"]["count"] = sum(
         1 for entry in catalog["capacities"].values()
         if entry.get("dam_lon") is not None and entry.get("dam_lat") is not None)
@@ -677,7 +681,8 @@ def main() -> int:
                              "since a partial run would drop every other reservoir.")
     parser.add_argument("--dry-run", action="store_true",
                         help="compute everything but don't write reservoirs.json")
-    parser.add_argument("--source", choices=("all", "rise", "awdb", "cdec", "cdss"),
+    parser.add_argument("--source",
+                        choices=("all", "rise", "awdb", "cdec", "cdss", "usgs"),
                         default="all",
                         help="refresh one source and merge the other source's previously "
                              "published records (default: all)")
@@ -697,12 +702,14 @@ def main() -> int:
     print(f"NID capacity records available: {len(capacities)} "
           f"({len(RESERVOIRS)} Reclamation, {len(ADMITTED_RESERVOIRS)} admitted, "
           f"{len(ADMITTED_CDEC_RESERVOIRS)} California, "
-          f"{len(ADMITTED_CDSS_RESERVOIRS)} Colorado)")
+          f"{len(ADMITTED_CDSS_RESERVOIRS)} Colorado, "
+          f"{len(ADMITTED_USGS_RESERVOIRS)} USGS)")
 
     rise_targets = RESERVOIRS if args.source in {"all", "rise"} else {}
     awdb_targets = AWDB_RESERVOIRS if args.source in {"all", "awdb"} else {}
     cdec_targets = CDEC_RESERVOIRS if args.source in {"all", "cdec"} else {}
     cdss_targets = CDSS_RESERVOIRS if args.source in {"all", "cdss"} else {}
+    usgs_targets = USGS_RESERVOIRS if args.source in {"all", "usgs"} else {}
     if args.only:
         # Named, because a person types a name and not a station triplet. The
         # roster is keyed by station since ADR-066, so a name is resolved to
@@ -715,11 +722,12 @@ def main() -> int:
         awdb_targets = {k: v for k, v in AWDB_RESERVOIRS.items() if k in chosen}
         cdec_targets = {k: v for k, v in CDEC_RESERVOIRS.items() if k in chosen}
         cdss_targets = {k: v for k, v in CDSS_RESERVOIRS.items() if k in chosen}
+        usgs_targets = {k: v for k, v in USGS_RESERVOIRS.items() if k in chosen}
         found = {RESERVOIR_NAMES.get(station, station)
                  for station in set(rise_targets) | set(awdb_targets)
-                 | set(cdec_targets) | set(cdss_targets)}
+                 | set(cdec_targets) | set(cdss_targets) | set(usgs_targets)}
         missing = (wanted - found - set(rise_targets) - set(awdb_targets)
-                   - set(cdec_targets) - set(cdss_targets))
+                   - set(cdec_targets) - set(cdss_targets) - set(usgs_targets))
         if missing:
             print(f"ERROR: unknown reservoir(s): {', '.join(sorted(missing))}", file=sys.stderr)
             return 2
@@ -857,6 +865,41 @@ def main() -> int:
         ))
         time.sleep(0.1)
 
+    for site_no, (name, lat, lon, capacity_af, cadence) in usgs_targets.items():
+        try:
+            df = fetch_usgs_series(site_no, START_DATE, end)
+        except Exception as exc:  # noqa: BLE001
+            reason = (f"USGS fetch failed after {RETRY_ATTEMPTS} attempts: "
+                      f"{type(exc).__name__}: {exc}")
+            print(f"WARNING: {name} ({site_no}) -- {reason}")
+            if site_no in previous:
+                records.append(carry_forward(previous[site_no], today, reason))
+            continue
+
+        if df.empty:
+            # A quiet site answers an empty series rather than an error --
+            # the same "no usable rows" state every other provider's dead
+            # feed arrives in.
+            reason = f"USGS returned no usable storage rows"
+            print(f"WARNING: {name} ({site_no}) -- {reason}")
+            if site_no in previous:
+                records.append(carry_forward(previous[site_no], today, reason))
+            continue
+
+        stale_after = AWDB_MONTHLY_STALE_AFTER_DAYS if cadence == "monthly" \
+            else STALE_AFTER_DAYS
+        records.append(summarize(
+            name, None, lat, lon, df, today,
+            ADMITTED_USGS_RESERVOIRS[site_no]["capacity"],
+            source_key="usgs", source_label="U.S. Geological Survey",
+            source_url=USGS_DV_URL + "/",
+            data_frequency=cadence, stale_after_days=stale_after,
+            change_tolerance_days=45 if cadence == "monthly" else 10,
+            source_station_id=site_no,
+            normals=normals,
+        ))
+        time.sleep(0.2)
+
     if args.only:
         print(json.dumps(records, indent=2))
         return 0 if records else 1
@@ -865,7 +908,8 @@ def main() -> int:
     # scheduled feeds. Preserve the other source instead of turning a partial
     # refresh into a partial dashboard.
     selected_stations = (set(rise_targets) | set(awdb_targets)
-                         | set(cdec_targets) | set(cdss_targets))
+                         | set(cdec_targets) | set(cdss_targets)
+                         | set(usgs_targets))
     refreshed_sources: set[str] = set()
     if args.source != "all":
         # Which feeds this run actually spoke to, read from what it fetched
@@ -1004,12 +1048,16 @@ def main() -> int:
             {"key": "cdss", "label": "Colorado Division of Water Resources",
              "url": "https://dwr.state.co.us/Rest/GET/api/v2/",
              "cadence": "daily"},
+            {"key": "usgs", "label": "U.S. Geological Survey",
+             "url": USGS_DV_URL + "/",
+             "cadence": "daily"},
         ],
         "source_counts": {
             "rise": sum(1 for r in records if r.get("source_key", "rise") == "rise"),
             "awdb": sum(1 for r in records if r.get("source_key") == "awdb"),
             "cdec": sum(1 for r in records if r.get("source_key") == "cdec"),
             "cdss": sum(1 for r in records if r.get("source_key") == "cdss"),
+            "usgs": sum(1 for r in records if r.get("source_key") == "usgs"),
         },
         "reservoir_count": len(records),
         "stale_count": sum(1 for r in records if r.get("is_stale")),
