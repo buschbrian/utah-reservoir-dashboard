@@ -171,9 +171,20 @@ list a reader cannot see the reason for or change.
 ## A county is where a thing is; a drainage area is where its water goes
 
 (ADR-058, ADR-060.) Counties are a *search and filter* axis and never a
-grouping one — 365 reservoirs fall in 157 counties and 75 hold exactly one, so
-a county total is a reservoir total wearing a county's name. More than half the
-counties on the roster now hold a single reservoir.
+grouping one — 375 reservoirs fall in 157 counties and 73 hold exactly one, so
+a county total is a reservoir total wearing a county's name. Nearly half the
+counties on the roster hold a single reservoir, and the ratio that made the
+aggregation framing wrong at 68 reservoirs held as the roster went west: the
+same 375 sit in 52 drainage areas, about seven to an area, with only nine
+areas holding exactly one.
+
+The dam-versus-waterbody question `OPEN-BACKLOG-SCOPING.md` left open was
+measured 2026-08-21 (`tools/probe_county_dam_point.py`): of the 30 published
+reservoirs with a reviewed dam point, **2** would move county if counties
+followed the drainage rule — Lake Powell (San Juan County, Utah → Coconino
+County, Arizona) and Lost Lake (Wasatch County → Summit County, Utah). Both
+are already the named examples behind the rule; no third case emerged from
+the larger roster, and the waterbody assignment point stands.
 
 The key is the five-digit FIPS code and never the name: this roster holds seven
 repeated county names — two each of Carbon, Garfield, Lincoln, San Juan and

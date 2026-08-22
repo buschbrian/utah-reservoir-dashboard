@@ -546,6 +546,51 @@ current data in RISE at all, and if SRP ever publishes a stable
 per-reservoir identifier or a structured feed, it moves straight to the top
 of this list.
 
+## The count that was missing (2026-08-21)
+
+Item 5 of the water-body scoping said nobody could size the USGS question
+until a number existed. Measured with `tools/probe_nwis_storage.py` against
+the legacy daily-values service -- distinct sites answering parameter
+`00054` with `siteStatus=active` and values inside the last seven days, so
+**active means reporting**, not merely registered:
+
+| State | Reporting 00054 sites | Within 3 km of a published point |
+|---|---:|---:|
+| Arizona | 6 | 4 |
+| Nevada | 8 | 4 |
+| Idaho | 3 | 3 |
+| **Oregon** | **9** | **9** |
+| Washington | 6 | 2 |
+| Wyoming | 2 | 2 |
+| **Total** | **34** | **23** |
+
+Two readings, and they point the same way:
+
+**Oregon needs nothing from USGS.** All nine reporting sites are already on
+the roster through NRCS and Reclamation -- the probe matched every one to a
+published reservoir within metres, which is also the first real evidence
+that the roster and NWIS describe the same ground rather than different
+gauges.
+
+**The genuinely additive remainder is eleven, not thirty-four.** Arizona
+contributes two -- **Horseshoe and Bartlett, the Salt River Project pair**
+whose absence from RISE this document already recorded -- plus Nevada's four
+(Walker Lake, Topaz Lake, Weber Reservoir, Little Washoe Lake; the first is
+the terminal-lake example the survey worked from, the second straddles the
+California line), Idaho's one (Milner), and Washington's four (Wynoochee,
+Alder, Mud Mountain, Lake Tapps -- the Puget Sound/Tacoma fleet the Columbia
+Basin CWMS gap predicted). The counts are smaller than the 2026-08-18
+registration table above because a seven-day window drops registered-but-
+quiet sites; both tables are true of their own definitions.
+
+**This sizes the item as a provider, not a project**: roughly a dozen new
+reservoirs across six states, each still needing a dam match for its
+denominator under ADR-072 -- the expensive step named in the scoping's step
+3, unchanged by this count. The 23 near-duplicates are *candidates*, listed
+by the probe and ruled nowhere: promoting any of them to confirmed duplicate
+is a review judgement under ADR-069, and the retirement warning about the
+legacy endpoint (2027) stands exactly as written above.
+
 ## Still open, checked against the roster on 2026-08-21
 
 The survey above was made before California and Colorado were promoted. With
@@ -554,10 +599,9 @@ eleven states remain thin: **Idaho 25, Washington 18, Wyoming 9, Nevada 6,
 Arizona 4** — 62 reservoirs between them, fewer than Utah's 58 from the two
 federal providers alone. Oregon's 45 are federal as well.
 
-Nothing above has been acted on for those six. The two recommendations that
-still stand — USGS NWIS `00054` for the nine states with coverage, and USACE
-CWMS for the confirmed Columbia Basin gap — have not been measured against
-the current roster, and Nevada's own entry above says its search was not
+Nothing above has been acted on for those six. The USGS NWIS count now
+exists (the section above); USACE CWMS for the confirmed Columbia Basin gap
+has not been measured, and Nevada's own entry above says its search was not
 exhaustive.
 
 The next pass, and the order to work it in, is scoped in

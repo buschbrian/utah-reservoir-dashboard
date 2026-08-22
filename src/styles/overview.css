@@ -233,6 +233,26 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
   gap: .75rem;
 }
+/* Two charts sharing a row start at the same height.
+ *
+ * Measured at 1280: the two compact cards' headings wrapped to a different
+ * number of lines -- 145 pixels against 127 -- so the charts beside each
+ * other began 18 pixels apart, which reads as one of them having slipped.
+ * The difference is one line of description text, so it appears and
+ * disappears with the viewport width rather than staying put.
+ *
+ * `subgrid` makes the cards share the row's tracks instead of each sizing
+ * its own, so heading, chart, note and key line up across the row whatever
+ * the text does. The span has to cover **every** slot a card can hold: at
+ * `span 2` the note and the key of the card that has them collapse into the
+ * chart's own row and draw on top of it. A card that has no note and no key
+ * leaves those rows empty, which is the cost of the alignment and is
+ * deliberate. */
+.overview-chart-grid > .overview-card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+}
 /* The category-heavy charts need enough room for complete names, and the
  * histogram's key needs the same full row so it does not leave a half-row
  * beside the following wide chart. The two compact comparison charts still
@@ -637,6 +657,11 @@ body {
  * circles and this row cannot describe different breaks (ADR-008). */
 .chart-legend {
   display: flex;
+  /* Centred under the chart it explains. The key is a caption, not a list:
+   * left-aligned in a card 1217 pixels wide it sat 406 pixels left of the
+   * centre of the chart above it, which reads as a stray row rather than as
+   * that chart's key. */
+  justify-content: center;
   flex-wrap: wrap;
   gap: .35rem .9rem;
   margin-block-start: .75rem;

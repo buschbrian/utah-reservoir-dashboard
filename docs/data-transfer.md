@@ -1,8 +1,9 @@
 # What this site costs over the wire
 
-**Status:** maintained measurement record, checked through the 2026-08-20
-western roster and science-review work. Re-run `tools/audit-transfer.mjs`
-after changing a payload, hosted layer, SDK surface, or content-policy host.
+**Status:** maintained measurement record, checked through the 2026-08-21
+audit that added the reservoir page to the tool's page list. Re-run
+`tools/audit-transfer.mjs` after changing a payload, hosted layer, SDK
+surface, or content-policy host.
 
 Two rules before any figure below is read:
 
@@ -21,8 +22,8 @@ Two rules before any figure below is read:
 | `reservoirs.json` | 2,055 KB | 220.8 KB |
 | `snow_sites.json` | 143 KB | 22 KB |
 | `reference.json` | 132.7 KB | 23.6 KB |
-| `data/drought/usdm-huc6.json` | 17.5 KB | 2.9 KB |
-| `data/drought/usdm-huc4.json` | 10.5 KB | 2.0 KB |
+| `data/drought/usdm-huc6.json` | 24.5 KB | 3.4 KB |
+| `data/drought/usdm-huc4.json` | 10.6 KB | 2.1 KB |
 
 The two storage figures were re-measured 2026-08-21, after R3 admitted
 Colorado; the section at the end of this file has the arithmetic. The
@@ -333,6 +334,34 @@ evidence. The fourth provider costs the envelope one `sources` row, four
 counts and a coverage-table note.
 
 `normals.json` is 1,368 KB and does not ship.
+
+## The reservoir page joins the audit (2026-08-21)
+
+Re-run after the nested menus and the reservoir page landed, both after the
+Colorado section above was written. `tools/audit-transfer.mjs` now measures
+seven pages: `reservoir.html` had shipped without a row in the tool's page
+list, which is why it never appeared here.
+
+**The reservoir page's first figure:** 54 requests, 2,373,253 bytes from this
+site uncompressed, nothing from other hosts, no failed requests. It is shaped
+like `methods.html` -- a static shell plus one payload fetch plus the SDK --
+and it is the only page whose whole subject is a single record of a payload
+every map already pays for.
+
+The rest of the run was clean against the recorded figures:
+
+- `reservoirs.json` is **byte-identical** to the Colorado measurement above:
+  2,103,924 raw / 226,128 gzipped. The menu change touched no payload bytes.
+- `reference.json` is unchanged at 135,822 raw; re-measured at **24,177
+  gzipped** against the 24,820 recorded above. Same-length content edits
+  within the R3 commit compressed slightly better; the wire cost did not rise.
+- The two drought coverage files grew when the daily refresh began carrying
+  the previous week inline (`previous`, 75 units per file):
+  `usdm-huc6.json` went from 17.5 KB raw / 2.9 KB gzip to **24.5 / 3.4**, and
+  `usdm-huc4.json` from 10.5 / 2.0 to **10.6 / 2.1**. The growth is the
+  embedded prior week, not new units -- `unit_count` stayed 75.
+- No lazy marker appeared on any page's first-load path, and no request
+  failed on any of the seven.
 
 ## The Bureau-only west (2026-08-20)
 

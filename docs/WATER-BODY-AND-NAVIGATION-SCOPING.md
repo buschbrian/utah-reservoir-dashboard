@@ -140,6 +140,28 @@ published at a provider point, which may sit on a dam, a gauge, or an outlet
 rather than inside the polygon. A resolution rate is the difference between
 "normalize every name" and "normalize the twenty-eight that are wrong".
 
+**Measured 2026-08-21** (`tools/probe_nhd_waterbody.py`, ±100 m, the
+project's measurement default). Every point that did not resolve cleanly was
+then asked against Esri's `USA_Detailed_Water_Bodies` republication, so no
+headline number rests on one source:
+
+| outcome | points |
+|---|---:|
+| **exactly one NHD water body** | **311 (82.9%)** |
+| zero/multi on NHD, Esri confirms one | 21 |
+| needs human review (excluded from the rate) | 43 |
+
+Of those 43, thirty-seven resolve once the tolerance widens -- 29 at 500 m,
+another 8 at 1 km -- which is the published-point-on-the-dam case this
+section predicted, not missing water bodies. **Six are silent even at
+1 km** (Lake Crowley, Seven Oaks Dam, Scofield, Frenchman Dam, Pleasant
+Valley Reservoir, Grantsville) and are the honest residue of this
+measurement. Among the 311 resolved: 300 carry FType 390 LakePond and 11
+FType 436 Reservoir -- so the type item's raw material is almost entirely
+LakePond, and 18 resolved bodies carry a blank `GNIS_Name`. The full
+per-point report is reproducible with the probe's `--json`; nothing here has
+been renamed and nothing committed.
+
 ### What this breaks, and it is not a small thing
 
 **`?reservoir=<name>` is a name-keyed link.** `findReservoir`
@@ -353,6 +375,10 @@ absence is the one confirmed coverage gap the survey called worth closing.
    AZ, NV, ID, OR, WA and WY, and report the count per state. If it is twenty
    sites the item is a provider; if it is two hundred it is a project. Nobody
    can size this item until that number exists.
+   **Measured 2026-08-21**: 34 reporting sites, 23 already matched to the
+   roster within 3 km -- an additive remainder of about eleven. The count,
+   its method and the candidate list are in the section "The count that was
+   missing" of [`WESTERN-SOURCE-CANDIDATES.md`](WESTERN-SOURCE-CANDIDATES.md).
 2. **Deduplicate against the roster by dam identity**, per
    [ADR-069](decisions/ADR-069-deduplicate-reservoirs-by-dam-identity.md), not
    by name — the western pool already holds two Lost Creeks and two Clear
@@ -406,8 +432,10 @@ absence is the one confirmed coverage gap the survey called worth closing.
 
 ## Open questions this scoping did not answer
 
-- **Does an NHD water body exist for every published point?** Not measured.
-  The whole size of items 1 and 2 turns on it.
+- **Does an NHD water body exist for every published point?** Measured
+  2026-08-21 -- see the block in section 1 above: 82.9% resolve at the
+  default tolerance, and six points are silent even at a kilometre. The
+  whole size of items 1 and 2 is now known.
 - **What is a "lake" for a reader?** NHD's `FType` is a hydrographic
   classification, not a plain-language one. Bear Lake is a natural lake with a
   regulated pool, and calling it either a lake or a reservoir tells only half

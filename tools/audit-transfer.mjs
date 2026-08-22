@@ -93,7 +93,8 @@ const PAGES = [
   { name: "Snowpack", file: "snow.html", ready: "window.__snowReady !== undefined" },
   { name: "Drought", file: "drought.html", ready: "window.__droughtReady !== undefined" },
   { name: "Methods", file: "methods.html", ready: "window.__methodsReady !== undefined" },
-  { name: "Data reference", file: "data.html", ready: "window.__dataDocsReady !== undefined" }
+  { name: "Data reference", file: "data.html", ready: "window.__dataDocsReady !== undefined" },
+  { name: "Reservoir page", file: "reservoir.html", ready: "window.__reservoirReady !== undefined" }
 ];
 
 /* Chunks that must not be on a page's first-load path, per page.
