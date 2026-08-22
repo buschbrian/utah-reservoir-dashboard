@@ -289,6 +289,12 @@ export function methodsMarkup(search: string): string {
     <section class="methods-section" id="terms" aria-labelledby="terms-heading">
       <h2 id="terms-heading">Meaning of terms</h2>
       <dl class="methods-list">
+        <dt>Reservoir</dt>
+        <dd>Every water this site measures is a reservoir. Each one holds its water
+          behind a dam and has a known full level. The word follows the roster, not the
+          name. Riffe Lake and Bear Lake are reservoirs here, and their names stay what
+          they are called locally. Some were natural lakes before a dam raised
+          them.</dd>
         <dt>Capacity</dt>
         <dd>The amount of water that a reservoir is designed to hold.</dd>
         <dt>Acre-foot</dt>

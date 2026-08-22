@@ -89,7 +89,8 @@ ADR-041.**
 - Current: [ADR-006](ADR-006-simplified-technical-english.md),
   [ADR-026](ADR-026-quote-machine-identifiers-in-api-documentation.md),
   [ADR-036](ADR-036-accessibility-is-a-gate-and-a-measured-content-policy.md),
-  [ADR-045](ADR-045-name-the-site-for-the-water-and-each-page-for-its-subject.md)
+  [ADR-045](ADR-045-name-the-site-for-the-water-and-each-page-for-its-subject.md),
+  [ADR-078](ADR-078-every-water-this-site-measures-is-a-reservoir.md)
 
 ### Symbology, cartography and map interaction
 Colour tables, label placement, layer order and basemaps. **Start with
@@ -203,6 +204,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-075](ADR-075-draw-the-spread-chart-rather-than-configure-it.md) | Draw the spread chart rather than configure it | Accepted |
 | [ADR-076](ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md) | Nest the place menus and let the heading carry the state | Accepted; amends ADR-058's reader-facing-label clause |
 | [ADR-077](ADR-077-publish-what-drains-to-a-reservoir-as-an-upstream-set.md) | Publish what drains to a reservoir as an unordered upstream set | Accepted; precomputed against NLDI, keyed per ADR-066, geometry never published |
+| [ADR-078](ADR-078-every-water-this-site-measures-is-a-reservoir.md) | Every water this site measures is a reservoir | Accepted; type follows roster membership, no per-record field, natural lakes keep their names |
 
 ## Relationship to the historical journal
 
