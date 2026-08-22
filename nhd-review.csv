@@ -2,17 +2,17 @@ class_,reason,reservoir,station,provider,state,nhd_answer,esri_answer,reviewer_r
 disputed,silent on both,Oroville Dam,ORO,California Data Exchange Center,CA,(none),(none),,Lake Oroville
 disputed,silent on both,New Melones Lake,10843,Bureau of Reclamation RISE,CA,(none),(none),,New Melones Lake
 disputed,silent on both,Lake Almanor,ALM,California Data Exchange Center,CA,(none),(none),,Lake Almanor
-disputed,sources disagree,Blue Mesa Reservoir,09009010:CO:BOR,USDA NRCS AWDB,CO,Morrow Point Reservoir; Blue Mesa Reservoir,(unnamed); (unnamed); (unnamed),,Blue Mesa Reservoir
-disputed,silent on both,Folsom Lake,10774,Bureau of Reclamation RISE,CA,(none),(none),,Folsom Lake - point is wrong on lat . long
+disputed,sources disagree,Blue Mesa Reservoir,09009010:CO:BOR,USDA NRCS AWDB,CO,Morrow Point Reservoir; Blue Mesa Reservoir,(unnamed); (unnamed); (unnamed),nhd,Blue Mesa Reservoir
+disputed,silent on both,Folsom Lake,10774,Bureau of Reclamation RISE,CA,(none),(none),unsure,this might be two separate dams
 disputed,silent on both,"Lake San Antonio, Monterey Co",ATN,California Data Exchange Center,CA,(none),(none),,San Antonio Lake
 disputed,silent on both,Castaic,CAS,California Data Exchange Center,CA,(none),(none),,Castaic Lake
 disputed,silent on both,Cherry Valley Dam,CHV,California Data Exchange Center,CA,(none),(none),,Cherry Lake
 disputed,silent on both,Casitas,CSI,California Data Exchange Center,CA,(none),(none),,Lake Casitas
 disputed,silent on both,Whiskeytown Lake,10827,Bureau of Reclamation RISE,CA,(none),(none),,Whiskeytown Lake
 disputed,silent on both,Pardee,PAR,California Data Exchange Center,CA,(none),(none),,Pardee Reservoir
-disputed,silent on both,Lake Crowley,CRW,California Data Exchange Center,CA,(none),(none),,Crowley Lake - incorrect lat / long
-disputed,silent on both,Los Vaqueros Reservoir,LVQ,California Data Exchange Center,CA,(none),(none),,Los Vaqueros Reservoir
-disputed,silent on both,Seven Oaks Dam,SVO,California Data Exchange Center,CA,(none),(none),,Seven Oaks Reservoir
+disputed,silent on both,Lake Crowley,CRW,California Data Exchange Center,CA,(none),(none),,point is wrong
+disputed,silent on both,Los Vaqueros Reservoir,LVQ,California Data Exchange Center,CA,(none),(none),,point is slightly off
+disputed,silent on both,Seven Oaks Dam,SVO,California Data Exchange Center,CA,(none),(none),point,Seven Oaks Reservoir
 disputed,silent on both,Black Butte,BLB,California Data Exchange Center,CA,(none),(none),,Black Butte Lake
 disputed,silent on both,Courtright (Pg&E),CTG,California Data Exchange Center,CA,(none),(none),,Courtright Reservoir
 disputed,silent on both,Coyote (Lake Mendocino),COY,California Data Exchange Center,CA,(none),(none),,Lake Mendocino
@@ -20,7 +20,7 @@ disputed,silent on both,Hidden Dam (Hensley),HID,California Data Exchange Center
 disputed,silent on both,Huntington Lake (Usbr),HNT,California Data Exchange Center,CA,(none),(none),,Huntington Lake
 disputed,silent on both,Leroy Anderson,LRA,California Data Exchange Center,CA,(none),(none),,Anderson Lake
 disputed,silent on both,Lake Davis (Dwr),DAV,California Data Exchange Center,CA,(none),(none),,Lake Davis
-disputed,silent on both,Scofield,727,Bureau of Reclamation RISE,UT,(none),(none),,Scofield Reservoir - incorrect lat long
+disputed,silent on both,Scofield,727,Bureau of Reclamation RISE,UT,(none),(none),,incorrect point
 disputed,silent on both,Frenchman Dam,FRD,California Data Exchange Center,CA,(none),(none),,Frenchman Lake
 disputed,silent on both,East Park Reservoir,EPK,California Data Exchange Center,CA,(none),(none),,East Park Reservoir
 disputed,silent on both,Morena Dam,MOR,California Data Exchange Center,CA,(none),(none),,Morena Reservoir
@@ -35,11 +35,11 @@ disputed,silent on both,Lexington Reservoir,LNG,California Data Exchange Center,
 disputed,silent on both,Gem  Lake,GLK,California Data Exchange Center,CA,(none),(none),,Gem Lake
 disputed,silent on both,Relief,RLF,California Data Exchange Center,CA,(none),(none),,Relief Reservoir
 disputed,silent on both,Crawford Reservoir,09009340:CO:BOR,USDA NRCS AWDB,CO,(none),(none),,Crawford Reservoir
-disputed,silent on both,French Lake,FRL,California Data Exchange Center,CA,(none),(none),,French Lake - check lat long on dam point
+disputed,silent on both,French Lake,FRL,California Data Exchange Center,CA,(none),(none),,check lat long on point
 disputed,silent on both,Thermalito Forebay,TFR,California Data Exchange Center,CA,(none),(none),,Thermalito Forebay
-disputed,silent on both,Kolob Reservoir,09UTKOLB:UT:BOR,USDA NRCS AWDB,UT,(none),(none),,Kolob Reservoir - check dam lat long
+disputed,silent on both,Kolob Reservoir,09UTKOLB:UT:BOR,USDA NRCS AWDB,UT,(none),(none),,incorrect lat long not on water
 disputed,silent on both,Long Hollow Reservoir,LONRESCO,Colorado Division of Water Resources,CO,(none),(none),unsure,zero idea leave alone for now
-disputed,silent on both,Jackson Flat,09UTJACK:UT:BOR,USDA NRCS AWDB,UT,(none),(none),unsure,zero idea leave alone for now
+disputed,silent on both,Jackson Flat,09UTJACK:UT:BOR,USDA NRCS AWDB,UT,(none),(none),unsure,
 disputed,silent on both,Pleasant Valley Reservoir,PVR,California Data Exchange Center,CA,(none),(none),unsure,zero idea leave alone for now
 disputed,silent on both,Grantsville,10UTGTVL:UT:BOR,USDA NRCS AWDB,UT,(none),(none),unsure,zero idea leave alone for now
 esri-confirmed,Esri alone,Shasta Lake,10864,Bureau of Reclamation RISE,CA,(none),(unnamed); (unnamed),,Shasta Lake
