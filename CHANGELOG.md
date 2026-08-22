@@ -51,6 +51,15 @@ and is not listed here.
 
 ### Changed
 
+- **The place menus show their hierarchy instead of implying it.** The
+  drainage-area lists now carry their region and subregion as headings, and
+  the county list on Storage Charts carries its state -- so a subregion reads
+  as something inside a region rather than as one more row. The county list
+  also narrows to the state that is chosen: picking California leaves that
+  state's counties instead of all 157 across eleven states. Choosing a state
+  that does not hold the chosen county falls the county back to all rather
+  than filtering to nothing.
+
 - **The details panel's history-rank explanation reads in shorter sentences.**
   The reservoir page now publishes that note outside a panel, and the
   sentence-length rule (ADR-006) caught a 30-word sentence that had been

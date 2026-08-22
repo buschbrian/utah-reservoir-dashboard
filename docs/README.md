@@ -73,13 +73,13 @@ remaining documented product work is:
 4. complete the human visual review that headless Chromium cannot supply;
 5. decide whether to build the upstream trace scoped in
    [`UPSTREAM-TRACE-SCOPING.md`](UPSTREAM-TRACE-SCOPING.md); and
-6. work the five items scoped in
+6. work the four items still open in
    [`WATER-BODY-AND-NAVIGATION-SCOPING.md`](WATER-BODY-AND-NAVIGATION-SCOPING.md)
-   — reopening the opening chooser, then water-body names and type from the
-   National Hydrography Dataset, then nesting the drainage and county menus,
-   then the remaining reservoir sources for Arizona, Nevada, Idaho, Oregon,
-   Washington and Wyoming. That document carries the order and the reason for
-   it.
+   — reopening the opening chooser, water-body names and type from the National
+   Hydrography Dataset, and the remaining reservoir sources for Arizona,
+   Nevada, Idaho, Oregon, Washington and Wyoming. The fifth, nesting the
+   drainage and county menus, shipped on 2026-08-21. That document carries the
+   order and the reason for it.
 
 The repository wiki is a reader-oriented summary. The repository remains the
 source of truth for implementation details, measurements and decisions.

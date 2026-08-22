@@ -1,8 +1,14 @@
 # Water-body names, water-body type, navigation, and the states still unsourced
 
-Status: Scoping, written 2026-08-21. **Nothing is built.** Five items were
-raised on 2026-08-21; this records what each one actually is, what it costs,
-what it would break, and the order the next agent should work them in.
+Status: Scoping, written 2026-08-21. **Partly delivered.** Item 3, the nested
+drainage and county menus, shipped the same day, together with the cheap fix
+this document asked for first -- narrowing the county list by the chosen state.
+Items 1, 2, 4 and 5 are not started. Every measurement below is as it was
+written; nothing here has been rewritten to describe today.
+
+Five items were raised on 2026-08-21; this records what each one actually is,
+what it costs, what it would break, and the order the next agent should work
+them in.
 
 Every count below was measured on this date against the committed payloads in
 this worktree — `reservoirs.json` (375 published reservoirs), `counties.json`,
@@ -381,6 +387,13 @@ absence is the one confirmed coverage gap the survey called worth closing.
    360-pixel answer first. Worth doing after item 1, because a normalized name
    is what the nested lists would display, and reworking the menus twice is
    the avoidable cost here.
+
+   **Delivered 2026-08-21, out of this order.** The cheap fix landed first as
+   its own commit, as this document asked, and the nesting followed as indented
+   option groups. It went before item 1 rather than after, so the names it
+   displays are still the provider's -- which is the cost this ordering was
+   trying to avoid, and it is now a reason to do items 1 and 2 sooner rather
+   than a reason to redo item 3.
 4. **Item 5, the six states.** Independent of all of the above and gated on
    one live count. It can be started in parallel by a different agent; it must
    not be started by *guessing* the count.
