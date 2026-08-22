@@ -837,7 +837,12 @@ function renderDetail(): void {
     reservoir ? () => downloadCsv(
       reservoirHistoryCsv(reservoir, reservoirLabel(reservoir, inScope)),
       reservoirCsvFilename(reservoirLabel(reservoir, inScope), publishedAt)
-    ) : undefined
+    ) : undefined,
+    /* The label is what resolves on the page: qualified where the roster
+     * holds two of the name, exactly as this panel's own heading shows it. */
+    reservoir
+      ? `reservoir.html?name=${encodeURIComponent(reservoirLabel(reservoir, inScope))}`
+      : undefined
   );
 }
 

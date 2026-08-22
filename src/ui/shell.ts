@@ -668,7 +668,8 @@ export function markSelectedInList(name: string | null): void {
   });
 }
 
-export function setDetail(view: DetailView | null, onExport?: () => void): void {
+export function setDetail(view: DetailView | null, onExport?: () => void,
+  pageHref?: string): void {
   document.querySelectorAll<HTMLElement>("[data-detail]").forEach((host) => {
     const suffix = host.dataset.detail ?? "desktop";
     if (!view) {
@@ -729,6 +730,21 @@ export function setDetail(view: DetailView | null, onExport?: () => void): void 
       exportButton.textContent = "Download this reservoir (CSV file)";
       exportButton.addEventListener("click", onExport);
       children.push(exportButton);
+    }
+
+    /* Every reservoir has a page of its own; the panel is where a reader
+     * already decided this reservoir is the one they care about, so it is
+     * where the link belongs. The href carries whatever name resolves -- the
+     * caller hands it in, because only the caller knows the roster it
+     * narrowed by. */
+    if (pageHref) {
+      const pageLink = document.createElement("p");
+      pageLink.className = "detail-page-link";
+      const anchor = document.createElement("a");
+      anchor.href = pageHref;
+      anchor.textContent = "Open this reservoir's own page";
+      pageLink.append(anchor);
+      children.push(pageLink);
     }
 
     /* The history the legacy popup carried and this panel did not. Both
