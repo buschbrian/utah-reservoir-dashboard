@@ -1,0 +1,5310 @@
+{
+ "source": "USGS Network-Linked Data Index over NHDPlus",
+ "source_url": "https://api.water.usgs.gov/nldi",
+ "retrieved": "2026-08-22",
+ "keyed_by": "source_station_id",
+ "selection": "every published reservoir, traced from its published point against every other published reservoir and snow-site point",
+ "self_exclusion": "deliberate: a dam point lies inside its own basin",
+ "area_method": "spherical excess around the ring; approximate, for screening rather than measurement",
+ "review_area_sq_mi": 300000.0,
+ "traced_count": 375,
+ "screened_count": 0,
+ "review_count": 0,
+ "traces": {
+  "09009010:CO:BOR": {
+   "name": "Blue Mesa Reservoir",
+   "trace_point": "published point",
+   "comid": "3253131",
+   "basin_vertices": 757,
+   "basin_area_sq_mi": 3427,
+   "upstream_reservoirs": [
+    "09009120:CO:BOR",
+    "09116500:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1141:CO:SNTL",
+    "1188:CO:SNTL",
+    "380:CO:SNTL",
+    "680:CO:SNTL",
+    "701:CO:SNTL",
+    "762:CO:SNTL"
+   ]
+  },
+  "09009020:CO:BOR": {
+   "name": "Dillon Reservoir",
+   "trace_point": "published point",
+   "comid": "1313385",
+   "basin_vertices": 188,
+   "basin_area_sq_mi": 320,
+   "upstream_reservoirs": [
+    "BLURESCO"
+   ],
+   "upstream_snow_sites": [
+    "415:CO:SNTL",
+    "485:CO:SNTL",
+    "505:CO:SNTL",
+    "531:CO:SNTL"
+   ]
+  },
+  "09009030:CO:BOR": {
+   "name": "Green Mountain Reservoir",
+   "trace_point": "published point",
+   "comid": "1313285",
+   "basin_vertices": 319,
+   "basin_area_sq_mi": 566,
+   "upstream_reservoirs": [
+    "09009020:CO:BOR",
+    "BLURESCO"
+   ],
+   "upstream_snow_sites": [
+    "415:CO:SNTL",
+    "485:CO:SNTL",
+    "505:CO:SNTL",
+    "531:CO:SNTL",
+    "802:CO:SNTL"
+   ]
+  },
+  "09009040:CO:BOR": {
+   "name": "Homestake Reservoir",
+   "trace_point": "published point",
+   "comid": "1321114",
+   "basin_vertices": 32,
+   "basin_area_sq_mi": 7,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009050:CO:BOR": {
+   "name": "Jackson Gulch Reservoir",
+   "trace_point": "published point",
+   "comid": "16963977",
+   "basin_vertices": 17,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009060:CO:BOR": {
+   "name": "Lake Granby",
+   "trace_point": "published point",
+   "comid": "1234575",
+   "basin_vertices": 84,
+   "basin_area_sq_mi": 34,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "793:CO:SNTL"
+   ]
+  },
+  "09009080:CO:BOR": {
+   "name": "Morrow Point Reservoir",
+   "trace_point": "published point",
+   "comid": "3254131",
+   "basin_vertices": 785,
+   "basin_area_sq_mi": 3637,
+   "upstream_reservoirs": [
+    "09009010:CO:BOR",
+    "09009120:CO:BOR",
+    "09116500:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1141:CO:SNTL",
+    "1188:CO:SNTL",
+    "380:CO:SNTL",
+    "680:CO:SNTL",
+    "701:CO:SNTL",
+    "762:CO:SNTL"
+   ]
+  },
+  "09009100:CO:BOR": {
+   "name": "Paonia Reservoir",
+   "trace_point": "published point",
+   "comid": "1338026",
+   "basin_vertices": 195,
+   "basin_area_sq_mi": 256,
+   "upstream_reservoirs": [
+    "4003399B"
+   ],
+   "upstream_snow_sites": [
+    "618:CO:SNTL",
+    "675:CO:SNTL"
+   ]
+  },
+  "09009110:CO:BOR": {
+   "name": "Ruedi Reservoir",
+   "trace_point": "published point",
+   "comid": "1327495",
+   "basin_vertices": 169,
+   "basin_area_sq_mi": 224,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1101:CO:SNTL",
+    "547:CO:SNTL",
+    "556:CO:SNTL",
+    "658:CO:SNTL"
+   ]
+  },
+  "09009120:CO:BOR": {
+   "name": "Taylor Park Reservoir",
+   "trace_point": "published point",
+   "comid": "1333610",
+   "basin_vertices": 226,
+   "basin_area_sq_mi": 254,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1141:CO:SNTL",
+    "680:CO:SNTL"
+   ]
+  },
+  "09009130:CO:BOR": {
+   "name": "Vallecito Reservoir",
+   "trace_point": "published point",
+   "comid": "17034971",
+   "basin_vertices": 214,
+   "basin_area_sq_mi": 254,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "843:CO:SNTL"
+   ]
+  },
+  "09009140:CO:BOR": {
+   "name": "Vega Reservoir",
+   "trace_point": "published point",
+   "comid": "3180780",
+   "basin_vertices": 70,
+   "basin_area_sq_mi": 25,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009150:CO:BOR": {
+   "name": "Williams Fork Reservoir",
+   "trace_point": "published point",
+   "comid": "1232989",
+   "basin_vertices": 185,
+   "basin_area_sq_mi": 230,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1014:CO:SNTL",
+    "970:CO:SNTL"
+   ]
+  },
+  "09009160:CO:BOR": {
+   "name": "Willow Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "1234571",
+   "basin_vertices": 133,
+   "basin_area_sq_mi": 133,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "869:CO:SNTL"
+   ]
+  },
+  "09009170:CO:BOR": {
+   "name": "Groundhog Reservoir",
+   "trace_point": "published point",
+   "comid": "18385013",
+   "basin_vertices": 44,
+   "basin_area_sq_mi": 16,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009320:CO:BOR": {
+   "name": "Fruitgrowers Reservoir",
+   "trace_point": "published point",
+   "comid": "3233473",
+   "basin_vertices": 30,
+   "basin_area_sq_mi": 12,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009340:CO:BOR": {
+   "name": "Crawford Reservoir",
+   "trace_point": "published point",
+   "comid": "3251439",
+   "basin_vertices": 104,
+   "basin_area_sq_mi": 75,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09009350:CO:BOR": {
+   "name": "Narraguinnep Reservoir",
+   "trace_point": "published point",
+   "comid": "3263047",
+   "basin_vertices": 26,
+   "basin_area_sq_mi": 7,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09014500:CO:BOR": {
+   "name": "Shadow Mountain Reservoir",
+   "trace_point": "published point",
+   "comid": "1234549",
+   "basin_vertices": 177,
+   "basin_area_sq_mi": 184,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "565:CO:SNTL",
+    "688:CO:SNTL"
+   ]
+  },
+  "09041395:CO:BOR": {
+   "name": "Wolford Mountain Reservoir",
+   "trace_point": "published point",
+   "comid": "1231609",
+   "basin_vertices": 244,
+   "basin_area_sq_mi": 270,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "913:CO:SNTL"
+   ]
+  },
+  "09109090:NM:BOR": {
+   "name": "Navajo Reservoir",
+   "trace_point": "published point",
+   "comid": "17040459",
+   "basin_vertices": 754,
+   "basin_area_sq_mi": 3206,
+   "upstream_reservoirs": [
+    "09009130:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1160:CO:SNTL",
+    "840:CO:SNTL",
+    "843:CO:SNTL",
+    "874:CO:SNTL"
+   ]
+  },
+  "09116500:CO:BOR": {
+   "name": "Vouga Reservoir",
+   "trace_point": "published point",
+   "comid": "9774083",
+   "basin_vertices": 69,
+   "basin_area_sq_mi": 37,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09125800:CO:BOR": {
+   "name": "Silverjack Reservoir",
+   "trace_point": "published point",
+   "comid": "3253471",
+   "basin_vertices": 82,
+   "basin_area_sq_mi": 63,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09126000:CO:BOR": {
+   "name": "Crystal Reservoir",
+   "trace_point": "published point",
+   "comid": "3252175",
+   "basin_vertices": 797,
+   "basin_area_sq_mi": 3965,
+   "upstream_reservoirs": [
+    "09009010:CO:BOR",
+    "09009080:CO:BOR",
+    "09009120:CO:BOR",
+    "09116500:CO:BOR",
+    "09125800:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1141:CO:SNTL",
+    "1188:CO:SNTL",
+    "380:CO:SNTL",
+    "680:CO:SNTL",
+    "701:CO:SNTL",
+    "762:CO:SNTL"
+   ]
+  },
+  "09147022:CO:BOR": {
+   "name": "Ridgway Reservoir",
+   "trace_point": "published point",
+   "comid": "9769294",
+   "basin_vertices": 204,
+   "basin_area_sq_mi": 265,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "538:CO:SNTL"
+   ]
+  },
+  "09213700:WY:BOR": {
+   "name": "Big Sandy",
+   "trace_point": "published point",
+   "comid": "18303140",
+   "basin_vertices": 330,
+   "basin_area_sq_mi": 392,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "342:WY:SNTL"
+   ]
+  },
+  "09223100:WY:BOR": {
+   "name": "Viva Naughton Res",
+   "trace_point": "published point",
+   "comid": "3194484",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09237495:CO:BOR": {
+   "name": "Stagecoach Reservoir nr Oak Creek",
+   "trace_point": "published point",
+   "comid": "1358238",
+   "basin_vertices": 206,
+   "basin_area_sq_mi": 227,
+   "upstream_reservoirs": [
+    "SWARESCO",
+    "YAMRESCO:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1061:CO:SNTL",
+    "426:CO:SNTL"
+   ]
+  },
+  "09255450:WY:BOR": {
+   "name": "High Savery Reservoir",
+   "trace_point": "published point",
+   "comid": "18275563",
+   "basin_vertices": 119,
+   "basin_area_sq_mi": 117,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "449:WY:SNTL"
+   ]
+  },
+  "09385500:AZ:BOR": {
+   "name": "Lyman Reservoir",
+   "trace_point": "published point",
+   "comid": "20585864",
+   "basin_vertices": 467,
+   "basin_area_sq_mi": 739,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "310:AZ:SNTL"
+   ]
+  },
+  "09398300:AZ:BOR": {
+   "name": "Cragin Dam Reservoir",
+   "trace_point": "published point",
+   "comid": "21745665",
+   "basin_vertices": 111,
+   "basin_area_sq_mi": 72,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09469000:AZ:BOR": {
+   "name": "San Carlos Reservoir",
+   "trace_point": "published point",
+   "comid": "21320525",
+   "basin_vertices": 3099,
+   "basin_area_sq_mi": 12192,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1127:AZ:SNTL",
+    "416:AZ:SNTL",
+    "486:NM:SNTL",
+    "595:NM:SNTL",
+    "755:NM:SNTL",
+    "757:NM:SNTL"
+   ]
+  },
+  "09UTBRWN:UT:BOR": {
+   "name": "Browns Draw",
+   "trace_point": "published point",
+   "comid": "11980033",
+   "basin_vertices": 88,
+   "basin_area_sq_mi": 28,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTBSWR:UT:BOR": {
+   "name": "Big Sand Wash",
+   "trace_point": "published point",
+   "comid": "11983765",
+   "basin_vertices": 51,
+   "basin_area_sq_mi": 28,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTCLEV:UT:BOR": {
+   "name": "Cleveland",
+   "trace_point": "published point",
+   "comid": "4876067",
+   "basin_vertices": 24,
+   "basin_area_sq_mi": 6,
+   "upstream_reservoirs": [
+    "09UTHNTN:UT:BOR"
+   ],
+   "upstream_snow_sites": []
+  },
+  "09UTDMAD:UT:BOR": {
+   "name": "DMAD",
+   "trace_point": "published point",
+   "comid": "1202184",
+   "basin_vertices": 74,
+   "basin_area_sq_mi": 13,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTELLK:UT:BOR": {
+   "name": "Electric Lake",
+   "trace_point": "published point",
+   "comid": "4876063",
+   "basin_vertices": 75,
+   "basin_area_sq_mi": 31,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTGNBN:UT:BOR": {
+   "name": "Gunnison Bend",
+   "trace_point": "published point",
+   "comid": "1202270",
+   "basin_vertices": 23,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTGUNL:UT:BOR": {
+   "name": "Gunlock",
+   "trace_point": "published point",
+   "comid": "10025198",
+   "basin_vertices": 339,
+   "basin_area_sq_mi": 308,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1066:UT:SNTL"
+   ]
+  },
+  "09UTHNTN:UT:BOR": {
+   "name": "Huntington",
+   "trace_point": "published point",
+   "comid": "4876035",
+   "basin_vertices": 28,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTIVIN:UT:BOR": {
+   "name": "Ivins",
+   "trace_point": "published point",
+   "comid": "10024032",
+   "basin_vertices": 25,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTJACK:UT:BOR": {
+   "name": "Jackson Flat",
+   "trace_point": "published point",
+   "comid": "20705675",
+   "basin_vertices": 290,
+   "basin_area_sq_mi": 239,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTKENS:UT:BOR": {
+   "name": "Ken's Lake",
+   "trace_point": "published point",
+   "comid": "3379365",
+   "basin_vertices": 23,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTKOLB:UT:BOR": {
+   "name": "Kolob Reservoir",
+   "trace_point": "published point",
+   "comid": "10022776",
+   "basin_vertices": 21,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTMILF:UT:BOR": {
+   "name": "Miller Flat",
+   "trace_point": "published point",
+   "comid": "4875309",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 9,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTMILL:UT:BOR": {
+   "name": "Millsite",
+   "trace_point": "published point",
+   "comid": "4876831",
+   "basin_vertices": 138,
+   "basin_area_sq_mi": 152,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1228:UT:SNTL",
+    "371:UT:SNTL"
+   ]
+  },
+  "09UTQUAI:UT:BOR": {
+   "name": "Quail Creek",
+   "trace_point": "published point",
+   "comid": "10024052",
+   "basin_vertices": 127,
+   "basin_area_sq_mi": 81,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "09UTRKYF:UT:BOR": {
+   "name": "Rocky Ford",
+   "trace_point": "published point",
+   "comid": "3505821",
+   "basin_vertices": 1181,
+   "basin_area_sq_mi": 3169,
+   "upstream_reservoirs": [
+    "10188000:UT:BOR",
+    "10191000:UT:BOR",
+    "10UTPANG:UT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1099:UT:SNTL",
+    "1148:UT:SNTL",
+    "1156:UT:SNTL",
+    "1309:UT:SNTL",
+    "364:UT:SNTL",
+    "390:UT:SNTL",
+    "514:UT:SNTL",
+    "557:UT:SNTL",
+    "865:UT:SNTL",
+    "907:UT:SNTL",
+    "983:UT:SNTL"
+   ]
+  },
+  "09UTSAND:UT:BOR": {
+   "name": "Sand Hollow",
+   "trace_point": "published point",
+   "comid": "10024352",
+   "basin_vertices": 57,
+   "basin_area_sq_mi": 19,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10020200:WY:BOR": {
+   "name": "Woodruff Narrows",
+   "trace_point": "published point",
+   "comid": "7880842",
+   "basin_vertices": 472,
+   "basin_area_sq_mi": 785,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1135:UT:SNTL",
+    "517:UT:SNTL",
+    "579:UT:SNTL",
+    "992:UT:SNTL"
+   ]
+  },
+  "10055500:ID:BOR": {
+   "name": "Bear Lake",
+   "trace_point": "published point",
+   "comid": "4472373",
+   "basin_vertices": 28,
+   "basin_area_sq_mi": 16,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10105200:UT:BOR": {
+   "name": "Porcupine",
+   "trace_point": "published point",
+   "comid": "666228",
+   "basin_vertices": 112,
+   "basin_area_sq_mi": 65,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "455:UT:SNTL"
+   ]
+  },
+  "10128000:UT:BOR": {
+   "name": "Smith and Morehouse",
+   "trace_point": "published point",
+   "comid": "10093198",
+   "basin_vertices": 50,
+   "basin_area_sq_mi": 28,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10166500:UT:BOR": {
+   "name": "Utah Lake",
+   "trace_point": "published point",
+   "comid": "10329101",
+   "basin_vertices": 1061,
+   "basin_area_sq_mi": 2509,
+   "upstream_reservoirs": [
+    "290",
+    "4516",
+    "4523",
+    "4530",
+    "468"
+   ],
+   "upstream_snow_sites": [
+    "1039:UT:SNTL",
+    "1164:UT:SNTL",
+    "1223:UT:SNTL",
+    "1280:UT:SNTL",
+    "399:UT:SNTL",
+    "400:UT:SNTL",
+    "686:UT:SNTL",
+    "820:UT:SNTL",
+    "828:UT:SNTL"
+   ]
+  },
+  "10188000:UT:BOR": {
+   "name": "Otter Creek",
+   "trace_point": "published point",
+   "comid": "10805339",
+   "basin_vertices": 287,
+   "basin_area_sq_mi": 369,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1156:UT:SNTL",
+    "364:UT:SNTL"
+   ]
+  },
+  "10191000:UT:BOR": {
+   "name": "Piute",
+   "trace_point": "published point",
+   "comid": "10815920",
+   "basin_vertices": 1075,
+   "basin_area_sq_mi": 2361,
+   "upstream_reservoirs": [
+    "10188000:UT:BOR",
+    "10UTPANG:UT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1099:UT:SNTL",
+    "1148:UT:SNTL",
+    "1156:UT:SNTL",
+    "364:UT:SNTL",
+    "390:UT:SNTL",
+    "514:UT:SNTL",
+    "865:UT:SNTL",
+    "907:UT:SNTL",
+    "983:UT:SNTL"
+   ]
+  },
+  "10216200:UT:BOR": {
+   "name": "Gunnison",
+   "trace_point": "published point",
+   "comid": "5303251",
+   "basin_vertices": 372,
+   "basin_area_sq_mi": 659,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1221:UT:SNTL",
+    "1222:UT:SNTL",
+    "1226:UT:SNTL",
+    "612:UT:SNTL"
+   ]
+  },
+  "10218500:UT:BOR": {
+   "name": "Yuba",
+   "trace_point": "published point",
+   "comid": "3502543",
+   "basin_vertices": 1779,
+   "basin_area_sq_mi": 5036,
+   "upstream_reservoirs": [
+    "09UTRKYF:UT:BOR",
+    "10188000:UT:BOR",
+    "10191000:UT:BOR",
+    "10216200:UT:BOR",
+    "10UTPANG:UT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1099:UT:SNTL",
+    "1148:UT:SNTL",
+    "1156:UT:SNTL",
+    "1184:UT:SNTL",
+    "1221:UT:SNTL",
+    "1222:UT:SNTL",
+    "1224:UT:SNTL",
+    "1226:UT:SNTL",
+    "1309:UT:SNTL",
+    "329:UT:SNTL",
+    "364:UT:SNTL",
+    "390:UT:SNTL",
+    "475:UT:SNTL",
+    "495:UT:SNTL",
+    "514:UT:SNTL",
+    "557:UT:SNTL",
+    "612:UT:SNTL",
+    "691:UT:SNTL",
+    "865:UT:SNTL",
+    "907:UT:SNTL",
+    "983:UT:SNTL"
+   ]
+  },
+  "10238500:UT:BOR": {
+   "name": "Minersville",
+   "trace_point": "published point",
+   "comid": "1216215",
+   "basin_vertices": 293,
+   "basin_area_sq_mi": 533,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "339:UT:SNTL",
+    "621:UT:SNTL"
+   ]
+  },
+  "10292500:CA:BOR": {
+   "name": "Bridgeport Reservoir",
+   "trace_point": "published point",
+   "comid": "8915961",
+   "basin_vertices": 242,
+   "basin_area_sq_mi": 357,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "846:CA:SNTL"
+   ]
+  },
+  "10312100:NV:BOR": {
+   "name": "Lahontan Reservoir",
+   "trace_point": "published point",
+   "comid": "11432947",
+   "basin_vertices": 5,
+   "basin_area_sq_mi": 0,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10334500:NV:BOR": {
+   "name": "Rye Patch Re nr Rye Patch, NV",
+   "trace_point": "published point",
+   "comid": "11158345",
+   "basin_vertices": 7073,
+   "basin_area_sq_mi": 13026,
+   "upstream_reservoirs": [
+    "CHIMNEYC:NV:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1136:NV:SNTL",
+    "1243:NV:SNTL",
+    "1262:NV:SNTL",
+    "1310:NV:SNTL",
+    "373:NV:SNTL",
+    "417:NV:SNTL",
+    "453:NV:SNTL",
+    "454:NV:SNTL",
+    "498:NV:SNTL",
+    "503:NV:SNTL",
+    "569:NV:SNTL",
+    "570:NV:SNTL"
+   ]
+  },
+  "10336710:NV:BOR": {
+   "name": "Marlette Lk nr Carson City",
+   "trace_point": "published point",
+   "comid": "8942951",
+   "basin_vertices": 22,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "615:NV:SNTL"
+   ]
+  },
+  "10337000:CA:BOR": {
+   "name": "Lake Tahoe",
+   "trace_point": "published point",
+   "comid": "8942147",
+   "basin_vertices": 23,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10338400:CA:BOR": {
+   "name": "Donner Lake",
+   "trace_point": "published point",
+   "comid": "8934496",
+   "basin_vertices": 15,
+   "basin_area_sq_mi": 2,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10340300:CA:BOR": {
+   "name": "Prosser Reservoir",
+   "trace_point": "published point",
+   "comid": "8933720",
+   "basin_vertices": 101,
+   "basin_area_sq_mi": 50,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10342900:CA:BOR": {
+   "name": "Independence Lake",
+   "trace_point": "published point",
+   "comid": "8933376",
+   "basin_vertices": 42,
+   "basin_area_sq_mi": 10,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "539:CA:SNTL"
+   ]
+  },
+  "10344300:CA:BOR": {
+   "name": "Stampede Reservoir",
+   "trace_point": "published point",
+   "comid": "8933230",
+   "basin_vertices": 166,
+   "basin_area_sq_mi": 136,
+   "upstream_reservoirs": [
+    "10342900:CA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "539:CA:SNTL",
+    "540:CA:SNTL",
+    "541:CA:SNTL"
+   ]
+  },
+  "10344490:CA:BOR": {
+   "name": "Boca Reservoir",
+   "trace_point": "published point",
+   "comid": "8933684",
+   "basin_vertices": 182,
+   "basin_area_sq_mi": 172,
+   "upstream_reservoirs": [
+    "10342900:CA:BOR",
+    "10344300:CA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "539:CA:SNTL",
+    "540:CA:SNTL",
+    "541:CA:SNTL"
+   ]
+  },
+  "10774": {
+   "name": "Folsom Lake",
+   "trace_point": "published point",
+   "comid": "15022473",
+   "basin_vertices": 19,
+   "basin_area_sq_mi": 2,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10782": {
+   "name": "Lake Berryessa",
+   "trace_point": "published point",
+   "comid": "15032995",
+   "basin_vertices": 344,
+   "basin_area_sq_mi": 567,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10787": {
+   "name": "Lake Cachuma",
+   "trace_point": "published point",
+   "comid": "17611491",
+   "basin_vertices": 252,
+   "basin_area_sq_mi": 418,
+   "upstream_reservoirs": [
+    "GBL"
+   ],
+   "upstream_snow_sites": []
+  },
+  "10794": {
+   "name": "Keswick Reservoir",
+   "trace_point": "published point",
+   "comid": "2495224",
+   "basin_vertices": 1955,
+   "basin_area_sq_mi": 5969,
+   "upstream_reservoirs": [
+    "10837",
+    "10864",
+    "BIT",
+    "IRC",
+    "MCO",
+    "PT6",
+    "PT7"
+   ],
+   "upstream_snow_sites": [
+    "301:CA:SNTL",
+    "391:CA:SNTL"
+   ]
+  },
+  "10798": {
+   "name": "Lewiston Lake",
+   "trace_point": "published point",
+   "comid": "8246596",
+   "basin_vertices": 326,
+   "basin_area_sq_mi": 718,
+   "upstream_reservoirs": [
+    "10854"
+   ],
+   "upstream_snow_sites": []
+  },
+  "10807": {
+   "name": "Millerton Lake",
+   "trace_point": "published point",
+   "comid": "17116483",
+   "basin_vertices": 611,
+   "basin_area_sq_mi": 1638,
+   "upstream_reservoirs": [
+    "CNV",
+    "FLR",
+    "HNT",
+    "MPL",
+    "RDN",
+    "SHV",
+    "TAE"
+   ],
+   "upstream_snow_sites": []
+  },
+  "10827": {
+   "name": "Whiskeytown Lake",
+   "trace_point": "published point",
+   "comid": "2782777",
+   "basin_vertices": 194,
+   "basin_area_sq_mi": 199,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10837": {
+   "name": "Spring Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "2782753",
+   "basin_vertices": 61,
+   "basin_area_sq_mi": 16,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10843": {
+   "name": "New Melones Lake",
+   "trace_point": "published point",
+   "comid": "348435",
+   "basin_vertices": 429,
+   "basin_area_sq_mi": 904,
+   "upstream_reservoirs": [
+    "BRD",
+    "DON",
+    "LYS",
+    "RLF",
+    "SPM"
+   ],
+   "upstream_snow_sites": []
+  },
+  "10854": {
+   "name": "Trinity Lake",
+   "trace_point": "published point",
+   "comid": "8246564",
+   "basin_vertices": 322,
+   "basin_area_sq_mi": 692,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10864": {
+   "name": "Shasta Lake",
+   "trace_point": "published point",
+   "comid": "2782699",
+   "basin_vertices": 1903,
+   "basin_area_sq_mi": 5923,
+   "upstream_reservoirs": [
+    "BIT",
+    "IRC",
+    "MCO",
+    "PT6",
+    "PT7"
+   ],
+   "upstream_snow_sites": [
+    "301:CA:SNTL",
+    "391:CA:SNTL"
+   ]
+  },
+  "10UT03JJ:UT:BOR": {
+   "name": "Settlement Canyon",
+   "trace_point": "published point",
+   "comid": "946020236",
+   "basin_vertices": 165,
+   "basin_area_sq_mi": 112,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1214:UT:SNTL",
+    "723:UT:SNTL"
+   ]
+  },
+  "10UTENTL:UT:BOR": {
+   "name": "Lower Enterprise",
+   "trace_point": "published point",
+   "comid": "14598265",
+   "basin_vertices": 80,
+   "basin_area_sq_mi": 34,
+   "upstream_reservoirs": [
+    "10UTENTU:UT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "583:UT:SNTL"
+   ]
+  },
+  "10UTENTU:UT:BOR": {
+   "name": "Upper Enterprise",
+   "trace_point": "published point",
+   "comid": "14598279",
+   "basin_vertices": 72,
+   "basin_area_sq_mi": 26,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10UTGTVL:UT:BOR": {
+   "name": "Grantsville",
+   "trace_point": "published point",
+   "comid": "10395281",
+   "basin_vertices": 21,
+   "basin_area_sq_mi": 6,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "10UTPANG:UT:BOR": {
+   "name": "Panguitch",
+   "trace_point": "published point",
+   "comid": "10819262",
+   "basin_vertices": 84,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1148:UT:SNTL"
+   ]
+  },
+  "10UTWOOD:UT:BOR": {
+   "name": "Woodruff Creek",
+   "trace_point": "published point",
+   "comid": "7884246",
+   "basin_vertices": 81,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "11338500:OR:BOR": {
+   "name": "Drews",
+   "trace_point": "published point",
+   "comid": "7917617",
+   "basin_vertices": 240,
+   "basin_area_sq_mi": 203,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "11340000:OR:BOR": {
+   "name": "Cottonwood",
+   "trace_point": "published point",
+   "comid": "7917555",
+   "basin_vertices": 69,
+   "basin_area_sq_mi": 32,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "11470001:CA:BOR": {
+   "name": "Clear Lake",
+   "trace_point": "published point",
+   "comid": "2556483",
+   "basin_vertices": 401,
+   "basin_area_sq_mi": 703,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1258:CA:SNTL",
+    "977:CA:SNTL"
+   ]
+  },
+  "11483400:OR:BOR": {
+   "name": "Gerber",
+   "trace_point": "published point",
+   "comid": "2553671",
+   "basin_vertices": 210,
+   "basin_area_sq_mi": 160,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "794:OR:SNTL",
+    "945:OR:SNTL"
+   ]
+  },
+  "11504500:OR:BOR": {
+   "name": "Fourmile Lake",
+   "trace_point": "published point",
+   "comid": "24092222",
+   "basin_vertices": 35,
+   "basin_area_sq_mi": 10,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "11507001:OR:BOR": {
+   "name": "Upper Klamath Lake",
+   "trace_point": "published point",
+   "comid": "948010002",
+   "basin_vertices": 922,
+   "basin_area_sq_mi": 3420,
+   "upstream_reservoirs": [
+    "11504500:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1000:OR:SNTL",
+    "1010:OR:SNTL",
+    "1078:OR:SNTL",
+    "344:OR:SNTL",
+    "406:OR:SNTL",
+    "483:OR:SNTL",
+    "706:OR:SNTL",
+    "745:OR:SNTL",
+    "800:OR:SNTL",
+    "810:OR:SNTL"
+   ]
+  },
+  "11512900:OR:BOR": {
+   "name": "Howard Prairie",
+   "trace_point": "published point",
+   "comid": "359351",
+   "basin_vertices": 64,
+   "basin_area_sq_mi": 28,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "11514000:OR:BOR": {
+   "name": "Hyatt Prairie",
+   "trace_point": "published point",
+   "comid": "359303",
+   "basin_vertices": 42,
+   "basin_area_sq_mi": 12,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12105800:WA:BOR": {
+   "name": "Howard Hansen",
+   "trace_point": "published point",
+   "comid": "23977692",
+   "basin_vertices": 220,
+   "basin_area_sq_mi": 216,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1068:WA:SNTL",
+    "1069:WA:SNTL",
+    "420:WA:SNTL",
+    "788:WA:SNTL"
+   ]
+  },
+  "12175000:WA:BOR": {
+   "name": "Ross",
+   "trace_point": "published point",
+   "comid": "24255293",
+   "basin_vertices": 526,
+   "basin_area_sq_mi": 1004,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1080:WA:SNTL",
+    "711:WA:SNTL",
+    "975:WA:SNTL",
+    "990:WA:SNTL"
+   ]
+  },
+  "12191600:WA:BOR": {
+   "name": "Upper Baker",
+   "trace_point": "published point",
+   "comid": "24255915",
+   "basin_vertices": 160,
+   "basin_area_sq_mi": 214,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "999:WA:SNTL"
+   ]
+  },
+  "12193000:WA:BOR": {
+   "name": "Lake Shannon",
+   "trace_point": "published point",
+   "comid": "25184464",
+   "basin_vertices": 232,
+   "basin_area_sq_mi": 296,
+   "upstream_reservoirs": [
+    "12191600:WA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "999:WA:SNTL"
+   ]
+  },
+  "12301920:MT:BOR": {
+   "name": "Lake Koocanusa",
+   "trace_point": "published point",
+   "comid": "22878297",
+   "basin_vertices": 1931,
+   "basin_area_sq_mi": 8967,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "311:MT:SNTL",
+    "500:MT:SNTL",
+    "787:MT:SNTL"
+   ]
+  },
+  "12325000:MT:BOR": {
+   "name": "Georgetown Lake",
+   "trace_point": "published point",
+   "comid": "24310403",
+   "basin_vertices": 80,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "930:MT:SNTL"
+   ]
+  },
+  "12336500:MT:BOR": {
+   "name": "Nevada Creek Res",
+   "trace_point": "published point",
+   "comid": "22912402",
+   "basin_vertices": 145,
+   "basin_area_sq_mi": 143,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "903:MT:SNTL"
+   ]
+  },
+  "12342000:MT:BOR": {
+   "name": "Painted Rocks Lake",
+   "trace_point": "published point",
+   "comid": "24320368",
+   "basin_vertices": 217,
+   "basin_area_sq_mi": 316,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12344500:MT:BOR": {
+   "name": "Lake Como",
+   "trace_point": "published point",
+   "comid": "24320048",
+   "basin_vertices": 79,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12362000:MT:BOR": {
+   "name": "Hungry Horse Lake",
+   "trace_point": "published point",
+   "comid": "22965004",
+   "basin_vertices": 717,
+   "basin_area_sq_mi": 1655,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "469:MT:SNTL"
+   ]
+  },
+  "12371550:MT:BOR": {
+   "name": "Flathead Lake",
+   "trace_point": "published point",
+   "comid": "24356643",
+   "basin_vertices": 1596,
+   "basin_area_sq_mi": 6968,
+   "upstream_reservoirs": [
+    "12362000:MT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1144:MT:SNTL",
+    "1311:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "510:MT:SNTL",
+    "562:MT:SNTL",
+    "646:MT:SNTL",
+    "664:MT:SNTL"
+   ]
+  },
+  "12390000:MT:BOR": {
+   "name": "Thompson Falls Res",
+   "trace_point": "published point",
+   "comid": "22976328",
+   "basin_vertices": 3835,
+   "basin_area_sq_mi": 20510,
+   "upstream_reservoirs": [
+    "12325000:MT:BOR",
+    "12336500:MT:BOR",
+    "12342000:MT:BOR",
+    "12344500:MT:BOR",
+    "12362000:MT:BOR",
+    "12371550:MT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1144:MT:SNTL",
+    "1190:MT:SNTL",
+    "1311:MT:SNTL",
+    "313:MT:SNTL",
+    "315:MT:SNTL",
+    "349:MT:SNTL",
+    "410:MT:SNTL",
+    "413:MT:SNTL",
+    "414:MT:SNTL",
+    "433:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "510:MT:SNTL",
+    "530:MT:SNTL",
+    "562:MT:SNTL",
+    "588:ID:SNTL",
+    "604:MT:SNTL",
+    "646:MT:SNTL",
+    "657:MT:SNTL",
+    "662:MT:SNTL",
+    "664:MT:SNTL",
+    "667:MT:SNTL",
+    "727:MT:SNTL",
+    "760:MT:SNTL",
+    "783:MT:SNTL",
+    "835:MT:SNTL",
+    "836:MT:SNTL",
+    "850:MT:SNTL",
+    "901:MT:SNTL",
+    "903:MT:SNTL",
+    "930:MT:SNTL"
+   ]
+  },
+  "12391300:MT:BOR": {
+   "name": "Noxon Rapids Reservoir",
+   "trace_point": "published point",
+   "comid": "22976070",
+   "basin_vertices": 3877,
+   "basin_area_sq_mi": 21271,
+   "upstream_reservoirs": [
+    "12325000:MT:BOR",
+    "12336500:MT:BOR",
+    "12342000:MT:BOR",
+    "12344500:MT:BOR",
+    "12362000:MT:BOR",
+    "12371550:MT:BOR",
+    "12390000:MT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1144:MT:SNTL",
+    "1190:MT:SNTL",
+    "1311:MT:SNTL",
+    "313:MT:SNTL",
+    "315:MT:SNTL",
+    "349:MT:SNTL",
+    "410:MT:SNTL",
+    "413:MT:SNTL",
+    "414:MT:SNTL",
+    "433:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "510:MT:SNTL",
+    "530:MT:SNTL",
+    "562:MT:SNTL",
+    "588:ID:SNTL",
+    "604:MT:SNTL",
+    "646:MT:SNTL",
+    "657:MT:SNTL",
+    "662:MT:SNTL",
+    "664:MT:SNTL",
+    "667:MT:SNTL",
+    "727:MT:SNTL",
+    "760:MT:SNTL",
+    "783:MT:SNTL",
+    "835:MT:SNTL",
+    "836:MT:SNTL",
+    "850:MT:SNTL",
+    "901:MT:SNTL",
+    "903:MT:SNTL",
+    "930:MT:SNTL"
+   ]
+  },
+  "12446453:WA:BOR": {
+   "name": "Conconully Lake Salmon Lake Dam",
+   "trace_point": "published point",
+   "comid": "23065223",
+   "basin_vertices": 100,
+   "basin_area_sq_mi": 50,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "728:WA:SNTL"
+   ]
+  },
+  "12446480:WA:BOR": {
+   "name": "Conconully Reservoir",
+   "trace_point": "published point",
+   "comid": "23065219",
+   "basin_vertices": 141,
+   "basin_area_sq_mi": 118,
+   "upstream_reservoirs": [
+    "12446453:WA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1259:WA:SNTL",
+    "728:WA:SNTL"
+   ]
+  },
+  "12452000:WA:BOR": {
+   "name": "Lake Chelan",
+   "trace_point": "published point",
+   "comid": "23073871",
+   "basin_vertices": 512,
+   "basin_area_sq_mi": 924,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "606:WA:SNTL",
+    "681:WA:SNTL"
+   ]
+  },
+  "12474000:WA:BOR": {
+   "name": "Keechelus",
+   "trace_point": "published point",
+   "comid": "24126169",
+   "basin_vertices": 106,
+   "basin_area_sq_mi": 55,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12475500:WA:BOR": {
+   "name": "Kachess",
+   "trace_point": "published point",
+   "comid": "24126101",
+   "basin_vertices": 92,
+   "basin_area_sq_mi": 63,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "12478500:WA:BOR": {
+   "name": "Cle Elum",
+   "trace_point": "published point",
+   "comid": "24125831",
+   "basin_vertices": 207,
+   "basin_area_sq_mi": 202,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "478:WA:SNTL",
+    "734:WA:SNTL"
+   ]
+  },
+  "12487500:WA:BOR": {
+   "name": "Bumping Lake",
+   "trace_point": "published point",
+   "comid": "24423025",
+   "basin_vertices": 99,
+   "basin_area_sq_mi": 68,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "375:WA:SNTL"
+   ]
+  },
+  "12491000:WA:BOR": {
+   "name": "Rimrock",
+   "trace_point": "published point",
+   "comid": "24423307",
+   "basin_vertices": 164,
+   "basin_area_sq_mi": 186,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "692:WA:SNTL",
+    "863:WA:SNTL"
+   ]
+  },
+  "129059": {
+   "name": "Agate Reservoir",
+   "trace_point": "published point",
+   "comid": "23924070",
+   "basin_vertices": 58,
+   "basin_area_sq_mi": 14,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "129300": {
+   "name": "Billy Clapp Lake",
+   "trace_point": "published point",
+   "comid": "947020429",
+   "basin_vertices": 8618,
+   "basin_area_sq_mi": 74153,
+   "upstream_reservoirs": [
+    "12301920:MT:BOR",
+    "12325000:MT:BOR",
+    "12336500:MT:BOR",
+    "12342000:MT:BOR",
+    "12344500:MT:BOR",
+    "12362000:MT:BOR",
+    "12371550:MT:BOR",
+    "12390000:MT:BOR",
+    "12391300:MT:BOR",
+    "129465"
+   ],
+   "upstream_snow_sites": [
+    "1043:WA:SNTL",
+    "1053:ID:SNTL",
+    "1144:MT:SNTL",
+    "1159:WA:SNTL",
+    "1190:MT:SNTL",
+    "1256:WA:SNTL",
+    "1311:MT:SNTL",
+    "1312:MT:SNTL",
+    "311:MT:SNTL",
+    "313:MT:SNTL",
+    "315:MT:SNTL",
+    "323:ID:SNTL",
+    "349:MT:SNTL",
+    "376:WA:SNTL",
+    "410:MT:SNTL",
+    "413:MT:SNTL",
+    "414:MT:SNTL",
+    "433:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "500:MT:SNTL",
+    "510:MT:SNTL",
+    "516:MT:SNTL",
+    "530:MT:SNTL",
+    "535:ID:SNTL",
+    "562:MT:SNTL",
+    "588:ID:SNTL",
+    "594:ID:SNTL",
+    "604:MT:SNTL",
+    "623:ID:SNTL",
+    "645:ID:SNTL",
+    "646:MT:SNTL",
+    "657:MT:SNTL",
+    "662:MT:SNTL",
+    "664:MT:SNTL",
+    "667:MT:SNTL",
+    "707:WA:SNTL",
+    "727:MT:SNTL",
+    "738:ID:SNTL",
+    "752:ID:SNTL",
+    "760:MT:SNTL",
+    "783:MT:SNTL",
+    "787:MT:SNTL",
+    "803:ID:SNTL",
+    "835:MT:SNTL",
+    "836:MT:SNTL",
+    "850:MT:SNTL",
+    "901:MT:SNTL",
+    "903:MT:SNTL",
+    "918:MT:SNTL",
+    "930:MT:SNTL",
+    "932:MT:SNTL",
+    "988:ID:SNTL"
+   ]
+  },
+  "129465": {
+   "name": "Banks Lake",
+   "trace_point": "published point",
+   "comid": "23095892",
+   "basin_vertices": 8451,
+   "basin_area_sq_mi": 74092,
+   "upstream_reservoirs": [
+    "12301920:MT:BOR",
+    "12325000:MT:BOR",
+    "12336500:MT:BOR",
+    "12342000:MT:BOR",
+    "12344500:MT:BOR",
+    "12362000:MT:BOR",
+    "12371550:MT:BOR",
+    "12390000:MT:BOR",
+    "12391300:MT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1043:WA:SNTL",
+    "1053:ID:SNTL",
+    "1144:MT:SNTL",
+    "1159:WA:SNTL",
+    "1190:MT:SNTL",
+    "1256:WA:SNTL",
+    "1311:MT:SNTL",
+    "1312:MT:SNTL",
+    "311:MT:SNTL",
+    "313:MT:SNTL",
+    "315:MT:SNTL",
+    "323:ID:SNTL",
+    "349:MT:SNTL",
+    "376:WA:SNTL",
+    "410:MT:SNTL",
+    "413:MT:SNTL",
+    "414:MT:SNTL",
+    "433:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "500:MT:SNTL",
+    "510:MT:SNTL",
+    "516:MT:SNTL",
+    "530:MT:SNTL",
+    "535:ID:SNTL",
+    "562:MT:SNTL",
+    "588:ID:SNTL",
+    "594:ID:SNTL",
+    "604:MT:SNTL",
+    "623:ID:SNTL",
+    "645:ID:SNTL",
+    "646:MT:SNTL",
+    "657:MT:SNTL",
+    "662:MT:SNTL",
+    "664:MT:SNTL",
+    "667:MT:SNTL",
+    "707:WA:SNTL",
+    "727:MT:SNTL",
+    "738:ID:SNTL",
+    "752:ID:SNTL",
+    "760:MT:SNTL",
+    "783:MT:SNTL",
+    "787:MT:SNTL",
+    "803:ID:SNTL",
+    "835:MT:SNTL",
+    "836:MT:SNTL",
+    "850:MT:SNTL",
+    "901:MT:SNTL",
+    "903:MT:SNTL",
+    "918:MT:SNTL",
+    "930:MT:SNTL",
+    "932:MT:SNTL",
+    "988:ID:SNTL"
+   ]
+  },
+  "13010500:WY:BOR": {
+   "name": "Jackson Lake",
+   "trace_point": "published point",
+   "comid": "23123437",
+   "basin_vertices": 542,
+   "basin_area_sq_mi": 804,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "577:WY:SNTL",
+    "764:WY:SNTL",
+    "837:WY:SNTL"
+   ]
+  },
+  "13032450:ID:BOR": {
+   "name": "Palisades Reservoir",
+   "trace_point": "published point",
+   "comid": "24438940",
+   "basin_vertices": 1668,
+   "basin_area_sq_mi": 5080,
+   "upstream_reservoirs": [
+    "13010500:WY:BOR"
+   ],
+   "upstream_snow_sites": [
+    "314:WY:SNTL",
+    "419:WY:SNTL",
+    "460:WY:SNTL",
+    "497:WY:SNTL",
+    "506:WY:SNTL",
+    "577:WY:SNTL",
+    "689:WY:SNTL",
+    "730:WY:SNTL",
+    "764:WY:SNTL",
+    "837:WY:SNTL",
+    "868:WY:SNTL",
+    "944:WY:SNTL"
+   ]
+  },
+  "130357": {
+   "name": "Black Canyon Reservoir",
+   "trace_point": "published point",
+   "comid": "24166358",
+   "basin_vertices": 1141,
+   "basin_area_sq_mi": 2723,
+   "upstream_reservoirs": [
+    "13236000:ID:BOR",
+    "13238500:ID:BOR",
+    "13244500:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1016:ID:SNTL",
+    "312:ID:SNTL",
+    "423:ID:SNTL",
+    "439:ID:SNTL",
+    "550:ID:SNTL",
+    "978:ID:SNTL"
+   ]
+  },
+  "13042000:ID:BOR": {
+   "name": "Island Park Reservoir",
+   "trace_point": "published point",
+   "comid": "24460018",
+   "basin_vertices": 399,
+   "basin_area_sq_mi": 497,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "860:ID:SNTL"
+   ]
+  },
+  "13046500:WY:BOR": {
+   "name": "Grassy Lake",
+   "trace_point": "published point",
+   "comid": "23143771",
+   "basin_vertices": 22,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13057950:ID:BOR": {
+   "name": "Ririe Reservoir",
+   "trace_point": "published point",
+   "comid": "23148388",
+   "basin_vertices": 400,
+   "basin_area_sq_mi": 637,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "749:ID:SNTL"
+   ]
+  },
+  "13065000:ID:BOR": {
+   "name": "Blackfoot Reservoir",
+   "trace_point": "published point",
+   "comid": "24479197",
+   "basin_vertices": 410,
+   "basin_area_sq_mi": 540,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "761:ID:SNTL",
+    "770:ID:SNTL"
+   ]
+  },
+  "13076500:ID:BOR": {
+   "name": "American Falls Reservoir",
+   "trace_point": "published point",
+   "comid": "24557503",
+   "basin_vertices": 3832,
+   "basin_area_sq_mi": 14173,
+   "upstream_reservoirs": [
+    "13010500:WY:BOR",
+    "13032450:ID:BOR",
+    "13042000:ID:BOR",
+    "13046500:WY:BOR",
+    "13057950:ID:BOR",
+    "13065000:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1082:WY:SNTL",
+    "1299:ID:SNTL",
+    "314:WY:SNTL",
+    "419:WY:SNTL",
+    "460:WY:SNTL",
+    "497:WY:SNTL",
+    "499:WY:SNTL",
+    "506:WY:SNTL",
+    "546:ID:SNTL",
+    "577:WY:SNTL",
+    "689:WY:SNTL",
+    "695:ID:SNTL",
+    "730:WY:SNTL",
+    "741:ID:SNTL",
+    "749:ID:SNTL",
+    "761:ID:SNTL",
+    "764:WY:SNTL",
+    "770:ID:SNTL",
+    "837:WY:SNTL",
+    "860:ID:SNTL",
+    "867:ID:SNTL",
+    "868:WY:SNTL",
+    "944:WY:SNTL"
+   ]
+  },
+  "130821": {
+   "name": "Haystack Reservoir",
+   "trace_point": "published point",
+   "comid": "23722199",
+   "basin_vertices": 68,
+   "basin_area_sq_mi": 31,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13083500:ID:BOR": {
+   "name": "Oakley Reservoir",
+   "trace_point": "published point",
+   "comid": "23185123",
+   "basin_vertices": 355,
+   "basin_area_sq_mi": 710,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13106500:ID:BOR": {
+   "name": "Salmon Falls Reservoir",
+   "trace_point": "published point",
+   "comid": "23196318",
+   "basin_vertices": 564,
+   "basin_area_sq_mi": 1582,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1272:NV:SNTL",
+    "871:ID:SNTL"
+   ]
+  },
+  "13126000:ID:BOR": {
+   "name": "Mackay Reservoir",
+   "trace_point": "published point",
+   "comid": "23239256",
+   "basin_vertices": 485,
+   "basin_area_sq_mi": 728,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "320:ID:SNTL",
+    "792:ID:SNTL",
+    "926:ID:SNTL"
+   ]
+  },
+  "13142000:ID:BOR": {
+   "name": "Magic Reservoir",
+   "trace_point": "published point",
+   "comid": "947040096",
+   "basin_vertices": 719,
+   "basin_area_sq_mi": 1509,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "382:ID:SNTL",
+    "450:ID:SNTL",
+    "489:ID:SNTL",
+    "490:ID:SNTL",
+    "537:ID:SNTL",
+    "601:ID:SNTL",
+    "769:ID:SNTL",
+    "895:ID:SNTL"
+   ]
+  },
+  "13148200:ID:BOR": {
+   "name": "Little Wood Reservoir",
+   "trace_point": "published point",
+   "comid": "23267042",
+   "basin_vertices": 215,
+   "basin_area_sq_mi": 273,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "492:ID:SNTL",
+    "805:ID:SNTL"
+   ]
+  },
+  "13174000:NV:BOR": {
+   "name": "Wild Horse Reservoir",
+   "trace_point": "published point",
+   "comid": "23320100",
+   "basin_vertices": 213,
+   "basin_area_sq_mi": 204,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "336:NV:SNTL"
+   ]
+  },
+  "131804": {
+   "name": "Lake Walcott",
+   "trace_point": "published point",
+   "comid": "23162805",
+   "basin_vertices": 4547,
+   "basin_area_sq_mi": 16023,
+   "upstream_reservoirs": [
+    "13010500:WY:BOR",
+    "13032450:ID:BOR",
+    "13042000:ID:BOR",
+    "13046500:WY:BOR",
+    "13057950:ID:BOR",
+    "13065000:ID:BOR",
+    "13076500:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1082:WY:SNTL",
+    "1151:UT:SNTL",
+    "1299:ID:SNTL",
+    "314:WY:SNTL",
+    "419:WY:SNTL",
+    "460:WY:SNTL",
+    "497:WY:SNTL",
+    "499:WY:SNTL",
+    "506:WY:SNTL",
+    "546:ID:SNTL",
+    "577:WY:SNTL",
+    "689:WY:SNTL",
+    "695:ID:SNTL",
+    "730:WY:SNTL",
+    "741:ID:SNTL",
+    "749:ID:SNTL",
+    "761:ID:SNTL",
+    "764:WY:SNTL",
+    "770:ID:SNTL",
+    "837:WY:SNTL",
+    "860:ID:SNTL",
+    "867:ID:SNTL",
+    "868:WY:SNTL",
+    "944:WY:SNTL"
+   ]
+  },
+  "13182500:OR:BOR": {
+   "name": "Lake Owyhee",
+   "trace_point": "published point",
+   "comid": "24540985",
+   "basin_vertices": 2441,
+   "basin_area_sq_mi": 10190,
+   "upstream_reservoirs": [
+    "13174000:NV:BOR"
+   ],
+   "upstream_snow_sites": [
+    "336:NV:SNTL",
+    "476:NV:SNTL",
+    "548:NV:SNTL",
+    "549:NV:SNTL",
+    "573:NV:SNTL",
+    "654:ID:SNTL",
+    "774:ID:SNTL",
+    "811:NV:SNTL"
+   ]
+  },
+  "13190000:ID:BOR": {
+   "name": "Anderson Ranch Reservoir",
+   "trace_point": "published point",
+   "comid": "23387319",
+   "basin_vertices": 476,
+   "basin_area_sq_mi": 974,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1306:ID:SNTL"
+   ]
+  },
+  "13194000:ID:BOR": {
+   "name": "Arrowrock Reservoir",
+   "trace_point": "published point",
+   "comid": "23382151",
+   "basin_vertices": 688,
+   "basin_area_sq_mi": 2213,
+   "upstream_reservoirs": [
+    "13190000:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1306:ID:SNTL",
+    "306:ID:SNTL",
+    "496:ID:SNTL",
+    "637:ID:SNTL",
+    "704:ID:SNTL",
+    "830:ID:SNTL"
+   ]
+  },
+  "13201500:ID:BOR": {
+   "name": "Lucky Peak Reservoir",
+   "trace_point": "published point",
+   "comid": "23382135",
+   "basin_vertices": 789,
+   "basin_area_sq_mi": 2682,
+   "upstream_reservoirs": [
+    "13190000:ID:BOR",
+    "13194000:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1306:ID:SNTL",
+    "306:ID:SNTL",
+    "496:ID:SNTL",
+    "637:ID:SNTL",
+    "704:ID:SNTL",
+    "830:ID:SNTL"
+   ]
+  },
+  "13203500:ID:BOR": {
+   "name": "Lake Lowell",
+   "trace_point": "published point",
+   "comid": "947050161",
+   "basin_vertices": 182,
+   "basin_area_sq_mi": 133,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13214500:OR:BOR": {
+   "name": "Warm Springs",
+   "trace_point": "published point",
+   "comid": "23413307",
+   "basin_vertices": 498,
+   "basin_area_sq_mi": 1074,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "357:OR:SNTL",
+    "563:OR:SNTL",
+    "721:OR:SNTL"
+   ]
+  },
+  "13217000:OR:BOR": {
+   "name": "Beulah",
+   "trace_point": "published point",
+   "comid": "23412939",
+   "basin_vertices": 299,
+   "basin_area_sq_mi": 446,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13226800:OR:BOR": {
+   "name": "Bully Creek",
+   "trace_point": "published point",
+   "comid": "24150401",
+   "basin_vertices": 337,
+   "basin_area_sq_mi": 552,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13236000:ID:BOR": {
+   "name": "Deadwood Reservoir",
+   "trace_point": "published point",
+   "comid": "24158993",
+   "basin_vertices": 176,
+   "basin_area_sq_mi": 109,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "423:ID:SNTL",
+    "439:ID:SNTL"
+   ]
+  },
+  "13238500:ID:BOR": {
+   "name": "Payette Lake",
+   "trace_point": "published point",
+   "comid": "24177469",
+   "basin_vertices": 182,
+   "basin_area_sq_mi": 144,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13244500:ID:BOR": {
+   "name": "Cascade Reservoir",
+   "trace_point": "published point",
+   "comid": "24177103",
+   "basin_vertices": 410,
+   "basin_area_sq_mi": 614,
+   "upstream_reservoirs": [
+    "13238500:ID:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1016:ID:SNTL"
+   ]
+  },
+  "132563": {
+   "name": "Potholes Reservoir",
+   "trace_point": "published point",
+   "comid": "24405965",
+   "basin_vertices": 9526,
+   "basin_area_sq_mi": 76755,
+   "upstream_reservoirs": [
+    "12301920:MT:BOR",
+    "12325000:MT:BOR",
+    "12336500:MT:BOR",
+    "12342000:MT:BOR",
+    "12344500:MT:BOR",
+    "12362000:MT:BOR",
+    "12371550:MT:BOR",
+    "12390000:MT:BOR",
+    "12391300:MT:BOR",
+    "129300",
+    "129465"
+   ],
+   "upstream_snow_sites": [
+    "1043:WA:SNTL",
+    "1053:ID:SNTL",
+    "1144:MT:SNTL",
+    "1159:WA:SNTL",
+    "1190:MT:SNTL",
+    "1256:WA:SNTL",
+    "1311:MT:SNTL",
+    "1312:MT:SNTL",
+    "311:MT:SNTL",
+    "313:MT:SNTL",
+    "315:MT:SNTL",
+    "323:ID:SNTL",
+    "349:MT:SNTL",
+    "376:WA:SNTL",
+    "410:MT:SNTL",
+    "413:MT:SNTL",
+    "414:MT:SNTL",
+    "433:MT:SNTL",
+    "469:MT:SNTL",
+    "482:MT:SNTL",
+    "500:MT:SNTL",
+    "510:MT:SNTL",
+    "516:MT:SNTL",
+    "530:MT:SNTL",
+    "535:ID:SNTL",
+    "562:MT:SNTL",
+    "588:ID:SNTL",
+    "594:ID:SNTL",
+    "604:MT:SNTL",
+    "623:ID:SNTL",
+    "645:ID:SNTL",
+    "646:MT:SNTL",
+    "657:MT:SNTL",
+    "662:MT:SNTL",
+    "664:MT:SNTL",
+    "667:MT:SNTL",
+    "707:WA:SNTL",
+    "727:MT:SNTL",
+    "738:ID:SNTL",
+    "752:ID:SNTL",
+    "760:MT:SNTL",
+    "783:MT:SNTL",
+    "787:MT:SNTL",
+    "803:ID:SNTL",
+    "835:MT:SNTL",
+    "836:MT:SNTL",
+    "850:MT:SNTL",
+    "901:MT:SNTL",
+    "903:MT:SNTL",
+    "918:MT:SNTL",
+    "930:MT:SNTL",
+    "932:MT:SNTL",
+    "988:ID:SNTL"
+   ]
+  },
+  "13266900:ID:BOR": {
+   "name": "Mann Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "24184738",
+   "basin_vertices": 122,
+   "basin_area_sq_mi": 56,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "324:ID:SNTL"
+   ]
+  },
+  "13272500:OR:BOR": {
+   "name": "Unity",
+   "trace_point": "published point",
+   "comid": "24200223",
+   "basin_vertices": 262,
+   "basin_area_sq_mi": 309,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "821:OR:SNTL"
+   ]
+  },
+  "13275292:OR:BOR": {
+   "name": "Phillips Lake",
+   "trace_point": "published point",
+   "comid": "24208369",
+   "basin_vertices": 174,
+   "basin_area_sq_mi": 161,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "361:OR:SNTL"
+   ]
+  },
+  "13283600:OR:BOR": {
+   "name": "Wolf Creek",
+   "trace_point": "published point",
+   "comid": "24208055",
+   "basin_vertices": 92,
+   "basin_area_sq_mi": 34,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "873:OR:SNTL"
+   ]
+  },
+  "13285000:OR:BOR": {
+   "name": "Thief Valley",
+   "trace_point": "published point",
+   "comid": "24208611",
+   "basin_vertices": 561,
+   "basin_area_sq_mi": 893,
+   "upstream_reservoirs": [
+    "13275292:OR:BOR",
+    "13283600:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "361:OR:SNTL",
+    "464:OR:SNTL",
+    "873:OR:SNTL"
+   ]
+  },
+  "132896": {
+   "name": "Mann Lake",
+   "trace_point": "published point",
+   "comid": "23612060",
+   "basin_vertices": 14,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13289700:ID:BOR": {
+   "name": "Brownlee Reservoir",
+   "trace_point": "published point",
+   "comid": "24192804",
+   "basin_vertices": 11544,
+   "basin_area_sq_mi": 59144,
+   "upstream_reservoirs": [
+    "13010500:WY:BOR",
+    "13032450:ID:BOR",
+    "130357",
+    "13042000:ID:BOR",
+    "13046500:WY:BOR",
+    "13057950:ID:BOR",
+    "13065000:ID:BOR",
+    "13076500:ID:BOR",
+    "13106500:ID:BOR",
+    "13142000:ID:BOR",
+    "13148200:ID:BOR",
+    "13174000:NV:BOR",
+    "131804",
+    "13182500:OR:BOR",
+    "13190000:ID:BOR",
+    "13194000:ID:BOR",
+    "13201500:ID:BOR",
+    "13203500:ID:BOR",
+    "13214500:OR:BOR",
+    "13217000:OR:BOR",
+    "13226800:OR:BOR",
+    "13236000:ID:BOR",
+    "13238500:ID:BOR",
+    "13244500:ID:BOR",
+    "13266900:ID:BOR",
+    "13272500:OR:BOR",
+    "13275292:OR:BOR",
+    "13283600:OR:BOR",
+    "13285000:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1016:ID:SNTL",
+    "1082:WY:SNTL",
+    "1151:UT:SNTL",
+    "1207:NV:SNTL",
+    "1272:NV:SNTL",
+    "1299:ID:SNTL",
+    "1306:ID:SNTL",
+    "2029:ID:SNTL",
+    "306:ID:SNTL",
+    "312:ID:SNTL",
+    "314:WY:SNTL",
+    "321:NV:SNTL",
+    "324:ID:SNTL",
+    "336:NV:SNTL",
+    "357:OR:SNTL",
+    "359:ID:SNTL",
+    "361:OR:SNTL",
+    "382:ID:SNTL",
+    "419:WY:SNTL",
+    "423:ID:SNTL",
+    "439:ID:SNTL",
+    "450:ID:SNTL",
+    "460:WY:SNTL",
+    "464:OR:SNTL",
+    "476:NV:SNTL",
+    "489:ID:SNTL",
+    "490:ID:SNTL",
+    "492:ID:SNTL",
+    "496:ID:SNTL",
+    "497:WY:SNTL",
+    "499:WY:SNTL",
+    "506:WY:SNTL",
+    "534:ID:SNTL",
+    "537:ID:SNTL",
+    "546:ID:SNTL",
+    "548:NV:SNTL",
+    "549:NV:SNTL",
+    "550:ID:SNTL",
+    "563:OR:SNTL",
+    "573:NV:SNTL",
+    "577:WY:SNTL",
+    "601:ID:SNTL",
+    "610:ID:SNTL",
+    "637:ID:SNTL",
+    "654:ID:SNTL",
+    "689:WY:SNTL",
+    "695:ID:SNTL",
+    "698:NV:SNTL",
+    "704:ID:SNTL",
+    "721:OR:SNTL",
+    "730:WY:SNTL",
+    "741:ID:SNTL",
+    "746:NV:SNTL",
+    "749:ID:SNTL",
+    "761:ID:SNTL",
+    "764:WY:SNTL",
+    "769:ID:SNTL",
+    "770:ID:SNTL",
+    "774:ID:SNTL",
+    "782:ID:SNTL",
+    "805:ID:SNTL",
+    "811:NV:SNTL",
+    "821:OR:SNTL",
+    "830:ID:SNTL",
+    "837:WY:SNTL",
+    "855:ID:SNTL",
+    "860:ID:SNTL",
+    "867:ID:SNTL",
+    "868:WY:SNTL",
+    "871:ID:SNTL",
+    "873:OR:SNTL",
+    "895:ID:SNTL",
+    "944:WY:SNTL",
+    "978:ID:SNTL",
+    "979:ID:SNTL"
+   ]
+  },
+  "133021": {
+   "name": "Scooteney Reservoir",
+   "trace_point": "published point",
+   "comid": "947020522",
+   "basin_vertices": 32,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "133227": {
+   "name": "Soldiers Meadow Reservoir",
+   "trace_point": "published point",
+   "comid": "23606014",
+   "basin_vertices": 46,
+   "basin_area_sq_mi": 9,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "13326000:OR:BOR": {
+   "name": "Wallowa Lake",
+   "trace_point": "published point",
+   "comid": "23437439",
+   "basin_vertices": 91,
+   "basin_area_sq_mi": 51,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "302:OR:SNTL"
+   ]
+  },
+  "13340950:ID:BOR": {
+   "name": "Dworshak Reservoir",
+   "trace_point": "published point",
+   "comid": "23630892",
+   "basin_vertices": 660,
+   "basin_area_sq_mi": 2436,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "411:ID:SNTL",
+    "425:ID:SNTL",
+    "466:ID:SNTL",
+    "520:ID:SNTL",
+    "600:ID:SNTL"
+   ]
+  },
+  "134092": {
+   "name": "Rifle Gap Reservoir",
+   "trace_point": "published point",
+   "comid": "3175956",
+   "basin_vertices": 107,
+   "basin_area_sq_mi": 82,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14019151:OR:BOR": {
+   "name": "Cold Springs",
+   "trace_point": "published point",
+   "comid": "23648768",
+   "basin_vertices": 223,
+   "basin_area_sq_mi": 200,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14023000:OR:BOR": {
+   "name": "Mckay",
+   "trace_point": "published point",
+   "comid": "23648274",
+   "basin_vertices": 218,
+   "basin_area_sq_mi": 193,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "362:OR:SNTL"
+   ]
+  },
+  "14034490:OR:BOR": {
+   "name": "Willow Creek",
+   "trace_point": "published point",
+   "comid": "23659572",
+   "basin_vertices": 132,
+   "basin_area_sq_mi": 97,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14053500:OR:BOR": {
+   "name": "Crane Prairie",
+   "trace_point": "published point",
+   "comid": "23700619",
+   "basin_vertices": 178,
+   "basin_area_sq_mi": 185,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "545:OR:SNTL"
+   ]
+  },
+  "14056000:OR:BOR": {
+   "name": "Wickiup",
+   "trace_point": "published point",
+   "comid": "23700503",
+   "basin_vertices": 182,
+   "basin_area_sq_mi": 253,
+   "upstream_reservoirs": [
+    "14053500:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "545:OR:SNTL"
+   ]
+  },
+  "14059500:OR:BOR": {
+   "name": "Crescent Lake",
+   "trace_point": "published point",
+   "comid": "23706312",
+   "basin_vertices": 105,
+   "basin_area_sq_mi": 58,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "801:OR:SNTL"
+   ]
+  },
+  "14080400:OR:BOR": {
+   "name": "Prineville",
+   "trace_point": "published point",
+   "comid": "24515510",
+   "basin_vertices": 894,
+   "basin_area_sq_mi": 2474,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "440:OR:SNTL"
+   ]
+  },
+  "14085100:OR:BOR": {
+   "name": "Ochoco",
+   "trace_point": "published point",
+   "comid": "23713984",
+   "basin_vertices": 216,
+   "basin_area_sq_mi": 291,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "671:OR:SNTL"
+   ]
+  },
+  "14097310:OR:BOR": {
+   "name": "Clear Lake",
+   "trace_point": "published point",
+   "comid": "23719067",
+   "basin_vertices": 27,
+   "basin_area_sq_mi": 9,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "401:OR:SNTL"
+   ]
+  },
+  "14145100:OR:BOR": {
+   "name": "Hills Creek",
+   "trace_point": "published point",
+   "comid": "23751946",
+   "basin_vertices": 233,
+   "basin_area_sq_mi": 389,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14149000:OR:BOR": {
+   "name": "Lookout Point",
+   "trace_point": "published point",
+   "comid": "23751852",
+   "basin_vertices": 431,
+   "basin_area_sq_mi": 993,
+   "upstream_reservoirs": [
+    "14145100:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "388:OR:SNTL",
+    "710:OR:SNTL",
+    "729:OR:SNTL"
+   ]
+  },
+  "14149150:OR:BOR": {
+   "name": "Dexter",
+   "trace_point": "published point",
+   "comid": "23751844",
+   "basin_vertices": 442,
+   "basin_area_sq_mi": 1000,
+   "upstream_reservoirs": [
+    "14145100:OR:BOR",
+    "14149000:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "388:OR:SNTL",
+    "710:OR:SNTL",
+    "729:OR:SNTL"
+   ]
+  },
+  "14150900:OR:BOR": {
+   "name": "Fall Creek",
+   "trace_point": "published point",
+   "comid": "23752600",
+   "basin_vertices": 159,
+   "basin_area_sq_mi": 184,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14153000:OR:BOR": {
+   "name": "Cottage Grove",
+   "trace_point": "published point",
+   "comid": "23759312",
+   "basin_vertices": 120,
+   "basin_area_sq_mi": 106,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14155000:OR:BOR": {
+   "name": "Dorena",
+   "trace_point": "published point",
+   "comid": "23759588",
+   "basin_vertices": 198,
+   "basin_area_sq_mi": 265,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "529:OR:SNTL"
+   ]
+  },
+  "14159400:OR:BOR": {
+   "name": "Cougar",
+   "trace_point": "published point",
+   "comid": "23773011",
+   "basin_vertices": 200,
+   "basin_area_sq_mi": 193,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "719:OR:SNTL"
+   ]
+  },
+  "14162100:OR:BOR": {
+   "name": "Blue River",
+   "trace_point": "published point",
+   "comid": "23773425",
+   "basin_vertices": 112,
+   "basin_area_sq_mi": 78,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14168000:OR:BOR": {
+   "name": "Fern Ridge",
+   "trace_point": "published point",
+   "comid": "23763139",
+   "basin_vertices": 252,
+   "basin_area_sq_mi": 252,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14180500:OR:BOR": {
+   "name": "Detroit",
+   "trace_point": "published point",
+   "comid": "23780525",
+   "basin_vertices": 275,
+   "basin_area_sq_mi": 434,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "614:OR:SNTL"
+   ]
+  },
+  "14186100:OR:BOR": {
+   "name": "Green Peter",
+   "trace_point": "published point",
+   "comid": "23785925",
+   "basin_vertices": 238,
+   "basin_area_sq_mi": 274,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "434:OR:SNTL",
+    "584:OR:SNTL"
+   ]
+  },
+  "14186600:OR:BOR": {
+   "name": "Foster",
+   "trace_point": "published point",
+   "comid": "23785769",
+   "basin_vertices": 268,
+   "basin_area_sq_mi": 491,
+   "upstream_reservoirs": [
+    "14186100:OR:BOR"
+   ],
+   "upstream_snow_sites": [
+    "434:OR:SNTL",
+    "552:OR:SNTL",
+    "584:OR:SNTL"
+   ]
+  },
+  "14202965:OR:BOR": {
+   "name": "Henry Hagg Lake",
+   "trace_point": "published point",
+   "comid": "23805108",
+   "basin_vertices": 88,
+   "basin_area_sq_mi": 38,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "743:OR:SNTL"
+   ]
+  },
+  "14208600:OR:BOR": {
+   "name": "Timothy Lake",
+   "trace_point": "published point",
+   "comid": "23809452",
+   "basin_vertices": 80,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "398:OR:SNTL"
+   ]
+  },
+  "14234800:WA:BOR": {
+   "name": "Mossyrock Dam (Riffe Lk)",
+   "trace_point": "published point",
+   "comid": "24248994",
+   "basin_vertices": 549,
+   "basin_area_sq_mi": 1146,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1257:WA:SNTL",
+    "1263:WA:SNTL",
+    "702:WA:SNTL"
+   ]
+  },
+  "14237800:WA:BOR": {
+   "name": "Mayfield",
+   "trace_point": "published point",
+   "comid": "24248950",
+   "basin_vertices": 597,
+   "basin_area_sq_mi": 1385,
+   "upstream_reservoirs": [
+    "14234800:WA:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1257:WA:SNTL",
+    "1263:WA:SNTL",
+    "702:WA:SNTL"
+   ]
+  },
+  "14335040:OR:BOR": {
+   "name": "Lost Creek",
+   "trace_point": "published point",
+   "comid": "23923436",
+   "basin_vertices": 325,
+   "basin_area_sq_mi": 686,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14342000:OR:BOR": {
+   "name": "Fish Lake",
+   "trace_point": "published point",
+   "comid": "23923180",
+   "basin_vertices": 38,
+   "basin_area_sq_mi": 16,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "479:OR:SNTL"
+   ]
+  },
+  "14349000:OR:BOR": {
+   "name": "Emigrant Lake",
+   "trace_point": "published point",
+   "comid": "23930904",
+   "basin_vertices": 93,
+   "basin_area_sq_mi": 64,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "14361900:OR:BOR": {
+   "name": "Applegate",
+   "trace_point": "published point",
+   "comid": "23936037",
+   "basin_vertices": 160,
+   "basin_area_sq_mi": 222,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "343:OR:SNTL"
+   ]
+  },
+  "219": {
+   "name": "Causey",
+   "trace_point": "reviewed dam point",
+   "comid": "10275980",
+   "basin_vertices": 98,
+   "basin_area_sq_mi": 55,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1056:UT:SNTL"
+   ]
+  },
+  "278": {
+   "name": "Currant Creek",
+   "trace_point": "reviewed dam point",
+   "comid": "11964737",
+   "basin_vertices": 68,
+   "basin_area_sq_mi": 50,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "432:UT:SNTL"
+   ]
+  },
+  "290": {
+   "name": "Deer Creek",
+   "trace_point": "reviewed dam point",
+   "comid": "10376632",
+   "basin_vertices": 335,
+   "basin_area_sq_mi": 547,
+   "upstream_reservoirs": [
+    "4516",
+    "4523",
+    "4530",
+    "468"
+   ],
+   "upstream_snow_sites": [
+    "1164:UT:SNTL",
+    "828:UT:SNTL"
+   ]
+  },
+  "310": {
+   "name": "East Canyon",
+   "trace_point": "reviewed dam point",
+   "comid": "10277316",
+   "basin_vertices": 175,
+   "basin_area_sq_mi": 143,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "684:UT:SNTL",
+    "814:UT:SNTL"
+   ]
+  },
+  "314": {
+   "name": "Echo",
+   "trace_point": "reviewed dam point",
+   "comid": "10093132",
+   "basin_vertices": 440,
+   "basin_area_sq_mi": 711,
+   "upstream_reservoirs": [
+    "10128000:UT:BOR",
+    "706"
+   ],
+   "upstream_snow_sites": [
+    "330:UT:SNTL",
+    "392:UT:SNTL",
+    "393:UT:SNTL",
+    "763:UT:SNTL"
+   ]
+  },
+  "319": {
+   "name": "Eden Reservoir",
+   "trace_point": "published point",
+   "comid": "18303156",
+   "basin_vertices": 48,
+   "basin_area_sq_mi": 8,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "337": {
+   "name": "Flaming Gorge",
+   "trace_point": "reviewed dam point",
+   "comid": "10040912",
+   "basin_vertices": 2443,
+   "basin_area_sq_mi": 14775,
+   "upstream_reservoirs": [
+    "09213700:WY:BOR",
+    "09223100:WY:BOR",
+    "319",
+    "347",
+    "574",
+    "769"
+   ],
+   "upstream_snow_sites": [
+    "1117:UT:SNTL",
+    "1133:WY:SNTL",
+    "1162:UT:SNTL",
+    "1163:UT:SNTL",
+    "1192:UT:SNTL",
+    "342:WY:SNTL",
+    "353:WY:SNTL",
+    "468:WY:SNTL",
+    "509:WY:SNTL",
+    "521:UT:SNTL",
+    "522:UT:SNTL",
+    "528:UT:SNTL",
+    "544:WY:SNTL",
+    "554:WY:SNTL",
+    "555:WY:SNTL",
+    "597:WY:SNTL",
+    "661:WY:SNTL",
+    "765:WY:SNTL",
+    "779:WY:SNTL",
+    "790:UT:SNTL",
+    "831:WY:SNTL"
+   ]
+  },
+  "347": {
+   "name": "Fontenelle",
+   "trace_point": "reviewed dam point",
+   "comid": "18312556",
+   "basin_vertices": 1020,
+   "basin_area_sq_mi": 4180,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1133:WY:SNTL",
+    "353:WY:SNTL",
+    "468:WY:SNTL",
+    "555:WY:SNTL",
+    "597:WY:SNTL",
+    "661:WY:SNTL",
+    "765:WY:SNTL",
+    "779:WY:SNTL",
+    "831:WY:SNTL"
+   ]
+  },
+  "4003399B": {
+   "name": "Overland Reservoir",
+   "trace_point": "published point",
+   "comid": "1336812",
+   "basin_vertices": 37,
+   "basin_area_sq_mi": 9,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "432": {
+   "name": "Huntington North",
+   "trace_point": "reviewed dam point",
+   "comid": "4877709",
+   "basin_vertices": 229,
+   "basin_area_sq_mi": 229,
+   "upstream_reservoirs": [
+    "09UTCLEV:UT:BOR",
+    "09UTELLK:UT:BOR",
+    "09UTHNTN:UT:BOR",
+    "09UTMILF:UT:BOR"
+   ],
+   "upstream_snow_sites": []
+  },
+  "439": {
+   "name": "Hyrum",
+   "trace_point": "reviewed dam point",
+   "comid": "666222",
+   "basin_vertices": 36,
+   "basin_area_sq_mi": 7,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "4516": {
+   "name": "Trial Lake",
+   "trace_point": "reviewed dam point",
+   "comid": "10375002",
+   "basin_vertices": 29,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "4523": {
+   "name": "Lost Lake",
+   "trace_point": "reviewed dam point",
+   "comid": "10375228",
+   "basin_vertices": 19,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "4530": {
+   "name": "Washington Lake",
+   "trace_point": "reviewed dam point",
+   "comid": "10375004",
+   "basin_vertices": 22,
+   "basin_area_sq_mi": 2,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "463": {
+   "name": "Joes Valley",
+   "trace_point": "reviewed dam point",
+   "comid": "4877545",
+   "basin_vertices": 149,
+   "basin_area_sq_mi": 147,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1227:UT:SNTL",
+    "714:UT:SNTL",
+    "742:UT:SNTL"
+   ]
+  },
+  "468": {
+   "name": "Jordanelle",
+   "trace_point": "reviewed dam point",
+   "comid": "10373626",
+   "basin_vertices": 252,
+   "basin_area_sq_mi": 252,
+   "upstream_reservoirs": [
+    "4516",
+    "4523",
+    "4530"
+   ],
+   "upstream_snow_sites": [
+    "1164:UT:SNTL",
+    "828:UT:SNTL"
+   ]
+  },
+  "504": {
+   "name": "Lake Nighthorse",
+   "trace_point": "published point",
+   "comid": "17014859",
+   "basin_vertices": 55,
+   "basin_area_sq_mi": 15,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "509": {
+   "name": "Lake Powell",
+   "trace_point": "reviewed dam point",
+   "comid": "3528925",
+   "basin_vertices": 8426,
+   "basin_area_sq_mi": 106529,
+   "upstream_reservoirs": [
+    "09009010:CO:BOR",
+    "09009020:CO:BOR",
+    "09009030:CO:BOR",
+    "09009040:CO:BOR",
+    "09009050:CO:BOR",
+    "09009060:CO:BOR",
+    "09009080:CO:BOR",
+    "09009100:CO:BOR",
+    "09009110:CO:BOR",
+    "09009120:CO:BOR",
+    "09009130:CO:BOR",
+    "09009140:CO:BOR",
+    "09009150:CO:BOR",
+    "09009160:CO:BOR",
+    "09009170:CO:BOR",
+    "09009320:CO:BOR",
+    "09009340:CO:BOR",
+    "09009350:CO:BOR",
+    "09014500:CO:BOR",
+    "09041395:CO:BOR",
+    "09109090:NM:BOR",
+    "09116500:CO:BOR",
+    "09125800:CO:BOR",
+    "09126000:CO:BOR",
+    "09147022:CO:BOR",
+    "09213700:WY:BOR",
+    "09223100:WY:BOR",
+    "09237495:CO:BOR",
+    "09255450:WY:BOR",
+    "09UTBRWN:UT:BOR",
+    "09UTBSWR:UT:BOR",
+    "09UTCLEV:UT:BOR",
+    "09UTELLK:UT:BOR",
+    "09UTHNTN:UT:BOR",
+    "09UTKENS:UT:BOR",
+    "09UTMILF:UT:BOR",
+    "09UTMILL:UT:BOR",
+    "134092",
+    "278",
+    "319",
+    "337",
+    "347",
+    "4003399B",
+    "432",
+    "463",
+    "504",
+    "520",
+    "574",
+    "587",
+    "685",
+    "727",
+    "764",
+    "769",
+    "774",
+    "779",
+    "826",
+    "ALSRESCO",
+    "BKIRESCO",
+    "BLURESCO",
+    "HARTLKCO",
+    "HAVRESCO",
+    "LONRESCO",
+    "MPHC2000:CO:BOR",
+    "PEARLACO",
+    "REDRESCO",
+    "SWARESCO",
+    "YAMRESCO:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1014:CO:SNTL",
+    "1030:CO:SNTL",
+    "1040:CO:SNTL",
+    "1041:CO:SNTL",
+    "1047:WY:SNTL",
+    "1060:CO:SNTL",
+    "1061:CO:SNTL",
+    "1097:UT:SNTL",
+    "1101:CO:SNTL",
+    "1116:UT:SNTL",
+    "1117:UT:SNTL",
+    "1120:CO:SNTL",
+    "1133:WY:SNTL",
+    "1138:NM:SNTL",
+    "1141:CO:SNTL",
+    "1143:AZ:SNTL",
+    "1149:UT:SNTL",
+    "1153:UT:SNTL",
+    "1160:CO:SNTL",
+    "1162:UT:SNTL",
+    "1163:UT:SNTL",
+    "1185:CO:SNTL",
+    "1186:CO:SNTL",
+    "1187:CO:SNTL",
+    "1188:CO:SNTL",
+    "1192:UT:SNTL",
+    "1216:UT:SNTL",
+    "1227:UT:SNTL",
+    "1228:UT:SNTL",
+    "1236:UT:SNTL",
+    "1249:UT:SNTL",
+    "1252:CO:SNTL",
+    "1261:UT:SNTL",
+    "1269:UT:SNTL",
+    "1304:UT:SNTL",
+    "1323:UT:SNTL",
+    "1326:CO:SNTL",
+    "1344:CO:SNTL",
+    "317:WY:SNTL",
+    "335:CO:SNTL",
+    "342:WY:SNTL",
+    "345:CO:SNTL",
+    "348:UT:SNTL",
+    "353:WY:SNTL",
+    "368:UT:SNTL",
+    "371:UT:SNTL",
+    "378:CO:SNTL",
+    "380:CO:SNTL",
+    "383:UT:SNTL",
+    "387:CO:SNTL",
+    "396:UT:SNTL",
+    "409:CO:SNTL",
+    "415:CO:SNTL",
+    "426:CO:SNTL",
+    "432:UT:SNTL",
+    "444:UT:SNTL",
+    "449:WY:SNTL",
+    "452:UT:SNTL",
+    "457:CO:SNTL",
+    "461:UT:SNTL",
+    "465:CO:SNTL",
+    "467:CO:SNTL",
+    "468:WY:SNTL",
+    "481:UT:SNTL",
+    "485:CO:SNTL",
+    "505:CO:SNTL",
+    "509:WY:SNTL",
+    "513:UT:SNTL",
+    "521:UT:SNTL",
+    "522:UT:SNTL",
+    "528:UT:SNTL",
+    "531:CO:SNTL",
+    "538:CO:SNTL",
+    "542:CO:SNTL",
+    "543:UT:SNTL",
+    "544:WY:SNTL",
+    "547:CO:SNTL",
+    "554:WY:SNTL",
+    "555:WY:SNTL",
+    "556:CO:SNTL",
+    "559:UT:SNTL",
+    "565:CO:SNTL",
+    "566:UT:SNTL",
+    "586:CO:SNTL",
+    "589:CO:SNTL",
+    "597:WY:SNTL",
+    "607:CO:SNTL",
+    "618:CO:SNTL",
+    "622:CO:SNTL",
+    "629:CO:SNTL",
+    "632:CO:SNTL",
+    "643:UT:SNTL",
+    "658:CO:SNTL",
+    "661:WY:SNTL",
+    "669:CO:SNTL",
+    "675:CO:SNTL",
+    "680:CO:SNTL",
+    "682:CO:SNTL",
+    "688:CO:SNTL",
+    "701:CO:SNTL",
+    "709:CO:SNTL",
+    "713:CO:SNTL",
+    "714:UT:SNTL",
+    "717:CO:SNTL",
+    "720:UT:SNTL",
+    "732:WY:SNTL",
+    "737:CO:SNTL",
+    "739:CO:SNTL",
+    "742:UT:SNTL",
+    "762:CO:SNTL",
+    "765:WY:SNTL",
+    "779:WY:SNTL",
+    "780:CO:SNTL",
+    "790:UT:SNTL",
+    "793:CO:SNTL",
+    "795:UT:SNTL",
+    "797:CO:SNTL",
+    "802:CO:SNTL",
+    "825:CO:SNTL",
+    "827:CO:SNTL",
+    "831:WY:SNTL",
+    "833:UT:SNTL",
+    "840:CO:SNTL",
+    "842:CO:SNTL",
+    "843:CO:SNTL",
+    "859:WY:SNTL",
+    "864:UT:SNTL",
+    "869:CO:SNTL",
+    "874:CO:SNTL",
+    "904:CO:SNTL",
+    "905:CO:SNTL",
+    "913:CO:SNTL",
+    "940:CO:SNTL",
+    "970:CO:SNTL"
+   ]
+  },
+  "520": {
+   "name": "Lemon Reservoir",
+   "trace_point": "published point",
+   "comid": "17015277",
+   "basin_vertices": 105,
+   "basin_area_sq_mi": 68,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "797:CO:SNTL"
+   ]
+  },
+  "544": {
+   "name": "Lost Creek",
+   "trace_point": "reviewed dam point",
+   "comid": "10090806",
+   "basin_vertices": 148,
+   "basin_area_sq_mi": 123,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1118:UT:SNTL",
+    "1145:UT:SNTL",
+    "533:UT:SNTL"
+   ]
+  },
+  "574": {
+   "name": "Meeks Cabin",
+   "trace_point": "reviewed dam point",
+   "comid": "3197078",
+   "basin_vertices": 138,
+   "basin_area_sq_mi": 152,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1162:UT:SNTL",
+    "1163:UT:SNTL",
+    "1192:UT:SNTL"
+   ]
+  },
+  "587": {
+   "name": "Moon Lake",
+   "trace_point": "reviewed dam point",
+   "comid": "11977055",
+   "basin_vertices": 113,
+   "basin_area_sq_mi": 112,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "368:UT:SNTL",
+    "513:UT:SNTL"
+   ]
+  },
+  "6124": {
+   "name": "Lake Mead",
+   "trace_point": "reviewed dam point",
+   "comid": "21434295",
+   "basin_vertices": 21749,
+   "basin_area_sq_mi": 157774,
+   "upstream_reservoirs": [
+    "09009010:CO:BOR",
+    "09009020:CO:BOR",
+    "09009030:CO:BOR",
+    "09009040:CO:BOR",
+    "09009050:CO:BOR",
+    "09009060:CO:BOR",
+    "09009080:CO:BOR",
+    "09009100:CO:BOR",
+    "09009110:CO:BOR",
+    "09009120:CO:BOR",
+    "09009130:CO:BOR",
+    "09009140:CO:BOR",
+    "09009150:CO:BOR",
+    "09009160:CO:BOR",
+    "09009170:CO:BOR",
+    "09009320:CO:BOR",
+    "09009340:CO:BOR",
+    "09009350:CO:BOR",
+    "09014500:CO:BOR",
+    "09041395:CO:BOR",
+    "09109090:NM:BOR",
+    "09116500:CO:BOR",
+    "09125800:CO:BOR",
+    "09126000:CO:BOR",
+    "09147022:CO:BOR",
+    "09213700:WY:BOR",
+    "09223100:WY:BOR",
+    "09237495:CO:BOR",
+    "09255450:WY:BOR",
+    "09385500:AZ:BOR",
+    "09398300:AZ:BOR",
+    "09UTBRWN:UT:BOR",
+    "09UTBSWR:UT:BOR",
+    "09UTCLEV:UT:BOR",
+    "09UTELLK:UT:BOR",
+    "09UTGUNL:UT:BOR",
+    "09UTHNTN:UT:BOR",
+    "09UTIVIN:UT:BOR",
+    "09UTJACK:UT:BOR",
+    "09UTKENS:UT:BOR",
+    "09UTKOLB:UT:BOR",
+    "09UTMILF:UT:BOR",
+    "09UTMILL:UT:BOR",
+    "09UTQUAI:UT:BOR",
+    "09UTSAND:UT:BOR",
+    "134092",
+    "278",
+    "319",
+    "337",
+    "347",
+    "4003399B",
+    "432",
+    "463",
+    "504",
+    "509",
+    "520",
+    "574",
+    "587",
+    "685",
+    "727",
+    "764",
+    "769",
+    "774",
+    "779",
+    "826",
+    "ALSRESCO",
+    "BKIRESCO",
+    "BLURESCO",
+    "HARTLKCO",
+    "HAVRESCO",
+    "LONRESCO",
+    "MPHC2000:CO:BOR",
+    "PEARLACO",
+    "REDRESCO",
+    "SWARESCO",
+    "YAMRESCO:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1014:CO:SNTL",
+    "1030:CO:SNTL",
+    "1040:CO:SNTL",
+    "1041:CO:SNTL",
+    "1047:WY:SNTL",
+    "1060:CO:SNTL",
+    "1061:CO:SNTL",
+    "1065:UT:SNTL",
+    "1066:UT:SNTL",
+    "1097:UT:SNTL",
+    "1101:CO:SNTL",
+    "1110:NV:SNTL",
+    "1111:NV:SNTL",
+    "1112:NV:SNTL",
+    "1116:UT:SNTL",
+    "1117:UT:SNTL",
+    "1120:CO:SNTL",
+    "1121:AZ:SNTL",
+    "1125:AZ:SNTL",
+    "1133:WY:SNTL",
+    "1138:NM:SNTL",
+    "1141:CO:SNTL",
+    "1143:AZ:SNTL",
+    "1149:UT:SNTL",
+    "1153:UT:SNTL",
+    "1160:CO:SNTL",
+    "1162:UT:SNTL",
+    "1163:UT:SNTL",
+    "1185:CO:SNTL",
+    "1186:CO:SNTL",
+    "1187:CO:SNTL",
+    "1188:CO:SNTL",
+    "1192:UT:SNTL",
+    "1216:UT:SNTL",
+    "1227:UT:SNTL",
+    "1228:UT:SNTL",
+    "1236:UT:SNTL",
+    "1249:UT:SNTL",
+    "1252:CO:SNTL",
+    "1261:UT:SNTL",
+    "1269:UT:SNTL",
+    "1304:UT:SNTL",
+    "1323:UT:SNTL",
+    "1326:CO:SNTL",
+    "1344:CO:SNTL",
+    "1350:NV:SNTL",
+    "310:AZ:SNTL",
+    "317:WY:SNTL",
+    "335:CO:SNTL",
+    "342:WY:SNTL",
+    "345:CO:SNTL",
+    "348:UT:SNTL",
+    "353:WY:SNTL",
+    "368:UT:SNTL",
+    "371:UT:SNTL",
+    "378:CO:SNTL",
+    "380:CO:SNTL",
+    "383:UT:SNTL",
+    "387:CO:SNTL",
+    "396:UT:SNTL",
+    "409:CO:SNTL",
+    "415:CO:SNTL",
+    "426:CO:SNTL",
+    "432:UT:SNTL",
+    "444:UT:SNTL",
+    "449:WY:SNTL",
+    "452:UT:SNTL",
+    "457:CO:SNTL",
+    "461:UT:SNTL",
+    "465:CO:SNTL",
+    "467:CO:SNTL",
+    "468:WY:SNTL",
+    "481:UT:SNTL",
+    "485:CO:SNTL",
+    "505:CO:SNTL",
+    "509:WY:SNTL",
+    "513:UT:SNTL",
+    "519:AZ:SNTL",
+    "521:UT:SNTL",
+    "522:UT:SNTL",
+    "528:UT:SNTL",
+    "531:CO:SNTL",
+    "538:CO:SNTL",
+    "542:CO:SNTL",
+    "543:UT:SNTL",
+    "544:WY:SNTL",
+    "547:CO:SNTL",
+    "554:WY:SNTL",
+    "555:WY:SNTL",
+    "556:CO:SNTL",
+    "559:UT:SNTL",
+    "561:UT:SNTL",
+    "565:CO:SNTL",
+    "566:UT:SNTL",
+    "586:CO:SNTL",
+    "589:CO:SNTL",
+    "593:UT:SNTL",
+    "597:WY:SNTL",
+    "607:CO:SNTL",
+    "618:CO:SNTL",
+    "622:CO:SNTL",
+    "629:CO:SNTL",
+    "632:CO:SNTL",
+    "643:UT:SNTL",
+    "658:CO:SNTL",
+    "661:WY:SNTL",
+    "669:CO:SNTL",
+    "675:CO:SNTL",
+    "680:CO:SNTL",
+    "682:CO:SNTL",
+    "688:CO:SNTL",
+    "701:CO:SNTL",
+    "705:AZ:SNTL",
+    "709:CO:SNTL",
+    "713:CO:SNTL",
+    "714:UT:SNTL",
+    "717:CO:SNTL",
+    "720:UT:SNTL",
+    "732:WY:SNTL",
+    "737:CO:SNTL",
+    "739:CO:SNTL",
+    "742:UT:SNTL",
+    "762:CO:SNTL",
+    "765:WY:SNTL",
+    "779:WY:SNTL",
+    "780:CO:SNTL",
+    "790:UT:SNTL",
+    "793:CO:SNTL",
+    "795:UT:SNTL",
+    "797:CO:SNTL",
+    "802:CO:SNTL",
+    "825:CO:SNTL",
+    "827:CO:SNTL",
+    "831:WY:SNTL",
+    "833:UT:SNTL",
+    "840:CO:SNTL",
+    "842:CO:SNTL",
+    "843:CO:SNTL",
+    "849:NV:SNTL",
+    "853:UT:SNTL",
+    "859:WY:SNTL",
+    "864:UT:SNTL",
+    "869:CO:SNTL",
+    "874:CO:SNTL",
+    "904:CO:SNTL",
+    "905:CO:SNTL",
+    "913:CO:SNTL",
+    "927:AZ:SNTL",
+    "940:CO:SNTL",
+    "970:CO:SNTL"
+   ]
+  },
+  "623": {
+   "name": "Newton",
+   "trace_point": "reviewed dam point",
+   "comid": "4564460",
+   "basin_vertices": 96,
+   "basin_area_sq_mi": 56,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1348:UT:SNTL"
+   ]
+  },
+  "652": {
+   "name": "Pineview",
+   "trace_point": "reviewed dam point",
+   "comid": "10275998",
+   "basin_vertices": 241,
+   "basin_area_sq_mi": 305,
+   "upstream_reservoirs": [
+    "219"
+   ],
+   "upstream_snow_sites": [
+    "1056:UT:SNTL",
+    "332:UT:SNTL",
+    "333:UT:SNTL"
+   ]
+  },
+  "685": {
+   "name": "Red Fleet",
+   "trace_point": "reviewed dam point",
+   "comid": "1392857",
+   "basin_vertices": 122,
+   "basin_area_sq_mi": 95,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "706": {
+   "name": "Rockport",
+   "trace_point": "reviewed dam point",
+   "comid": "10093168",
+   "basin_vertices": 258,
+   "basin_area_sq_mi": 329,
+   "upstream_reservoirs": [
+    "10128000:UT:BOR"
+   ],
+   "upstream_snow_sites": [
+    "330:UT:SNTL",
+    "763:UT:SNTL"
+   ]
+  },
+  "727": {
+   "name": "Scofield",
+   "trace_point": "reviewed dam point",
+   "comid": "3907377",
+   "basin_vertices": 224,
+   "basin_area_sq_mi": 156,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1216:UT:SNTL"
+   ]
+  },
+  "764": {
+   "name": "Starvation",
+   "trace_point": "reviewed dam point",
+   "comid": "11966427",
+   "basin_vertices": 365,
+   "basin_area_sq_mi": 991,
+   "upstream_reservoirs": [
+    "278",
+    "779"
+   ],
+   "upstream_snow_sites": [
+    "432:UT:SNTL",
+    "795:UT:SNTL"
+   ]
+  },
+  "769": {
+   "name": "Stateline",
+   "trace_point": "reviewed dam point",
+   "comid": "3199106",
+   "basin_vertices": 72,
+   "basin_area_sq_mi": 49,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "774": {
+   "name": "Steinaker",
+   "trace_point": "reviewed dam point",
+   "comid": "1393745",
+   "basin_vertices": 42,
+   "basin_area_sq_mi": 19,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "779": {
+   "name": "Strawberry",
+   "trace_point": "reviewed dam point",
+   "comid": "944060020",
+   "basin_vertices": 159,
+   "basin_area_sq_mi": 145,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "795:UT:SNTL"
+   ]
+  },
+  "826": {
+   "name": "Upper Stillwater",
+   "trace_point": "reviewed dam point",
+   "comid": "11976207",
+   "basin_vertices": 111,
+   "basin_area_sq_mi": 100,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "866": {
+   "name": "Willard Bay",
+   "trace_point": "reviewed dam point",
+   "comid": "10272620",
+   "basin_vertices": 63,
+   "basin_area_sq_mi": 55,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ALM": {
+   "name": "Lake Almanor",
+   "trace_point": "published point",
+   "comid": "2773696",
+   "basin_vertices": 25,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ALSRESCO": {
+   "name": "Alsbury Reservoir",
+   "trace_point": "published point",
+   "comid": "3181286",
+   "basin_vertices": 14,
+   "basin_area_sq_mi": 2,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ANT": {
+   "name": "Antelope Lake",
+   "trace_point": "published point",
+   "comid": "8027934",
+   "basin_vertices": 115,
+   "basin_area_sq_mi": 71,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "APN": {
+   "name": "Alpine Lake",
+   "trace_point": "published point",
+   "comid": "5330767",
+   "basin_vertices": 44,
+   "basin_area_sq_mi": 8,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ATN": {
+   "name": "Lake San Antonio, Monterey Co",
+   "trace_point": "published point",
+   "comid": "8212757",
+   "basin_vertices": 314,
+   "basin_area_sq_mi": 324,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BCL": {
+   "name": "Bucks Lake Storage",
+   "trace_point": "published point",
+   "comid": "2776572",
+   "basin_vertices": 70,
+   "basin_area_sq_mi": 29,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BIO": {
+   "name": "Briones Dam",
+   "trace_point": "published point",
+   "comid": "1671843",
+   "basin_vertices": 79,
+   "basin_area_sq_mi": 25,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BIT": {
+   "name": "Lake Britton",
+   "trace_point": "published point",
+   "comid": "7948998",
+   "basin_vertices": 1659,
+   "basin_area_sq_mi": 4134,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "301:CA:SNTL",
+    "391:CA:SNTL"
+   ]
+  },
+  "BKIRESCO": {
+   "name": "Buckeye Reservoir",
+   "trace_point": "published point",
+   "comid": "18382139",
+   "basin_vertices": 19,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BLB": {
+   "name": "Black Butte",
+   "trace_point": "published point",
+   "comid": "12074576",
+   "basin_vertices": 455,
+   "basin_area_sq_mi": 745,
+   "upstream_reservoirs": [
+    "EPK",
+    "STG"
+   ],
+   "upstream_snow_sites": []
+  },
+  "BLURESCO": {
+   "name": "Upper Blue Reservoir",
+   "trace_point": "published point",
+   "comid": "1314795",
+   "basin_vertices": 10,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BQC": {
+   "name": "Bouquet Canyon",
+   "trace_point": "published point",
+   "comid": "17572461",
+   "basin_vertices": 11,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BRD": {
+   "name": "Beardsley Lake",
+   "trace_point": "published point",
+   "comid": "343155",
+   "basin_vertices": 251,
+   "basin_area_sq_mi": 307,
+   "upstream_reservoirs": [
+    "DON",
+    "RLF"
+   ],
+   "upstream_snow_sites": []
+  },
+  "BRT": {
+   "name": "Barrett",
+   "trace_point": "published point",
+   "comid": "20326499",
+   "basin_vertices": 253,
+   "basin_area_sq_mi": 245,
+   "upstream_reservoirs": [
+    "MOR"
+   ],
+   "upstream_snow_sites": []
+  },
+  "BRV": {
+   "name": "Bear Valley Dam",
+   "trace_point": "published point",
+   "comid": "22558640",
+   "basin_vertices": 120,
+   "basin_area_sq_mi": 75,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BTV": {
+   "name": "Butt Valley",
+   "trace_point": "published point",
+   "comid": "2773746",
+   "basin_vertices": 157,
+   "basin_area_sq_mi": 69,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BUL": {
+   "name": "New Bullards Bar",
+   "trace_point": "published point",
+   "comid": "8062447",
+   "basin_vertices": 301,
+   "basin_area_sq_mi": 487,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "BWN": {
+   "name": "Bowman Lake",
+   "trace_point": "published point",
+   "comid": "8064611",
+   "basin_vertices": 69,
+   "basin_area_sq_mi": 28,
+   "upstream_reservoirs": [
+    "FRL"
+   ],
+   "upstream_snow_sites": []
+  },
+  "CAS": {
+   "name": "Castaic",
+   "trace_point": "published point",
+   "comid": "17572447",
+   "basin_vertices": 150,
+   "basin_area_sq_mi": 138,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CGS": {
+   "name": "Cogswell Reservoir",
+   "trace_point": "published point",
+   "comid": "22524851",
+   "basin_vertices": 84,
+   "basin_area_sq_mi": 39,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CHB": {
+   "name": "Chabot",
+   "trace_point": "published point",
+   "comid": "2805073",
+   "basin_vertices": 104,
+   "basin_area_sq_mi": 42,
+   "upstream_reservoirs": [
+    "USL"
+   ],
+   "upstream_snow_sites": []
+  },
+  "CHIMNEYC:NV:BOR": {
+   "name": "Chimney Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "11138182",
+   "basin_vertices": 516,
+   "basin_area_sq_mi": 668,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CHV": {
+   "name": "Cherry Valley Dam",
+   "trace_point": "published point",
+   "comid": "17081431",
+   "basin_vertices": 183,
+   "basin_area_sq_mi": 120,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CMN": {
+   "name": "Camanche Reservoir",
+   "trace_point": "published point",
+   "comid": "3953573",
+   "basin_vertices": 537,
+   "basin_area_sq_mi": 619,
+   "upstream_reservoirs": [
+    "LWB",
+    "PAR",
+    "SLS"
+   ],
+   "upstream_snow_sites": [
+    "356:CA:SNTL"
+   ]
+  },
+  "CNV": {
+   "name": "Crane Valley",
+   "trace_point": "published point",
+   "comid": "17116159",
+   "basin_vertices": 76,
+   "basin_area_sq_mi": 30,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "COY": {
+   "name": "Coyote (Lake Mendocino)",
+   "trace_point": "published point",
+   "comid": "8269105",
+   "basin_vertices": 137,
+   "basin_area_sq_mi": 107,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CPL": {
+   "name": "Caples Lake (Eid)",
+   "trace_point": "published point",
+   "comid": "14983690",
+   "basin_vertices": 40,
+   "basin_area_sq_mi": 13,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "1067:CA:SNTL"
+   ]
+  },
+  "CRO": {
+   "name": "Calero Reservoir",
+   "trace_point": "published point",
+   "comid": "17695921",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 7,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CRW": {
+   "name": "Lake Crowley",
+   "trace_point": "published point",
+   "comid": "20275211",
+   "basin_vertices": 222,
+   "basin_area_sq_mi": 383,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CRY": {
+   "name": "Lower Crystal Springs Reservoir",
+   "trace_point": "published point",
+   "comid": "948050066",
+   "basin_vertices": 48,
+   "basin_area_sq_mi": 15,
+   "upstream_reservoirs": [
+    "SNN"
+   ],
+   "upstream_snow_sites": []
+  },
+  "CSI": {
+   "name": "Casitas",
+   "trace_point": "published point",
+   "comid": "17586874",
+   "basin_vertices": 74,
+   "basin_area_sq_mi": 39,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CTG": {
+   "name": "Courtright (Pg&E)",
+   "trace_point": "published point",
+   "comid": "22048993",
+   "basin_vertices": 84,
+   "basin_area_sq_mi": 40,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CUY": {
+   "name": "Cuyamaca Dam",
+   "trace_point": "published point",
+   "comid": "20334390",
+   "basin_vertices": 50,
+   "basin_area_sq_mi": 14,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CVE": {
+   "name": "Calaveras",
+   "trace_point": "published point",
+   "comid": "2811079",
+   "basin_vertices": 202,
+   "basin_area_sq_mi": 96,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "CYC": {
+   "name": "Coyote Res-Sta Clara",
+   "trace_point": "published point",
+   "comid": "17695829",
+   "basin_vertices": 219,
+   "basin_area_sq_mi": 116,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "DAV": {
+   "name": "Lake Davis (Dwr)",
+   "trace_point": "published point",
+   "comid": "8039223",
+   "basin_vertices": 70,
+   "basin_area_sq_mi": 47,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "DLV": {
+   "name": "Del Valle",
+   "trace_point": "published point",
+   "comid": "2808647",
+   "basin_vertices": 221,
+   "basin_area_sq_mi": 146,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "DMV": {
+   "name": "Diamond Valley",
+   "trace_point": "published point",
+   "comid": "22547063",
+   "basin_vertices": 77,
+   "basin_area_sq_mi": 20,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "DNP": {
+   "name": "Don Pedro Reservoir",
+   "trace_point": "published point",
+   "comid": "17080371",
+   "basin_vertices": 649,
+   "basin_area_sq_mi": 1532,
+   "upstream_reservoirs": [
+    "CHV",
+    "ENR",
+    "HTH"
+   ],
+   "upstream_snow_sites": []
+  },
+  "DON": {
+   "name": "Donnells",
+   "trace_point": "published point",
+   "comid": "347617",
+   "basin_vertices": 11,
+   "basin_area_sq_mi": 0,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "DRE": {
+   "name": "Dwinnell Reservoir Near Edgewood",
+   "trace_point": "published point",
+   "comid": "3917464",
+   "basin_vertices": 207,
+   "basin_area_sq_mi": 233,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "EDN": {
+   "name": "Stumpy Meadows Reservoir(Mark Edson Dam)",
+   "trace_point": "published point",
+   "comid": "14997987",
+   "basin_vertices": 54,
+   "basin_area_sq_mi": 15,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ELC": {
+   "name": "El Capitan Dam",
+   "trace_point": "published point",
+   "comid": "20337546",
+   "basin_vertices": 202,
+   "basin_area_sq_mi": 189,
+   "upstream_reservoirs": [
+    "CUY"
+   ],
+   "upstream_snow_sites": []
+  },
+  "ENG": {
+   "name": "Englebright (Usace)",
+   "trace_point": "published point",
+   "comid": "8062553",
+   "basin_vertices": 454,
+   "basin_area_sq_mi": 1107,
+   "upstream_reservoirs": [
+    "BUL",
+    "BWN",
+    "FRL"
+   ],
+   "upstream_snow_sites": [
+    "428:CA:SNTL"
+   ]
+  },
+  "ENR": {
+   "name": "Lake Eleanor",
+   "trace_point": "published point",
+   "comid": "17082195",
+   "basin_vertices": 114,
+   "basin_area_sq_mi": 80,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "EPK": {
+   "name": "East Park Reservoir",
+   "trace_point": "published point",
+   "comid": "7994729",
+   "basin_vertices": 219,
+   "basin_area_sq_mi": 214,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "EXC": {
+   "name": "New Exchequer-Lk Mcclure",
+   "trace_point": "published point",
+   "comid": "21608661",
+   "basin_vertices": 530,
+   "basin_area_sq_mi": 1036,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "FLR": {
+   "name": "Florence Lake (Sce)",
+   "trace_point": "published point",
+   "comid": "17129879",
+   "basin_vertices": 177,
+   "basin_area_sq_mi": 170,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "FMD": {
+   "name": "French Meadows",
+   "trace_point": "published point",
+   "comid": "14993679",
+   "basin_vertices": 63,
+   "basin_area_sq_mi": 46,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "FRD": {
+   "name": "Frenchman Dam",
+   "trace_point": "published point",
+   "comid": "8039053",
+   "basin_vertices": 123,
+   "basin_area_sq_mi": 83,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "FRL": {
+   "name": "French Lake",
+   "trace_point": "published point",
+   "comid": "8064653",
+   "basin_vertices": 28,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "GBL": {
+   "name": "Gibraltar Dam",
+   "trace_point": "published point",
+   "comid": "17611543",
+   "basin_vertices": 164,
+   "basin_area_sq_mi": 216,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "GLK": {
+   "name": "Gem  Lake",
+   "trace_point": "published point",
+   "comid": "20287438",
+   "basin_vertices": 58,
+   "basin_area_sq_mi": 22,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HARTLKCO": {
+   "name": "Heart Lake Reservoir",
+   "trace_point": "published point",
+   "comid": "1235473",
+   "basin_vertices": 35,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "345:CO:SNTL"
+   ]
+  },
+  "HAVRESCO": {
+   "name": "Haviland Lake Reservoir",
+   "trace_point": "published point",
+   "comid": "17014253",
+   "basin_vertices": 32,
+   "basin_area_sq_mi": 5,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HDG": {
+   "name": "Lake Hodges",
+   "trace_point": "published point",
+   "comid": "20329202",
+   "basin_vertices": 272,
+   "basin_area_sq_mi": 302,
+   "upstream_reservoirs": [
+    "STD"
+   ],
+   "upstream_snow_sites": []
+  },
+  "HHL": {
+   "name": "Hell Hole (Pcwa)",
+   "trace_point": "published point",
+   "comid": "14993709",
+   "basin_vertices": 177,
+   "basin_area_sq_mi": 113,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HID": {
+   "name": "Hidden Dam (Hensley)",
+   "trace_point": "published point",
+   "comid": "17100573",
+   "basin_vertices": 282,
+   "basin_area_sq_mi": 246,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HMT": {
+   "name": "Lake Hemet",
+   "trace_point": "published point",
+   "comid": "22536172",
+   "basin_vertices": 83,
+   "basin_area_sq_mi": 66,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HNN": {
+   "name": "Lake Hennessey",
+   "trace_point": "published point",
+   "comid": "1670371",
+   "basin_vertices": 95,
+   "basin_area_sq_mi": 52,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HNS": {
+   "name": "Henshaw",
+   "trace_point": "published point",
+   "comid": "20344473",
+   "basin_vertices": 230,
+   "basin_area_sq_mi": 206,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HNT": {
+   "name": "Huntington Lake (Usbr)",
+   "trace_point": "published point",
+   "comid": "17116199",
+   "basin_vertices": 123,
+   "basin_area_sq_mi": 77,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HTH": {
+   "name": "Hetch Hetchy",
+   "trace_point": "published point",
+   "comid": "17082207",
+   "basin_vertices": 336,
+   "basin_area_sq_mi": 455,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "HWE": {
+   "name": "Haiwee",
+   "trace_point": "published point",
+   "comid": "20269007",
+   "basin_vertices": 16,
+   "basin_area_sq_mi": 2,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ICH": {
+   "name": "Ice House (Smud)",
+   "trace_point": "published point",
+   "comid": "14983642",
+   "basin_vertices": 72,
+   "basin_area_sq_mi": 27,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "INV": {
+   "name": "Indian Valley",
+   "trace_point": "published point",
+   "comid": "8007863",
+   "basin_vertices": 140,
+   "basin_area_sq_mi": 120,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "IRC": {
+   "name": "Iron Canyon",
+   "trace_point": "published point",
+   "comid": "7948954",
+   "basin_vertices": 36,
+   "basin_area_sq_mi": 8,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ISB": {
+   "name": "Isabella Dam",
+   "trace_point": "published point",
+   "comid": "14972943",
+   "basin_vertices": 628,
+   "basin_area_sq_mi": 1901,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "JNK": {
+   "name": "Jenkinson Lake",
+   "trace_point": "published point",
+   "comid": "20194848",
+   "basin_vertices": 54,
+   "basin_area_sq_mi": 17,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "JNN": {
+   "name": "Lake Jennings",
+   "trace_point": "published point",
+   "comid": "948070178",
+   "basin_vertices": 260,
+   "basin_area_sq_mi": 292,
+   "upstream_reservoirs": [
+    "CUY",
+    "ELC",
+    "SVT"
+   ],
+   "upstream_snow_sites": []
+  },
+  "KNT": {
+   "name": "Kent",
+   "trace_point": "published point",
+   "comid": "5330739",
+   "basin_vertices": 65,
+   "basin_area_sq_mi": 22,
+   "upstream_reservoirs": [
+    "APN"
+   ],
+   "upstream_snow_sites": []
+  },
+  "LBS": {
+   "name": "Los Banos Dam",
+   "trace_point": "published point",
+   "comid": "16610567",
+   "basin_vertices": 192,
+   "basin_area_sq_mi": 157,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LGV": {
+   "name": "Little Grass Valley",
+   "trace_point": "published point",
+   "comid": "8038053",
+   "basin_vertices": 62,
+   "basin_area_sq_mi": 26,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LNG": {
+   "name": "Lexington Reservoir",
+   "trace_point": "published point",
+   "comid": "17695937",
+   "basin_vertices": 81,
+   "basin_area_sq_mi": 38,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LON": {
+   "name": "Loon Lake (Smud)",
+   "trace_point": "published point",
+   "comid": "14993719",
+   "basin_vertices": 45,
+   "basin_area_sq_mi": 8,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LONRESCO": {
+   "name": "Long Hollow Reservoir",
+   "trace_point": "published point",
+   "comid": "16998828",
+   "basin_vertices": 71,
+   "basin_area_sq_mi": 32,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LOP": {
+   "name": "Lopez Lake",
+   "trace_point": "published point",
+   "comid": "8193711",
+   "basin_vertices": 103,
+   "basin_area_sq_mi": 68,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LOT": {
+   "name": "Lower Otay",
+   "trace_point": "published point",
+   "comid": "20333702",
+   "basin_vertices": 116,
+   "basin_area_sq_mi": 100,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LPY": {
+   "name": "Lake Pillsbury Nr Potter Vly 24Hr Avg",
+   "trace_point": "published point",
+   "comid": "8310058",
+   "basin_vertices": 190,
+   "basin_area_sq_mi": 192,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LRA": {
+   "name": "Leroy Anderson",
+   "trace_point": "published point",
+   "comid": "17694711",
+   "basin_vertices": 259,
+   "basin_area_sq_mi": 195,
+   "upstream_reservoirs": [
+    "CYC"
+   ],
+   "upstream_snow_sites": []
+  },
+  "LVD": {
+   "name": "Loveland Reservoir",
+   "trace_point": "published point",
+   "comid": "20333138",
+   "basin_vertices": 216,
+   "basin_area_sq_mi": 98,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LVQ": {
+   "name": "Los Vaqueros Reservoir",
+   "trace_point": "published point",
+   "comid": "1894250",
+   "basin_vertices": 69,
+   "basin_area_sq_mi": 21,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LVY": {
+   "name": "Lake Valley Reservoir",
+   "trace_point": "published point",
+   "comid": "14993659",
+   "basin_vertices": 23,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LWB": {
+   "name": "Lower Bear",
+   "trace_point": "published point",
+   "comid": "17053182",
+   "basin_vertices": 76,
+   "basin_area_sq_mi": 38,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "LYS": {
+   "name": "Lyons Reservoir",
+   "trace_point": "published point",
+   "comid": "345093",
+   "basin_vertices": 121,
+   "basin_area_sq_mi": 67,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MCO": {
+   "name": "Lake Mccloud",
+   "trace_point": "published point",
+   "comid": "7961223",
+   "basin_vertices": 12,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MDO": {
+   "name": "Modesto Reservoir",
+   "trace_point": "published point",
+   "comid": "2826240",
+   "basin_vertices": 59,
+   "basin_area_sq_mi": 13,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MHV": {
+   "name": "Lake Mohave",
+   "trace_point": "published point",
+   "comid": "21436857",
+   "basin_vertices": 22085,
+   "basin_area_sq_mi": 158646,
+   "upstream_reservoirs": [
+    "09009010:CO:BOR",
+    "09009020:CO:BOR",
+    "09009030:CO:BOR",
+    "09009040:CO:BOR",
+    "09009050:CO:BOR",
+    "09009060:CO:BOR",
+    "09009080:CO:BOR",
+    "09009100:CO:BOR",
+    "09009110:CO:BOR",
+    "09009120:CO:BOR",
+    "09009130:CO:BOR",
+    "09009140:CO:BOR",
+    "09009150:CO:BOR",
+    "09009160:CO:BOR",
+    "09009170:CO:BOR",
+    "09009320:CO:BOR",
+    "09009340:CO:BOR",
+    "09009350:CO:BOR",
+    "09014500:CO:BOR",
+    "09041395:CO:BOR",
+    "09109090:NM:BOR",
+    "09116500:CO:BOR",
+    "09125800:CO:BOR",
+    "09126000:CO:BOR",
+    "09147022:CO:BOR",
+    "09213700:WY:BOR",
+    "09223100:WY:BOR",
+    "09237495:CO:BOR",
+    "09255450:WY:BOR",
+    "09385500:AZ:BOR",
+    "09398300:AZ:BOR",
+    "09UTBRWN:UT:BOR",
+    "09UTBSWR:UT:BOR",
+    "09UTCLEV:UT:BOR",
+    "09UTELLK:UT:BOR",
+    "09UTGUNL:UT:BOR",
+    "09UTHNTN:UT:BOR",
+    "09UTIVIN:UT:BOR",
+    "09UTJACK:UT:BOR",
+    "09UTKENS:UT:BOR",
+    "09UTKOLB:UT:BOR",
+    "09UTMILF:UT:BOR",
+    "09UTMILL:UT:BOR",
+    "09UTQUAI:UT:BOR",
+    "09UTSAND:UT:BOR",
+    "134092",
+    "278",
+    "319",
+    "337",
+    "347",
+    "4003399B",
+    "432",
+    "463",
+    "504",
+    "509",
+    "520",
+    "574",
+    "587",
+    "6124",
+    "685",
+    "727",
+    "764",
+    "769",
+    "774",
+    "779",
+    "826",
+    "ALSRESCO",
+    "BKIRESCO",
+    "BLURESCO",
+    "HARTLKCO",
+    "HAVRESCO",
+    "LONRESCO",
+    "MPHC2000:CO:BOR",
+    "PEARLACO",
+    "REDRESCO",
+    "SWARESCO",
+    "YAMRESCO:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1014:CO:SNTL",
+    "1030:CO:SNTL",
+    "1040:CO:SNTL",
+    "1041:CO:SNTL",
+    "1047:WY:SNTL",
+    "1060:CO:SNTL",
+    "1061:CO:SNTL",
+    "1065:UT:SNTL",
+    "1066:UT:SNTL",
+    "1097:UT:SNTL",
+    "1101:CO:SNTL",
+    "1110:NV:SNTL",
+    "1111:NV:SNTL",
+    "1112:NV:SNTL",
+    "1116:UT:SNTL",
+    "1117:UT:SNTL",
+    "1120:CO:SNTL",
+    "1121:AZ:SNTL",
+    "1125:AZ:SNTL",
+    "1133:WY:SNTL",
+    "1138:NM:SNTL",
+    "1141:CO:SNTL",
+    "1143:AZ:SNTL",
+    "1149:UT:SNTL",
+    "1153:UT:SNTL",
+    "1160:CO:SNTL",
+    "1162:UT:SNTL",
+    "1163:UT:SNTL",
+    "1185:CO:SNTL",
+    "1186:CO:SNTL",
+    "1187:CO:SNTL",
+    "1188:CO:SNTL",
+    "1192:UT:SNTL",
+    "1216:UT:SNTL",
+    "1227:UT:SNTL",
+    "1228:UT:SNTL",
+    "1236:UT:SNTL",
+    "1249:UT:SNTL",
+    "1252:CO:SNTL",
+    "1261:UT:SNTL",
+    "1269:UT:SNTL",
+    "1304:UT:SNTL",
+    "1323:UT:SNTL",
+    "1326:CO:SNTL",
+    "1344:CO:SNTL",
+    "1350:NV:SNTL",
+    "310:AZ:SNTL",
+    "317:WY:SNTL",
+    "335:CO:SNTL",
+    "342:WY:SNTL",
+    "345:CO:SNTL",
+    "348:UT:SNTL",
+    "353:WY:SNTL",
+    "368:UT:SNTL",
+    "371:UT:SNTL",
+    "378:CO:SNTL",
+    "380:CO:SNTL",
+    "383:UT:SNTL",
+    "387:CO:SNTL",
+    "396:UT:SNTL",
+    "409:CO:SNTL",
+    "415:CO:SNTL",
+    "426:CO:SNTL",
+    "432:UT:SNTL",
+    "444:UT:SNTL",
+    "449:WY:SNTL",
+    "452:UT:SNTL",
+    "457:CO:SNTL",
+    "461:UT:SNTL",
+    "465:CO:SNTL",
+    "467:CO:SNTL",
+    "468:WY:SNTL",
+    "481:UT:SNTL",
+    "485:CO:SNTL",
+    "505:CO:SNTL",
+    "509:WY:SNTL",
+    "513:UT:SNTL",
+    "519:AZ:SNTL",
+    "521:UT:SNTL",
+    "522:UT:SNTL",
+    "528:UT:SNTL",
+    "531:CO:SNTL",
+    "538:CO:SNTL",
+    "542:CO:SNTL",
+    "543:UT:SNTL",
+    "544:WY:SNTL",
+    "547:CO:SNTL",
+    "554:WY:SNTL",
+    "555:WY:SNTL",
+    "556:CO:SNTL",
+    "559:UT:SNTL",
+    "561:UT:SNTL",
+    "565:CO:SNTL",
+    "566:UT:SNTL",
+    "586:CO:SNTL",
+    "589:CO:SNTL",
+    "593:UT:SNTL",
+    "597:WY:SNTL",
+    "607:CO:SNTL",
+    "618:CO:SNTL",
+    "622:CO:SNTL",
+    "629:CO:SNTL",
+    "632:CO:SNTL",
+    "643:UT:SNTL",
+    "658:CO:SNTL",
+    "661:WY:SNTL",
+    "669:CO:SNTL",
+    "675:CO:SNTL",
+    "680:CO:SNTL",
+    "682:CO:SNTL",
+    "688:CO:SNTL",
+    "701:CO:SNTL",
+    "705:AZ:SNTL",
+    "709:CO:SNTL",
+    "713:CO:SNTL",
+    "714:UT:SNTL",
+    "717:CO:SNTL",
+    "720:UT:SNTL",
+    "732:WY:SNTL",
+    "737:CO:SNTL",
+    "739:CO:SNTL",
+    "742:UT:SNTL",
+    "762:CO:SNTL",
+    "765:WY:SNTL",
+    "779:WY:SNTL",
+    "780:CO:SNTL",
+    "790:UT:SNTL",
+    "793:CO:SNTL",
+    "795:UT:SNTL",
+    "797:CO:SNTL",
+    "802:CO:SNTL",
+    "825:CO:SNTL",
+    "827:CO:SNTL",
+    "831:WY:SNTL",
+    "833:UT:SNTL",
+    "840:CO:SNTL",
+    "842:CO:SNTL",
+    "843:CO:SNTL",
+    "849:NV:SNTL",
+    "853:UT:SNTL",
+    "859:WY:SNTL",
+    "864:UT:SNTL",
+    "869:CO:SNTL",
+    "874:CO:SNTL",
+    "904:CO:SNTL",
+    "905:CO:SNTL",
+    "913:CO:SNTL",
+    "927:AZ:SNTL",
+    "940:CO:SNTL",
+    "970:CO:SNTL"
+   ]
+  },
+  "MHW": {
+   "name": "Lake Mathews",
+   "trace_point": "published point",
+   "comid": "22563314",
+   "basin_vertices": 95,
+   "basin_area_sq_mi": 39,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MMR": {
+   "name": "Miramar",
+   "trace_point": "published point",
+   "comid": "948070244",
+   "basin_vertices": 35,
+   "basin_area_sq_mi": 7,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MMW": {
+   "name": "Mountain Meadows",
+   "trace_point": "published point",
+   "comid": "2773660",
+   "basin_vertices": 167,
+   "basin_area_sq_mi": 154,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MOR": {
+   "name": "Morena Dam",
+   "trace_point": "published point",
+   "comid": "20325323",
+   "basin_vertices": 148,
+   "basin_area_sq_mi": 115,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MPHC2000:CO:BOR": {
+   "name": "Mcphee Reservoir",
+   "trace_point": "published point",
+   "comid": "18384963",
+   "basin_vertices": 365,
+   "basin_area_sq_mi": 818,
+   "upstream_reservoirs": [
+    "09009170:CO:BOR"
+   ],
+   "upstream_snow_sites": [
+    "1060:CO:SNTL",
+    "1185:CO:SNTL",
+    "465:CO:SNTL",
+    "586:CO:SNTL",
+    "739:CO:SNTL"
+   ]
+  },
+  "MPL": {
+   "name": "Mammoth Pool",
+   "trace_point": "published point",
+   "comid": "17116327",
+   "basin_vertices": 455,
+   "basin_area_sq_mi": 995,
+   "upstream_reservoirs": [
+    "FLR",
+    "TAE"
+   ],
+   "upstream_snow_sites": []
+  },
+  "MRR": {
+   "name": "Murray Reservoir",
+   "trace_point": "published point",
+   "comid": "20331938",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 10,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "MRT": {
+   "name": "Martis Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "8934508",
+   "basin_vertices": 79,
+   "basin_area_sq_mi": 37,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "NAT": {
+   "name": "Lake Natoma  (Nimbus Dam)",
+   "trace_point": "published point",
+   "comid": "948021150",
+   "basin_vertices": 646,
+   "basin_area_sq_mi": 1902,
+   "upstream_reservoirs": [
+    "10774",
+    "CPL",
+    "EDN",
+    "FMD",
+    "HHL",
+    "ICH",
+    "LON",
+    "LVY",
+    "SIV",
+    "SLB",
+    "UNV"
+   ],
+   "upstream_snow_sites": [
+    "1067:CA:SNTL"
+   ]
+  },
+  "NCA": {
+   "name": "Nicasio",
+   "trace_point": "published point",
+   "comid": "5329503",
+   "basin_vertices": 79,
+   "basin_area_sq_mi": 37,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "NCM": {
+   "name": "Nacimiento",
+   "trace_point": "published point",
+   "comid": "8212787",
+   "basin_vertices": 337,
+   "basin_area_sq_mi": 330,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "NHG": {
+   "name": "New Hogan Lake",
+   "trace_point": "published point",
+   "comid": "17068300",
+   "basin_vertices": 277,
+   "basin_area_sq_mi": 361,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "ORO": {
+   "name": "Oroville Dam",
+   "trace_point": "published point",
+   "comid": "24689339",
+   "basin_vertices": 11,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "PAR": {
+   "name": "Pardee",
+   "trace_point": "published point",
+   "comid": "3955225",
+   "basin_vertices": 466,
+   "basin_area_sq_mi": 576,
+   "upstream_reservoirs": [
+    "LWB",
+    "SLS"
+   ],
+   "upstream_snow_sites": [
+    "356:CA:SNTL"
+   ]
+  },
+  "PEARLACO": {
+   "name": "Pearl Lake",
+   "trace_point": "published point",
+   "comid": "1354448",
+   "basin_vertices": 28,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "PNF": {
+   "name": "Pine Flat Dam",
+   "trace_point": "published point",
+   "comid": "22063199",
+   "basin_vertices": 486,
+   "basin_area_sq_mi": 1543,
+   "upstream_reservoirs": [
+    "CTG",
+    "WSN"
+   ],
+   "upstream_snow_sites": []
+  },
+  "PRR": {
+   "name": "Perris",
+   "trace_point": "published point",
+   "comid": "22534696",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 10,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "PRU": {
+   "name": "Lake Piru",
+   "trace_point": "published point",
+   "comid": "17575859",
+   "basin_vertices": 301,
+   "basin_area_sq_mi": 418,
+   "upstream_reservoirs": [
+    "PYM"
+   ],
+   "upstream_snow_sites": []
+  },
+  "PT6": {
+   "name": "Pit R No 6 Reservoir",
+   "trace_point": "published point",
+   "comid": "7952786",
+   "basin_vertices": 1703,
+   "basin_area_sq_mi": 4346,
+   "upstream_reservoirs": [
+    "BIT",
+    "IRC"
+   ],
+   "upstream_snow_sites": [
+    "301:CA:SNTL",
+    "391:CA:SNTL"
+   ]
+  },
+  "PT7": {
+   "name": "Pit R No 7 Reservoir",
+   "trace_point": "published point",
+   "comid": "7952810",
+   "basin_vertices": 1693,
+   "basin_area_sq_mi": 4472,
+   "upstream_reservoirs": [
+    "BIT",
+    "IRC",
+    "PT6"
+   ],
+   "upstream_snow_sites": [
+    "301:CA:SNTL",
+    "391:CA:SNTL"
+   ]
+  },
+  "PVR": {
+   "name": "Pleasant Valley Reservoir",
+   "trace_point": "published point",
+   "comid": "20276447",
+   "basin_vertices": 70,
+   "basin_area_sq_mi": 40,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "PYM": {
+   "name": "Pyramid",
+   "trace_point": "published point",
+   "comid": "17572445",
+   "basin_vertices": 230,
+   "basin_area_sq_mi": 291,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "RDN": {
+   "name": "Redinger Lake",
+   "trace_point": "published point",
+   "comid": "17116401",
+   "basin_vertices": 518,
+   "basin_area_sq_mi": 1296,
+   "upstream_reservoirs": [
+    "FLR",
+    "HNT",
+    "MPL",
+    "SHV",
+    "TAE"
+   ],
+   "upstream_snow_sites": []
+  },
+  "REDRESCO": {
+   "name": "Red Mesa Reservoir",
+   "trace_point": "published point",
+   "comid": "16999046",
+   "basin_vertices": 57,
+   "basin_area_sq_mi": 30,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "RLF": {
+   "name": "Relief",
+   "trace_point": "published point",
+   "comid": "347061",
+   "basin_vertices": 19,
+   "basin_area_sq_mi": 3,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "RLL": {
+   "name": "Rollins",
+   "trace_point": "published point",
+   "comid": "15014945",
+   "basin_vertices": 117,
+   "basin_area_sq_mi": 102,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SAT": {
+   "name": "San Antonio Reservoir, Alameda Co",
+   "trace_point": "published point",
+   "comid": "2808653",
+   "basin_vertices": 83,
+   "basin_area_sq_mi": 38,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SDB": {
+   "name": "Saddlebag Lake Reservoir",
+   "trace_point": "published point",
+   "comid": "20289824",
+   "basin_vertices": 26,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SEC": {
+   "name": "Stevens Creek Reservoir",
+   "trace_point": "published point",
+   "comid": "17693257",
+   "basin_vertices": 59,
+   "basin_area_sq_mi": 17,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SFL": {
+   "name": "Scotts Flat",
+   "trace_point": "published point",
+   "comid": "8064707",
+   "basin_vertices": 49,
+   "basin_area_sq_mi": 18,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SGC": {
+   "name": "Santiago Creek Res (Irvine Lake)",
+   "trace_point": "published point",
+   "comid": "22563310",
+   "basin_vertices": 4,
+   "basin_area_sq_mi": 0,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SHV": {
+   "name": "Shaver Lake",
+   "trace_point": "published point",
+   "comid": "17116437",
+   "basin_vertices": 67,
+   "basin_area_sq_mi": 29,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SIV": {
+   "name": "Silver Lake Reservoir",
+   "trace_point": "published point",
+   "comid": "14983016",
+   "basin_vertices": 45,
+   "basin_area_sq_mi": 15,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SKN": {
+   "name": "Skinner",
+   "trace_point": "published point",
+   "comid": "22547125",
+   "basin_vertices": 124,
+   "basin_area_sq_mi": 57,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SKR": {
+   "name": "South Lake Reservoir",
+   "trace_point": "published point",
+   "comid": "20278001",
+   "basin_vertices": 39,
+   "basin_area_sq_mi": 13,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SLB": {
+   "name": "Slab Creek",
+   "trace_point": "published point",
+   "comid": "14982578",
+   "basin_vertices": 272,
+   "basin_area_sq_mi": 493,
+   "upstream_reservoirs": [
+    "CPL",
+    "ICH",
+    "SIV",
+    "UNV"
+   ],
+   "upstream_snow_sites": [
+    "1067:CA:SNTL"
+   ]
+  },
+  "SLC": {
+   "name": "Sly Creek",
+   "trace_point": "published point",
+   "comid": "8038153",
+   "basin_vertices": 60,
+   "basin_area_sq_mi": 19,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SLJ": {
+   "name": "Soulajule Dam",
+   "trace_point": "published point",
+   "comid": "5329373",
+   "basin_vertices": 66,
+   "basin_area_sq_mi": 20,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SLN": {
+   "name": "Santa Margarita Lake",
+   "trace_point": "published point",
+   "comid": "8214345",
+   "basin_vertices": 159,
+   "basin_area_sq_mi": 114,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SLS": {
+   "name": "Salt Springs",
+   "trace_point": "published point",
+   "comid": "17055544",
+   "basin_vertices": 209,
+   "basin_area_sq_mi": 171,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": [
+    "356:CA:SNTL"
+   ]
+  },
+  "SLW": {
+   "name": "Lake Silverwood",
+   "trace_point": "published point",
+   "comid": "22660171",
+   "basin_vertices": 78,
+   "basin_area_sq_mi": 34,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SNL": {
+   "name": "San Luis Reservoir",
+   "trace_point": "published point",
+   "comid": "16596595",
+   "basin_vertices": 90,
+   "basin_area_sq_mi": 37,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SNN": {
+   "name": "San Andreas",
+   "trace_point": "published point",
+   "comid": "24571714",
+   "basin_vertices": 24,
+   "basin_area_sq_mi": 4,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SPB": {
+   "name": "San Pablo",
+   "trace_point": "published point",
+   "comid": "1671835",
+   "basin_vertices": 86,
+   "basin_area_sq_mi": 32,
+   "upstream_reservoirs": [
+    "BIO"
+   ],
+   "upstream_snow_sites": []
+  },
+  "SPM": {
+   "name": "New Spicer Meadow",
+   "trace_point": "published point",
+   "comid": "347603",
+   "basin_vertices": 104,
+   "basin_area_sq_mi": 46,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "STD": {
+   "name": "Sutherland Reservoir",
+   "trace_point": "published point",
+   "comid": "20330934",
+   "basin_vertices": 111,
+   "basin_area_sq_mi": 54,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "STG": {
+   "name": "Stony Gorge Reservoir",
+   "trace_point": "published point",
+   "comid": "7993205",
+   "basin_vertices": 237,
+   "basin_area_sq_mi": 301,
+   "upstream_reservoirs": [
+    "EPK"
+   ],
+   "upstream_snow_sites": []
+  },
+  "SVO": {
+   "name": "Seven Oaks Dam",
+   "trace_point": "published point",
+   "comid": "22558244",
+   "basin_vertices": 222,
+   "basin_area_sq_mi": 210,
+   "upstream_reservoirs": [
+    "BRV"
+   ],
+   "upstream_snow_sites": []
+  },
+  "SVT": {
+   "name": "San Vicente",
+   "trace_point": "published point",
+   "comid": "20334422",
+   "basin_vertices": 117,
+   "basin_area_sq_mi": 75,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "SW3": {
+   "name": "Sweetwater Reservoir",
+   "trace_point": "published point",
+   "comid": "20331986",
+   "basin_vertices": 302,
+   "basin_area_sq_mi": 182,
+   "upstream_reservoirs": [
+    "LVD"
+   ],
+   "upstream_snow_sites": []
+  },
+  "SWARESCO": {
+   "name": "Stillwater Reservoir",
+   "trace_point": "published point",
+   "comid": "1356550",
+   "basin_vertices": 34,
+   "basin_area_sq_mi": 9,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "TAB": {
+   "name": "Thermalito Afterbay",
+   "trace_point": "published point",
+   "comid": "7972411",
+   "basin_vertices": 1069,
+   "basin_area_sq_mi": 3647,
+   "upstream_reservoirs": [
+    "ALM",
+    "ANT",
+    "BCL",
+    "BTV",
+    "DAV",
+    "FRD",
+    "LGV",
+    "MMW",
+    "ORO",
+    "SLC",
+    "THD"
+   ],
+   "upstream_snow_sites": []
+  },
+  "TAE": {
+   "name": "Thomas A Edison",
+   "trace_point": "published point",
+   "comid": "17119235",
+   "basin_vertices": 105,
+   "basin_area_sq_mi": 89,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "TFR": {
+   "name": "Thermalito Forebay",
+   "trace_point": "published point",
+   "comid": "1679501",
+   "basin_vertices": 15,
+   "basin_area_sq_mi": 1,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "THD": {
+   "name": "Thermalito Diversion Pool",
+   "trace_point": "published point",
+   "comid": "7968461",
+   "basin_vertices": 953,
+   "basin_area_sq_mi": 3610,
+   "upstream_reservoirs": [
+    "ALM",
+    "ANT",
+    "BCL",
+    "BTV",
+    "DAV",
+    "FRD",
+    "LGV",
+    "MMW",
+    "ORO",
+    "SLC"
+   ],
+   "upstream_snow_sites": []
+  },
+  "TLC": {
+   "name": "Turlock Lake",
+   "trace_point": "published point",
+   "comid": "2826394",
+   "basin_vertices": 144,
+   "basin_area_sq_mi": 34,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "TNM": {
+   "name": "Tinemaha Reservoir",
+   "trace_point": "published point",
+   "comid": "163864514",
+   "basin_vertices": 747,
+   "basin_area_sq_mi": 1795,
+   "upstream_reservoirs": [
+    "CRW",
+    "PVR",
+    "SKR"
+   ],
+   "upstream_snow_sites": []
+  },
+  "TRM": {
+   "name": "Terminus Dam",
+   "trace_point": "published point",
+   "comid": "14922787",
+   "basin_vertices": 302,
+   "basin_area_sq_mi": 551,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "TUL": {
+   "name": "Tulloch",
+   "trace_point": "published point",
+   "comid": "349887",
+   "basin_vertices": 492,
+   "basin_area_sq_mi": 979,
+   "upstream_reservoirs": [
+    "10843",
+    "BRD",
+    "DON",
+    "LYS",
+    "RLF",
+    "SPM"
+   ],
+   "upstream_snow_sites": []
+  },
+  "UNV": {
+   "name": "Union Valley",
+   "trace_point": "published point",
+   "comid": "14981594",
+   "basin_vertices": 101,
+   "basin_area_sq_mi": 84,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "USL": {
+   "name": "U San Leandro",
+   "trace_point": "published point",
+   "comid": "948050148",
+   "basin_vertices": 83,
+   "basin_area_sq_mi": 30,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "UVA": {
+   "name": "Uvas Reservoir",
+   "trace_point": "published point",
+   "comid": "17661319",
+   "basin_vertices": 69,
+   "basin_area_sq_mi": 31,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "WHR": {
+   "name": "Whale Rock",
+   "trace_point": "published point",
+   "comid": "8193833",
+   "basin_vertices": 54,
+   "basin_area_sq_mi": 20,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "WRS": {
+   "name": "Warm Springs (Lake Sonoma)",
+   "trace_point": "published point",
+   "comid": "8276453",
+   "basin_vertices": 171,
+   "basin_area_sq_mi": 96,
+   "upstream_reservoirs": [],
+   "upstream_snow_sites": []
+  },
+  "WSN": {
+   "name": "Wishon",
+   "trace_point": "published point",
+   "comid": "22049659",
+   "basin_vertices": 169,
+   "basin_area_sq_mi": 177,
+   "upstream_reservoirs": [
+    "CTG"
+   ],
+   "upstream_snow_sites": []
+  },
+  "YAMRESCO:CO:BOR": {
+   "name": "Yamcolo Reservoir",
+   "trace_point": "published point",
+   "comid": "1356520",
+   "basin_vertices": 74,
+   "basin_area_sq_mi": 32,
+   "upstream_reservoirs": [
+    "SWARESCO"
+   ],
+   "upstream_snow_sites": []
+  }
+ }
+}

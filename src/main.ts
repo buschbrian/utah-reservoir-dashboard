@@ -5,6 +5,8 @@ import { installAnonymousAuthPolicy } from "./arcgis/basemaps";
 import { loadDrainageScope, loadOfferedLevels } from "./data/boundaries";
 import { loadReservoirs } from "./data/load";
 import { downloadCsv } from "./data/download";
+import { loadUpstreamIndex } from "./data/load";
+import type { UpstreamIndex } from "./types";
 import {
   overviewCsvFilename,
   reservoirCsvFilename,
@@ -827,9 +829,14 @@ function renderReservoirList(): void {
  * re-announce a name that has not changed -- which is what stops the map and
  * the list calling each other -- so a period change cannot go through it and
  * has to redraw the panel directly.
+ *
+ * The upstream rows arrive second, on their own fetch: the index is fetched
+ * once and cached, and the panel is drawn again only if the reader has not
+ * already moved to another reservoir while it loaded.
  */
 function renderDetail(): void {
   const reservoir = findReservoir(inScope, selection.get());
+  const station = reservoir?.source_station_id ?? null;
   setDetail(
     reservoir ? describeReservoir(
       reservoir, storageColor(headlinePercent(reservoir)),
@@ -844,7 +851,39 @@ function renderDetail(): void {
       ? `reservoir.html?name=${encodeURIComponent(reservoirLabel(reservoir, inScope))}`
       : undefined
   );
+  if (!station) return;
+  void upstreamIndexOnce().then((index) => {
+    const trace = index?.traces[station];
+    /* The reader may have chosen something else while the file loaded; the
+       panel answers the selection that is on screen now, not the one that
+       asked. */
+    if (!trace || !reservoir || findReservoir(inScope, selection.get()) !== reservoir) {
+      return;
+    }
+    setDetail(
+      describeReservoir(
+        reservoir, storageColor(headlinePercent(reservoir)),
+        activeBaselineId, baselineOptions, baselineMinimumYears, trace),
+      () => downloadCsv(
+        reservoirHistoryCsv(reservoir, reservoirLabel(reservoir, inScope)),
+        reservoirCsvFilename(reservoirLabel(reservoir, inScope), publishedAt)
+      ),
+      `reservoir.html?name=${encodeURIComponent(reservoirLabel(reservoir, inScope))}`
+    );
+  });
 }
+
+/** The upstream index, fetched once for the life of the page or not at all:
+ * a failure leaves the panels without their upstream row rather than
+ * retrying under every selection. */
+function upstreamIndexOnce(): Promise<UpstreamIndex | null> {
+  upstreamPromise ??= loadUpstreamIndex().catch((error) => {
+    console.error("The upstream index could not be read:", error);
+    return null;
+  });
+  return upstreamPromise;
+}
+let upstreamPromise: Promise<UpstreamIndex | null> | null = null;
 
 /**
  * Every in-place address-bar write goes through here, so the navigation

@@ -481,3 +481,51 @@ export interface WithdrawnReservoir {
   source_label: string;
   reason: string;
 }
+
+/**
+ * One reservoir's upstream set, from the committed trace (ADR-077).
+ *
+ * An unordered containment answer: every published reservoir and snow site
+ * whose point falls inside the contributing area NLDI traces above this
+ * one's dam. It is not a flow order -- "which reservoir is directly above"
+ * is a different question this file does not answer -- and it is about
+ * water, not operations: upstream of, never feeds.
+ */
+export interface UpstreamTrace {
+  name: string;
+  /** Where the trace started: the reviewed dam point or the published point. */
+  trace_point?: string;
+  /** The NLDI COMID the trace was taken from -- the reproducibility evidence. */
+  comid?: string;
+  basin_vertices?: number;
+  basin_area_sq_mi?: number;
+  upstream_reservoirs: string[];
+  upstream_snow_sites: string[];
+  /** Why no set could be produced, when none could. */
+  screen?: string;
+  detail?: string;
+  /** Set when the basin measures past the review threshold and needs a look. */
+  review?: string;
+}
+
+/**
+ * The committed upstream index, published verbatim as `upstream_index.json`.
+ *
+ * Keyed by `source_station_id` (ADR-066). The evidence fields ride along at
+ * near-zero gzip cost because station lists compress to almost nothing; they
+ * are what makes a trace reproducible without re-asking NLDI.
+ */
+export interface UpstreamIndex {
+  source: string;
+  source_url: string;
+  retrieved: string;
+  keyed_by: string;
+  selection: string;
+  self_exclusion: string;
+  area_method?: string;
+  review_area_sq_mi?: number;
+  traced_count?: number;
+  screened_count?: number;
+  review_count?: number;
+  traces: Record<string, UpstreamTrace>;
+}

@@ -397,6 +397,12 @@ Two things about measuring this honestly, both now built into
   tool takes `--page <name>` to measure one page alone; that is how the
   figures above were taken.
 
+The same page also fetches the upstream index now (ADR-077): one local
+request, 117 KB raw / **13.7 KB gzipped**, fetched after the facts are on
+screen and before readiness is signalled. The storage payload itself did not
+change -- the upstream sets live in their own file precisely so every map
+reader does not pay for them.
+
 ## The Bureau-only west (2026-08-20)
 
 R2 adds 25 daily reservoirs without adding a browser request. The public

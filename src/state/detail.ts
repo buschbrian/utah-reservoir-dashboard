@@ -11,7 +11,13 @@
 
 import { monthLabel } from "../data/months";
 import { isLate, sizeBasis } from "../data/rollup";
-import type { BaselineChoice, BaselineId, Reservoir, SourceKey } from "../types";
+import type {
+  BaselineChoice,
+  BaselineId,
+  Reservoir,
+  SourceKey,
+  UpstreamTrace
+} from "../types";
 import {
   activeBaseline, baselineRowLabel, describeBaseline, FALLBACK_CHOICES
 } from "./baseline";
@@ -212,6 +218,27 @@ const SCHEDULE_NAMES: Record<string, string> = {
 };
 
 /**
+ * What the committed trace says sits above one reservoir, as panel rows.
+ *
+ * "Upstream of", never "feeds" or "supplies": the trace is about water on
+ * land, and transbasin diversions move some of that water somewhere else
+ * entirely (ADR-077). A screen means no set could be produced, which is
+ * stated rather than shown as an empty count.
+ */
+export function upstreamRows(trace: UpstreamTrace): DetailRow[] {
+  if (trace.screen) {
+    return [{ label: "Upstream of it", value: "Not traced." }];
+  }
+  const reservoirs = trace.upstream_reservoirs.length;
+  const sites = trace.upstream_snow_sites.length;
+  return [{
+    label: "Upstream of it",
+    value: `${reservoirs} published reservoir${reservoirs === 1 ? "" : "s"}, `
+      + `${sites} snow-measuring site${sites === 1 ? "" : "s"}`
+  }];
+}
+
+/**
  * The twelve months, with the same denominator the map colours by.
  *
  * `sizeBasis` rather than `record_max_af` directly: the map sizes and colours
@@ -254,7 +281,8 @@ export function describeReservoir(
   color: string,
   baseline: BaselineId = "recent",
   choices: readonly BaselineChoice[] = FALLBACK_CHOICES,
-  minimumYears = 0
+  minimumYears = 0,
+  upstream?: UpstreamTrace
 ): DetailView {
   const active = activeBaseline(reservoir, baseline, minimumYears);
   const comparison = {
@@ -321,7 +349,8 @@ export function describeReservoir(
       { label: "Measured by", value: providerName(reservoir) },
       ...(reservoir.huc6_name
         ? [{ label: "Drainage area", value: reservoir.huc6_name }]
-        : [])
+        : []),
+      ...(upstream ? upstreamRows(upstream) : [])
     ],
     late: lateMessage(reservoir),
     color,

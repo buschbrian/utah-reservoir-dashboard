@@ -5,7 +5,9 @@ import type {
   Reservoir,
   ReservoirBaselines,
   ReservoirPayload,
-  ReservoirSource
+  ReservoirSource,
+  UpstreamIndex,
+  UpstreamTrace
 } from "../types";
 import { HUC_CODE } from "./huc";
 
@@ -303,4 +305,42 @@ export function validateReservoirPayload(value: unknown): ReservoirPayload {
     }
   }
   return value as unknown as ReservoirPayload;
+}
+
+function isUpstreamTrace(value: unknown): value is UpstreamTrace {
+  return isObject(value) &&
+    typeof value.name === "string" &&
+    Array.isArray(value.upstream_reservoirs) &&
+    value.upstream_reservoirs.every((id) => typeof id === "string") &&
+    Array.isArray(value.upstream_snow_sites) &&
+    value.upstream_snow_sites.every((id) => typeof id === "string") &&
+    optionalNullableString(value.screen) &&
+    optionalNullableString(value.detail) &&
+    optionalNullableString(value.review);
+}
+
+/**
+ * The committed upstream index (ADR-077).
+ *
+ * The traces map is checked strictly -- it is the part every surface reads
+ * -- while the header's evidence fields are typed loosely: a rebuilt index
+ * may carry more provenance than this file names, and refusing it for that
+ * would take the panel down to add a field to the tool.
+ */
+export function validateUpstreamIndex(value: unknown): UpstreamIndex {
+  if (!isObject(value)) {
+    throw new Error("upstream_index.json must be an object");
+  }
+  if (!isObject(value.traces)) {
+    throw new Error("upstream_index.json must carry a traces object");
+  }
+  if (typeof value.retrieved !== "string") {
+    throw new Error("upstream_index.json is missing its retrieved date");
+  }
+  for (const [station, trace] of Object.entries(value.traces)) {
+    if (!isUpstreamTrace(trace)) {
+      throw new Error(`Invalid upstream trace for station ${station}`);
+    }
+  }
+  return value as unknown as UpstreamIndex;
 }

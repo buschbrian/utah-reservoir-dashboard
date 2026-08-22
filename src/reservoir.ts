@@ -23,12 +23,12 @@ import { downloadCsv } from "./data/download";
 import {
   reservoirCsvFilename, reservoirHistoryCsv
 } from "./data/export";
-import { loadReservoirs } from "./data/load";
+import { loadReservoirs, loadUpstreamIndex } from "./data/load";
 import {
   baselineRows, provenanceRows, resolveReservoirPage
 } from "./reservoir-model";
 import type { ReservoirPageState } from "./reservoir-model";
-import type { ReservoirPayload } from "./types";
+import type { ReservoirPayload, Reservoir, UpstreamTrace } from "./types";
 import { renderTrendChart, renderTrendTable } from "./viz/trend";
 import { formatAcreFeet } from "./viz/format";
 import { storageColor } from "./viz/classes";
@@ -36,6 +36,7 @@ import { headlinePercent } from "./viz/symbols";
 import {
   describeReservoir
 } from "./state/detail";
+import { reservoirLabel } from "./state/selection";
 import {
   baselineChoices
 } from "./state/baseline";
@@ -213,7 +214,76 @@ async function renderFound(payload: ReservoirPayload,
       "The aerial image could not be loaded just now.", "chart-empty"));
     imageryHost.removeAttribute("aria-busy");
   }
+  // What the committed trace says sits above this reservoir (ADR-077). A
+  // missing index costs this section and nothing else; a screen inside it
+  // is stated as what it is rather than shown as an empty count.
+  try {
+    const index = await loadUpstreamIndex();
+    const station = reservoir.source_station_id;
+    const trace = station === null ? null : index.traces[station];
+    if (trace) main.append(...upstreamSection(trace, payload.reservoirs));
+  } catch {
+    console.error("The upstream index could not be read:");
+  }
   finish("found");
+}
+
+/**
+ * The "What is above it" section: every published reservoir on land that
+ * drains to this one, linked by the same labels the pages resolve by.
+ *
+ * Upstream of, never feeds: several of these sit on transbasin diversions,
+ * and the water they hold does not always go where the river points
+ * (ADR-077). The snow sites are counted in the sentence and named nowhere --
+ * their own page is the place for them, and that filter is not built yet.
+ */
+function upstreamSection(
+  trace: UpstreamTrace,
+  roster: readonly Reservoir[]
+): HTMLElement[] {
+  if (trace.screen) {
+    return [
+      sectionHeading("What is above it"),
+      note("The contributing area above this reservoir could not be traced "
+        + "when the site last asked.", "reservoir-note")
+    ];
+  }
+  const count = trace.upstream_reservoirs.length;
+  const sites = trace.upstream_snow_sites.length;
+  const children: HTMLElement[] = [sectionHeading("What is above it")];
+  const sentence = document.createElement("p");
+  sentence.className = "reservoir-note";
+  if (count === 0 && sites === 0) {
+    sentence.textContent =
+      "No published reservoir or snow-measuring site sits upstream of this "
+      + "one, on land that drains to it.";
+    children.push(sentence);
+    return children;
+  }
+  sentence.textContent = `${count} published `
+    + `reservoir${count === 1 ? "" : "s"} and ${sites} snow-measuring `
+    + `site${sites === 1 ? "" : "s"} sit upstream of this one, on land that `
+    + "drains to it.";
+  children.push(sentence);
+  if (count > 0) {
+    const byStation = new Map(
+      roster.filter((r) => r.source_station_id)
+        .map((r) => [r.source_station_id as string, r]));
+    const links = document.createElement("div");
+    links.className = "upstream-links";
+    for (const station of trace.upstream_reservoirs) {
+      const target = byStation.get(station);
+      if (!target) continue;
+      const qualified = reservoirLabel(target, roster);
+      const chip = document.createElement("a");
+      chip.href =
+        `reservoir.html?name=${encodeURIComponent(qualified)}`;
+      chip.textContent = qualified;
+      links.append(chip);
+    }
+    children.push(links);
+  }
+  return children;
 }
 
 /**

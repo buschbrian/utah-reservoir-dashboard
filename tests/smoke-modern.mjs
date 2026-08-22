@@ -2204,7 +2204,7 @@ for (const viewport of VIEWPORTS) {
       scroll: document.documentElement.scrollWidth
     }));
     console.log("  ready:", JSON.stringify(state.ready));
-    check(state.ready?.files === 4 && state.files === 4,
+    check(state.ready?.files === 5 && state.files === 5,
       `${label}: rendered ${state.files} file cards, readiness reported ${state.ready?.files}`);
     check(state.ready?.groups === state.groups && state.groups >= 20,
       `${label}: rendered ${state.groups} field groups, readiness reported ${state.ready?.groups}`);
@@ -2217,7 +2217,10 @@ for (const viewport of VIEWPORTS) {
       // choose the level (ADR-064). Named on the page rather than left to be
       // guessed at from the other file's name.
       "./data/drought/usdm-huc4.json",
-      "./api/reference.json"
+      "./api/reference.json",
+      // The upstream sets (ADR-077), published under /data/ rather than /api/
+      // because they are a derived trace, not an observation series.
+      "./data/upstream_index.json", "./reservoir.html"
     ]), `${label}: file card links are ${JSON.stringify(state.links)}`);
     check(state.text.includes("Access-Control-Allow-Origin: *"),
       `${label}: cross-origin browser access is not disclosed`);

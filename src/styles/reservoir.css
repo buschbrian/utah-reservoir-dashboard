@@ -74,6 +74,28 @@ body {
 }
 .reservoir-imagery-host arcgis-map { display: block; inline-size: 100%; block-size: 100%; }
 
+/* The upstream reservoirs, as chips rather than a sentence of commas: 67
+ * names -- Powell's whole headwater roster -- reads as a wall of text in
+ * prose and as a scannable set here. */
+.upstream-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block-start: 0.75rem;
+}
+.upstream-links a {
+  font-size: 0.9rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.35rem;
+  background: var(--calcite-color-surface-highlight);
+  color: var(--app-text);
+}
+.upstream-links a:hover {
+  background: color-mix(in srgb, var(--app-accent) 12%, var(--app-surface));
+}
+.upstream-links a:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+
 .reservoir-links { margin-block-start: 1.5rem; }
 
 .reservoir-withdrawn {

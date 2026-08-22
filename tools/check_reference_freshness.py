@@ -71,6 +71,10 @@ REFERENCES: tuple[dict, ...] = (
      "what": "The 1991-2020 climate normals"},
     {"path": "snow_sites.json", "field": "retrieved", "days": 180,
      "what": "The mountain snow site inventory"},
+    {"path": "upstream_index.json", "field": "retrieved", "days": 365,
+     "what": "The upstream trace: what drains to each published reservoir "
+             "(ADR-077). Moves when the roster or the snow network moves, "
+             "so it is due after an admission, not on a date"},
     {"path": "data/us-land.geojson", "field": "retrieved", "days": 365,
      "what": "The land mask the drought engine measures against"},
 )

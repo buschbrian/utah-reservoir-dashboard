@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **The site now says what drains to each reservoir.** Every published
+  reservoir was traced once against the U.S. Geological Survey's Network-Linked
+  Data Index -- the contributing basin above its dam, then which published
+  reservoirs and snow-measuring sites sit on that land. The storage map's
+  details panel names the counts, and each reservoir page lists its upstream
+  reservoirs as links to their own pages ("What is above it"). An upstream set
+  is an unordered containment answer, so the site says "upstream of" and never
+  "feeds": several of these reservoirs sit on transbasin diversions, and the
+  water they hold does not always go where the river points. The trace is
+  committed with its evidence (ADR-077); the polygon it was traced against is
+  never published. All 375 traced cleanly, none screened or flagged.
+
 - **Every reservoir page shows its own ground: an aerial image.** Esri's
   World Imagery centred on the reservoir's published point, one marker over
   it, zoom, full screen and a scale bar around it. The picture is the page's

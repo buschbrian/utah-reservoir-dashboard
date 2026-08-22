@@ -117,6 +117,13 @@
       "staged_by_refresh": false
     },
     {
+      "path": "upstream_index.json",
+      "class": "derived-on-demand",
+      "writer": "tools/build_upstream_index.py",
+      "staged_by_refresh": false,
+      "note": "What drains to each published reservoir, traced once against NLDI and committed with its COMID evidence (ADR-077). Rebuild when the roster or snow network changes; published verbatim in dist."
+    },
+    {
       "path": "data/us-land.geojson",
       "class": "derived-on-demand",
       "writer": "tools/fetch_us_land_mask.py",

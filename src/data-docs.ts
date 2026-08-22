@@ -91,6 +91,19 @@ root.innerHTML = `
           changes, not on the daily observation schedule. If a source cannot be checked,
           the last published reference file remains available.</p>
       </article>
+      <article class="api-file">
+        <h3>Upstream sets</h3>
+        <p><a href="./data/upstream_index.json"><code>/data/upstream_index.json</code></a></p>
+        <p>For each reservoir, the published reservoirs and snow-measuring sites whose
+          points sit on land that drains to it. Traced once against the U.S. Geological
+          Survey's Network-Linked Data Index, keyed by the same station identifier the
+          storage payload uses.</p>
+        <p>An upstream set names the water on land above a dam. It is not an operations
+          claim, so it says "upstream of" and never "feeds". Rebuilt after the roster
+          changes, not daily.
+          Shown in the storage map's details panel and on each
+          <a href="./reservoir.html">reservoir page</a>.</p>
+      </article>
     </section>
 
     <section class="methods-section api-fields" id="reservoir-fields"

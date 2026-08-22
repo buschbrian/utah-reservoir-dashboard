@@ -44,7 +44,7 @@ function preserveRuntimeDataAndRedirects(): Plugin {
       // being copied here.
       for (const file of [
         "reservoirs.json", "snow_sites.json", "snowpack.json",
-        "reference.json", "capacities.json"
+        "reference.json", "capacities.json", "upstream_index.json"
       ]) {
         await copyFile(resolve(root, file), resolve(outDir, file));
         await copyFile(resolve(root, file), resolve(outDir, "data", file));

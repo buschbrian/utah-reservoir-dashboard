@@ -40,7 +40,8 @@ denominator. **Start with ADR-070, then ADR-072, then ADR-003.**
   [ADR-066](ADR-066-a-reservoir-is-keyed-by-its-station-not-its-name.md),
   [ADR-069](ADR-069-deduplicate-reservoirs-by-dam-identity.md),
   [ADR-070](ADR-070-the-operators-own-full-level-is-the-denominator.md),
-  [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md)
+  [ADR-072](ADR-072-divide-by-a-figure-the-water-has-not-been-seen-above.md),
+  [ADR-077](ADR-077-publish-what-drains-to-a-reservoir-as-an-upstream-set.md)
 - Freshness and withdrawal:
   [ADR-056](ADR-056-withdraw-a-reading-that-belongs-to-another-season.md)
 - Procedure: [`docs/operations/source-admission.md`](../operations/source-admission.md)
@@ -201,6 +202,7 @@ ADR-008, then ADR-032 and ADR-061.**
 | [ADR-074](ADR-074-compare-the-week-with-the-one-before-it.md) | Compare the week with the one before it | Accepted; narrows ADR-063's one-archive decision |
 | [ADR-075](ADR-075-draw-the-spread-chart-rather-than-configure-it.md) | Draw the spread chart rather than configure it | Accepted |
 | [ADR-076](ADR-076-nest-the-place-menus-and-let-the-heading-carry-the-state.md) | Nest the place menus and let the heading carry the state | Accepted; amends ADR-058's reader-facing-label clause |
+| [ADR-077](ADR-077-publish-what-drains-to-a-reservoir-as-an-upstream-set.md) | Publish what drains to a reservoir as an unordered upstream set | Accepted; precomputed against NLDI, keyed per ADR-066, geometry never published |
 
 ## Relationship to the historical journal
 
