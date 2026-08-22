@@ -543,8 +543,11 @@ async function renderOverview(
     county?.append(option);
   }
   if (countyField) countyField.hidden = countyChoices.length === 0;
-  /* The state list is built once from the widest scope, like the county list:
-   * it is the coarsest control, so nothing above it can narrow it. */
+  /* The state list is built once from the widest scope: it is the coarsest
+   * control, so nothing above it can narrow it. The county list starts wide
+   * for the same reason the subregion one does -- the URL restore below and
+   * the first update() need something to restore into -- and narrows to the
+   * chosen state from then on, inside update(). */
   for (const choice of stateChoices) {
     const option = document.createElement("option");
     option.value = choice.code;
@@ -710,13 +713,19 @@ async function renderOverview(
      * as ADR-062 requires, four of the roster's drainage areas were missing
      * from the control -- including Lake Powell's own, so the list changed
      * shape under the very switch it is supposed to be steady beneath.
-     * `stateChoices` and `countyChoices` are built once from the whole
-     * roster for the same reason; these two are rebuilt only because the
-     * controls above them narrow them. */
+     * `stateChoices` is built once from the whole roster for the same
+     * reason, and `countyChoices` starts from it so the restore below has
+     * something to land on; subregion, drainage area and county are rebuilt
+     * because the controls above them narrow them. */
     const choices = geographicChoices(widestScope.filter(inOpeningArea),
       { state: state.value, subregion: subregion.value }, subregionNames);
     fillOptions(subregion, choices.subregions, "All subregions");
     fillOptions(watershed, choices.drainageAreas, "All drainage areas");
+    /* The county list narrows by the state the same way the subregion list
+     * does, so picking California leaves that state's counties rather than
+     * all 157 across 11 states. A county the new state does not hold falls
+     * back to "all" in `fillOptions`, the same rule as the other two. */
+    fillOptions(county, choices.counties, "All counties");
 
     const matching = filterOverview(scoped, {
       query: search.value,

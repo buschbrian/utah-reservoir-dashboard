@@ -342,7 +342,7 @@ export function geographicChoices(
   roster: readonly Reservoir[],
   chosen: { state: string; subregion: string },
   names: ReadonlyMap<string, string>
-): { subregions: FilterOption[]; drainageAreas: FilterOption[] } {
+): { subregions: FilterOption[]; drainageAreas: FilterOption[]; counties: FilterOption[] } {
   const byState = roster.filter((item) => reservoirInState(item, chosen.state));
   /* Read from `byState`, not from the subregion list just built: a subregion
    * the reader still holds after a state change is kept by the control, and
@@ -352,7 +352,11 @@ export function geographicChoices(
     chosen.subregion === "all" || subregionOf(item) === chosen.subregion);
   return {
     subregions: subregionOptions(byState, names),
-    drainageAreas: watershedOptions(bySubregion)
+    drainageAreas: watershedOptions(bySubregion),
+    /* Narrowed by the state alone, not by the subregion: a county cuts
+     * across drainage areas, so holding the reader's county while they move
+     * between subregions is a choice still on offer, not a stale one. */
+    counties: countyOptions(byState)
   };
 }
 
