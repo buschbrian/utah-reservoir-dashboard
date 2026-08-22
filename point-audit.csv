@@ -1,0 +1,43 @@
+reservoir,state,provider,lat,lon,reviewer_note,nhd_within_m,nhd_names,gnis_within_m,gnis_names
+Oroville Dam,CA,California Data Exchange Center,39.54,-121.493,Lake Oroville,1500,(unnamed); (unnamed); Thermalito Diversion Pool,4000,Sycamore Reservoir [Reservoir]
+New Melones Lake,CA,Bureau of Reclamation RISE,37.9481,-120.525,New Melones Lake,500,(unnamed); (unnamed),4000,Vermont Bar [Bar]; Bostick Bar [Bar]
+Lake Almanor,CA,California Data Exchange Center,40.218,-121.173,Lake Almanor,150,Lake Almanor,>4000,
+Folsom Lake,CA,Bureau of Reclamation RISE,38.683,-121.183,Folsom Lake - point is wrong on lat . long,500,Lake Natoma; (unnamed),500,Negro Bar [Bar]
+"Lake San Antonio, Monterey Co",CA,California Data Exchange Center,35.798,-120.883,San Antonio Lake,500,Lake San Antonio,4000,Lake San Antonio [Reservoir]
+Castaic,CA,California Data Exchange Center,34.5152,-118.6101,Castaic Lake,500,Castaic Lagoon,>4000,
+Cherry Valley Dam,CA,California Data Exchange Center,37.967,-119.917,Cherry Lake,1500,Cherry Lake,>4000,
+Casitas,CA,California Data Exchange Center,34.373,-119.332,Lake Casitas,500,(unnamed); Lake Casitas,1500,Dead Horse Canyon Arm [Bay]; Ayers Creek Arm [Bay]
+Whiskeytown Lake,CA,Bureau of Reclamation RISE,40.598,-122.537,Whiskeytown Lake,500,Whiskeytown Lake,4000,Paige Bar [Bar]
+Pardee,CA,California Data Exchange Center,38.25,-120.85,Pardee Reservoir,500,Camanche Reservoir; Pardee Reservoir,4000,West Portal [Lake]; Oregon Bar [Bar]; North Arm [Bay]
+Lake Crowley,CA,California Data Exchange Center,37.604,-118.707,Crowley Lake - incorrect lat / long,1500,Lake Crowley,>4000,
+Los Vaqueros Reservoir,CA,California Data Exchange Center,37.838,-121.726,Los Vaqueros Reservoir,500,(unnamed),>4000,
+Seven Oaks Dam,CA,California Data Exchange Center,34.1178,-117.0978,Seven Oaks Reservoir,4000,(unnamed); (unnamed); (unnamed),4000,Hot Springs [Spring]; Hot Springs [Spring]
+Black Butte,CA,California Data Exchange Center,39.808,-122.329,Black Butte Lake,500,(unnamed),>4000,
+Courtright (Pg&E),CA,California Data Exchange Center,37.072,-118.967,Courtright Reservoir,1500,(unnamed); (unnamed); (unnamed),4000,Clear Lake [Lake]
+Coyote (Lake Mendocino),CA,California Data Exchange Center,39.197,-123.186,Lake Mendocino,500,Lake Mendocino; (unnamed),500,Russian River Reservoir [Reservoir]
+Hidden Dam (Hensley),CA,California Data Exchange Center,37.109559,-119.885255,Hensley Lake,500,Hensley Lake,>4000,
+Huntington Lake (Usbr),CA,California Data Exchange Center,37.22757,-119.220482,Huntington Lake,150,Huntington Lake,>4000,
+Leroy Anderson,CA,California Data Exchange Center,37.165,-121.632,Anderson Lake,500,Anderson Lake,4000,Turnbull Learning Academy [Lake]; Lone Lake [Lake]; Tule Lake [Lake]
+Lake Davis (Dwr),CA,California Data Exchange Center,39.883,-120.467,Lake Davis,1500,(unnamed); Lake Davis; (unnamed),4000,Jenkins Cove [Bay]; Willow Spring [Spring]
+Scofield,UT,Bureau of Reclamation RISE,39.77656,-111.05074,Scofield Reservoir - incorrect lat long,1500,(unnamed); (unnamed),>4000,
+Frenchman Dam,CA,California Data Exchange Center,39.883,-120.183,Frenchman Lake,1500,Frenchman Lake,4000,Frenchman Lake [Reservoir]
+East Park Reservoir,CA,California Data Exchange Center,39.367,-122.517,East Park Reservoir,1500,East Park Reservoir; (unnamed),>4000,
+Morena Dam,CA,California Data Exchange Center,32.683,-116.55,Morena Reservoir,500,Morena Reservoir,4000,Morena Reservoir [Reservoir]
+Lower Bear,CA,California Data Exchange Center,38.538,-120.257,Lower Bear River Reservoir,150,Lower Bear River Reservoir,>4000,
+Crane Valley,CA,California Data Exchange Center,37.283,-119.517,Bass Lake,1500,Bass Lake,4000,Wishon Cove [Bay]
+Jenkinson Lake,CA,California Data Exchange Center,38.713,-120.56,Jenkinson Reservoir,500,Jenkinson Lake,1500,Jenkinson Lake [Reservoir]
+Boca Reservoir,CA,USDA NRCS AWDB,39.3888,-120.09631,Boca Reservoir,150,Boca Reservoir,4000,Mills Spring [Spring]; Boca Reservoir [Reservoir]; Rocky Canyon Spring [Spring]
+Santa Margarita Lake,CA,California Data Exchange Center,35.333,-120.502,Santa Margarita Lake,500,Santa Margarita Lake; (unnamed); (unnamed),>4000,
+Loveland Reservoir,CA,California Data Exchange Center,32.779,-116.792,Loveland Reservoir,500,Loveland Reservoir,>4000,
+Nicasio,CA,California Data Exchange Center,38.075,-122.757,Nicasio Reservoir,500,Nicasio Reservoir,>4000,
+Lexington Reservoir,CA,California Data Exchange Center,37.202,-121.988,Lexington Reservoir,150,Lexington Reservoir,4000,Lake Kittredge [Reservoir]; Lake Couzzens [Reservoir]; Tisdale Reservoir [Reservoir]
+Gem  Lake,CA,California Data Exchange Center,37.752,-119.14,Gem Lake,150,Gem Lake,1500,Agnew Lake [Lake]
+Relief,CA,California Data Exchange Center,38.267,-119.733,Relief Reservoir,500,Relief Reservoir,1500,Relief Reservoir [Reservoir]
+Crawford Reservoir,CO,USDA NRCS AWDB,38.69138,-107.60617,Crawford Reservoir,500,Crawford Reservoir,1500,Crawford Reservoir [Reservoir]
+French Lake,CA,California Data Exchange Center,39.44,-120.544,French Lake - check lat long on dam point,1500,(unnamed); (unnamed); (unnamed),1500,Echo Lake [Lake]
+Thermalito Forebay,CA,California Data Exchange Center,39.519,-121.629,Thermalito Forebay,500,Thermalito Afterbay; Thermalito Forebay,>4000,
+Kolob Reservoir,UT,USDA NRCS AWDB,37.43333,-113.03583,Kolob Reservoir - check dam lat long,150,(unnamed),1500,Kolob Reservoir [Reservoir]
+Long Hollow Reservoir,CO,Colorado Division of Water Resources,37.058166,-108.174993,zero idea leave alone for now,1500,(unnamed); (unnamed); (unnamed),>4000,
+Jackson Flat,UT,USDA NRCS AWDB,37.00576,-112.51995,zero idea leave alone for now,500,(unnamed); (unnamed),1500,Jackson Flat Reservoir [Reservoir]
+Pleasant Valley Reservoir,CA,California Data Exchange Center,37.423578,-118.583576,zero idea leave alone for now,4000,(unnamed); (unnamed); (unnamed),>4000,
+Grantsville,UT,USDA NRCS AWDB,40.54185,-112.50567,zero idea leave alone for now,>4000,,>4000,
