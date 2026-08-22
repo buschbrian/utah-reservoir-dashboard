@@ -61,6 +61,19 @@ body {
  * Give it room beyond the panel width it was sized for. */
 .reservoir-main svg.trend-chart { max-width: 100%; height: auto; }
 
+/* The aerial view: positioned, because the map component owns its own
+ * subtree and the busy/failure states replace what is inside the box.
+ * Tall enough to read a shoreline at zoom 13, short enough that it is one
+ * scroll on a phone rather than a page of its own. */
+.reservoir-imagery-host {
+  position: relative;
+  block-size: 22rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.reservoir-imagery-host arcgis-map { display: block; inline-size: 100%; block-size: 100%; }
+
 .reservoir-links { margin-block-start: 1.5rem; }
 
 .reservoir-withdrawn {

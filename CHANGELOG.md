@@ -7,6 +7,18 @@ and is not listed here.
 
 ### Added
 
+- **Every reservoir page shows its own ground: an aerial image.** Esri's
+  World Imagery centred on the reservoir's published point, one marker over
+  it, zoom, full screen and a scale bar around it. The picture is the page's
+  subject -- the dam, the shore and the water's actual extent against the
+  land -- so it asks for imagery directly rather than for the themed canvas
+  every other map wears. It loads after the page's facts are on screen from
+  its own small chunk, carries its own deadline (a slow image says it did
+  not arrive instead of holding the page), and readiness includes it so no
+  reader or checker ever meets its controls half-built. Roughly 377 KB of
+  tile traffic on first view; see `docs/data-transfer.md` for how that was
+  measured honestly.
+
 - **Chart hovers answer the question a hover is really asking.** The bar
   charts' tooltips were one line -- the number the bar already showed. They
   now add the full level (naming which kind of full level it is), the

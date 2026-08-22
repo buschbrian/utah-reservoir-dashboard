@@ -363,6 +363,40 @@ The rest of the run was clean against the recorded figures:
 - No lazy marker appeared on any page's first-load path, and no request
   failed on any of the seven.
 
+## The reservoir page grows its subject (2026-08-22)
+
+Each reservoir page now carries an aerial view -- Esri's World Imagery
+centred on the published point, one marker over it, zoom and full-screen
+controls around it. The module is a separate lazy chunk (1.5 KB) fetched
+only after the page's facts are on screen, so a reader who never waits for
+the picture pays nothing extra for the code.
+
+**What the picture itself costs on the wire**, measured headed, standalone:
+
+| host | what | bytes |
+|---|---|---:|
+| `services.arcgisonline.com` | World Imagery tiles, opening view at zoom 13 | **186 KB** |
+| `server.arcgisonline.com` | the basemap's reference-label layer | 142 KB |
+| `static.arcgis.com` | attribution and locale assets | 49 KB |
+
+Roughly **377 KB from other hosts**, all of it tile traffic that scales with
+how far the reader pans and zooms, not with the roster. The page's own bytes
+are essentially unchanged: 56 requests · 2,333 KiB uncompressed from this
+site. The tile hosts were already named in every page's content policy,
+because the basemaps the other maps draw are painted from the same places.
+
+Two things about measuring this honestly, both now built into
+`tools/audit-transfer.mjs`:
+
+- **Headless Chromium never renders the WebGL canvas, so it never asks the
+  tile host for anything** -- an unmodified audit reported this page at zero
+  remote bytes while a real browser paid 377 KB. The tool takes `--headed`
+  for surfaces whose map is the content.
+- **A live canvas can come up empty seventh in line.** Measuring the page
+  inside the full seven-page run starved it of its tiles even headed. The
+  tool takes `--page <name>` to measure one page alone; that is how the
+  figures above were taken.
+
 ## The Bureau-only west (2026-08-20)
 
 R2 adds 25 daily reservoirs without adding a browser request. The public

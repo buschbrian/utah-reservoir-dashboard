@@ -24,6 +24,7 @@
  *   npm run build
  *   node tools/audit-transfer.mjs
  *   node tools/audit-transfer.mjs --json    # for diffing between runs
+ *   node tools/audit-transfer.mjs --headed  # real canvas, so imagery counts
  */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -59,6 +60,19 @@ try {
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(REPO_ROOT, "dist");
 const asJson = process.argv.includes("--json");
+/* Headed mode exists because the wire and the pixels are not independent:
+ * a headless Chromium never renders the WebGL canvas, so a view whose
+ * subject is imagery never asks the tile host for anything, and the audit
+ * reports a first load missing exactly the bytes the reader pays for. Run
+ * headed when measuring a surface whose map is the content. */
+const headed = process.argv.includes("--headed");
+/* One page, by name as the report prints it. A page whose subject is a
+ * live canvas can come up empty when it runs seventh in one browser
+ * session -- the contexts before it have taken the WebGL and network room
+ * it needs -- so measuring such a page alone, headed, is how its real
+ * first load is taken. */
+const pageFilterIndex = process.argv.indexOf("--page");
+const pageFilter = pageFilterIndex > -1 ? process.argv[pageFilterIndex + 1] : null;
 
 const TYPES = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
@@ -166,10 +180,15 @@ async function auditPage(browser, page) {
 }
 
 const browser = await chromium.launch({
-  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  headless: !headed
 });
 const results = [];
-for (const page of PAGES) results.push(await auditPage(browser, page));
+for (const page of PAGES) {
+  if (pageFilter && page.name !== pageFilter
+      && page.file !== pageFilter) continue;
+  results.push(await auditPage(browser, page));
+}
 await browser.close();
 server.close();
 

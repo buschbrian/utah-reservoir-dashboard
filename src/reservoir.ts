@@ -96,9 +96,15 @@ function sectionHeading(text: string): HTMLHeadingElement {
  * The reading and its comparisons come from the same builders the storage
  * map's details panel uses, so one page cannot drift from the other: the
  * wording is a rule, and the rule lives in one module.
+ *
+ * Readiness includes the aerial image: it is page content like any other,
+ * and signalling first would have an accessibility checker reading the
+ * map's controls half-hydrated. The image carries its own deadline, so the
+ * worst case is bounded -- a slow image delays the signal by that deadline
+ * and then says it did not arrive.
  */
-function renderFound(payload: ReservoirPayload,
-  state: Extract<ReservoirPageState, { status: "found" }>): void {
+async function renderFound(payload: ReservoirPayload,
+  state: Extract<ReservoirPageState, { status: "found" }>): Promise<void> {
   const { reservoir, label } = state;
   document.title = `${label} — Western Water Dashboard`;
 
@@ -128,6 +134,15 @@ function renderFound(payload: ReservoirPayload,
   const children: (HTMLElement | SVGElement)[] = [eyebrow, heading];
   if (view.late) children.push(note(view.late, "detail-late"));
   children.push(headline, definitionList(view.rows, "detail-rows"));
+
+  // The reservoir's own ground, from Esri's World Imagery. Mounted after
+  // the page is on screen and outside the readiness signal: a slow image
+  // must not hold the page's facts hostage, and its own deadline replaces
+  // it with a sentence rather than an empty box.
+  const imageryHost = document.createElement("div");
+  imageryHost.className = "reservoir-imagery-host";
+  imageryHost.setAttribute("aria-busy", "true");
+  children.push(sectionHeading("From above"), imageryHost);
 
   // Both comparisons, each saying how many years stand behind it. A reader
   // who wants only one is on the map page; here they can see what choosing
@@ -186,6 +201,18 @@ function renderFound(payload: ReservoirPayload,
   children.push(exportButton);
 
   main.replaceChildren(...children);
+  try {
+    const imagery = await import("./ui/reservoir-imagery");
+    await imagery.mountReservoirImagery(imageryHost, {
+      label, lon: reservoir.lon, lat: reservoir.lat
+    });
+  } catch {
+    /* The dynamic import itself failing is the same honest outcome as the
+       image timing out: say so and stop claiming to be busy. */
+    imageryHost.replaceChildren(note(
+      "The aerial image could not be loaded just now.", "chart-empty"));
+    imageryHost.removeAttribute("aria-busy");
+  }
   finish("found");
 }
 
