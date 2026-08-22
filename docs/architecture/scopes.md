@@ -108,7 +108,10 @@ emptiness, not a list of place parameters, because `?reservoir=Flaming+Gorge`
 names no place and is unmistakably someone showing someone else a thing. A list
 would need updating for every parameter any surface ever adds, and forgetting
 one buries a reader's link under a modal, which is what happened and what the
-smoke suite's deep-link case now catches.
+smoke suite's deep-link case now catches. A reader who wants the question back
+asks for it: a "Choose another place" control beside the where filters reopens
+the same dialog, which changes nothing in the address bar until its own buttons
+are pressed.
 
 The stored choice is **never written back into the address bar**: what a reader
 copies must be what they see, not what they prefer. `?state=all` exists so that

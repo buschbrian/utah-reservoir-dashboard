@@ -9,8 +9,12 @@
 Status: Scoping, written 2026-08-21. **Partly delivered.** Item 3, the nested
 drainage and county menus, shipped the same day, together with the cheap fix
 this document asked for first -- narrowing the county list by the chosen state.
-Items 1, 2, 4 and 5 are not started. Every measurement below is as it was
-written; nothing here has been rewritten to describe today.
+Item 4, the reopen control, was delivered 2026-08-22. The resolution rate that
+gates items 1 and 2 was measured 2026-08-21 (section 1 below), and item 5's
+count exists in
+[`WESTERN-SOURCE-CANDIDATES.md`](WESTERN-SOURCE-CANDIDATES.md). Items 1, 2 and
+5 remain not started. Every measurement below is as it was written; nothing
+here has been rewritten to describe today.
 
 Five items were raised on 2026-08-21; this records what each one actually is,
 what it costs, what it would break, and the order the next agent should work
@@ -411,6 +415,13 @@ absence is the one confirmed coverage gap the survey called worth closing.
    exists, is tested, and is one entry point away from answering a real
    complaint. It is also independent of item 3, so it does not have to wait
    for the nesting question to be settled.
+
+   **Delivered 2026-08-22.** "Choose another place" sits in its own slot
+   beside the where control on the storage map and opens the same dialog --
+   one chooser, never a second list. `shouldAskWhere`'s rule is untouched:
+   the chooser still never interrupts an arrival; a reopen is a reader
+   asking. Item 4's own section above describes the problem as it was
+   written and is left that way, like every measurement in this document.
 2. **Items 1 and 2, names and type, as one NHD pass.** One service answers
    both, and doing them separately means resolving 375 points twice. Start
    with the resolution-rate measurement; the former-name decision is the gate

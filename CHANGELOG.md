@@ -7,6 +7,22 @@ and is not listed here.
 
 ### Added
 
+- **Chart hovers answer the question a hover is really asking.** The bar
+  charts' tooltips were one line -- the number the bar already showed. They
+  now add the full level (naming which kind of full level it is), the
+  history rank said as a position, the thirty-day movement labelled with the
+  interval it actually covers, and the county; a drainage area's bar says how
+  many reservoirs its numbers answer for instead of inventing facts its group
+  cannot have. The wording comes from the details panel's own helpers, so a
+  fact reads the same wherever it is asked, and the storage-against-normal
+  scatter and the histogram gained rows in the same vocabulary.
+
+- **A way back to the opening chooser.** "Choose another place" sits beside
+  the storage map's place filters and reopens the first-visit dialog. The
+  chooser still never interrupts an arrival -- a shared link opens nothing
+  over it -- but a reader who answered once no longer has to clear site data
+  to answer differently.
+
 - **The place menus show their hierarchy instead of implying it.** Drainage
   areas sit under their subregion and subregions under their region in the
   storage map's place control; counties group under their state and basins

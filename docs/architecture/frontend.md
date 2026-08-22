@@ -118,6 +118,13 @@ vocabulary and its replacements are in
 *Enforced:* `src/content-language.test.ts` and the smoke suite, which reads
 `aria-label`s and live-region messages too.
 
+**A fact about a reservoir is phrased once.** The chart hover tooltips build
+their rows from `src/state/detail.ts`'s exported helpers -- full level and its
+basis, history rank, change intervals -- so a rank or a capacity reads the same
+under a chart as it does in the details panel, and both modules sit in the
+language scan's file list. A new hover row reaches for an existing helper
+before writing its own sentence.
+
 ## Failure, readiness and accessibility
 
 **Anything that can wait forever needs a deadline.** A promise that never
