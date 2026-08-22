@@ -1,27 +1,27 @@
 current_roster_name,station,pattern_found,operator_field_available,nhd_gnis_name,nhd_ftype,nhd_permanent_id,proposed_display_name,proposed_type,reviewer_notes
-Mossyrock Dam (Riffe Lk),14234800:WA:BOR,operator parenthetical; gauge abbreviation; whitespace fault,,Riffe Lake,LakePond,132991147,Riffe Lake,LakePond,ruling: accept; type from NHD FType
-New Exchequer-Lk Mcclure,EXC,gauge abbreviation,,Lake McClure,LakePond,66491171,Lake McClure,LakePond,ruling: accept; type from NHD FType
-Warm Springs (Lake Sonoma),WRS,operator parenthetical; alias/dam parenthetical; whitespace fault,,(not resolved),,,Lake Sonoma,LakePond,ruling: accept; type from NHD FType
-Hell Hole (Pcwa),HHL,operator parenthetical; whitespace fault,,Hell Hole Reservoir,LakePond,61233859,Hell Hole Reservoir,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Courtright (Pg&E),CTG,operator parenthetical; whitespace fault,,(not resolved),,,Courtright Reservoir,LakePond,ruling: accept; type from NHD FType
-Coyote (Lake Mendocino),COY,operator parenthetical; alias/dam parenthetical; whitespace fault,,(not resolved),,,Lake Mendocino,LakePond,ruling: accept; type from NHD FType
-Hidden Dam (Hensley),HID,operator parenthetical; whitespace fault,,(not resolved),,,Hensley Lake,LakePond,ruling: accept; type from NHD FType
-Huntington Lake (Usbr),HNT,operator parenthetical; whitespace fault,,(not resolved),,,Huntington Lake,LakePond,ruling: accept; type from NHD FType
-Lake Davis (Dwr),DAV,operator parenthetical; whitespace fault,,(not resolved),,,Lake Davis,LakePond,ruling: accept; type from NHD FType
-Lake Pillsbury Nr Potter Vly 24Hr Avg,LPY,gauge abbreviation; averaging note,,Lake Pillsbury,LakePond,122488803,Lake Pillsbury,LakePond,ruling: accept; type from NHD FType
-Englebright (Usace),ENG,operator parenthetical; whitespace fault,,Harry L. Englebright Lake,LakePond,44604500,Harry L. Englebright Lake,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Loon Lake (Smud),LON,operator parenthetical; whitespace fault,,Loon Lake,LakePond,61233861,Loon Lake,LakePond,ruling: accept; type from NHD FType
-Florence Lake (Sce),FLR,operator parenthetical; whitespace fault,,Florence Lake,LakePond,77254269,Florence Lake,LakePond,ruling: accept; type from NHD FType
-Ice House (Smud),ICH,operator parenthetical; whitespace fault,,Ice House Reservoir,LakePond,63418276,Ice House Reservoir,LakePond,ruling: accept; type from NHD FType
-Viva Naughton Res,09223100:WY:BOR,gauge abbreviation,,Lake Viva Naughton,LakePond,120025289,Lake Viva Naughton,LakePond,ruling: accept; type from NHD FType
-Pit R No 7 Reservoir,PT7,gauge abbreviation; plant numbering,,Pit 7 Reservoir,LakePond,83409156,Pit 7 Reservoir,LakePond,ruling: accept; type from NHD FType
-Santiago Creek Res (Irvine Lake),SGC,operator parenthetical; gauge abbreviation; whitespace fault,,(not resolved),LakePond,{18E19238-1141-42FA-B39C-2A2134FB2475},Irvine Lake,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Coyote Res-Sta Clara,CYC,gauge abbreviation,,Coyote Lake,LakePond,26419091,Coyote Lake,LakePond,ruling: accept; type from NHD FType
-Caples Lake (Eid),CPL,operator parenthetical; whitespace fault,,Caples Lake,LakePond,63412842,Caples Lake,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Stumpy Meadows Reservoir(Mark Edson Dam),EDN,operator parenthetical,,Stumpy Meadows Reservoir,LakePond,61221389,Stumpy Meadows Reservoir,LakePond,ruling: accept; type from NHD FType
-Gem  Lake,GLK,whitespace fault,,(not resolved),,,Gem Lake,LakePond,ruling: accept; type from NHD FType
-Pit R No 6 Reservoir,PT6,gauge abbreviation; plant numbering,,(not resolved),,,Pit Six Reservoir,LakePond,ruling: accept; type from NHD FType
-Thompson Falls Res,12390000:MT:BOR,gauge abbreviation,,Thompson Falls Reservoir,LakePond,60955557,Thompson Falls Reservoir,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Marlette Lk nr Carson City,10336710:NV:BOR,gauge abbreviation,,Marlette Lake,LakePond,44557840,Marlette Lake,Reservoir,ruling: accept; type from GNIS (NHD says LakePond)
-Nevada Creek Res,12336500:MT:BOR,gauge abbreviation,,Nevada Lake,LakePond,59480645,Nevada Lake,LakePond,ruling: accept; type from NHD FType
-Lake Natoma  (Nimbus Dam),NAT,operator parenthetical; whitespace fault,,Lake Natoma,LakePond,105943548,Lake Natoma,LakePond,ruling: accept; type from NHD FType
+Mossyrock Dam (Riffe Lk),14234800:WA:BOR,operator parenthetical; gauge abbreviation; whitespace fault,,Riffe Lake,LakePond,132991147,Riffe Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+New Exchequer-Lk Mcclure,EXC,gauge abbreviation,,Lake McClure,LakePond,66491171,Lake McClure,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Warm Springs (Lake Sonoma),WRS,operator parenthetical; alias/dam parenthetical; whitespace fault,,(not resolved),,,Lake Sonoma,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Hell Hole (Pcwa),HHL,operator parenthetical; whitespace fault,,Hell Hole Reservoir,LakePond,61233859,Hell Hole Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Courtright (Pg&E),CTG,operator parenthetical; whitespace fault,,(not resolved),,,Courtright Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Coyote (Lake Mendocino),COY,operator parenthetical; alias/dam parenthetical; whitespace fault,,(not resolved),,,Lake Mendocino,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Hidden Dam (Hensley),HID,operator parenthetical; whitespace fault,,(not resolved),,,Hensley Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Huntington Lake (Usbr),HNT,operator parenthetical; whitespace fault,,(not resolved),,,Huntington Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Lake Davis (Dwr),DAV,operator parenthetical; whitespace fault,,(not resolved),,,Lake Davis,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Lake Pillsbury Nr Potter Vly 24Hr Avg,LPY,gauge abbreviation; averaging note,,Lake Pillsbury,LakePond,122488803,Lake Pillsbury,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Englebright (Usace),ENG,operator parenthetical; whitespace fault,,Harry L. Englebright Lake,LakePond,44604500,Harry L. Englebright Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Loon Lake (Smud),LON,operator parenthetical; whitespace fault,,Loon Lake,LakePond,61233861,Loon Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Florence Lake (Sce),FLR,operator parenthetical; whitespace fault,,Florence Lake,LakePond,77254269,Florence Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Ice House (Smud),ICH,operator parenthetical; whitespace fault,,Ice House Reservoir,LakePond,63418276,Ice House Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Viva Naughton Res,09223100:WY:BOR,gauge abbreviation,,Lake Viva Naughton,LakePond,120025289,Lake Viva Naughton,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Pit R No 7 Reservoir,PT7,gauge abbreviation; plant numbering,,Pit 7 Reservoir,LakePond,83409156,Pit 7 Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Santiago Creek Res (Irvine Lake),SGC,operator parenthetical; gauge abbreviation; whitespace fault,,(not resolved),LakePond,{18E19238-1141-42FA-B39C-2A2134FB2475},Irvine Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Coyote Res-Sta Clara,CYC,gauge abbreviation,,Coyote Lake,LakePond,26419091,Coyote Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Caples Lake (Eid),CPL,operator parenthetical; whitespace fault,,Caples Lake,LakePond,63412842,Caples Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Stumpy Meadows Reservoir(Mark Edson Dam),EDN,operator parenthetical,,Stumpy Meadows Reservoir,LakePond,61221389,Stumpy Meadows Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Gem  Lake,GLK,whitespace fault,,(not resolved),,,Gem Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Pit R No 6 Reservoir,PT6,gauge abbreviation; plant numbering,,(not resolved),,,Pit Six Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Thompson Falls Res,12390000:MT:BOR,gauge abbreviation,,Thompson Falls Reservoir,LakePond,60955557,Thompson Falls Reservoir,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Marlette Lk nr Carson City,10336710:NV:BOR,gauge abbreviation,,Marlette Lake,LakePond,44557840,Marlette Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Nevada Creek Res,12336500:MT:BOR,gauge abbreviation,,Nevada Lake,LakePond,59480645,Nevada Lake,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
+Lake Natoma  (Nimbus Dam),NAT,operator parenthetical; whitespace fault,,Lake Natoma,LakePond,105943548,Lake Natoma,Reservoir,"ruling: accept; type: roster property, every entry is dammed"
