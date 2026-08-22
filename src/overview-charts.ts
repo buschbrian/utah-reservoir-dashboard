@@ -363,16 +363,51 @@ async function mountChart(
   return chart;
 }
 
-function barTooltipFormatter(measure: ChartMeasure): TooltipFormatter {
+/**
+ * The bar hover, one lookup per render.
+ *
+ * The category label arrives as `xValue` and is unique on each of these
+ * charts -- one bar per name -- so it is the key the detail rides on. A
+ * drainage area's record carries only its full level and a count; a
+ * reservoir's adds the rows the details panel would give, because a reader
+ * who hovers a bar is asking the same question the panel answers and the
+ * answer should not depend on where they asked it.
+ */
+function barTooltipFormatter(
+  records: readonly OverviewChartRecord[], measure: ChartMeasure
+): TooltipFormatter {
+  const byLabel = new Map(records.map((record) => [record.label, record.detail]));
   return ((props: {
     statValue?: number;
     xValue?: Date | number | string;
-  }): string => chartTooltip(String(props.xValue ?? "Reservoir"), [{
-    label: measure === "storage" ? "Stored now" : "Percent full",
-    value: measure === "storage"
-      ? `${formatAcreFeet(props.statValue ?? null)} acre-feet`
-      : formatPercent(props.statValue ?? null)
-  }])) as TooltipFormatter;
+  }): string => {
+    const detail = byLabel.get(String(props.xValue ?? ""));
+    const rows = [{
+      label: measure === "storage" ? "Stored now" : "Percent full",
+      value: measure === "storage"
+        ? `${formatAcreFeet(props.statValue ?? null)} acre-feet`
+        : formatPercent(props.statValue ?? null)
+    }];
+    if (detail?.fullLevel) {
+      rows.push({ label: "Full level", value: detail.fullLevel });
+    }
+    if (detail?.historyRank) {
+      rows.push({ label: "History rank", value: detail.historyRank });
+    }
+    if (detail?.change30d) {
+      rows.push(detail.change30d);
+    }
+    if (detail?.countyState) {
+      rows.push({ label: "County", value: detail.countyState });
+    }
+    if (detail?.reservoirCount !== undefined) {
+      rows.push({
+        label: "Reservoirs in this area",
+        value: String(detail.reservoirCount)
+      });
+    }
+    return chartTooltip(String(props.xValue ?? "Reservoir"), rows);
+  }) as TooltipFormatter;
 }
 
 function trendTooltipFormatter(
@@ -437,21 +472,31 @@ function normalTooltipFormatter(points: readonly NormalPoint[]): TooltipFormatte
       ?? (typeof dataContext?.label === "string" ? dataContext.label : "Reservoir");
     const stored = point?.storageAf
       ?? (typeof dataContext?.storage_af === "number" ? dataContext.storage_af : null);
-    return chartTooltip(title, [
+    const rows = [
       { label: "Drainage area", value: point?.watershed ?? "Not reported" },
       { label: "Usual storage for this date", value: `${formatAcreFeet(x)} acre-feet` },
       { label: "Stored now", value: `${formatAcreFeet(stored)} acre-feet` },
       { label: "Percent of the usual storage", value: formatPercent(y) }
-    ]);
+    ];
+    if (point?.percentOfCapacity != null) {
+      rows.push({ label: "Percent full", value: formatPercent(point.percentOfCapacity) });
+    }
+    if (point?.countyState) {
+      rows.push({ label: "County", value: point.countyState });
+    }
+    return chartTooltip(title, rows);
   }) as TooltipFormatter;
 }
 
-function histogramTooltipFormatter(): TooltipFormatter {
+function histogramTooltipFormatter(total: number): TooltipFormatter {
   return ((count: number, binMinValue: number, binMaxValue: number): string =>
-    chartTooltip(`${count} ${count === 1 ? "reservoir" : "reservoirs"}`, [{
-      label: "Percent full",
-      value: `${binMinValue.toFixed(1)}% to ${binMaxValue.toFixed(1)}%`
-    }])) as TooltipFormatter;
+    chartTooltip(`${count} ${count === 1 ? "reservoir" : "reservoirs"}`, [
+      { label: "Percent full", value: `${binMinValue.toFixed(1)}% to ${binMaxValue.toFixed(1)}%` },
+      {
+        label: "Share of the view",
+        value: formatPercent(total > 0 ? (count / total) * 100 : null)
+      }
+    ])) as TooltipFormatter;
 }
 
 /** The same empty state for every chart, so a filter that matches nothing
@@ -539,7 +584,7 @@ export async function renderArcgisBarChart(
    * state/overview-url.ts), which holds one name. */
   const chart = await mountChart(host, layer, model, ariaLabel,
     options.onSelect ? ActionModes.MonoSelection : ActionModes.Zoom,
-    barTooltipFormatter(options.measure ?? "percent"));
+    barTooltipFormatter(records, options.measure ?? "percent"));
 
   if (options.onSelect) {
     /* The SDK reports the selection as object IDs against the layer it was
@@ -1054,5 +1099,5 @@ export async function renderArcgisDistributionChart(
   model.setAxisTitleText("Percent full", 0);
   model.setAxisTitleText("Reservoirs", VALUE_AXIS);
   await mountChart(host, layer, model, ariaLabel, ActionModes.Zoom,
-    histogramTooltipFormatter());
+    histogramTooltipFormatter(values.length));
 }

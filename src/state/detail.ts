@@ -92,7 +92,7 @@ function formatSignedAcreFeet(value: number | null): string {
 }
 
 /** A movement in both absolute and relative terms, so small and large reservoirs compare. */
-function formatChange(
+export function formatChange(
   amount: number | null, percent: number | null, since: string | null = null
 ): string {
   const acreFeet = formatSignedAcreFeet(amount);

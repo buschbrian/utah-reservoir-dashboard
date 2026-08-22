@@ -13,6 +13,8 @@ import {
   type ReservoirGeography
 } from "./data/rollup";
 import { stateName } from "./data/state-vocabulary";
+import { capacityBasisName, changeLabel, formatChange, rankWithYears } from "./state/detail";
+import { formatAcreFeet } from "./viz/format";
 import { STALE_COLOR, storageClass } from "./viz/classes";
 import { formatPercent } from "./viz/format";
 
@@ -122,6 +124,35 @@ export interface OverviewChartRecord {
    * the same table the map is drawn from (ADR-008). */
   classLabel: string;
   classColor: string;
+  /**
+   * What a hover on this mark adds beyond the bar's own number.
+   *
+   * Present only when the mark answers for one reservoir. A drainage area's
+   * rollup has no history rank or county to name, and inventing one from its
+   * largest member would put one reservoir's facts under an area's name --
+   * so the field stays unset there and the tooltip stays short.
+   */
+  detail?: ChartRecordDetail;
+}
+
+/**
+ * The per-reservoir rows a chart tooltip can add, phrased once.
+ *
+ * The wording comes from the details panel's own helpers, so a rank or a
+ * full level reads the same under a chart as it does in the panel -- two
+ * surfaces saying one thing in two ways is how a vocabulary drifts (ADR-006).
+ */
+export interface ChartRecordDetail {
+  /** The reservoir's full level and which kind of full level it is. */
+  fullLevel: string;
+  /** Position in this site's own record, said as a position first. */
+  historyRank?: string;
+  /** The thirty-day movement, labelled with the interval it really covers. */
+  change30d?: { label: string; value: string };
+  /** Where the water is, when the payload names a county. */
+  countyState?: string;
+  /** Rollups only: how many reservoirs the group's numbers answer for. */
+  reservoirCount?: number;
 }
 
 /* A bar reads as a quantity twice: its length and its colour. The two have
@@ -440,6 +471,37 @@ function rankReservoirs(reservoirs: readonly Reservoir[], rank: ChartRank): Rese
   return ordered.sort((a, b) => numberOrLast(b.capacity_af) - numberOrLast(a.capacity_af));
 }
 
+/**
+ * The hover rows a one-reservoir mark can add, phrased by the details
+ * panel's own helpers so the two surfaces cannot drift apart.
+ *
+ * Each row is present only when the payload carries the fact: a reservoir
+ * with no history rank yet shows no rank row rather than an empty one.
+ */
+function chartDetail(reservoir: Reservoir): ChartRecordDetail {
+  const basis = capacityBasisName(reservoir.capacity_basis);
+  const detail: ChartRecordDetail = {
+    fullLevel: `${formatAcreFeet(reservoir.capacity_af)} acre-feet${
+      basis ? `, measured as ${basis}` : ""}`
+  };
+  if (reservoir.seasonal_percentile !== null) {
+    detail.historyRank = rankWithYears(
+      reservoir.seasonal_percentile, reservoir.seasonal_sample_years,
+      reservoir.seasonal_rank ?? null, reservoir.seasonal_rank_of ?? null);
+  }
+  if (reservoir.change_30d_af !== null) {
+    detail.change30d = {
+      label: changeLabel("Change in 30 days", reservoir.change_30d_elapsed_days),
+      value: formatChange(reservoir.change_30d_af, reservoir.change_30d_pct,
+        reservoir.change_30d_reference_date)
+    };
+  }
+  if (reservoir.county_name && reservoir.state) {
+    detail.countyState = `${reservoir.county_name}, ${reservoir.state}`;
+  }
+  return detail;
+}
+
 export function largestReservoirRecords(
   reservoirs: readonly Reservoir[], options: number | ChartOptions = {}
 ): OverviewChartRecord[] {
@@ -467,7 +529,8 @@ export function largestReservoirRecords(
         : reservoir.pct_of_capacity ?? 0,
       storageAf: reservoir.current_storage_af,
       capacityAf: reservoir.capacity_af ?? 0,
-      ...classOf(reservoir.pct_of_capacity ?? 0)
+      ...classOf(reservoir.pct_of_capacity ?? 0),
+      detail: chartDetail(reservoir)
     }));
 }
 
@@ -827,6 +890,9 @@ export interface NormalPoint {
   normalAf: number;
   /** Above 100 is wetter than usual for the date, below is drier. */
   percentOfNormal: number;
+  /** How full the reservoir is against its own full level, where known. */
+  percentOfCapacity: number | null;
+  countyState?: string;
   classLabel: string;
   classColor: string;
 }
@@ -850,6 +916,10 @@ export function normalComparison(reservoirs: readonly Reservoir[]): NormalPoint[
       normalAf: reservoir.seasonal_normal_af ?? 0,
       percentOfNormal: Number((reservoir.pct_of_seasonal_normal
         ?? (reservoir.current_storage_af / (reservoir.seasonal_normal_af ?? 1)) * 100).toFixed(1)),
+      percentOfCapacity: reservoir.pct_of_capacity,
+      ...(reservoir.county_name && reservoir.state
+        ? { countyState: `${reservoir.county_name}, ${reservoir.state}` }
+        : {}),
       ...classOf(reservoir.pct_of_capacity ?? reservoir.pct_of_record_max ?? 0)
     }))
     .sort((a, b) => a.percentOfNormal - b.percentOfNormal);
@@ -874,7 +944,11 @@ export function watershedRecords(reservoirs: readonly Reservoir[]): OverviewChar
       percent,
       storageAf: rollup.storageAf,
       capacityAf: rollup.capacityAf,
-      ...classOf(percent)
+      ...classOf(percent),
+      /* A rollup has no rank, county or movement of its own; what it can
+       * say is how many reservoirs its numbers answer for. */
+      detail: { fullLevel: `${formatAcreFeet(rollup.capacityAf)} acre-feet`,
+                reservoirCount: group.length }
     };
   }).sort((a, b) => b.capacityAf - a.capacityAf)
     .map((record, index) => ({ ...record, id: index + 1 }));

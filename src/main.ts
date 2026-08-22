@@ -26,7 +26,7 @@ import {
 } from "./data/opening-scope";
 import { readStoredPlace, resolveOpeningPlace, searchWithPlace } from "./state/opening-preference";
 import { offeredStates } from "./data/state-vocabulary";
-import { createOpeningSplash, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
+import { createOpeningSplash, createReopenControl, shouldAskWhere, wasDismissed } from "./ui/opening-splash";
 import {
   asScoped, isLakeMead, isLakePowell, isLate, rollupOfScoped,
   type ScopedReservoirs,
@@ -1203,18 +1203,24 @@ if (!supportsDashboard(browserCapabilities())) {
   wireWhereControl(openingRosters, openingScope.selection);
   /* The splash asks only when nothing else answered -- never over a shared
    * link, never over a remembered place, never twice. Built from the rosters
-   * already fetched, so it costs no request and cannot arrive late. */
-  if (shouldAskWhere(openingPlace.source, wasDismissed(), window.location.search)) {
-    const splash = createOpeningSplash({
-      states: offeredStates({
-        reservoirStates: published.map((reservoir) => reservoir.waterbody_states ?? reservoir.state),
-        drainageAreaStates: openingRosters.areas.map((area) => area.states)
-      }).map((option) => option.code),
-      regions: openingRosters.regions
-    });
-    if (splash) {
-      document.body.append(splash.element);
+   * already fetched, so it costs no request and cannot arrive late. It is
+   * built even when it does not open, because the reopen control beside the
+   * place filters opens this same dialog: one chooser, not two lists. */
+  const splash = createOpeningSplash({
+    states: offeredStates({
+      reservoirStates: published.map((reservoir) => reservoir.waterbody_states ?? reservoir.state),
+      drainageAreaStates: openingRosters.areas.map((area) => area.states)
+    }).map((option) => option.code),
+    regions: openingRosters.regions
+  });
+  if (splash) {
+    document.body.append(splash.element);
+    if (shouldAskWhere(openingPlace.source, wasDismissed(), window.location.search)) {
       splash.open();
+    } else {
+      for (const host of document.querySelectorAll<HTMLElement>(".filters")) {
+        placeInSlot(host, "reopen", createReopenControl(() => splash.open()));
+      }
     }
   }
 

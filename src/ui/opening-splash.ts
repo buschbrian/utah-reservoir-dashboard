@@ -245,3 +245,26 @@ export function createOpeningSplash(places: SplashPlaces): OpeningSplash | null 
 }
 
 export { DISMISSED_STORAGE_KEY, wasDismissed };
+
+/**
+ * The way back to a question the page asked once and never asked again.
+ *
+ * `shouldAskWhere` refuses to open over any query string, and its comment
+ * records why that rule must not weaken for links. A reader *asking* to
+ * see the chooser again is the opposite case: not an interruption but a
+ * request, and it changes no URL state of its own -- the dialog's own
+ * buttons navigate, so until one is pressed this is only text on a page.
+ *
+ * Native button, like the dialog itself: the splash left Calcite for the
+ * same axe-core reasons at 360 pixels, and a control beside Calcite selects
+ * is still allowed to be native when native is what survives.
+ */
+export function createReopenControl(onOpen: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "splash-reopen";
+  button.textContent = "Choose another place";
+  button.setAttribute("aria-label", "Open the place chooser");
+  button.addEventListener("click", onOpen);
+  return button;
+}

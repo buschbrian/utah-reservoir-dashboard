@@ -82,6 +82,10 @@ const userTextFiles = [
   // The filter labels, the sentence that reports what each page is showing,
   // and the axis titles on the storage-against-drought chart.
   "src/viz/drought-scatter.ts",
+  // The chart hover tooltips: they carry reader-visible rows phrased with
+  // the details panel's vocabulary, so they answer to the same word list.
+  "src/overview-charts.ts",
+  "src/overview-model.ts",
   // The two charts that rank and count the drainage areas. Both write their
   // own descriptions, which a screen reader reads as the chart.
   "src/viz/drought-gap.ts",
