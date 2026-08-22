@@ -37,6 +37,7 @@
  */
 import "@esri/calcite-components/components/calcite-label";
 import "@esri/calcite-components/components/calcite-option";
+import "@esri/calcite-components/components/calcite-option-group";
 import "@esri/calcite-components/components/calcite-select";
 import type { OpeningRosters, OpeningSelection } from "../data/opening-scope";
 import {
@@ -161,6 +162,15 @@ function buildAxisSelect(
  * Replaces `select`'s options with `axis.options` and marks `axis.value`
  * selected.
  *
+ * Consecutive options carrying the same `group` are wrapped in one
+ * `calcite-option-group` heading, which is how a subregion list shows the
+ * regions it belongs to and a basin list shows its subregions. Indented
+ * groups inside one menu, not flyout submenus: measured at 360px, where a
+ * flyout's full list is several screens of popup scroll and hover is not
+ * available anyway, an option group keeps today's exact control footprint
+ * and the browser's own keyboard navigation of a native `<select>` --
+ * which is what `calcite-select` renders internally.
+ *
  * The `selected` attribute alone, not the attribute and an assigned `.value`.
  * This is not what `createLevelControl` does and the two are not the same
  * shape: that control builds its options once and never rebuilds them, using
@@ -175,12 +185,23 @@ function buildAxisSelect(
  */
 function fillAxisSelect(select: HTMLElement, axis: WhereAxis): void {
   select.replaceChildren();
+  let group: HTMLElement | null = null;
+  let current: string | undefined;
   for (const option of axis.options) {
+    if (option.group !== current) {
+      group = option.group === undefined ? null : (() => {
+        const node = document.createElement("calcite-option-group");
+        node.setAttribute("label", option.group!);
+        select.append(node);
+        return node;
+      })();
+      current = option.group;
+    }
     const node = document.createElement("calcite-option");
     node.setAttribute("value", option.value);
     node.textContent = option.label;
     if (option.value === axis.value) node.setAttribute("selected", "");
-    select.append(node);
+    (group ?? select).append(node);
   }
 }
 

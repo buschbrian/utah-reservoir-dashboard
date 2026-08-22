@@ -253,6 +253,14 @@ export function filterOverview(
 export interface FilterOption {
   code: string;
   label: string;
+  /**
+   * The coarser place this choice sits in, rendered as the heading of the
+   * group it appears under. Absent for a choice with no parent on offer --
+   * the leading "All ..." rows, and any record whose payload carries no
+   * parent to name. Consecutive equal headings become one group; callers
+   * must keep same-group rows adjacent (the builders here sort so they are).
+   */
+  group?: string;
 }
 
 /**
@@ -299,11 +307,8 @@ export function watershedOptions(
   reservoirs: readonly Reservoir[],
   level = 6,
   names: ReadonlyMap<string, string> = new Map()
-): Array<{
-  code: string;
-  label: string;
-}> {
-  const labels = new Map<string, string>();
+): FilterOption[] {
+  const labels = new Map<string, { label: string; group?: string }>();
   for (const reservoir of reservoirs) {
     if (!reservoir.huc6) continue;
     /* At the coarser level the code is the first four digits -- fixed-width
@@ -315,10 +320,16 @@ export function watershedOptions(
     const label = code === reservoir.huc6
       ? reservoir.huc6_name ?? code
       : names.get(code) ?? code;
-    labels.set(code, label);
+    /* At the finest level each basin is grouped under the subregion it
+     * belongs to, so the hierarchy shows in one control rather than being
+     * implied by a second select beside it. Only when the roster can name
+     * the subregion: a raw four-digit heading says nothing a reader reads. */
+    const subregion = level === 6 ? names.get(reservoir.huc6.slice(0, 4)) : undefined;
+    labels.set(code, subregion ? { label, group: subregion } : { label });
   }
-  return [...labels].map(([code, label]) => ({ code, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return [...labels].map(([code, choice]) => ({ code, ...choice }))
+    .sort((a, b) =>
+      (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label));
 }
 
 /**
@@ -352,7 +363,7 @@ export function geographicChoices(
     chosen.subregion === "all" || subregionOf(item) === chosen.subregion);
   return {
     subregions: subregionOptions(byState, names),
-    drainageAreas: watershedOptions(bySubregion),
+    drainageAreas: watershedOptions(bySubregion, 6, names),
     /* Narrowed by the state alone, not by the subregion: a county cuts
      * across drainage areas, so holding the reader's county while they move
      * between subregions is a choice still on offer, not a stale one. */
@@ -379,26 +390,25 @@ export function subregionNames(payload: {
  * control would show a reader a filter that can only narrow to nothing, so
  * the emptiness is the signal to leave the control out.
  *
- * Labelled with the state and keyed on the code. Sorted by label, which puts
- * "Summit County, CO" before "Summit County, UT" rather than leaving two
- * identical-looking rows in payload order.
+ * Keyed on the five-digit FIPS code and grouped under the county's own state,
+ * so two Summit Counties sit under different headings and the label does not
+ * have to carry `, ST` to tell them apart -- which is why the suffix went
+ * away with the nesting. A record with no state stays ungrouped under its
+ * bare name rather than vanishing. Sorted state first, then name, so each
+ * group's rows are contiguous.
  */
-export function countyOptions(reservoirs: readonly Reservoir[]): Array<{
-  code: string;
-  label: string;
-}> {
-  const labels = new Map<string, string>();
+export function countyOptions(reservoirs: readonly Reservoir[]): FilterOption[] {
+  const labels = new Map<string, { label: string; group?: string }>();
   for (const reservoir of reservoirs) {
     if (!reservoir.county_fips || !reservoir.county_name) continue;
-    labels.set(
-      reservoir.county_fips,
+    labels.set(reservoir.county_fips,
       reservoir.state
-        ? `${reservoir.county_name}, ${reservoir.state}`
-        : reservoir.county_name
-    );
+        ? { label: reservoir.county_name, group: reservoir.state }
+        : { label: reservoir.county_name });
   }
-  return [...labels].map(([code, label]) => ({ code, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return [...labels].map(([code, choice]) => ({ code, ...choice }))
+    .sort((a, b) =>
+      (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label));
 }
 
 /**

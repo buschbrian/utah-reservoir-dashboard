@@ -253,7 +253,6 @@ async function renderOverview(
   const countyChoices = countyOptions(allReservoirs);
   const stateChoices = stateOptions(allReservoirs);
   const widestScope = overviewScope(allReservoirs, WIDEST_SCOPE);
-  const watershedChoices = watershedOptions(widestScope);
   content.innerHTML = `
     <!-- Two rows, and each row is one kind of thing: what this section is
          and how to undo it, then the controls themselves. They used to share
@@ -489,20 +488,11 @@ async function renderOverview(
   }
 
   const watershed = document.querySelector<HTMLSelectElement>("#watershed-filter");
-  for (const choice of watershedChoices) {
-    const option = document.createElement("option");
-    option.value = choice.code;
-    option.textContent = choice.label;
-    watershed?.append(option);
-  }
 
-  /* The county control is offered only when the payload carries counties.
-   * The assignment ships with a morning's refresh, so the published payload
-   * has none until then -- and a filter whose every choice narrows to nothing
-   * is worse than no filter. The field is hidden rather than absent so the
-   * markup, and the tests that read it, stay one shape. */
   /* The subregion names travel in the payload's own envelope (ADR-048), so a
-   * code the roster does not carry is labelled by its code rather than lost. */
+   * code the roster does not carry is labelled by its code rather than lost.
+   * They are also what the drainage-area list's group headings read, which is
+   * why this map is built before that list is first filled. */
   const subregionNames = new Map<string, string>(
     subregions.map((entry) => [entry.huc4, entry.name]));
   /* Built from the widest scope like the drainage-area list, and for the
@@ -510,10 +500,21 @@ async function renderOverview(
    * restored, or a shared ?huc4= would be discarded against an empty
    * control. */
   const subregionChoices = subregionOptions(widestScope, subregionNames);
+  const watershedChoices = watershedOptions(widestScope, 6, subregionNames);
+  /* The initial fill runs through `fillOptions` so the basins land under
+   * their subregion headings from the first paint, the way every later
+   * repopulation draws them. */
+  if (watershed) fillOptions(watershed, watershedChoices, "All drainage areas");
 
   /* Repopulating a `<select>` has to preserve the reader's choice when it is
    * still on offer. Rebuilding blind resets the control on every keystroke,
-   * which is the bug this exists to not have. */
+   * which is the bug this exists to not have.
+   *
+   * Consecutive options carrying the same `group` are rendered under one
+   * `<optgroup>` heading, which is how the county list shows its states and
+   * the drainage-area list shows its subregions: indented groups inside one
+   * dropdown, measured to fit at 360px, rather than a flyout submenu whose
+   * full list is several screens tall there. */
   function fillOptions(
     element: HTMLSelectElement, options: FilterOption[], allLabel: string
   ): void {
@@ -523,11 +524,22 @@ async function renderOverview(
     all.value = "all";
     all.textContent = allLabel;
     element.append(all);
+    let group: HTMLOptGroupElement | null = null;
+    let current: string | undefined;
     for (const choice of options) {
+      if (choice.group !== current) {
+        group = choice.group === undefined ? null : (() => {
+          const node = document.createElement("optgroup");
+          node.label = choice.group!;
+          element.append(node);
+          return node;
+        })();
+        current = choice.group;
+      }
       const option = document.createElement("option");
       option.value = choice.code;
       option.textContent = choice.label;
-      element.append(option);
+      (group ?? element).append(option);
     }
     element.value = options.some((choice) => choice.code === wanted) ? wanted : "all";
   }
@@ -536,12 +548,12 @@ async function renderOverview(
   const subregion = document.querySelector<HTMLSelectElement>("#subregion-filter");
   const county = document.querySelector<HTMLSelectElement>("#county-filter");
   const countyField = document.querySelector<HTMLElement>("#county-field");
-  for (const choice of countyChoices) {
-    const option = document.createElement("option");
-    option.value = choice.code;
-    option.textContent = choice.label;
-    county?.append(option);
-  }
+  /* The county control is offered only when the payload carries counties.
+   * The assignment ships with a morning's refresh, so the published payload
+   * has none until then -- and a filter whose every choice narrows to nothing
+   * is worse than no filter. The field is hidden rather than absent so the
+   * markup, and the tests that read it, stay one shape. */
+  if (county) fillOptions(county, countyChoices, "All counties");
   if (countyField) countyField.hidden = countyChoices.length === 0;
   /* The state list is built once from the widest scope: it is the coarsest
    * control, so nothing above it can narrow it. The county list starts wide

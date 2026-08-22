@@ -49,10 +49,15 @@ const AREA_WIDTH = 6;
  */
 export const ALL_VALUE = "all";
 
-/** One row a `<calcite-select>` can offer. */
+/** One row a `<calcite-select>` can offer. A row carrying `group` renders
+ * under a heading of that name, which is how the hierarchy shows inside one
+ * menu: subregion rows sit under their region, basin rows under their
+ * subregion. Indented groups, not flyout submenus -- measured at 360px,
+ * where a flyout's full list is several screens of popup scroll. */
 export interface WhereOption {
   value: string;
   label: string;
+  group?: string;
 }
 
 /** One select's worth of state: what to offer, and which one is chosen. */
@@ -149,6 +154,16 @@ export function whereControlView(rosters: OpeningRosters, selection: OpeningSele
 
   const stateOptions = offeredStates({ drainageAreaStates: rosters.areas.map((area) => area.states) });
 
+  /* The coarser names each finer list groups itself under. A subregion row
+   * sits under its region's published name; a basin row under its
+   * subregion's -- plain, without the `subregion` suffix the option label
+   * carries, because the heading is stating a parent level, not offering a
+   * sibling. An area the roster cannot place stays ungrouped rather than
+   * wearing a raw digit heading. */
+  const regionNames = new Map(rosters.regions.map((region) => [region.huc6, region.name]));
+  const subregionNames = new Map(
+    rosters.subregions.map((subregion) => [subregion.huc6, subregion.name]));
+
   return {
     state: {
       value: scope.selection.state,
@@ -170,15 +185,25 @@ export function whereControlView(rosters: OpeningRosters, selection: OpeningSele
         : ALL_VALUE,
       options: [
         { value: ALL_VALUE, label: "All subregions" },
-        ...scope.subregions.map((subregion) =>
-          ({ value: subregion.huc6, label: subregionOptionLabel(subregion.name) }))
+        ...scope.subregions.map((subregion) => {
+          const group = regionNames.get(subregion.huc6.slice(0, REGION_WIDTH));
+          return group
+            ? { value: subregion.huc6,
+              label: subregionOptionLabel(subregion.name), group }
+            : { value: subregion.huc6, label: subregionOptionLabel(subregion.name) };
+        })
       ]
     },
     area: {
       value: resolvedArea !== null && resolvedArea.length === AREA_WIDTH ? resolvedArea : ALL_VALUE,
       options: [
         { value: ALL_VALUE, label: "All drainage areas" },
-        ...scope.areas.map((area) => ({ value: area.huc6, label: area.name }))
+        ...scope.areas.map((area) => {
+          const group = subregionNames.get(area.huc6.slice(0, SUBREGION_WIDTH));
+          return group
+            ? { value: area.huc6, label: area.name, group }
+            : { value: area.huc6, label: area.name };
+        })
       ]
     }
   };

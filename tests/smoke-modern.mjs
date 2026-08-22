@@ -3933,6 +3933,194 @@ for (const failure of [
   await context.close();
 }
 
+/*
+ * Stream B: the nested navigation. Counties sit under their state and
+ * drainage areas under their subregion as indented option groups inside one
+ * menu -- not flyout submenus, measured out at 360px, where the full county
+ * list is several screens of popup scroll and hover does not exist. What
+ * only the browser can see here: the groups actually render as optgroup /
+ * calcite-option-group elements, choosing a state leaves that state's
+ * counties and nothing else, and every choice stays reachable by keyboard.
+ */
+{
+  console.log("\n=== Nested navigation");
+  for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
+    const context = await newPageContext(browser, viewport);
+    const tab = await context.newPage();
+    const errors = [];
+    tab.on("pageerror", (err) => errors.push(`uncaught: ${err.message}`));
+    tab.on("console", (message) => {
+      if (message.type() === "error") errors.push(`console: ${message.text()}`);
+    });
+    const label = `Nested navigation (${viewport.name})`;
+    try {
+      // Storage Charts first: counties under state, basins under subregion.
+      await tab.goto(`${URL}overview.html`,
+        { waitUntil: "domcontentloaded", timeout: 60000 });
+      await tab.waitForFunction(() => window.__overviewReady !== undefined,
+        null, { timeout: 120000 });
+      const readNesting = () => tab.evaluate(() => {
+        const groupsOf = (selector) => [...document.querySelectorAll(
+          `${selector} optgroup`)].map((group) => ({
+            label: group.label,
+            options: group.querySelectorAll("option").length
+          }));
+        const looseOptions = (selector) => [...document.querySelectorAll(
+          `${selector} > option`)]
+          .filter((option) => option.value !== "all").length;
+        return {
+          countyGroups: groupsOf("#county-filter"),
+          countyLoose: looseOptions("#county-filter"),
+          countyCount: document.querySelectorAll("#county-filter option").length - 1,
+          watershedGroups: groupsOf("#watershed-filter"),
+          watershedLoose: looseOptions("#watershed-filter"),
+          stateValue: document.querySelector("#state-filter")?.value ?? "",
+          viewport: document.documentElement.clientWidth,
+          scroll: document.documentElement.scrollWidth
+        };
+      });
+      const before = await readNesting();
+      console.log(`  ${label}:`, JSON.stringify({
+        countyGroups: before.countyGroups.length,
+        countyCount: before.countyCount,
+        watershedGroups: before.watershedGroups.length
+      }));
+      check(before.scroll <= before.viewport + 1,
+        `${label}: the page scrolls sideways with grouped selects`);
+      /* Every county under exactly one state heading, none loose: the
+       * hierarchy is stated, not implied. */
+      check(before.countyGroups.length > 0 || before.countyCount === 0,
+        `${label}: the county list has no state groupings`);
+      check(before.countyLoose === 0,
+        `${label}: ${before.countyLoose} county options sit outside any state grouping`);
+      check(before.countyGroups.reduce((sum, group) => sum + group.options, 0)
+        === before.countyCount,
+        `${label}: county groupings do not hold every county option`);
+      for (const group of before.countyGroups) {
+        check(/^[A-Z]{2}$/.test(group.label),
+          `${label}: a county grouping is labelled "${group.label}", not a state code`);
+      }
+      for (const group of before.watershedGroups) {
+        check(!/^\d+$/.test(group.label),
+          `${label}: a drainage-area grouping is labelled "${group.label}", `
+          + "a raw code no reader asked for");
+      }
+      if (before.countyGroups.length > 0) {
+        /* Choose the state of the first county group and expect the list to
+         * narrow to what that state leaves. Not to that state alone: a
+         * state filter means the water (ADR-060), so Utah's list holds Bear
+         * Lake, whose county sits in Idaho -- what must hold is that no new
+         * state appears, the chosen state's counties survive intact, and
+         * everything else thins out. */
+        const chosen = before.countyGroups[0].label;
+        /* Below 640px the filter bar is folded behind its own toggle, and a
+         * control that is not on screen cannot take a choice -- open it
+         * first, exactly as a reader must. */
+        await tab.locator("#overview-filter-toggle")
+          .click({ timeout: 5000 }).catch(() => {});
+        await tab.selectOption("#state-filter", chosen);
+        await tab.waitForFunction((code) =>
+          window.__overviewReady !== undefined
+          && window.location.search.includes(`state=${code}`),
+        chosen, { timeout: 60000 });
+        const after = await readNesting();
+        const beforeCount = Object.fromEntries(
+          before.countyGroups.map((group) => [group.label, group.options]));
+        const afterCount = Object.fromEntries(
+          after.countyGroups.map((group) => [group.label, group.options]));
+        check(after.countyLoose === 0,
+          `${label}: after choosing ${chosen}, county options sit outside a grouping`);
+        for (const code of Object.keys(afterCount)) {
+          check(code in beforeCount,
+            `${label}: choosing ${chosen} added a ${code} grouping that was not `
+            + "offered before");
+          if (code === chosen) {
+            check(afterCount[code] === beforeCount[code],
+              `${label}: choosing ${chosen} dropped counties from its own grouping `
+              + `(${beforeCount[code]} -> ${afterCount[code]})`);
+          }
+        }
+        const afterTotal = Object.values(afterCount)
+          .reduce((sum, count) => sum + count, 0);
+        const beforeTotal = Object.values(beforeCount)
+          .reduce((sum, count) => sum + count, 0);
+        check(afterTotal < beforeTotal,
+          `${label}: choosing ${chosen} left ${afterTotal} counties, `
+          + `not narrower than the ${beforeTotal} offered before`);
+        check(after.scroll <= after.viewport + 1,
+          `${label}: the page scrolls sideways after the county list narrowed`);
+      }
+
+      // The where control, on the drought page, which offers every axis.
+      await tab.goto(`${URL}drought.html`,
+        { waitUntil: "domcontentloaded", timeout: 60000 });
+      await tab.waitForFunction(() => window.__droughtReady !== undefined,
+        null, { timeout: 120000 });
+      await tab.waitForFunction(() =>
+        document.querySelector(
+          '.where-control calcite-select[label="Which subregion to show"]') !== null,
+      { timeout: 90000 });
+      const whereNesting = await tab.evaluate(() => {
+        const groupsOf = (name) => [...document.querySelectorAll(
+          `.where-control calcite-select[label="${name}"] calcite-option-group`)]
+          .map((group) => ({
+            label: group.getAttribute("label"),
+            options: group.querySelectorAll("calcite-option").length
+          }));
+        return {
+          subregionGroups: groupsOf("Which subregion to show"),
+          areaGroups: groupsOf("Which drainage area to show"),
+          stateGroups: groupsOf("Which state to show")
+        };
+      });
+      console.log(`  ${label}: where control groups `
+        + JSON.stringify(whereNesting));
+      check(whereNesting.stateGroups.length === 0,
+        `${label}: the state list carries groupings though nothing sits above it`);
+      check(whereNesting.subregionGroups.length > 0
+        && whereNesting.subregionGroups.every((group) => /^[A-Z]/.test(group.label)),
+        `${label}: subregion rows are not grouped under named regions `
+        + JSON.stringify(whereNesting.subregionGroups));
+      check(whereNesting.areaGroups.length > 0
+        && whereNesting.areaGroups.every((group) => !/^\d+$/.test(group.label)),
+        `${label}: basin rows are not grouped under named subregions `
+        + JSON.stringify(whereNesting.areaGroups));
+      /* Keyboard reachability: every grouped row stays an enabled option of
+       * the one native `<select>` the control renders internally -- nothing
+       * parked outside the tab order behind a pointer-only flyout. */
+      const reachable = await tab.evaluate(() =>
+        ["Which subregion to show", "Which drainage area to show"].map((name) => {
+          const select = document.querySelector(
+            `.where-control calcite-select[label="${name}"]`);
+          const options = [...select.querySelectorAll("calcite-option")];
+          return {
+            name,
+            total: options.length,
+            disabled: options.filter((option) => option.hasAttribute("disabled")).length,
+            grouped: select.querySelectorAll("calcite-option-group").length,
+            loose: [...select.querySelectorAll(":scope > calcite-option")]
+              .filter((option) => option.getAttribute("value") !== "all").length
+          };
+        }));
+      for (const axis of reachable) {
+        check(axis.disabled === 0,
+          `${label}: ${axis.disabled} ${axis.name} options are disabled`);
+        check(axis.loose === 0,
+          `${label}: ${axis.loose} ${axis.name} options sit outside any grouping`);
+        check(axis.grouped > 0,
+          `${label}: the ${axis.name} list carries no grouping at all`);
+      }
+    } catch (error) {
+      failures.push(`${label}: ${error.message}`);
+    } finally {
+      if (errors.length) {
+        for (const message of errors) failures.push(`${label}: ${message}`);
+      }
+      await context.close();
+    }
+  }
+}
+
 await browser.close();
 server.close();
 

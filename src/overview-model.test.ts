@@ -244,11 +244,14 @@ describe("the county axis", () => {
     expect(filterOverview(all, filters({ county: "08117" }))).toEqual([summitCo]);
   });
 
-  it("labels the choices with their state, and keys them on the code", () => {
+  /* Nested under the state heading, the label no longer carries `, ST`:
+   * the group says which state, and two Summit Counties stay apart by
+   * sitting under different ones. */
+  it("groups the choices under their state, and keys them on the code", () => {
     expect(countyOptions(all)).toEqual([
-      { code: "08117", label: "Summit County, CO" },
-      { code: "49043", label: "Summit County, UT" },
-      { code: "49053", label: "Washington County, UT" }
+      { code: "08117", label: "Summit County", group: "CO" },
+      { code: "49043", label: "Summit County", group: "UT" },
+      { code: "49053", label: "Washington County", group: "UT" }
     ]);
   });
 
