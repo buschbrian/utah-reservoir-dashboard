@@ -62,6 +62,13 @@ export interface Reservoir {
   source_label: string;
   source_url: string;
   source_station_id: string | null;
+  /**
+   * The operator, where the reviewed roster names one. Published beside the
+   * name rather than inside it (ADR-079): "Courtright (Pg&E)" was a provider
+   * field wearing the water's name, and search needs the operator somewhere
+   * after the parenthetical leaves.
+   */
+  operator?: string | null;
   data_frequency: DataFrequency;
   stale_after_days: number;
   lat: number;

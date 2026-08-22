@@ -169,10 +169,11 @@ BOUNDARY_MARGIN_EXCEPTIONS = {
     "Haiwee",
     # 553 m (provider) and 774 m (dam), both in San Francisco Bay.
     "Leroy Anderson",
-    # 1.03 km and 1.05 km, both in San Francisco Bay.
-    "Coyote Res-Sta Clara",
+    # 1.03 km and 1.05 km, both in San Francisco Bay. Renamed 2026-08-22
+    # (ADR-079); the exception follows the water, not the old spelling.
+    "Coyote Lake",
     # 1.78 km and 1.70 km, both in Mono-Owens Lakes.
-    "Gem  Lake",
+    "Gem Lake",
     # R3's Colorado additions, both reviewed the same way: the provider point
     # and the reviewed dam point were measured separately and agree on the
     # area, which is what makes them close calls rather than doubtful

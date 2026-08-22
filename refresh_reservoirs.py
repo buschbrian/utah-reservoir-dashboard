@@ -120,7 +120,8 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
               data_frequency: str = "daily", stale_after_days: int = STALE_AFTER_DAYS,
               change_tolerance_days: int = 10,
               source_station_id: str | None = None,
-              normals: dict | None = None) -> dict:
+              normals: dict | None = None,
+              operator: str | None = None) -> dict:
     """Turn one storage series into the record the dashboards consume."""
     series = df.set_index("date")["storage_af"].sort_index()
     last_date = series.index[-1]
@@ -212,6 +213,11 @@ def summarize(name: str, item_id: int | None, lat: float, lon: float,
         "source_label": source_label,
         "source_url": source_url,
         "source_station_id": station,
+        # The operator, where the reviewed roster names one. Published rather
+        # than carried in the display name: a name reading "Courtright (Pg&E)"
+        # is a provider field wearing the water's name (ADR-079), and search
+        # needs the operator somewhere after the parenthetical leaves.
+        "operator": operator,
         "data_frequency": data_frequency,
         "stale_after_days": stale_after_days,
         "lat": lat,
@@ -812,6 +818,7 @@ def main() -> int:
             change_tolerance_days=45 if cadence == "monthly" else 10,
             source_station_id=station,
             normals=normals,
+            operator=ADMITTED_CDEC_RESERVOIRS[station].get("operator"),
         ))
         time.sleep(0.2)
 

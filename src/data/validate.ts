@@ -183,6 +183,7 @@ function isReservoir(value: unknown): value is Reservoir {
     (value.county_fips === undefined || hasNullableString(value.county_fips)) &&
     (value.county_name === undefined || hasNullableString(value.county_name)) &&
     (value.state === undefined || hasNullableString(value.state)) &&
+    (value.operator === undefined || hasNullableString(value.operator)) &&
     isOptionalStateList(value.waterbody_states) &&
     isOptionalStateList(value.connected_states);
 }

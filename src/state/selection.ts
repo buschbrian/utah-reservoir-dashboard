@@ -17,6 +17,8 @@
  * it out of the store is what lets the store stay browser-free.
  */
 
+import { FORMER_NAMES } from "../data/former-names";
+
 export interface SelectionListenerMeta {
   source: string;
 }
@@ -58,11 +60,13 @@ export function reservoirLabel<T extends Identified>(
 /**
  * The reservoir a stored selection or a shared link names.
  *
- * Three ways, most precise first. A station id is the identity and cannot be
+ * Four ways, most precise first. A station id is the identity and cannot be
  * ambiguous. A qualified label -- "Lost Creek, OR" -- is what the reader can
  * see on screen and what a link carries where a name is shared. A bare name
  * is what every link written before ADR-066 carries, and it resolves when
- * exactly one reservoir has it.
+ * exactly one reservoir has it. A former name -- the provider spelling this
+ * roster normalized (ADR-079) -- resolves through the committed table, so
+ * every link written before the rename keeps working.
  *
  * A bare name shared by two reservoirs resolves to **neither**. Picking the
  * first would answer a question the link did not ask, and the whole reason
@@ -83,7 +87,15 @@ export function findReservoir<T extends Identified>(
   if (byLabel) return byLabel;
   const named = reservoirs.filter((reservoir) =>
     normalizeSelectionValue(reservoir.name)?.toLowerCase() === wanted);
-  return named.length === 1 ? named[0]! : null;
+  if (named.length === 1) return named[0]!;
+  /* Fourth and last: the former-name table. Only reached when nothing on the
+   * current roster answers, so it can never shadow a live name that happens
+   * to collide with an old spelling. */
+  const station = FORMER_NAMES[wanted];
+  if (!station) return null;
+  return reservoirs.find((reservoir) =>
+    normalizeSelectionValue(reservoir.source_station_id)?.toLowerCase()
+    === station.toLowerCase()) ?? null;
 }
 
 export interface SelectionStore {

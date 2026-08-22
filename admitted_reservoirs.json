@@ -625,7 +625,7 @@
       }
     },
     "09223100:WY:BOR": {
-      "name": "Viva Naughton Res",
+      "name": "Lake Viva Naughton",
       "station_triplet": "09223100:WY:BOR",
       "lat": 41.96506,
       "lon": -110.6502,
@@ -1132,7 +1132,7 @@
       }
     },
     "10336710:NV:BOR": {
-      "name": "Marlette Lk nr Carson City",
+      "name": "Marlette Lake",
       "station_triplet": "10336710:NV:BOR",
       "lat": 39.17298,
       "lon": -119.90552,
@@ -1397,7 +1397,7 @@
       }
     },
     "12336500:MT:BOR": {
-      "name": "Nevada Creek Res",
+      "name": "Nevada Lake",
       "station_triplet": "12336500:MT:BOR",
       "lat": 46.80225,
       "lon": -112.8105,
@@ -1463,7 +1463,7 @@
       }
     },
     "12390000:MT:BOR": {
-      "name": "Thompson Falls Res",
+      "name": "Thompson Falls Reservoir",
       "station_triplet": "12390000:MT:BOR",
       "lat": 47.59143,
       "lon": -115.35036,
@@ -2587,7 +2587,7 @@
       }
     },
     "14234800:WA:BOR": {
-      "name": "Mossyrock Dam (Riffe Lk)",
+      "name": "Riffe Lake",
       "station_triplet": "14234800:WA:BOR",
       "lat": 46.535,
       "lon": -122.4236,

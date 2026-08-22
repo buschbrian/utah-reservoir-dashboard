@@ -156,6 +156,9 @@ export const RESERVOIR_GROUPS: readonly ApiFieldGroup[] = [
     f("source_label", "text", "Provider label stored by the pipeline."),
     f("source_url", "web address", "Provider service address."),
     f("source_station_id", "identifier", "Provider station or item identifier."),
+    f("operator", "text",
+      "Operator named by the reviewed roster, where one is known. Absent for the "
+      + "federal providers, whose operator is the provider.", true),
     f("data_frequency", "text", "Expected update schedule: daily or monthly."),
     f("stale_after_days", "days", "Late-data limit for this record."),
     f("lat", "decimal degrees", "Latitude of the provider or reviewed assignment point."),

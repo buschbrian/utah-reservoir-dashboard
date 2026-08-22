@@ -225,11 +225,15 @@ function normalize(value: string): string {
  * County is in here because it is the reason the axis exists (ADR-058):
  * readers ask for "Washington County", not for a drainage area. The state
  * goes in with it so Summit UT and Summit CO are separable by typing, the
- * same way the filter separates them by code.
+ * same way the filter separates them by code. The operator is in here
+ * because it used to be: "Courtright (Pg&E)" answered to "PG&E" until the
+ * parenthetical left the name (ADR-079), so the field it came from joined
+ * the search rather than leaving seven reservoirs unfindable.
  */
 function searchText(reservoir: Reservoir): string {
   return normalize([
     reservoir.name,
+    reservoir.operator ?? "",
     reservoir.huc6_name ?? "",
     reservoir.county_name ?? "",
     reservoir.state ?? ""

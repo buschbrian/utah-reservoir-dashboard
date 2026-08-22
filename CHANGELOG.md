@@ -7,6 +7,16 @@ and is not listed here.
 
 ### Added
 
+- **Twenty-six provider names normalized, and every old link kept working.**
+  Names like `Courtright (Pg&E)`, `Mossyrock Dam (Riffe Lk)` and
+  `Lake Pillsbury Nr Potter Vly 24Hr Avg` are now `Courtright Reservoir`,
+  `Riffe Lake` and `Lake Pillsbury` -- the water's own name, ruled per row
+  against NHD and GNIS evidence. A committed former-name table teaches the
+  name resolver each old spelling as a last resolution step, so saved links
+  and retired routes resolve forever. The operator each parenthetical used to
+  carry is now its own published field and joins the search text, so "PG&E"
+  still finds Courtright after the parenthetical leaves (ADR-079).
+
 - **The site now says what drains to each reservoir.** Every published
   reservoir was traced once against the U.S. Geological Survey's Network-Linked
   Data Index -- the contributing basin above its dam, then which published
