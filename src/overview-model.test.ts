@@ -244,11 +244,14 @@ describe("the county axis", () => {
     expect(filterOverview(all, filters({ county: "08117" }))).toEqual([summitCo]);
   });
 
-  it("labels the choices with their state, and keys them on the code", () => {
+  /* Nested under the state heading, the label no longer carries `, ST`:
+   * the group says which state, and two Summit Counties stay apart by
+   * sitting under different ones. */
+  it("groups the choices under their state, and keys them on the code", () => {
     expect(countyOptions(all)).toEqual([
-      { code: "08117", label: "Summit County, CO" },
-      { code: "49043", label: "Summit County, UT" },
-      { code: "49053", label: "Washington County, UT" }
+      { code: "08117", label: "Summit County", group: "CO" },
+      { code: "49043", label: "Summit County", group: "UT" },
+      { code: "49053", label: "Washington County", group: "UT" }
     ]);
   });
 
@@ -479,6 +482,34 @@ describe("the geographic controls against the scope controls", () => {
     expect(all.length).toBeGreaterThan(1);
     expect(codes(geographicChoices(widest,
       { state: "all", subregion: all[0]! }, names).subregions)).toEqual(all);
+  });
+
+  /* The county list narrows by the chosen state, exactly as the subregion
+   * list does -- it was left out of that narrowing once and offered 157
+   * counties across 11 states whatever the reader had picked above it. */
+  it("narrows the county list to what the chosen state leaves", () => {
+    const all = codes(
+      geographicChoices(widest, openControls, names).counties);
+    expect(all.length).toBeGreaterThan(1);
+    /* The state comes off a published record rather than off the FIPS:
+     * a FIPS prefix is a numeric code, not the postal abbreviation the
+     * control offers. */
+    const state = payload.reservoirs
+      .find((item) => item.county_fips && item.state)!.state!;
+    const narrowed = geographicChoices(widest,
+      { state, subregion: "all" }, names).counties;
+    expect(narrowed.length).toBeGreaterThan(0);
+    expect(narrowed.length).toBeLessThan(all.length);
+  });
+
+  /* A county cuts across drainage areas: holding the reader's county while
+   * they move between subregions is a choice still on offer. */
+  it("does not narrow the county list when only a subregion is chosen", () => {
+    const everySubregion = codes(
+      geographicChoices(widest, openControls, names).subregions);
+    const withSubregion = codes(geographicChoices(widest,
+      { state: "all", subregion: everySubregion[0]! }, names).counties);
+    expect(withSubregion.length).toBeGreaterThan(0);
   });
 });
 

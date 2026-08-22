@@ -545,3 +545,23 @@ source for six real Arizona reservoirs, two of them federally owned with no
 current data in RISE at all, and if SRP ever publishes a stable
 per-reservoir identifier or a structured feed, it moves straight to the top
 of this list.
+
+## Still open, checked against the roster on 2026-08-21
+
+The survey above was made before California and Colorado were promoted. With
+those two built, the published roster holds 375 reservoirs, and six of the
+eleven states remain thin: **Idaho 25, Washington 18, Wyoming 9, Nevada 6,
+Arizona 4** — 62 reservoirs between them, fewer than Utah's 58 from the two
+federal providers alone. Oregon's 45 are federal as well.
+
+Nothing above has been acted on for those six. The two recommendations that
+still stand — USGS NWIS `00054` for the nine states with coverage, and USACE
+CWMS for the confirmed Columbia Basin gap — have not been measured against
+the current roster, and Nevada's own entry above says its search was not
+exhaustive.
+
+The next pass, and the order to work it in, is scoped in
+[`WATER-BODY-AND-NAVIGATION-SCOPING.md`](WATER-BODY-AND-NAVIGATION-SCOPING.md),
+section 5. **This document remains the authority for what each source is**;
+that one records only what is left to do about it and what has to be counted
+before anyone can size it.

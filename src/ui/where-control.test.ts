@@ -232,12 +232,49 @@ describe("nextSelectionForArea", () => {
 });
 
 /*
+ * The nesting itself (WATER-BODY-AND-NAVIGATION-SCOPING.md item 3): each
+ * finer menu shows which coarser place its rows belong to, as indented
+ * group headings rather than flyout submenus -- measured at 360px, where a
+ * flyout is several screens of popup scroll.
+ */
+describe("whereControlView: the hierarchy shows inside each menu", () => {
+  it("groups subregion rows under their region's published name", () => {
+    const view = whereControlView(ROSTERS, { state: "all", area: "14" });
+    const rows = view.subregion.options.filter((row) => row.value !== ALL_VALUE);
+    expect(rows.map((row) => row.group))
+      .toEqual(["Upper Colorado Region", "Upper Colorado Region"]);
+  });
+
+  it("groups basin rows under their subregion's plain name", () => {
+    // Plain, without the "subregion" suffix the option label carries: the
+    // heading states a parent level, it does not offer a sibling.
+    const view = whereControlView(ROSTERS, { state: "all", area: "1401" });
+    const rows = view.area.options.filter((row) => row.value !== ALL_VALUE);
+    expect(rows.map((row) => [row.label, row.group])).toEqual([
+      ["Colorado Headwaters", "Colorado Headwaters"],
+      ["Upper Colorado-Dolores", "Colorado Headwaters"]
+    ]);
+  });
+
+  it("leaves the All rows ungrouped above every group", () => {
+    const view = whereControlView(ROSTERS, ALL);
+    expect(view.subregion.options[0]).toEqual({ value: ALL_VALUE, label: "All subregions" });
+    expect(view.area.options[0]).toEqual({ value: ALL_VALUE, label: "All drainage areas" });
+  });
+
+  it("keeps the state list ungrouped -- nothing sits above it", () => {
+    const view = whereControlView(ROSTERS, ALL);
+    for (const row of view.state.options) expect(row.group).toBeUndefined();
+    for (const row of view.region.options) expect(row.group).toBeUndefined();
+  });
+});
+
+/*
  * Which axes a host gets (ADR-071). `createWhereControl` builds the selects
  * and cannot be called here, but the rule it applies is this function, and
  * the rule is what the storage and snow pages depend on: a page that owns
  * its own drainage-area control must not be handed a second one.
- */
-describe("offeredAxes", () => {
+ */describe("offeredAxes", () => {
   it("gives the whole drill-down by default, in drill-down order", () => {
     expect(offeredAxes("area")).toEqual(["state", "region", "subregion", "area"]);
     expect(offeredAxes("area")).toEqual([...AXIS_ORDER]);
